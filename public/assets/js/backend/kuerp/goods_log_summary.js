@@ -1,0 +1,269 @@
+define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp/layui/layui.js'], function ($, undefined, Backend, Table, Form, Layui) {
+
+    var Controller = {
+        index: function () {
+
+            layui.use(['table','upload','form'], function(){
+                var table = layui.table;
+                upload = layui.upload;
+
+                var storesList = Config.storesList;
+                var stores = xmSelect.render({
+                    el: '#stores',
+                    language: 'zn',
+                    tips: '仓库',
+                    data: storesList
+                });
+
+                var goodsList = Config.goodsList;
+                var goods = xmSelect.render({
+                    el: '#goods',
+                    language: 'zn',
+                    tips: '商品',
+                    data: goodsList
+                });
+
+                table.render({
+                    elem: '#table'
+                    ,url:'kuerp/goods_log_summary/index'
+                    ,parseData: function(res){ //res 即为原始返回的数据
+                        return {
+                            "code": 0, //解析接口状态
+                            "msg": '', //解析提示文本
+                            "count": res.total, //解析数据长度
+                            "data": res.rows, //解析数据列表
+                            "countsum": res.count,
+                            "balance": res.balance
+                         };
+                    }
+                    ,toolbar: '#thisToolbar' //开启头部工具栏，并为其绑定左侧模板
+                    ,page: true
+                    ,totalRow: true
+                    ,cellMinWidth: 100 //全局定义常规单元格的最小宽度，layui 2.2.1 新增
+                    ,cols: [[
+                        {field: 'type_name', title: __('商品类别'), rowspan: 2,'totalRow':'合计'},
+                        {field: 'goods_code', title: __('商品编号'), rowspan: 2},
+                        {field: 'goods_name', title: __('商品名称'), rowspan: 2},
+                        {field: 'goods_barcode', title: __('商品条码'), rowspan: 2},
+                        {field: 'goods_spec', title: __('规格型号'), rowspan: 2},
+                        {field: 'unit_name', title: __('单位'), rowspan: 2},
+                        {field: 'store_code', title: __('仓库编号'), rowspan: 2},
+                        {field: 'store_name', title: __('仓库'), rowspan: 2},
+
+                        {field: 'period', title: __('期初'),colspan:2},
+                        {field: 'allocation_e', title: __('调拨入库'),colspan:2},
+                        {field: 'buy_o', title: __('普通采购'),colspan:2},
+                        {field: 'sale_e', title: __('销售退回'),colspan:2},
+                        {field: 'enter', title: __('入库合计'),colspan:2},
+                        {field: 'allocation_o', title: __('调拨出库'),colspan:2},
+                        {field: 'sale_o', title: __('普通销售'),colspan:2},
+                        {field: 'buy_e', title: __('采购退回'),colspan:2},
+                        {field: 'out', title: __('出库合计'),colspan:2},
+                        {field: 'balance', title: __('结存'),colspan:2},
+                    ],[
+                        {field: 'period_basics', title: __('数量'),totalRow:true},
+                        {field: 'period_cost', title: __('成本'),totalRow:true},
+                        {field: 'allocation_e_basics', title: __('数量'),totalRow:true},
+                        {field: 'allocation_e_cost', title: __('成本'),totalRow:true},
+                        {field: 'buy_o_basics', title: __('数量'),totalRow:true},
+                        {field: 'buy_o_cost', title: __('成本'),totalRow:true},
+                        {field: 'sale_e_basics', title: __('数量'),totalRow:true},
+                        {field: 'sale_e_cost', title: __('成本'),totalRow:true},
+                        {field: 'enter_basics', title: __('数量'),totalRow:true},
+                        {field: 'enter_cost', title: __('成本'),totalRow:true},
+
+                        {field: 'allocation_o_basics', title: __('数量'),totalRow:true},
+                        {field: 'allocation_o_cost', title: __('成本'),totalRow:true},
+                        {field: 'sale_o_basics', title: __('数量'),totalRow:true},
+                        {field: 'sale_o_cost', title: __('成本'),totalRow:true},
+                        {field: 'buy_e_basics', title: __('数量'),totalRow:true},
+                        {field: 'buy_e_cost', title: __('成本'),totalRow:true},
+                        {field: 'out_basics', title: __('数量'),totalRow:true},
+                        {field: 'out_cost', title: __('成本'),totalRow:true},
+                        {field: 'balance_basics', title: __('数量'),totalRow:true},
+                        {field: 'balance_cost', title: __('成本'),totalRow:true},
+                    ]],
+                    done: function(res, curr, count){
+                        var obj = this.elem.next();
+                        obj.find('.layui-table-total td[data-field="balance_basics"] .layui-table-cell').text(res.countsum);
+                        obj.find('.layui-table-total td[data-field="balance_cost"] .layui-table-cell').text(res.balance);
+                    }
+                });
+
+                upload.render({
+                    elem: '#import'
+                    ,url: 'ajax/upload'
+                    ,done: function(res, index, upload){ //上传后的回调
+                         if(res.code==1){
+                             Fast.api.ajax("kuerp/goods_log_summary/import?file="+res.data.url, "",'',true);
+                         }else{
+                             Toastr.error(res.msg);
+                         }
+                    }
+                    ,accept: 'file' //允许上传的文件类型
+                    ,size: 50 //最大允许上传的文件大小
+                });
+
+                layui.form.on('switch(switchList)', function (obj) {
+                    var onoff = this.checked ? '1' : '0';
+                    var id = $(this).data('id');
+                    $.ajax( {
+                        url: "kuerp/goods_log_summary/multi",
+                        type: "POST",
+                        data:{
+                            'ids':id,
+                            'params':"status="+onoff,
+                        },
+                        success: function(res){
+                            if(res.code==0){
+                                Toastr.error(res.msg);
+                            }else{
+                                Toastr.success('操作成功');
+                            }
+                        }
+                    });
+                });
+
+                //头工具栏事件
+                table.on('toolbar(table)', function(obj){
+                    var checkStatus = table.checkStatus(obj.config.id);
+                    switch(obj.event){
+                        case 'refresh':
+                            table.reload('table', []);
+                            break;
+                        case 'add':
+                            Fast.api.open("kuerp/goods_log_summary/add", "添加", {
+                               callback:function(value){
+                                  Controller.api.bindevent();
+                               }
+                            });
+                        break;
+                        case 'delAll':
+                            var data = checkStatus.data;
+                            var ids = '';
+                            $(data).each(function (k,v) {
+                                ids+=v.id+',';
+                            });
+                            Fast.api.ajax("kuerp/goods_log_summary/del?ids="+ids, function () {
+                                reloadTable()
+                            },'',true);
+                        break;
+                    }
+                });
+                function reloadTable(){
+                    table.reload('table', {
+                        where: {
+                            filter:JSON.stringify(getSearch()),
+                            op:JSON.stringify(getOp()),
+                        }
+                    });
+                }
+                //监听行工具事件
+                table.on('tool(table)', function(obj){
+                    var data = obj.data;
+                    if(obj.event === 'del'){
+                        $.ajax( {
+                            url: "kuerp/goods_log_summary/del",
+                            type: "POST",
+                            data:{'ids':data.id},
+                            success: function(res){
+                                if(res.code==1){
+                                    Toastr.success('操作成功');
+                                    setTimeout(function () {
+                                        reloadTable();
+                                    },1000)
+                                }else{
+                                    Toastr.error(res.msg);
+                                }
+                            }
+                        });
+                    } else if(obj.event === 'edit'){
+                        Fast.api.open("kuerp/goods_log_summary/edit?ids="+data.id, "编辑");
+                    }
+                });
+                //搜索事件
+                $('#search').on('click', function () {
+                    table.reload('table', {
+                        where: {
+                            filter:JSON.stringify(getSearch()),
+                            op:JSON.stringify(getOp()),
+                        }
+                    });
+                });
+                function getSearch() {
+                    var storesArr = stores.getValue();
+                    var stores_id = '';
+                    if(storesArr.length>0){
+                        $(storesArr).each(function (k,v) {
+                            if(stores_id===''){
+                                stores_id += v.value;
+                            }else{
+                                stores_id += ','+v.value;
+                            }
+                        })
+                    }
+                    var goodsArr = goods.getValue();
+                    var goods_id = '';
+                    if(goodsArr.length>0){
+                        $(goodsArr).each(function (k,v) {
+                            if(goods_id===''){
+                                goods_id += v.value;
+                            }else{
+                                goods_id += ','+v.value;
+                            }
+                        })
+                    }
+                    var search = {};
+                    if(stores_id!=''){
+                        search.stores_id = stores_id;
+                    }
+                    if(goods_id!=''){
+                        search.goods_id = goods_id;
+                    }
+                    var purchase_time = $('#purchase_time').val();
+                    if(purchase_time!=''){
+                        search.purchase_time = purchase_time;
+                    }
+                    return search;
+                }
+                function getOp() {
+                    var op = {};
+                    op.goods_id = 'IN';
+                    op.stores_id = 'IN';
+                    op.purchase_time = 'RANGE';
+                    return op;
+                }
+            });
+            Controller.api.bindevent();
+        },
+        
+        add: function () {
+            Controller.api.bindevent();
+        },
+        edit: function () {
+            Controller.api.bindevent();
+        },
+        api: {
+            bindevent: function () {
+                layui.use('laydate', function(){
+                    var laydate = layui.laydate;
+                    //执行一个laydate实例
+                    
+                    laydate.render({
+                        elem: '#c-purchase_time',
+                        type: 'datetime'
+                    });
+                    laydate.render({
+                         elem: '#purchase_time',
+                         type: 'datetime',
+                         range: true
+                    });
+                });
+                Form.api.bindevent($("form[role=form]"), function(data, ret){
+                    parent.location.reload();
+                });
+            }
+        }
+    };
+    return Controller;
+});

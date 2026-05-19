@@ -1,0 +1,45 @@
+{include file="kuerp/common/menu" /}
+<style>
+    .msg_ul{
+        margin: 20px 0;
+    }
+    .msg_ul li{
+        line-height: 30px;
+    }
+    .unchecked{
+        position: relative;
+        padding-left:15px;
+    }
+    #understand{
+        position: absolute;left: 0;top: 1px;margin-top: 0;
+    }
+</style>
+<div class="panel panel-default panel-intro">
+    <div class="panel-body">
+        <div id="myTabContent" class="tab-content">
+            <div class="tab-pane fade active in" id="one">
+                <div class="widget-body no-padding">
+                    <form id="prefix-form" class="form-horizontal" role="form" data-toggle="validator" method="POST"
+                          action="">
+                        <h3>重新初始化系统将会清空你录入的所有数据，请慎重！</h3>
+                        <ul class="msg_ul">
+                            <li>系统将删除您新增的所有商品、供应商、客户</li>
+                            <li>系统将删除您录入的所有单据</li>
+                            <li>系统将删除您录入的所有初始化数据</li>
+                        </ul>
+                        <span class="chk_blue unchecked">
+                            <input type="checkbox" name="understand" id="understand"><label for="understand">我已清楚了解将产生的后果</label>
+                            <p class="check-confirm">（请先确认并勾选“我已清楚了解将产生的后果”）</p>
+                        </span>
+                        <div class="form-group layer-footer">
+                            <label class="control-label col-xs-12 col-sm-2"></label>
+                            <div class="col-xs-12 col-sm-8">
+                                <button type="button" data-id="prefix-form" class="sub_btn btn btn-success btn-embossed">{:__('OK')}</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

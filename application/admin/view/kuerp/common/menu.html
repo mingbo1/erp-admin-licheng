@@ -1,0 +1,49 @@
+<link rel="stylesheet" href="__CDN__/assets/addons/kuerp/layui/css/layui.css"  media="all">
+<link rel="stylesheet" href="__CDN__/assets/addons/kuerp/css/kuerp.css"  media="all">
+<script src="__CDN__/assets/addons/kuerp/js/xm-select.js" type="application/javascript"></script>
+{if condition="isset($set['auxiliary']['is_checked']) && $set['auxiliary']['is_checked']!=1"}
+<style>
+    .goods_attr_sd{
+        display: none;
+    }
+</style>
+{/if}
+{if condition="isset($set['taxes']['is_checked']) && $set['taxes']['is_checked']!=1"}
+<style>
+    .goods_tax_sd{
+        display: none;
+    }
+</style>
+{/if}
+{if condition="isset($set['batch']['is_checked']) && $set['batch']['is_checked']!=1"}
+<style>
+    .goods_batch_sd{
+        display: none;
+    }
+</style>
+{/if}
+
+<script type="text/html" id="recycleDemo">
+    <div class="layui-btn-container">
+        <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-cyan btn-refresh" lay-event="refresh"><i class="layui-icon">&#xe669;</i> 刷新</button>
+        <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-blue {if condition="$auth->check($nowmenu.'/reduction')!=1"}hiddens{/if}" lay-event="reduction"><i class="layui-icon">&#xe674;</i> 还原</button>
+        <button class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger {if condition="$auth->check($nowmenu.'/del')!=1"}hiddens{/if}" lay-event="realdel"><i class="layui-icon">&#xe640;</i> 删除</button>
+    </div>
+</script>
+
+<script type="text/html" id="barDemo">
+    <a class="layui-btn layui-btn-xs {if condition="$auth->check($nowmenu.'/edit')!=1"}hiddens{/if}" lay-event="edit">编辑</a>
+    <a class="layui-btn layui-btn-danger layui-btn-xs {if condition="$auth->check($nowmenu.'/del')!=1"}hiddens{/if}" lay-event="del">删除</a>
+</script>
+<script type="text/html" id="delDemo">
+    <a class="layui-btn layui-btn-danger layui-btn-xs {if condition="$auth->check($nowmenu.'/del')!=1"}hiddens{/if}" lay-event="del">删除</a>
+</script>
+<script type="text/html" id="refreshDemo">
+    <div class="layui-btn-container">
+        <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-cyan btn-refresh" lay-event="refresh"><i class="layui-icon">&#xe669;</i> 刷新</button>
+    </div>
+</script>
+<script type="text/html" id="recycleBtn">
+    <a class="layui-btn layui-btn-xs layui-bg-blue {if condition="$auth->check($nowmenu.'/reduction')!=1"}hiddens{/if}" lay-event="reduction">还原</a>
+    <a class="layui-btn layui-btn-danger layui-btn-xs {if condition="$auth->check($nowmenu.'/del')!=1"}hiddens{/if}" lay-event="realdel">删除</a>
+</script>

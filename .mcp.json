@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "mysql-erp": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-server-mysql"
+      ],
+      "env": {
+        "MYSQL_HOST": "127.0.0.1",
+        "MYSQL_PORT": "3306",
+        "MYSQL_USER": "root",
+        "MYSQL_PASS": "root",
+        "MYSQL_DB": "erp_licheng"
+      }
+    }
+  }
+}

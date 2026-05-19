@@ -1,0 +1,95 @@
+{include file="kuerp/common/menu" /}
+<form id="edit-form" class="form-horizontal" role="form" data-toggle="validator" method="POST" action="">
+
+    <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2">{:__('Temp_name')}:</label>
+        <div class="col-xs-12 col-sm-8">
+            <input id="c-temp_name" data-rule="required" class="form-control" name="row[temp_name]" type="text" value="{$row.temp_name|htmlentities}" placeholder="{:__('Temp_name')}">
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2">{:__('Purchase_code')}:</label>
+        <div class="col-xs-12 col-sm-8">
+            <input id="c-purchase_code" class="form-control" name="row[purchase_code]" type="text" value="{$row.purchase_code|htmlentities}" placeholder="{:__('Purchase_code')}">
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2">{:__('Purchase_time')}:</label>
+        <div class="col-xs-12 col-sm-8">
+            <input id="c-purchase_time" class="form-control datetime" data-date-format="YYYY-MM-DD HH:mm:ss" data-use-current="true" name="row[purchase_time]" type="text" value="{:$row.purchase_time?datetime($row.purchase_time):''}" placeholder="{:__('Purchase_time')}">
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2">{:__('Business_type')}:</label>
+        <div class="col-xs-12 col-sm-8">
+                        
+            <select  id="c-business_type" class="form-control selectpicker" name="row[business_type]">
+                {foreach name="businessTypeList" item="vo"}
+                    <option value="{$key}" {in name="key" value="$row.business_type"}selected{/in}>{$vo}</option>
+                {/foreach}
+            </select>
+
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2">{:__('Money')}:</label>
+        <div class="col-xs-12 col-sm-8">
+            <input id="c-money" class="form-control" step="0.0001" name="row[money]" type="number" value="{$row.money|htmlentities}" placeholder="{:__('Money')}">
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2">{:__('Remark')}:</label>
+        <div class="col-xs-12 col-sm-8">
+            <input id="c-remark" class="form-control" name="row[remark]" type="text" value="{$row.remark|htmlentities}" placeholder="{:__('Remark')}">
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2">{:__('Preparation_id')}:</label>
+        <div class="col-xs-12 col-sm-8">
+            <input id="c-preparation_id" data-rule="required" data-source="preparation/index" class="form-control selectpage" name="row[preparation_id]" type="text" value="{$row.preparation_id|htmlentities}" placeholder="{:__('Preparation_id')}">
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2">{:__('Operation_id')}:</label>
+        <div class="col-xs-12 col-sm-8">
+            <input id="c-operation_id" data-rule="required" data-source="operation/index" class="form-control selectpage" name="row[operation_id]" type="text" value="{$row.operation_id|htmlentities}" placeholder="{:__('Operation_id')}">
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2">{:__('Examine_id')}:</label>
+        <div class="col-xs-12 col-sm-8">
+            <input id="c-examine_id" data-rule="required" data-source="examine/index" class="form-control selectpage" name="row[examine_id]" type="text" value="{$row.examine_id|htmlentities}" placeholder="{:__('Examine_id')}">
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2">{:__('Examine_status')}:</label>
+        <div class="col-xs-12 col-sm-8">
+            
+            <div class="radio">
+            {foreach name="examineStatusList" item="vo"}
+            <label for="row[examine_status]-{$key}"><input id="row[examine_status]-{$key}" name="row[examine_status]" type="radio" value="{$key}" {in name="key" value="$row.examine_status"}checked{/in} /> {$vo}</label> 
+            {/foreach}
+            </div>
+
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2">{:__('Examine_time')}:</label>
+        <div class="col-xs-12 col-sm-8">
+            <input id="c-examine_time" class="form-control datetime" data-date-format="YYYY-MM-DD HH:mm:ss" data-use-current="true" name="row[examine_time]" type="text" value="{:$row.examine_time?datetime($row.examine_time):''}" placeholder="{:__('Examine_time')}">
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2">{:__('Print_num')}:</label>
+        <div class="col-xs-12 col-sm-8">
+            <input id="c-print_num" class="form-control" name="row[print_num]" type="number" value="{$row.print_num|htmlentities}" placeholder="{:__('Print_num')}">
+        </div>
+    </div>
+    <div class="form-group layer-footer">
+        <label class="control-label col-xs-12 col-sm-2"></label>
+        <div class="col-xs-12 col-sm-8">
+            <button type="submit" class="btn btn-success btn-embossed disabled">{:__('OK')}</button>
+            <button type="reset" class="btn btn-default btn-embossed">{:__('Reset')}</button>
+        </div>
+    </div>
+</form>

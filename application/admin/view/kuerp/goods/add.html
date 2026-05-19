@@ -1,0 +1,617 @@
+{include file="kuerp/common/menu" /}
+<form id="add-form" class="form-horizontal" role="form" data-toggle="validator" method="POST" action="">
+
+    <div class="row">
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">{:__('Goods_code')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-goods_code" data-rule="required" class="form-control" name="row[goods_code]" type="text" value="{$code|default=''}" placeholder="{:__('Goods_code')}">
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">{:__('Goods_name')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-goods_name" data-rule="required" class="form-control" name="row[goods_name]" type="text" value="" placeholder="{:__('Goods_name')}">
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">{:__('Goods_barcode')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-goods_barcode" class="form-control" name="row[goods_barcode]" type="text" placeholder="{:__('Goods_barcode')}">
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">{:__('Goods_specification_id')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-goods_specification_id" class="form-control" name="row[goods_specification_id]" type="text" value="" placeholder="{:__('Goods_specification_id')}">
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">{:__('Goods_type_id')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    {:build_select('row[goods_type_id]', $categorylist, null, ['class'=>'form-control selectpicker', 'data-rule'=>'required','id'=>'c-goods_type_id'])}
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">{:__('Manager_warehouse_id')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-manager_warehouse_id" data-source="kuerp/stores/index" data-params='{"custom[status]":"1"}' class="form-control selectpage" name="row[manager_warehouse_id]" type="text" value="" placeholder="{:__('Manager_warehouse_id')}">
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">{:__('Is_offten')}:</label>
+                <div class="col-xs-12 col-sm-8">
+
+                    <select  id="c-is_offten" class="form-control selectpicker" name="row[is_offten]">
+                        {foreach name="isOfftenList" item="vo"}
+                        <option value="{$key}" {in name="key" value="0"}selected{/in}>{$vo}</option>
+                        {/foreach}
+                    </select>
+
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">{:__('Status')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <div class="radio">
+                        {foreach name="statusList" item="vo"}
+                        <label for="row[status]-{$key}"><input id="row[status]-{$key}" name="row[status]" type="radio" value="{$key}" {in name="key" value="1"}checked{/in} /> {$vo}</label>
+                        {/foreach}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6 price_strategy">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">{:__('Unit')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-unit" data-source="kuerp/unit/index" class="form-control selectpage" name="row[unit_id]" type="text" value="0" placeholder="{:__('Unit')}">
+                </div>
+            </div>
+        </div>
+    </div>
+    <!--多计量单位开关-->
+    <div class="row">
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6" style="margin-left: 12.5%">
+            <div class="form-group">
+                <div class="col-xs-12 col-sm-12">
+                    <div class="checkbox">
+                        <label for="more_unit">
+                            <input id="more_unit" name="row[more_unit]" type="checkbox" value="1" placeholder="{:__('More_unit')}"> {:__('More_unit')}
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row more_unit" style="display: none">
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">{:__('More_unit')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <select  id="c-more_unit_id" class="form-control selectpicker" name="more_unit[more_unit_id]">
+                        {foreach name="unit_conversion" item="vo"}
+                        <option value="{$vo.id}">{$vo.name}({$vo.advance_rate})</option>
+                        {/foreach}
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">{:__('Warehousing')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <select  id="c-warehousing" class="form-control more_unitselect" name="more_unit[warehousing]">
+                        {if condition="!empty($unit_conversion)"}
+                        {if condition="isset($unit_conversion[0])"}
+                        {php}$units = $unit_conversion[0];{/php}
+                        <option value="{$units.id}" selected="selected">{$units.unit_name}</option>
+                        {foreach name="units.unit_list" item="vo"}
+                        <option value="{$vo.vice_unit}">{$vo.name}</option>
+                        {/foreach}
+                        {/if}
+                        {/if}
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row more_unit" style="display: none">
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">{:__('Warehouse')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <select  id="c-warehouse" class="form-control more_unitselect" name="more_unit[warehouse]">
+                        {if condition="!empty($unit_conversion)"}
+                        {if condition="isset($unit_conversion[0])"}
+                        {php}$units = $unit_conversion[0];{/php}
+                        <option value="{$units.id}" selected="selected">{$units.unit_name}</option>
+                        {foreach name="units.unit_list" item="vo"}
+                        <option value="{$vo.vice_unit}">{$vo.name}</option>
+                        {/foreach}
+                        {/if}
+                        {/if}
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="list more_unit" style="display: none">
+        <table>
+            <tr>
+                <th></th><th>{:__('Unit')}</th><th>{:__('Market_sell_price')}</th><th>{:__('Wholesale_price')}</th>
+                <th>{:__('Vip_price')}</th><th>{:__('Discount')}</th><th>{:__('Discount2')}</th><th>{:__('Purchase')}</th>
+            </tr>
+            {if condition="!empty($unit_conversion)"}
+            {if condition="isset($unit_conversion[0])"}
+            {php}$units = $unit_conversion[0];{/php}
+            <tr>
+                <td style="white-space:nowrap">基本单位</td>
+                <td><div id="more_unit_div1">{$units.unit_name}</div><input id="more_unit_id1" type="hidden" value="{$units.id}" name="more_unit[id][]"></td>
+                <td><div><input type="number" class="price_decimal" name="more_unit[market_sell_price][]"></div></td>
+                <td><div><input type="number" class="price_decimal" name="more_unit[wholesale_price][]"></div></td>
+                <td><div><input type="number" class="price_decimal" name="more_unit[vip_price][]"></div></td>
+                <td><div><input type="number" name="more_unit[discount][]"></div></td>
+                <td><div><input type="number" name="more_unit[discount2][]"></div></td>
+                <td><div><input type="number" class="price_decimal" name="more_unit[purchase][]"></div></td>
+            </tr>
+            {else/}
+            <tr>
+                <td style="white-space:nowrap">基本单位</td>
+                <td><div id="more_unit_div1"></div><input id="more_unit_id1" type="hidden" name="more_unit[id][]"></td>
+                <td><div><input type="number" class="price_decimal" name="more_unit[market_sell_price][]"></div></td>
+                <td><div><input type="number" class="price_decimal" name="more_unit[wholesale_price][]"></div></td>
+                <td><div><input type="number" class="price_decimal" name="more_unit[vip_price][]"></div></td>
+                <td><div><input type="number" name="more_unit[discount][]"></div></td>
+                <td><div><input type="number" name="more_unit[discount2][]"></div></td>
+                <td><div><input type="number" class="price_decimal" name="more_unit[purchase][]"></div></td>
+            </tr>
+            {/if}
+            {else/}
+            <tr>
+                <td style="white-space:nowrap">基本单位</td>
+                <td><div id="more_unit_div1"></div><input id="more_unit_id1" type="hidden" name="more_unit[id][]"></td>
+                <td><div><input type="number" class="price_decimal" name="more_unit[market_sell_price][]"></div></td>
+                <td><div><input type="number" class="price_decimal" name="more_unit[wholesale_price][]"></div></td>
+                <td><div><input type="number" class="price_decimal" name="more_unit[vip_price][]"></div></td>
+                <td><div><input type="number" name="more_unit[discount][]"></div></td>
+                <td><div><input type="number" name="more_unit[discount2][]"></div></td>
+                <td><div><input type="number" class="price_decimal" name="more_unit[purchase][]"></div></td>
+            </tr>
+            {/if}
+            <tbody id="more_unit_tbd">
+            {if condition="!empty($unit_conversion)"}
+            {if condition="isset($unit_conversion[0])"}
+            {php}$units = $unit_conversion[0];{/php}
+            {php}$key=2;{/php}
+            {foreach name="units.unit_list" item="vo"}
+            <tr>
+                <td style="white-space:nowrap">副单位</td>
+                <td><div id="more_unit_div{$key}">{$vo.name}</div><input id="more_unit_id{$key}" type="hidden" value="{$vo.vice_unit}" name="more_unit[id][]"></td>
+                <td><div><input type="number" class="price_decimal" name="more_unit[market_sell_price][]"></div></td>
+                <td><div><input type="number" class="price_decimal" name="more_unit[wholesale_price][]"></div></td>
+                <td><div><input type="number" class="price_decimal" name="more_unit[vip_price][]"></div></td>
+                <td><div><input type="number" name="more_unit[discount][]"></div></td>
+                <td><div><input type="number" name="more_unit[discount2][]"></div></td>
+                <td><div><input type="number" class="price_decimal" name="more_unit[purchase][]"></div></td>
+            </tr>
+            {/foreach}
+            {/if}
+            {/if}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="price_strategy" id="price_strategy">
+        <div class="row">
+            <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+                <div class="form-group">
+                    <label class="control-label col-xs-12 col-sm-3">价格策略:</label>
+                    <div class="col-xs-12 col-sm-8">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+                <div class="form-group">
+                    <label class="control-label col-xs-12 col-sm-3">{:__('Market_sell_price')}:</label>
+                    <div class="col-xs-12 col-sm-8">
+                        <input id="c-market_sell_price" class="form-control price_decimal" name="row[market_sell_price]" type="number" value="" placeholder="{:__('Market_sell_price')}">
+                    </div>
+                </div>
+            </div>
+            <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+                <div class="form-group">
+                    <label class="control-label col-xs-12 col-sm-3">{:__('Wholesale_price')}:</label>
+                    <div class="col-xs-12 col-sm-8">
+                        <input id="c-wholesale_price" class="form-control price_decimal" name="row[wholesale_price]" type="number" value="" placeholder="{:__('Wholesale_price')}">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+                <div class="form-group">
+                    <label class="control-label col-xs-12 col-sm-3">{:__('Vip_price')}:</label>
+                    <div class="col-xs-12 col-sm-8">
+                        <input id="c-vip_price" class="form-control price_decimal" name="row[vip_price]" type="number" value="" placeholder="{:__('Vip_price')}">
+                    </div>
+                </div>
+            </div>
+            <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+                <div class="form-group">
+                    <label class="control-label col-xs-12 col-sm-3">{:__('Discount')}:</label>
+                    <div class="col-xs-12 col-sm-8">
+                        <input id="c-discount" class="form-control" step="0.01" name="row[discount]" type="number" value="" placeholder="{:__('Discount')}">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+                <div class="form-group">
+                    <label class="control-label col-xs-12 col-sm-3">{:__('Discount2')}:</label>
+                    <div class="col-xs-12 col-sm-8">
+                        <input id="c-discount2" class="form-control" step="0.01" name="row[discount2]" type="number" value="" placeholder="{:__('Discount2')}">
+                    </div>
+                </div>
+            </div>
+            <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+                <div class="form-group">
+                    <label class="control-label col-xs-12 col-sm-3">{:__('Purchase')}:</label>
+                    <div class="col-xs-12 col-sm-8">
+                        <input id="c-purchase" class="form-control price_decimal" name="row[purchase]" type="number" value="" placeholder="{:__('Purchase')}">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!--价格策略-->
+
+    <!--主图-->
+    <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2" style="max-width: 12.5%">{:__('Goods_image')}:</label>
+        <div class="col-xs-12 col-sm-8">
+            <div class="input-group">
+                <input id="c-goods_image" data-rule="required" class="form-control" size="50" name="row[goods_image]" type="text" value="" placeholder="{:__('Goods_image')}">
+                <div class="input-group-addon no-border no-padding">
+                    <span><button type="button" id="faupload-goods_image" class="btn btn-danger faupload" data-input-id="c-goods_image" data-mimetype="image/gif,image/jpeg,image/png,image/jpg,image/bmp" data-multiple="false" data-preview-id="p-goods_image"><i class="fa fa-upload"></i> {:__('Upload')}</button></span>
+                    <span><button type="button" id="fachoose-goods_image" class="btn btn-primary fachoose" data-input-id="c-goods_image" data-mimetype="image/*" data-multiple="false"><i class="fa fa-list"></i> {:__('Choose')}</button></span>
+                </div>
+                <span class="msg-box n-right" for="c-goods_image"></span>
+            </div>
+            <ul class="row list-inline faupload-preview" id="p-goods_image"></ul>
+        </div>
+    </div>
+
+    <!--图集-->
+    <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2" style="max-width: 12.5%">{:__('Goods_images')}:</label>
+        <div class="col-xs-12 col-sm-8">
+            <div class="input-group">
+                <input id="c-goods_images" class="form-control" size="50" name="row[goods_images]" type="textarea" placeholder="{:__('Goods_images')}">
+                <div class="input-group-addon no-border no-padding">
+                    <span><button type="button" id="faupload-goods_images" class="btn btn-danger faupload" data-input-id="c-goods_images" data-mimetype="image/gif,image/jpeg,image/png,image/jpg,image/bmp" data-multiple="true" data-preview-id="p-goods_images"><i class="fa fa-upload"></i> {:__('Upload')}</button></span>
+                    <span><button type="button" id="fachoose-goods_images" class="btn btn-primary fachoose" data-input-id="c-goods_images" data-mimetype="image/*" data-multiple="true"><i class="fa fa-list"></i> {:__('Choose')}</button></span>
+                </div>
+                <span class="msg-box n-right" for="c-goods_images"></span>
+            </div>
+            <ul class="row list-inline faupload-preview" id="p-goods_images"></ul>
+        </div>
+    </div>
+       <!--详情-->
+    <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2" style="max-width: 12.5%">{:__('商品详情')}:</label>
+        <div class="col-xs-12 col-sm-8">
+            <textarea id="c-content" class="form-control editor" rows="5" name="row[content]" cols="30" placeholder="商品详情"></textarea>
+        </div>
+    </div>
+
+    <!--备注-->
+    <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2" style="max-width: 12.5%">{:__('备注')}:</label>
+        <div class="col-xs-12 col-sm-8">
+            <textarea id="c-note" class="form-control" rows="5" name="row[note]" cols="30" placeholder="添加备注信息，不超过100个字"></textarea>
+        </div>
+    </div>
+    <!--预警设置-->
+    <div class="row">
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <div class="col-xs-12 col-sm-12">
+                    <div class="checkbox">
+                        <label for="stock_warning">
+                            <input id="stock_warning" name="row[stock_warning]" type="checkbox" value="1" placeholder="{:__('Stock_warning')}"> {:__('Stock_warning')}
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row branch_btn" style="display: none">
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6" style="margin-left: 20px;">
+            <div class="form-group">
+                <div class="col-xs-12 col-sm-12">
+                    <div class="checkbox">
+                        <label for="branch">
+                            <input id="branch" name="row[branch]" type="checkbox" value="1" placeholder="{:__('Branch')}"> {:__('Branch')}
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row branch" style="display: none">
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">{:__('Min_stock')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-min_stock" class="form-control" name="row[min_stock]" type="number" value="" placeholder="{:__('Min_stock')}">
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">{:__('Max_stock')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-max_stock" class="form-control" name="row[max_stock]" type="number" value="" placeholder="{:__('Max_stock')}">
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="list branchs" style="display: none">
+        <table>
+            <tr>
+                <th>仓库</th><th>{:__('Min_stock')}</th><th>{:__('Max_stock')}</th>
+            </tr>
+            {foreach name="stores" item="vo"}
+            <tr>
+                <td><div><input type="text" readonly value="{$vo.name}"></div><input type="hidden" name="branch[stores][]" value="{$vo.id}"></td>
+                <td><div><input type="number" name="branch[min_stock][]"></div></td>
+                <td><div><input type="number" name="branch[max_stock][]"></div></td>
+            </tr>
+            {/foreach}
+        </table>
+    </div>
+
+    <!--设置商品辅助属性-->
+    {if condition="isset($set['auxiliary']['is_checked']) && $set['auxiliary']['is_checked']==1"}
+    <div class="row">
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <div class="col-xs-12 col-sm-12">
+                    <div class="checkbox">
+                        <label for="auxiliary">
+                            <input id="auxiliary" name="row[auxiliary]" type="checkbox" value="1"> 设置商品辅助属性
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row disnone auxiliary_div">
+        <div class="form-group auxiliary_box" style="margin-right: 10px;">
+            <div class="col-xs-12 col-sm-12">
+                <div class="checkbox">
+                    辅助属性分类
+                </div>
+            </div>
+            <div class="col-xs-12 col-sm-12">
+                <div class="checkbox">
+                    {foreach name="auxiliary" item="vo"}
+                    <label for="auxiliary{$vo.id}">
+                        <input id="auxiliary{$vo.id}" class="auxiliary_p" name="row[auxiliary_type][]" type="checkbox" value="{$vo.id}" placeholder="{$vo.name}"> {$vo.name}
+                    </label>
+                    {/foreach}
+                </div>
+            </div>
+            <div style="clear: both"></div>
+            <hr>
+            <div class="col-xs-12 col-sm-12">
+                {foreach name="auxiliary" item="vo"}
+                <div class="checkbox auxiliary_children{$vo.id} aux_tab aux_tab{$vo.id}" style="display: none">
+                    <label for="auxiliary{$vo.id}" class="paddingl0">
+                        {$vo.name}
+                    </label>
+                    {if condition="isset($vo.children)"}
+                    {foreach name="vo.children" item="vo2"}
+                    <label for="auxiliary_c{$vo2.id}">
+                        <input id="auxiliary_c{$vo2.id}" class="auxiliary_type_c" name="row[auxiliary_type_c][]" type="checkbox" value="{$vo2.id}" placeholder="{$vo2.name}"> {$vo2.name}
+                    </label>
+                    {/foreach}
+                    {/if}
+                </div>
+                {/foreach}
+            </div>
+        </div>
+        <div style="clear: both"></div>
+        <div class="form-group auxiliary_detail" style="margin-right: 10px;">
+            <div class="col-xs-12 col-sm-12">
+                <div class="checkbox" id="autocreat">
+                    自动建立属性组合<span>（自动建立组合只能选择三个属性分类）</span><a id="btn-autocreat" class="">快速生成</a>
+                </div>
+            </div>
+            <div class="col-xs-12 col-sm-12 list auxiliary_form" style="overflow: auto;">
+                <table id="auxiliary_table">
+                    <tr>
+                        <th></th>
+                        {foreach name="auxiliary" item="vo"}
+                        <th class="aux_tab aux_tab{$vo.id}" style="display: none">{$vo.name}</th>
+                        {/foreach}
+                        <th><span class="must">*</span>属性编号</th><th>属性条码</th><th>零售价</th><th>批发价</th>
+                        <th>VIP会员价</th><th>折扣率一</th><th>折扣率二</th><th>预计采购价</th>
+                    </tr>
+                    <tbody id="auxiliary_table_tbody">
+                    <tr id="example" class="auxiliary_example">
+                        <td>
+                            <div class="btn">
+                                <span class="auxiliary_add"><i class="fa fa-plus"></i></span>
+                                <span class="auxiliary_del"><i class="fa fa-trash"></i></span>
+                            </div>
+                        </td>
+                        {foreach name="auxiliary" item="vo"}
+                        <td class="aux_tab aux_tab{$vo.id}" style="display: none">
+                            <div>
+                                <select name="auxiliary[{$vo.id}][]" class="auxiliary_p_s auxiliary_p_s{$vo.id}">
+                                    <option value="" class=""></option>
+                                    {if condition="isset($vo.children)"}
+                                    {foreach name="vo.children" item="vo2"}
+                                    <option value="{$vo2.id}" class="aux_c aux_c{$vo2.id}" style="display: none">{$vo2.name}</option>
+                                    {/foreach}
+                                    {/if}
+                                </select>
+                            </div>
+                        </td>
+                        {/foreach}
+                        <td><div><input type="text" class="ipts auxiliary_code" name="auxiliary[code][]"></div></td>
+                        <td><div><input type="text" class="ipts" name="auxiliary[barcode][]"></div></td>
+                        <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[market_sell_price][]"></div></td>
+                        <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[wholesale_price][]"></div></td>
+                        <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[vip_price][]"></div></td>
+                        <td><div><input type="number" class="ipts aux_price_set" name="auxiliary[discount][]"></div></td>
+                        <td><div><input type="number" class="ipts aux_price_set" name="auxiliary[discount2][]"></div></td>
+                        <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[purchase][]"></div></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {/if}
+
+    <!--启用批次保质期管理-->
+    {if condition="isset($set['batch']['is_checked']) && $set['batch']['is_checked']==1"}
+    <div class="row shelf_life_div">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+            <div class="form-group">
+                <div class="col-xs-12 col-sm-12">
+                    <div class="checkbox">
+                        <label for="batch">
+                            <input id="batch" name="row[batch]" type="checkbox" value="1"> 启用批次保质期管理
+                        </label>
+                        <label for="shelf_life" class="disnone shelf_life_box">
+                            保质期天数 <input class="form-control" id="shelf_life" name="row[shelf_life]" type="number" value="">
+                        </label>
+                        <label for="early_warning" class="disnone shelf_life_box">
+                            预警天数 <input class="form-control" id="early_warning" name="row[early_warning]" type="number" value="">
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {/if}
+
+    <!--启用序列号管理-->
+    {if condition="isset($set['serial']['is_checked']) && $set['serial']['is_checked']==1"}
+    <div class="row">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+            <div class="form-group">
+                <div class="col-xs-12 col-sm-12">
+                    <div class="checkbox">
+                        <label for="serial">
+                            <input id="serial" name="row[serial]" type="checkbox" value="1"> 启用序列号
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {/if}
+
+    <!--期初设置-->
+    <div class="row">
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <div class="col-xs-12 col-sm-12">
+                    <div class="checkbox">
+                        <label for="setqc">
+                            <input id="setqc" name="setqc" type="checkbox" value="1" placeholder="{:__('期初设置')}"> 期初设置
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="list list_form" style="display: none;overflow: auto">
+        <table id="stock_table">
+            <tr>
+                <th></th><th><span class="must">*</span>仓库</th>
+                <th {if condition="isset($set['auxiliary']['is_checked']) && $set['auxiliary']['is_checked']!=1"}style="display:none;"{/if}>属性</th>
+                <th class="batch_set">批次</th><th class="batch_set">生产日期</th><th class="batch_set">保质期(天)</th><th class="batch_set">有效期至</th>
+                <th>产地</th><th>注册证号</th><th>生产许可证</th>
+
+                <th>期初数量</th><th>单位成本</th><th>期初总价</th>
+            </tr>
+            {php}for($a=0;$a<4;$a++){ {/php}
+            <tr>
+                <td><div class="btn"><span class="add"><i class="fa fa-plus"></i></span><span class="del"><i class="fa fa-trash"></i></span></div></td>
+                <td>
+                    <div>
+                        <select name="stock[stores_id][]">
+                            <option value=""></option>
+                            {foreach name="stores" item="vo"}
+                            <option value="{$vo.id}">{$vo.name}</option>
+                            {/foreach}
+                        </select>
+                        <input type="hidden" name="stock[id][]" value="">
+                    </div>
+                </td>
+                <td {if condition="isset($set['auxiliary']['is_checked']) && $set['auxiliary']['is_checked']!=1"}style="display:none;"{/if}>
+                    <div>
+                        <select name="stock[attr_id][]" class="stock_attr_id">
+                            <option value=""></option>
+                        </select>
+                    </div>
+                </td>
+
+                <td class="batch_set"><div><input type="text" class="ipt" name="stock[batch][]"></div></td>
+                <td class="batch_set"><div><input type="text" class="ipt manufacture" readonly name="stock[manufacture][]"></div></td>
+                <td class="batch_set"><div><input type="text" class="ipt" readonly name="stock[guarantee][]"></div></td>
+                <td class="batch_set"><div><input type="text" class="ipt" readonly name="stock[validity][]"></div></td>
+                <td><div><input type="text" class="ipt" name="stock[address][]"></div></td>
+                <td><div><input type="text" class="ipt" name="stock[registration][]"></div></td>
+                <td><div><input type="text" class="ipt" name="stock[production][]"></div></td>
+
+
+                <td><div><input type="number" class="ipt period period_ipt number_decimal" name="stock[period][]"><input type="hidden" class="period_period" name="stock[period_period][]"></div></td>
+                <td><div><input type="number" class="ipt unit_cost price_decimal" name="stock[unit_cost][]"></div></td>
+                <td><div><input type="number" class="ipts price_decimal" name="stock[price][]"></div></td>
+            </tr>
+            {php}}{/php}
+        </table>
+    </div>
+
+    <div class="form-group layer-footer">
+        <label class="control-label col-xs-12 col-sm-2"></label>
+        <div class="col-xs-12 col-sm-8">
+            <button type="submit" class="btn btn-success btn-embossed disabled">{:__('OK')}</button>
+            <button type="reset" class="btn btn-default btn-embossed">{:__('Reset')}</button>
+        </div>
+    </div>
+</form>
+

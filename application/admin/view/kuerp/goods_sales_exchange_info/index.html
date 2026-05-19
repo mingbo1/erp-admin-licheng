@@ -1,0 +1,182 @@
+{include file="kuerp/common/menu" /}
+<div class="panel panel-default panel-intro">
+    <div class="panel-body">
+        <div id="myTabContent" class="tab-content">
+            <div class="tab-pane fade active in" id="one">
+                <div class="widget-body no-padding">
+
+                    <script type="text/html" id="thisToolbar">
+                        <div class="layui-btn-container">
+                           <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-cyan" lay-event="refresh"><i class="layui-icon">&#xe669;</i> {:__('Refresh')}</button>
+                        </div>
+                    </script>
+
+                    <form class="layui-form layui-search" id="layui-search">
+                        
+                        <div class="layui-input-inline">
+                            <input type="text" name="purchase_code" id="purchase_code" autocomplete="off" placeholder="{:__('Purchase_code')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="purchase_type" id="purchase_type" placeholder="{:__('Purchase_type')}" class="layui-input">
+                                <option value="">请选择{:__('Purchase_type')}</option>
+                                <option value="1">{:__('Purchase_type 1')}</option>
+                                <option value="2">{:__('Purchase_type 2')}</option>
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="purchase_time" id="purchase_time" autocomplete="off" placeholder="{:__('Purchase_time')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="delivery_time" id="delivery_time" autocomplete="off" placeholder="{:__('Delivery_time')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="customers_id" id="customers_id" autocomplete="off" placeholder="{:__('Customers_id')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="receiving_address" id="receiving_address" autocomplete="off" placeholder="{:__('Receiving_address')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="sale_user" id="sale_user" autocomplete="off" placeholder="{:__('Sale_user')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="goods_code" id="goods_code" autocomplete="off" placeholder="{:__('Goods_code')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="goods_note" id="goods_note" autocomplete="off" placeholder="{:__('Goods_note')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="goods_unit" id="goods_unit" autocomplete="off" placeholder="{:__('Goods_unit')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="stores_id" id="stores_id" autocomplete="off" placeholder="{:__('Stores_id')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="allow_stock" id="allow_stock" autocomplete="off" placeholder="{:__('Allow_stock')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="number" id="number" autocomplete="off" placeholder="{:__('Number')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="default_unit" id="default_unit" autocomplete="off" placeholder="{:__('Default_unit')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="basic_nmber" id="basic_nmber" autocomplete="off" placeholder="{:__('Basic_nmber')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="unit_price" id="unit_price" autocomplete="off" placeholder="{:__('Unit_price')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="discount" id="discount" autocomplete="off" placeholder="{:__('Discount')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="dis_money" id="dis_money" autocomplete="off" placeholder="{:__('Dis_money')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="all_money" id="all_money" autocomplete="off" placeholder="{:__('All_money')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="remark" id="remark" autocomplete="off" placeholder="{:__('Remark')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="purchase_order_id" id="purchase_order_id" autocomplete="off" placeholder="{:__('Purchase_order_id')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="purchase_id" id="purchase_id" autocomplete="off" placeholder="{:__('Purchase_id')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="sales_order_id" id="sales_order_id" autocomplete="off" placeholder="{:__('Sales_order_id')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="returns_order_id" id="returns_order_id" autocomplete="off" placeholder="{:__('Returns_order_id')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="purchase_info_id" id="purchase_info_id" autocomplete="off" placeholder="{:__('Purchase_info_id')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="preferential_rate" id="preferential_rate" autocomplete="off" placeholder="{:__('Preferential_rate')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="preferential_money" id="preferential_money" autocomplete="off" placeholder="{:__('Preferential_money')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="real_money" id="real_money" autocomplete="off" placeholder="{:__('Real_money')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="purchase_money" id="purchase_money" autocomplete="off" placeholder="{:__('Purchase_money')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="customers_money" id="customers_money" autocomplete="off" placeholder="{:__('Customers_money')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="preparation_id" id="preparation_id" autocomplete="off" placeholder="{:__('Preparation_id')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="examine_id" id="examine_id" autocomplete="off" placeholder="{:__('Examine_id')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="operation_id" id="operation_id" autocomplete="off" placeholder="{:__('Operation_id')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="pay_status" id="pay_status" placeholder="{:__('Pay_status')}" class="layui-input">
+                                <option value="">请选择{:__('Pay_status')}</option>
+                                <option value="0">{:__('Pay_status 0')}</option>
+                                <option value="1">{:__('Pay_status 1')}</option>
+                                <option value="2">{:__('Pay_status 2')}</option>
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="check_status" id="check_status" placeholder="{:__('Check_status')}" class="layui-input">
+                                <option value="">请选择{:__('Check_status')}</option>
+                                <option value="0">{:__('Check_status 0')}</option>
+                                <option value="1">{:__('Check_status 1')}</option>
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="examine_status" id="examine_status" placeholder="{:__('Examine_status')}" class="layui-input">
+                                <option value="">请选择{:__('Examine_status')}</option>
+                                <option value="0">{:__('Examine_status 0')}</option>
+                                <option value="1">{:__('Examine_status 1')}</option>
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="examine_time" id="examine_time" autocomplete="off" placeholder="{:__('Examine_time')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="pay_money" id="pay_money" autocomplete="off" placeholder="{:__('Pay_money')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="retreat_status" id="retreat_status" autocomplete="off" placeholder="{:__('Retreat_status')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="retreat_number" id="retreat_number" autocomplete="off" placeholder="{:__('Retreat_number')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="retreat_money" id="retreat_money" autocomplete="off" placeholder="{:__('Retreat_money')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="account" id="account" autocomplete="off" placeholder="{:__('Account')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="print_num" id="print_num" autocomplete="off" placeholder="{:__('Print_num')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="createtime" id="createtime" autocomplete="off" placeholder="{:__('Createtime')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="updatetime" id="updatetime" autocomplete="off" placeholder="{:__('Updatetime')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline " style="width: 90px">
+                            <button class="layui-btn layui-btn-sm btn-refresh" type="button" id="search" data-type="reload">
+                                 <i class="layui-icon"></i> {:__('Search')}
+                            </button>
+                         </div>
+                    </form>
+                    <table id="table" class="table table-striped table-bordered table-hover table-nowrap"
+                           width="100%" lay-filter="table">
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>

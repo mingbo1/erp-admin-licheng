@@ -1,0 +1,116 @@
+{include file="kuerp/common/menu" /}
+<div class="wrapper upload_panel">
+    <ul class="steps-ul" id="import-steps" style="margin-bottom: 24px;">
+        <li class="step1-base step-btn_btn step1-cur" data-rel="step1">设置导入模板</li>
+        <li class="step2-base step-btn_btn step2-nol" data-rel="step2">下载模板并填写</li>
+        <li class="step3-base step-btn_btn step3-nol" data-rel="step3">上传导入文件</li>
+    </ul>
+    <div id="import-wrap" class="cf">
+        <div id="import-step1" class="step-item">
+            <div class="ctn">
+                <p id="unitImport">
+                    <label class="chk more_unit">开启多计量单位</label>
+                </p>
+                <p>
+              	    <span class="mr15" id="quantityImport">
+                        <label class="chk quantity">导入期初库存</label>
+                    </span>
+                    <span class="quantityStorage" id="quantityStorage" style="display: none">
+                        <label class="mr10">选择您想要导入的仓库:</label>
+                        <span id="storage">
+                            <span class="ui-combo-wrap" style="width: 118px;">
+                                <select name="stores" id="stores">
+                                     <option value="0">全部仓库</option>
+                                    {foreach name="stores" item="vo"}
+                                    <option value="{$vo.id}">{$vo.name}</option>
+                                    {/foreach}
+                                </select>
+                            </span>
+                        </span>
+                    </span>
+                </p>
+                <div id="skuWrap" class="">
+                    <div id="skuImportCon">
+                        <p id="skuImport"><label class="chk sku">导入商品包含辅助属性</label></p>
+                    </div>
+                    <div class="mid-wrap skuList" id="skuTypeWrap" style="display: none">
+                        <span class="mid-wrap-tit">请勾选导入需要的属性分类</span>
+                        <div id="skuList">
+                            {foreach name="auxiliary" item="vo"}
+                            <label class="chk unchecked skuList" data-id="{$vo.id}">{$vo.name}</label>
+                            {/foreach}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="import-step2" class="step-item" style="display: none;">
+            <div class="ctn file-import-ctn">
+                <p>
+                    商品导入模板下载<a class="btn"></a>
+                    <a id="templateUrl" href="__CDN__/assets/addons/kuerp/template/商品导入模板.xlsx">下载</a>
+                </p>
+            </div>
+            <div class="mid-wrap">
+                <span class="mid-wrap-tit">导入说明</span>
+                <h4>填写excel模版</h4>
+                <p>1）按仓库导入商品，商品为新增时，库存数必填；</p>
+                <p>2）多次导入库存信息，以最新一次为准；</p>
+                <p>3）商品编号和属性编号必填，多个属性的商品信息只需添一次。</p>
+            </div>
+        </div>
+
+        <div id="import-step3" class="step-item" style="display: none;">
+            <div class="ctn uploadList">
+                <label>上传文件:</label>
+                <p>选择文件</p>
+                <input id="upfile" type="button" name="files[]" multiple="">
+                <div id="classes" style="margin-top: 26px;margin-left: 21px;">
+                    <span>重复导入同一编号商品，则商品信息：</span>
+                    <label class="radio icon-radio-checked" style="width: 40px;">
+                        <input type="radio" name="editstatus" value="1" checked="checked">更新
+                    </label>
+                    <label class="radio icon-radio-unchecked" style="width: 45px;">
+                        <input type="radio" name="editstatus" value="0">不更新
+                    </label>
+                </div>
+            </div>
+
+            <ul id="progress" class="ul-inline file-import-ctn cf" style="display: none">
+                <li class="filelist">
+                    <div class="progressList">
+                        <div class="file-bar">
+                            <div class="bar"></div>
+                        </div>
+                    </div>
+                </li>
+            </ul>
+            <div class="mid-wrap">
+                <span class="mid-wrap-tit">导入详情</span>
+                <p>新增数据:<span id="addMsg" class="ml10">0条</span></p>
+                <p>更新数据:<span id="updateMsg" class="ml10">0条</span></p>
+                <p>错误数据:<span id="errMsg" class="ml10">0条</span><span id="errFile" class="ml10"></span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 按钮部分 -->
+    <div class="ui-cus-dialog" id="ui-cus-dialog">
+        <div class="step-btns ui_buttons step_step1" style="display: block;">
+            <input type="button" value="下一步" data-rel="step2" class="step-btn_btn ui_state_highlight">
+            <input type="button" class="btn-close" value="关闭">
+        </div>
+        <div class="step-btns ui_buttons step_step2" style="display: none;">
+            <input type="button" value="上一步" data-rel="step1" class="step-btn_btn">
+            <input type="button" value="下一步" data-rel="step3" class="step-btn_btn ui_state_highlight">
+            <input type="button" class="btn-close" value="关闭">
+        </div>
+        <div class="step-btns ui_buttons step_step3" style="display: none;">
+            <input type="button" value="上一步" data-rel="step2" class="step-btn_btn">
+            <input type="button" class="ui_state_highlight finish_btn" value="完成">
+            <input type="button" class="btn-close" value="关闭">
+        </div>
+    </div>
+    <!-- 按钮部分 -->
+</div>

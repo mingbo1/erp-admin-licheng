@@ -1,0 +1,30 @@
+<?php
+
+return [
+    'Goods_id'               => '商品ID',
+    'Goods_code'             => '商品编号',
+    'Stores_id'              => '仓库ID',
+    'Attribute_id'           => '属性组合',
+    'Serial'                 => '序列号',
+    'Status'                 => '状态',
+    'Status 1'               => '购货',
+    'Status 2'               => '购货退货',
+    'Status 3'               => '销货',
+    'Status 4'               => '销货退货',
+    'Store_status'           => '在库状态',
+    'Store_status 0'         => '未入库',
+    'Store_status 1'         => '在库',
+    'Store_status 2'         => '出库',
+    'Remark'                 => '备注',
+    'Purchase_id'            => '购货单ID',
+    'Purchase_code'          => '购货单单号',
+    'Purchase_exchange_id'   => '购货退货单ID',
+    'Purchase_exchange_code' => '购货退货单单号',
+    'Sale_id'                => '销货单ID',
+    'Sale_code'              => '销货单号',
+    'Sale_exchange_id'       => '销货退货单ID',
+    'Sale_exchange_code'     => '销货退货单单号',
+    'Createtime'             => '创建时间',
+    'Updatetime'             => '更新时间',
+    'Accounts.account_name'  => '账户名称'
+];

@@ -1,0 +1,43 @@
+{include file="kuerp/common/menu" /}
+<script type="text/html" id="thisBarDemo">
+    <a class="layui-btn layui-btn-xs" lay-event="exchange">生成盘单单据</a>
+    <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+    <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="del">删除</a>
+</script>
+<div class="panel panel-default panel-intro">
+    <div class="panel-body">
+        <div id="myTabContent" class="tab-content">
+            <div class="tab-pane fade active in" id="one">
+                <div class="widget-body no-padding">
+
+                    <script type="text/html" id="thisToolbar">
+                        <div class="layui-btn-container">
+                           <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-cyan btn-refresh" lay-event="refresh"><i class="layui-icon">&#xe669;</i> {:__('Refresh')}</button>
+                            <button class="layui-btn layui-icon-btn layui-btn-sm {if condition="$auth->check($nowmenu.'/add')!=1"}hiddens{/if}" lay-event="add"><i class="layui-icon">&#xe654;</i> {:__('Add')}</button>
+                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger {if condition="$auth->check($nowmenu.'/del')!=1"}hiddens{/if}" lay-event="delAll"><i class="layui-icon">&#xe640;</i> {:__('Delete')}</button>
+
+                            <button class="layui-btn layui-icon-btn layui-btn-sm fright {if condition="$auth->check($nowmenu.'/import')!=1"}import{/if}" id="import" style="padding-left: 10px">导入盘点库存</button>
+                            <button class="layui-btn layui-icon-btn layui-btn-sm fright {if condition="$auth->check($nowmenu.'/export')!=1"}export{/if}" lay-event="export" style="padding-left: 10px">导出系统库存</button>
+
+                        </div>
+                    </script>
+
+                    <form class="layui-form layui-search" id="layui-search">
+                        <div class="layui-input-inline">
+                            <input type="text" name="purchase_time" id="purchase_time" autocomplete="off" placeholder="{:__('Purchase_time')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline " style="width: 90px">
+                            <button class="layui-btn layui-btn-sm" type="button" id="search" data-type="reload">
+                                 <i class="layui-icon"></i> {:__('Search')}
+                            </button>
+                         </div>
+                    </form>
+                    <table id="table" class="table table-striped table-bordered table-hover table-nowrap"
+                           width="100%" lay-filter="table">
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>

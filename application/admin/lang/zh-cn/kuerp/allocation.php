@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'Purchase_code'    => '单据编号',
+    'Purchase_time'    => '单据日期',
+    'Remarks'          => '备注',
+    'Preparation_id'   => '制单人',
+    'Examine_id'       => '审核人',
+    'Operation_id'     => '最后操作人',
+    'Examine_status'   => '审核状态',
+    'Examine_status 0' => '未审核',
+    'Examine_status 1' => '已审核',
+    'Print_num'        => '打印次数',
+    'Createtime'       => '创建时间',
+    'Updatetime'       => '更新时间',
+    'Deletetime'       => '删除时间',
+    'Admin.username'   => '用户名',
+    'Goods_note'       => '商品备注',
+    'Goods_attr'       => '属性',
+    'Goods_unit'       => '商品单位',
+    'Allow_stock'      => '可用库存',
+    'Number'           => '数量',
+    'Stores_out'       => '调出仓库',
+    'Stores_enter'     => '调入仓库',
+    'Remark'           => '备注',
+];

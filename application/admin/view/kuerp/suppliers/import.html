@@ -1,0 +1,71 @@
+{include file="kuerp/common/menu" /}
+<div class="wrapper upload_panel customers">
+    <ul class="steps-ul" id="import-steps" style="margin-bottom: 24px;">
+        <li class="step1-base step-btn_btn step1-cur" data-rel="step1">下载模板并填写</li>
+        <li class="step2-base step-btn_btn step2-nol" data-rel="step2">上传导入文件</li>
+    </ul>
+    <div id="import-wrap" class="cf">
+        <div id="import-step1" class="step-item">
+            <div class="ctn file-import-ctn">
+                <p>
+                    供应商导入模板下载<a class="btn"></a>
+                    <a id="templateUrl" href="__CDN__/assets/addons/kuerp/template/供应商导入模板.xlsx">下载</a>
+                </p>
+            </div>
+            <div class="mid-wrap">
+                <span class="mid-wrap-tit">导入说明</span>
+                <h4>填写excel模版</h4>
+                <p>1）多次导入同一编号的供应商，默认覆盖之前的信息；</p>
+                <p>2）供应商编号、名称必填，多个联系人的供应商信息只需填一次。</p>
+            </div>
+        </div>
+
+        <div id="import-step2" class="step-item" style="display: none;">
+            <div class="ctn uploadList">
+                <label>上传文件:</label>
+                <p>选择文件</p>
+                <input id="upfile" type="button" name="files[]" multiple="">
+                <div id="classes" style="margin-top: 26px;margin-left: 21px;">
+                    <span>重复导入同一编号供应商，则供应商信息：</span>
+                    <label class="radio icon-radio-checked" style="width: 40px;">
+                        <input type="radio" name="editstatus" value="1" checked="checked">更新
+                    </label>
+                    <label class="radio icon-radio-unchecked" style="width: 45px;">
+                        <input type="radio" name="editstatus" value="0">不更新
+                    </label>
+                </div>
+            </div>
+
+            <ul id="progress" class="ul-inline file-import-ctn cf" style="display: none">
+                <li class="filelist">
+                    <div class="progressList">
+                        <div class="file-bar">
+                            <div class="bar"></div>
+                        </div>
+                    </div>
+                </li>
+            </ul>
+            <div class="mid-wrap">
+                <span class="mid-wrap-tit">导入详情</span>
+                <p>新增数据:<span id="addMsg" class="ml10"></span></p>
+                <p>更新数据:<span id="updateMsg" class="ml10"></span></p>
+                <!--<p>错误数据:<span id="errMsg" class="ml10"></span><span id="errFile" class="ml10"></span></p>-->
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 按钮部分 -->
+    <div class="ui-cus-dialog" id="ui-cus-dialog">
+        <div class="step-btns ui_buttons step_step1" style="display: block;">
+            <input type="button" value="下一步" data-rel="step2" class="step-btn_btn ui_state_highlight">
+            <input type="button" class="btn-close" value="关闭">
+        </div>
+        <div class="step-btns ui_buttons step_step2" style="display: none;">
+            <input type="button" value="上一步" data-rel="step1" class="step-btn_btn">
+            <input type="button" class="ui_state_highlight finish_btn" value="完成">
+            <input type="button" class="btn-close" value="关闭">
+        </div>
+    </div>
+    <!-- 按钮部分 -->
+</div>

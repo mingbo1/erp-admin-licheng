@@ -1,0 +1,141 @@
+{include file="kuerp/common/menu" /}
+<form id="edit-form" class="form-horizontal" role="form" data-toggle="validator" method="POST" action="">
+
+    <div class="row">
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4"><span class="must">*</span>{:__('Supplyer_code')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-supplyer_code" data-rule="required" class="form-control" name="row[supplyer_code]" type="text" value="{$row.supplyer_code|htmlentities}">
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4"><span class="must">*</span>{:__('Supplyer_name')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-supplyer_name" data-rule="required" class="form-control" name="row[supplyer_name]" type="text" value="{$row.supplyer_name|htmlentities}">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Supplyertype_id')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    {:build_select('row[supplyertype_id]', $supplyertype, $row['supplyertype_id'], ['class'=>'form-control selectpicker', 'data-rule'=>'required','id'=>'c-supplyertype_id'])}
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Account_time')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-account_time" class="form-control datetimepicker" data-date-format=" YYYY-MM-DD" data-use-current="true" name="row[account_time]" type="text" {if condition="!empty($row['account_time'])"}value="{$row.account_time|date='Y-m-d',###}"{/if}>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Opening_payable')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-opening_payable" class="form-control" step="0.01" name="row[opening_payable]" type="number" value="{$row.opening_payable|htmlentities}">
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Opening_prepayment')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-opening_prepayment" class="form-control" step="0.01" name="row[opening_prepayment]" type="number" value="{$row.opening_prepayment|htmlentities}">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Vat_rate')}%:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-vat_rate" class="form-control" step="0.001" name="row[vat_rate]" type="number" value="{$row.vat_rate|htmlentities}">
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Identification')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-identification" class="form-control" name="row[identification]" type="text" value="{$row.identification|htmlentities}">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Deposit_bank')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-deposit_bank" class="form-control" name="row[deposit_bank]" type="text" value="{$row.deposit_bank|htmlentities}">
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Bank_number')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-bank_number" class="form-control" name="row[bank_number]" type="text" value="{$row.bank_number|htmlentities}">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="list">
+        <table>
+            <tr>
+                <th></th><th><span class="must">*</span>联系人</th><th>手机</th><th>座机</th><th>QQ/微信/Email</th><th>联系地址</th><th>首要联系人</th>
+            </tr>
+            {if condition="empty($user)"}
+            <tr>
+                <td><div class="btn"><span class="add"><i class="fa fa-plus"></i></span><span class="del"><i class="fa fa-trash"></i></span></div></td>
+                <td><div><input type="text" name="user[name][]" data-rule="required"><input type="hidden" name="user[id][]" value=""></div></td>
+                <td><div><input type="text" name="user[mobile][]"></div></td>
+                <td><div><input type="text" name="user[phone][]"></div></td>
+                <td><div><input type="text" name="user[qqnum][]"></div></td>
+                <td><div><input type="text" name="user[address][]"></div></td>
+                <td><div><select name="user[first][]"><option value="0">否</option><option value="1">是</option></select></div></td>
+            </tr>
+            {/if}
+            {foreach name="user" item="vo"}
+            <tr>
+                <td><div class="btn"><span class="add"><i class="fa fa-plus"></i></span><span class="del"><i class="fa fa-trash"></i></span></div></td>
+                <td><div><input type="text" name="user[name][]" data-rule="required" value="{$vo.first_connect_name}"><input type="hidden" name="user[id][]" value="{$vo.id}"></div></td>
+                <td><div><input type="text" name="user[mobile][]" value="{$vo.first_connect_mobile}"></div></td>
+                <td><div><input type="text" name="user[phone][]" value="{$vo.first_connect_phone}"></div></td>
+                <td><div><input type="text" name="user[qqnum][]" value="{$vo.qq_wx_email}"></div></td>
+                <td><div><input type="text" name="user[address][]" value="{$vo.connect_address}"></div></td>
+                <td><div><select name="user[first][]"><option value="0" {if condition="$vo.is_first==0"}selected{/if}>否</option><option value="1" {if condition="$vo.is_first==1"}selected{/if}>是</option></select></div></td>
+            </tr>
+            {/foreach}
+        </table>
+    </div>
+
+    <div class="row">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+            <textarea id="c-note" class="form-control" rows="5" name="row[note]" cols="30" placeholder="添加备注信息，不超过100个字">{$row.note|htmlentities}</textarea>
+        </div>
+    </div>
+    <div class="form-group layer-footer">
+        <label class="control-label col-xs-12 col-sm-2"></label>
+        <div class="col-xs-12 col-sm-8">
+            <button type="submit" class="btn btn-success btn-embossed disabled">{:__('OK')}</button>
+            <button type="reset" class="btn btn-default btn-embossed">{:__('Reset')}</button>
+        </div>
+    </div>
+</form>

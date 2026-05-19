@@ -1,0 +1,92 @@
+{include file="kuerp/common/menu" /}
+<style>
+    .table_title{
+        text-align: center;position: relative;font-size: 20px;
+    }
+    .table_time{
+        position: absolute;left: 5px;font-weight: normal;font-size: 14px;bottom: 1px;
+    }
+    .width300{
+        width: 300px;text-align: left;
+    }
+    .width100{
+        width: 100px;text-align: left;
+    }
+    .pdl30{
+        padding-left: 30px!important;
+    }
+</style>
+<div class="panel panel-default panel-intro">
+    <div class="panel-body">
+        <div id="myTabContent" class="tab-content">
+            <div class="tab-pane fade active in" id="one">
+                <div class="widget-body no-padding">
+                    <form class="layui-form layui-search" id="layui-search">
+                        <div class="layui-input-inline">
+                            <input type="text" name="purchase_time" id="purchase_time" autocomplete="off" placeholder="{:__('单据时间')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline " style="width: 90px">
+                            <button class="layui-btn layui-btn-sm btn-refresh" type="button" id="search" data-type="reload">
+                                <i class="layui-icon"></i> {:__('查询')}
+                            </button>
+                        </div>
+                    </form>
+                    <table id="table" class="table table-striped table-bordered table-hover table-nowrap" width="100%" lay-filter="table">
+                        <tr>
+                            <th colspan="4" class="table_title">利润表<span class="table_time">日期: 2021-11-01 至 2021-11-03</span></th>
+                        </tr>
+                        <tr>
+                            <th class="width300">项目</th><th class="width100">行次</th><th class="width100">金额</th><th></th>
+                        </tr>
+                        <tr>
+                            <td class="width300">主营业务</td><td class="width100">1</td><td class="width100"></td><th></th>
+                        </tr>
+                        <tr>
+                            <td class="width300 pdl30">销售收入</td><td class="width100">2</td><td class="width100 sale_money"></td><td class=""></td>
+                        </tr>
+                        <tr>
+                            <td class="width300 pdl30">减: 销售优惠金额</td><td class="width100">3</td><td class="width100 sales_discount"></td><td class=""></td>
+                        </tr>
+                        <tr>
+                            <td class="width300 pdl30">减: 收款折扣</td><td class="width100">4</td><td class="width100 collection_all"></td><td class=""></td>
+                        </tr>
+                        <tr>
+                            <td class="width300 pdl30"></td><td class="width100">5</td><td class="width100"></td><th></th>
+                        </tr>
+                        <tr>
+                            <td class="width300 pdl30">销售成本</td><td class="width100">6</td><td class="width100 cost_all"></td><td class=""></td>
+                        </tr>
+                        <tr>
+                            <td class="width300 pdl30">减: 购货优惠金额</td><td class="width100">7</td><td class="width100 discount_all"></td><td class=""></td>
+                        </tr>
+                        <tr>
+                            <td class="width300 pdl30">减: 付款折扣</td><td class="width100">8</td><td class="width100 payment_all"></td><td class=""></td>
+                        </tr>
+                        <tr>
+                            <td class="width300 pdl30"></td><td class="width100">9</td><td class="width100"></td><th></th>
+                        </tr>
+                        <tr>
+                            <td class="width300 pdl30">盘盈盘亏</td><td class="width100">10</td><td class="width100 surplus_loss"></td><td class=""></td>
+                        </tr>
+                        <tr>
+                            <td class="width300 pdl30"></td><td class="width100">11</td><td class="width100"></td><th></th>
+                        </tr>
+                        <tr>
+                            <td class="width300">主营业务利润</td><td class="width100">12</td><td class="width100 main_business"></td><td class=""></td>
+                        </tr>
+                        <tr>
+                            <td class="width300 pdl30"></td><td class="width100">13</td><td class="width100"></td><th></th>
+                        </tr>
+                        <tr>
+                            <td class="width300">其它业务利润</td><td class="width100">14</td><td class="width100 other_income"></td><td class=""></td>
+                        </tr>
+                        <tr>
+                            <th class="width300">净利润</th><td class="width100"></td><td class="width100 profit"></td><td class=""></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>

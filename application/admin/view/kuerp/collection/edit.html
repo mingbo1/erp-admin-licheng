@@ -1,0 +1,256 @@
+{include file="kuerp/common/menu" /}
+<form id="edit-form" class="form-horizontal" role="form" data-toggle="validator" method="POST" action="">
+    <div class="row">
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Purchase_code')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-purchase_code" class="form-control" data-rule="required" value="{$row.purchase_code|default=''}" name="row[purchase_code]" type="text" placeholder="{:__('Purchase_code')}">
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Customers_id')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input type="hidden" id="customers_id" name="row[customers_id]" value="">
+                    <div id="customers_ids" class="xm-select-demo"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('总欠款')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-arrears" readonly name="row[arrears]" class="form-control" type="text" value="{$give_account|default=''}" placeholder="{:__('总欠款')}">
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('收款人')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <select name="row[staff_member_id]" id="staff_member_id" class="form-control">
+                        <option value="">请选择{:__('收款人')}</option>
+                        {foreach name="saleList" item="vo"}
+                        <option value="{$vo.id}" {if condition="isset($row['staff_member_id']) && $vo.id==$row.staff_member_id"}selected{/if}>{$vo.name}</option>
+                        {/foreach}
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Purchase_time')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-purchase_time" class="form-control datetime" name="row[purchase_time]" type="text" value="{$row.purchase_time|date='Y-m-d',###}" placeholder="{:__('Purchase_time')}">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="table_box" style="position: relative">
+        {if condition="$row.examine_status==1 && isset($set['examine']['is_checked']) && $set['examine']['is_checked']==1"}
+        <div id="mark" class="has-audit"></div>
+        {/if}
+        <div class="list" style="overflow-x: auto">
+            <table id="account_table">
+                <tr>
+                    <th></th><th>结算账户</th><th>收款金额</th><th>结算方式</th><th>结算号</th><th>备注</th>
+                </tr>
+                <tr style="display: none;">
+                    <td><div class="btn"><span class="ac_add"><i class="fa fa-plus"></i></span><span class="ac_del"><i class="fa fa-trash"></i></span></div></td>
+                    <td>
+                        <select name="row[accounts_id][]" class="form-control accounts_id">
+                            <option value=""></option>
+                            {foreach name="accountsList" item="vo"}
+                            <option value="{$vo.id}">{$vo.account_name}</option>
+                            {/foreach}
+                        </select>
+                    </td>
+                    <td><input type="number" name="row[money][]" class="account_money number_decimal"></td>
+                    <td>
+                        <select name="row[settlementtype][]" class="form-control settlementtype">
+                            <option value=""></option>
+                            {foreach name="settlementtype" item="vo"}
+                            <option value="{$vo.id}">{$vo.name}</option>
+                            {/foreach}
+                        </select>
+                    </td>
+                    <td><input type="text" name="row[number][]" class="number"></td>
+                    <td><input type="text" name="row[remark][]" class="remark"></td>
+                </tr>
+                {php}$account_money = 0;{/php}
+                {foreach name="account" item="info" key="k"}
+                {php}$account_money += $info['money'];{/php}
+                <tr>
+                    <td><div class="btn"><span class="ac_add"><i class="fa fa-plus"></i></span><span class="ac_del"><i class="fa fa-trash"></i></span></div></td>
+                    <td>
+                        <select name="row[accounts_id][]" class="form-control accounts_id">
+                            <option value=""></option>
+                            {foreach name="accountsList" item="vo"}
+                            <option value="{$vo.id}" {if condition="$vo.id==$info.accounts_id"}selected{/if}>{$vo.account_name}</option>
+                            {/foreach}
+                        </select>
+                    </td>
+                    <td><input type="number" name="row[money][]" value="{$info.money}" class="account_money number_decimal"></td>
+                    <td>
+                        <select name="row[settlementtype][]" class="form-control settlementtype">
+                            <option value=""></option>
+                            {foreach name="settlementtype" item="vo"}
+                            <option value="{$vo.id}" {if condition="$vo.id==$info.settlementtype"}selected{/if}>{$vo.name}</option>
+                            {/foreach}
+                        </select>
+                    </td>
+                    <td><input type="text" name="row[number][]" value="{$info.number}" class="number"></td>
+                    <td><input type="text" name="row[remark][]" value="{$info.remark}" class="remark"></td>
+                </tr>
+                {/foreach}
+                {php}for($a=0;$a<(3-sizeof($account));$a++){ {/php}
+                <tr>
+                    <td><div class="btn"><span class="ac_add"><i class="fa fa-plus"></i></span><span class="ac_del"><i class="fa fa-trash"></i></span></div></td>
+                    <td>
+                        <select name="row[accounts_id][]" class="form-control accounts_id">
+                            <option value=""></option>
+                            {foreach name="accountsList" item="vo"}
+                            <option value="{$vo.id}">{$vo.account_name}</option>
+                            {/foreach}
+                        </select>
+                    </td>
+                    <td><input type="number" name="row[money][]" class="account_money number_decimal"></td>
+                    <td>
+                        <select name="row[settlementtype][]" class="form-control settlementtype">
+                            <option value=""></option>
+                            {foreach name="settlementtype" item="vo"}
+                            <option value="{$vo.id}">{$vo.name}</option>
+                            {/foreach}
+                        </select>
+                    </td>
+                    <td><input type="text" name="row[number][]" class="number"></td>
+                    <td><input type="text" name="row[remark][]" class="remark"></td>
+                </tr>
+                {php}}{/php}
+                <tr>
+                    <td></td>
+                    <td><div>合计</div></td>
+                    <td><div><input type="text" readonly class="number_hj" value="{$account_money|default=''}"></div></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            </table>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+            <div class="form-group" style="margin: 0;text-align: right">
+                <button type="button" id="chose" class="btn btn-default btn-embossed">选择源单</button>
+            </div>
+        </div>
+    </div>
+    <div class="table_box">
+        <div class="list" style="overflow-x: auto">
+            <table id="sale_table">
+                <tr>
+                    <th class="{$exclass|default=''}"></th><th>源单编号</th><th>业务类别</th><th>单据日期</th><th>单据金额</th><th>已核销金额</th><th>未核销金额</th><th>本次核销金额</th><th>备注</th><th class="hiddens"></th><th class="hiddens"></th>
+                </tr>
+                <tr style="display: none;">
+                    <td class="{$exclass|default=''}"><div class="btn"><span class="add"><i class="fa fa-plus"></i></span><span class="del"><i class="fa fa-trash"></i></span></div></td>
+                    <td><input type="text" readonly name="row[purchase_number][]" class="purchase_number"></td>
+                    <td><input type="text" readonly name="row[business_type][]" class="business_type"></td>
+                    <td><input type="text" readonly name="row[times][]" class="times"></td>
+                    <td><input type="text" readonly name="row[sale_money][]" class="sale_money"></td>
+                    <td><input type="text" readonly name="row[write_off][]" class="write_off"></td>
+                    <td><input type="text" readonly name="row[write_off_money][]" class="write_off_money"></td>
+                    <td><input type="number" name="row[write_off_price][]" class="write_off_price number_decimal"></td>
+                    <td><input type="text" readonly name="row[sale_remark][]" class="sale_remark"></td>
+                    <td class="hiddens"><input type="text" readonly name="row[purchase_type][]" class="purchase_type"></td>
+                    <td class="hiddens"><input type="text" readonly name="row[purchase_numbers][]" class="purchase_numbers"></td>
+                    <td class="hiddens"><input type="text" readonly name="row[write_off_prices][]"></td>
+                </tr>
+                {php}$sale_money = 0;$write_off = 0;$write_off_money = 0;$write_off_price = 0;{/php}
+                {foreach name="sale" item="info" key="k"}
+                {php}$sale_money += $info['money'];$write_off += $info['write_off'];$write_off_money += $info['write_off_money'];$write_off_price += $info['write_off_price'];{/php}
+                <tr>
+                    <td class="{$exclass|default=''}"><div class="btn"><span class="add"><i class="fa fa-plus"></i></span><span class="del"><i class="fa fa-trash"></i></span></div></td>
+                    <td><input type="text" readonly name="row[purchase_number][]" value="{$info.purchase_number}" class="purchase_number"></td>
+                    <td><input type="text" readonly name="row[business_type][]" value="{$info.business_name}" class="business_type"></td>
+                    <td><input type="text" readonly name="row[times][]" value="{$info.times|date='Y-m-d',###}" class="times"></td>
+                    <td><input type="text" readonly name="row[sale_money][]" value="{$info.money}" class="sale_money"></td>
+                    <td><input type="text" readonly name="row[write_off][]" value="{$info.write_off}" class="write_off"></td>
+                    <td><input type="text" readonly name="row[write_off_money][]" value="{$info.write_off_money}" class="write_off_money"></td>
+                    <td><input type="number" name="row[write_off_price][]" value="{$info.write_off_price}" class="write_off_price number_decimal"></td>
+                    <td><input type="text" readonly name="row[sale_remark][]" value="{$info.remark}" class="sale_remark"></td>
+                    <td class="hiddens"><input type="text" readonly name="row[purchase_type][]" class="purchase_type" value="{$info.source_id}"></td>
+                    <td class="hiddens"><input type="text" readonly name="row[purchase_numbers][]" class="purchase_numbers" value="{$info.purchase_number}"></td>
+                    <td class="hiddens"><input type="text" readonly name="row[write_off_prices][]" value="{$info.write_off_price}"></td>
+                </tr>
+                {/foreach}
+                {php}for($a=0;$a<(3-sizeof($sale));$a++){ {/php}
+                <tr>
+                    <td class="{$exclass|default=''}"><div class="btn"><span class="add"><i class="fa fa-plus"></i></span><span class="del"><i class="fa fa-trash"></i></span></div></td>
+                    <td><input type="text" readonly name="row[purchase_number][]" class="purchase_number"></td>
+                    <td><input type="text" readonly name="row[business_type][]" class="business_type"></td>
+                    <td><input type="text" readonly name="row[times][]" class="times"></td>
+                    <td><input type="text" readonly name="row[sale_money][]" class="sale_money"></td>
+                    <td><input type="text" readonly name="row[write_off][]" class="write_off"></td>
+                    <td><input type="text" readonly name="row[write_off_money][]" class="write_off_money"></td>
+                    <td><input type="number" name="row[write_off_price][]" class="write_off_price number_decimal"></td>
+                    <td><input type="text" readonly name="row[sale_remark][]" class="sale_remark"></td>
+                    <td class="hiddens"><input type="text" readonly name="row[purchase_type][]" class="purchase_type"></td>
+                    <td class="hiddens"><input type="text" readonly name="row[purchase_numbers][]" class="purchase_numbers"></td>
+                    <td class="hiddens"><input type="text" readonly name="row[write_off_prices][]"></td>
+                </tr>
+                {php}}{/php}
+                <tr>
+                    <td class="{$exclass|default=''}"></td>
+                    <td><div>合计：</div></td>
+                    <td></td>
+                    <td></td>
+                    <td><input type="text" readonly class="sale_money_hj" value="{$sale_money|default=''}"></td>
+                    <td><input type="text" readonly class="write_off_hj" value="{$write_off|default=''}"></td>
+                    <td><input type="text" readonly class="write_off_money_hj" value="{$write_off_money|default=''}"></td>
+                    <td><input type="text" readonly class="write_off_price_hj" value="{$write_off_price|default=''}"></td>
+                    <td></td>
+                    <td class="hiddens"></td>
+                    <td class="hiddens"></td>
+                    <td class="hiddens"></td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="row" style="margin-bottom: 10px;">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+            <textarea id="c-note" class="form-control" rows="4" name="row[note]" cols="30" placeholder="备注信息">{$row.remarks|default=''}</textarea>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('整单折扣')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-discount" class="form-control discount" step="0.01" name="row[discount]" type="number" value="{$row.discount|default=''}" placeholder="{:__('整单折扣')}">
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('本次预收款')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-advance" class="form-control advance price_decimal" readonly="readonly" step="0.01" name="row[advance]" type="number" value="{$row.advance|default=''}" placeholder="{:__('本次预收款')}">
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="form-group layer-footer">
+        <label class="control-label col-xs-12 col-sm-2"></label>
+        <div class="col-xs-12 col-sm-8">
+            <button style="display: none" id="surebtns" type="submit" class="btn btn-success btn-embossed">{:__('OK')}</button>
+            <button type="button" id="surebtn" class="btn btn-success btn-embossed">{:__('OK')}</button>
+            <button type="reset" class="btn btn-default btn-embossed">{:__('Reset')}</button>
+        </div>
+    </div>
+</form>

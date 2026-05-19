@@ -1,0 +1,33 @@
+<?php
+
+return [
+    'Account_coding'          => '账户编号',
+    'Account_name'            => '账户名称',
+    'Balance'                 => '当前余额',
+    'Income'                  => '收入',
+    'Expenditure'             => '支出',
+    'Pay_time'                => '日期',
+    'Bill_code'               => '单据编号',
+    'Business_type'           => '业务类型',
+    'Business_type 1'         => '期初余额',
+    'Business_type 2'         => '普通采购',
+    'Business_type 3'         => '购货付款',
+    'Business_type 4'         => '购货退货',
+    'Business_type 5'         => '销货',
+    'Business_type 6'         => '销货退货',
+    'Business_type 7'         => '收款单',
+    'Business_type 8'         => '付款单',
+    'Business_type 9'         => '其他收入单',
+    'Business_type 10'        => '其他支出单',
+    'Business_type 11'        => '转账单转入',
+    'Business_type 12'        => '转账单转出',
+    'Supplyer_code'           => '往来单位',
+    'Customers_id'            => '往来单位',
+    'Payment'                 => '收/付款人',
+    'Remark'                  => '备注',
+    'Createtime'              => '创建时间',
+    'Updatetime'              => '更新时间',
+    'Deletetime'              => '删除时间',
+    'Customers.customer_name' => '客户名称',
+    'Suppliers.supplyer_name' => '供应商名称'
+];

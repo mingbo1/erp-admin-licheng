@@ -1,0 +1,255 @@
+{include file="kuerp/common/menu" /}
+<form id="edit-form" class="form-horizontal" role="form" data-toggle="validator" method="POST" action="">
+
+    <div class="row">
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Business_type')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <select  id="c-business_type" data-rule="required" class="form-control selectpicker" name="row[business_type]">
+                        {foreach name="businessTypeList" item="vo"}
+                        <option value="{$key}" {if condition="isset($row['business_type']) && $key==$row.business_type"}selected{/if}>{$vo}</option>
+                        {/foreach}
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Purchase_code')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-purchase_code" class="form-control" data-rule="required" value="{$row.purchase_code|default=''}" name="row[purchase_code]" type="text" placeholder="{:__('Purchase_code')}">
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3 chose_customers_id chose_u {if condition='$row.business_type==1 || $row.business_type==3'}{else/}hiddens{/if}">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Customers_id')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input type="hidden" id="customers_id" name="row[customers_id]" value="">
+                    <div id="customers_ids" class="xm-select-demo"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3 chose_customers_out_id chose_u {if condition='$row.business_type<3 || $row.business_type>4'}hiddens{/if}">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('转出客户')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input type="hidden" id="customers_out_id" name="row[customers_out_id]" value="">
+                    <div id="customers_out_ids" class="xm-select-demo"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3 chose_customers_enter_id chose_u {if condition='$row.business_type!=4'}hiddens{/if}">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('转入客户')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input type="hidden" id="customers_enter_id" name="row[customers_enter_id]" value="">
+                    <div id="customers_enter_ids" class="xm-select-demo"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3 chose_suppliers_id chose_u {if condition='$row.business_type<2 || $row.business_type>3'}hiddens{/if}">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Suppliers_id')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input type="hidden" id="suppliers_id" name="row[suppliers_id]" value="">
+                    <div id="suppliers_ids" class="xm-select-demo"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3 chose_suppliers_out_id chose_u {if condition='$row.business_type!=5'}hiddens{/if}">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('转出供应商')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input type="hidden" id="suppliers_out_id" name="row[suppliers_out_id]" value="">
+                    <div id="suppliers_out_ids" class="xm-select-demo"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3 chose_suppliers_enter_id chose_u {if condition='$row.business_type!=5'}hiddens{/if}">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('转入供应商')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input type="hidden" id="suppliers_enter_id" name="row[suppliers_enter_id]" value="">
+                    <div id="suppliers_enter_ids" class="xm-select-demo"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Purchase_time')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-purchase_time" class="form-control datetime" name="row[purchase_time]" type="text" value="{:date('Y-m-d')}" placeholder="{:__('Purchase_time')}">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+            <div class="form-group" style="margin: 0;text-align: right">
+                <button type="button" id="chose_advance" data-id="account_table" class="btn btn-default btn-embossed chose_advance chose_btn {if condition='$row.business_type!=1'}hiddens{/if}">选择预收单据</button>
+                <button type="button" id="chose_pay" data-id="account_table" class="btn btn-default btn-embossed chose_pay chose_btn {if condition='$row.business_type!=2'}hiddens{/if}">选择预付单据</button>
+                <button type="button" id="chose_receivable" data-id="account_table" class="btn btn-default btn-embossed chose_receivable chose_btn {if condition='$row.business_type<3 || $row.business_type>4'}hiddens{/if}">选择应收单据</button>
+                <button type="button" id="chose_cope" data-id="account_table" class="btn btn-default btn-embossed chose_cope chose_btn {if condition='$row.business_type!=5'}hiddens{/if}">选择应付单据</button>
+            </div>
+        </div>
+    </div>
+    <div class="table_box" style="position: relative">
+        {if condition="$row.examine_status==1 && isset($set['examine']['is_checked']) && $set['examine']['is_checked']==1"}
+        <div id="mark" class="has-audit"></div>
+        {/if}
+        <div class="list" style="overflow-x: auto">
+            <table id="account_table">
+                <tr>
+                    <th class="{$exclass|default=''}"></th><th>源单编号</th><th>业务类别</th><th>单据日期</th><th>单据金额</th><th>已核销金额</th><th>未核销金额</th><th>本次核销金额</th><th class="hiddens"></th><th class="hiddens"></th>
+                </tr>
+                <tr style="display: none;">
+                    <td class="{$exclass|default=''}"><div class="btn"><span class="add"><i class="fa fa-plus"></i></span><span class="del"><i class="fa fa-trash"></i></span></div></td>
+                    <td><input type="text" readonly name="account[purchase_number][]" class="purchase_number"></td>
+                    <td><input type="text" readonly name="account[business_type][]" class="business_type"></td>
+                    <td><input type="text" readonly name="account[times][]" class="times"></td>
+                    <td><input type="text" readonly name="account[sale_money][]" class="sale_money"></td>
+                    <td><input type="text" readonly name="account[write_off][]" class="write_off"></td>
+                    <td><input type="text" readonly name="account[write_off_money][]" class="write_off_money"></td>
+                    <td><input type="number" name="account[write_off_price][]" class="write_off_price number_decimal"></td>
+                    <td class="hiddens"><input type="text" readonly name="account[purchase_type][]" class="purchase_type"></td>
+                    <td class="hiddens"><input type="text" readonly name="account[purchase_numbers][]" class="purchase_numbers"></td>
+                </tr>
+                {php}$a=0;$sale_money_hj=0;$write_off_hj=0;$write_off_money_hj=0;$write_off_price_hj=0;{/php}
+                {foreach name="info" item="vo" key="k"}
+                {if condition="$vo.top==1"}
+                {php} $a+=1; $sale_money_hj+=$vo['money']; $write_off_hj+=$vo['write_off']; $write_off_money_hj+=$vo['write_off_money']; $write_off_price_hj+=$vo['write_off_price']; {/php}
+                <tr>
+                    <td class="{$exclass|default=''}"><div class="btn"><span class="add"><i class="fa fa-plus"></i></span><span class="del"><i class="fa fa-trash"></i></span></div></td>
+                    <td><input type="text" readonly name="account[purchase_number][]" value="{if condition='$vo.purchase_type>4'}{$vo.business_name|default=''}{else/}{$vo.purchase_number}{/if}" class="purchase_number"></td>
+                    <td><input type="text" readonly name="account[business_type][]" value="{$vo.business_name|default=''}" class="business_type"></td>
+                    <td><input type="text" readonly name="account[times][]" value="{$vo.times|date='Y-m-d',###}" class="times"></td>
+                    <td><input type="text" readonly name="account[sale_money][]" value="{$vo.money}" class="sale_money"></td>
+                    <td><input type="text" readonly name="account[write_off][]" value="{$vo.write_off}" class="write_off"></td>
+                    <td><input type="text" readonly name="account[write_off_money][]" value="{$vo.write_off_money}" class="write_off_money"></td>
+                    <td><input type="number" name="account[write_off_price][]" value="{$vo.write_off_price}" class="write_off_price number_decimal"></td>
+                    <td class="hiddens"><input type="text" readonly name="account[purchase_type][]" class="purchase_type" value="{$vo.source_id}"></td>
+                    <td class="hiddens"><input type="text" readonly name="account[purchase_numbers][]" class="purchase_type" value="{$vo.purchase_number}"></td>
+                </tr>
+                {/if}
+                {/foreach}
+                {php}for($b=0;$b<(4-$a);$b++){ {/php}
+                <tr>
+                    <td class="{$exclass|default=''}"><div class="btn"><span class="add"><i class="fa fa-plus"></i></span><span class="del"><i class="fa fa-trash"></i></span></div></td>
+                    <td><input type="text" readonly name="account[purchase_number][]" class="purchase_number"></td>
+                    <td><input type="text" readonly name="account[business_type][]" class="business_type"></td>
+                    <td><input type="text" readonly name="account[times][]" class="times"></td>
+                    <td><input type="text" readonly name="account[sale_money][]" class="sale_money"></td>
+                    <td><input type="text" readonly name="account[write_off][]" class="write_off"></td>
+                    <td><input type="text" readonly name="account[write_off_money][]" class="write_off_money"></td>
+                    <td><input type="number" name="account[write_off_price][]" class="write_off_price number_decimal"></td>
+                    <td class="hiddens"><input type="text" readonly name="account[purchase_type][]" class="purchase_type"></td>
+                    <td class="hiddens"><input type="text" readonly name="account[purchase_numbers][]" class="purchase_type"></td>
+                </tr>
+                {php}}{/php}
+                <tr>
+                    <td class="{$exclass|default=''}"></td>
+                    <td><div>合计：</div></td>
+                    <td></td>
+                    <td></td>
+                    <td><input type="text" readonly class="sale_money_hj" value="{$sale_money_hj}"></td>
+                    <td><input type="text" readonly class="write_off_hj" value="{$write_off_hj}"></td>
+                    <td><input type="text" readonly class="write_off_money_hj" value="{$write_off_money_hj}"></td>
+                    <td><input type="text" readonly class="write_off_price_hj" value="{$write_off_price_hj}"></td>
+                    <td class="hiddens"></td>
+                    <td class="hiddens"></td>
+                </tr>
+            </table>
+        </div>
+    </div>
+    <div class="row choses {if condition='$row.business_type>3'}hiddens{/if}">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+            <div class="form-group" style="margin: 0;text-align: right">
+                <button type="button" id="choses_receivable" data-id="sale_table" class="btn btn-default btn-embossed chose_receivable chose_btn {if condition='$row.business_type==1'}{else/}hiddens{/if}">选择应收单据</button>
+                <button type="button" id="choses_cope" data-id="sale_table" class="btn btn-default btn-embossed chose_cope chose_btn {if condition='$row.business_type<2 || $row.business_type>3'}hiddens{/if}">选择应付单据</button>
+            </div>
+        </div>
+    </div>
+    <div class="table_box choses {if condition='$row.business_type>3'}hiddens{/if}">
+        <div class="list" style="overflow-x: auto">
+            <table id="sale_table">
+                <tr>
+                    <th></th><th>源单编号</th><th>业务类别</th><th>单据日期</th><th>单据金额</th><th>已核销金额</th><th>未核销金额</th><th>本次核销金额</th><th class="hiddens"></th><th class="hiddens"></th>
+                </tr>
+                <tr style="display: none;">
+                    <td><div class="btn"><span class="add"><i class="fa fa-plus"></i></span><span class="del"><i class="fa fa-trash"></i></span></div></td>
+                    <td><input type="text" readonly name="sale[purchase_number][]" class="purchase_number"></td>
+                    <td><input type="text" readonly name="sale[business_type][]" class="business_type"></td>
+                    <td><input type="text" readonly name="sale[times][]" class="times"></td>
+                    <td><input type="text" readonly name="sale[sale_money][]" class="sale_money"></td>
+                    <td><input type="text" readonly name="sale[write_off][]" class="write_off"></td>
+                    <td><input type="text" readonly name="sale[write_off_money][]" class="write_off_money"></td>
+                    <td><input type="number" name="sale[write_off_price][]" class="write_off_price number_decimal"></td>
+                    <td class="hiddens"><input type="text" readonly name="sale[purchase_type][]" class="purchase_type"></td>
+                    <td class="hiddens"><input type="text" readonly name="sale[purchase_numbers][]" class="purchase_numbers"></td>
+                </tr>
+                {php}$a=0;$sale_money_hj=0;$write_off_hj=0;$write_off_money_hj=0;$write_off_price_hj=0;{/php}
+                {foreach name="info" item="vo" key="k"}
+                {if condition="$vo.top==2"}
+                {php} $a+=1; $sale_money_hj+=$vo['money']; $write_off_hj+=$vo['write_off']; $write_off_money_hj+=$vo['write_off_money']; $write_off_price_hj+=$vo['write_off_price']; {/php}
+                <tr>
+                    <td><div class="btn"><span class="add"><i class="fa fa-plus"></i></span><span class="del"><i class="fa fa-trash"></i></span></div></td>
+                    <td><input type="text" readonly name="sale[purchase_number][]" value="{if condition='$vo.purchase_type>4'}{$vo.business_name|default=''}{else/}{$vo.purchase_number}{/if}" class="purchase_number"></td>
+                    <td><input type="text" readonly name="sale[business_type][]" value="{$vo.business_name|default=''}" class="business_type"></td>
+                    <td><input type="text" readonly name="sale[times][]" value="{$vo.times|date='Y-m-d',###}" class="times"></td>
+                    <td><input type="text" readonly name="sale[sale_money][]" value="{$vo.money}" class="sale_money"></td>
+                    <td><input type="text" readonly name="sale[write_off][]" value="{$vo.write_off}" class="write_off"></td>
+                    <td><input type="text" readonly name="sale[write_off_money][]" value="{$vo.write_off_money}" class="write_off_money"></td>
+                    <td><input type="number" name="sale[write_off_price][]" value="{$vo.write_off_price}" class="write_off_price number_decimal"></td>
+                    <td class="hiddens"><input type="text" readonly name="sale[purchase_type][]" class="purchase_type" value="{$vo.source_id}"></td>
+                    <td class="hiddens"><input type="text" readonly name="sale[purchase_numbers][]" class="purchase_numbers" value="{$vo.purchase_number}"></td>
+                </tr>
+                {/if}
+                {/foreach}
+                {php}for($b=0;$b<(4-$a);$b++){ {/php}
+                <tr>
+                    <td><div class="btn"><span class="add"><i class="fa fa-plus"></i></span><span class="del"><i class="fa fa-trash"></i></span></div></td>
+                    <td><input type="text" readonly name="sale[purchase_number][]" class="purchase_number"></td>
+                    <td><input type="text" readonly name="sale[business_type][]" class="business_type"></td>
+                    <td><input type="text" readonly name="sale[times][]" class="times"></td>
+                    <td><input type="text" readonly name="sale[sale_money][]" class="sale_money"></td>
+                    <td><input type="text" readonly name="sale[write_off][]" class="write_off"></td>
+                    <td><input type="text" readonly name="sale[write_off_money][]" class="write_off_money"></td>
+                    <td><input type="number" name="sale[write_off_price][]" class="write_off_price number_decimal"></td>
+                    <td class="hiddens"><input type="text" readonly name="sale[purchase_type][]" class="purchase_type"></td>
+                    <td class="hiddens"><input type="text" readonly name="sale[purchase_numbers][]" class="purchase_numbers"></td>
+                </tr>
+                {php}}{/php}
+                <tr>
+                    <td></td>
+                    <td><div>合计：</div></td>
+                    <td></td>
+                    <td></td>
+                    <td><input type="text" readonly class="sale_money_hj" value="{$sale_money_hj}"></td>
+                    <td><input type="text" readonly class="write_off_hj" value="{$write_off_hj}"></td>
+                    <td><input type="text" readonly class="write_off_money_hj" value="{$write_off_money_hj}"></td>
+                    <td><input type="text" readonly class="write_off_price_hj" value="{$write_off_price_hj}"></td>
+                    <td class="hiddens"></td>
+                    <td class="hiddens"></td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="row" style="margin-bottom: 10px;">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+            <textarea id="c-note" class="form-control" rows="4" name="row[note]" cols="30" placeholder="备注信息">{$row.remarks|default=''}</textarea>
+        </div>
+    </div>
+    <div class="form-group layer-footer">
+        <label class="control-label col-xs-12 col-sm-2"></label>
+        <div class="col-xs-12 col-sm-8">
+            <button type="submit" class="btn btn-success btn-embossed disabled">{:__('OK')}</button>
+            <button type="reset" class="btn btn-default btn-embossed">{:__('Reset')}</button>
+        </div>
+    </div>
+</form>

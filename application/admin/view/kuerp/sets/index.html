@@ -1,0 +1,168 @@
+{include file="kuerp/common/menu" /}
+<style>
+    #edit-form td{
+        text-align: left;
+    }
+    .explain{
+        color: #b9b9b9;
+    }
+    #edit-form .center{
+        text-align: center;
+    }
+    .table-bordered > thead > tr > th, .table-bordered > tbody > tr > th, .table-bordered > tfoot > tr > th, .table-bordered > thead > tr > td, .table-bordered > tbody > tr > td, .table-bordered > tfoot > tr > td {
+        border: 1px solid #dadada;
+    }
+</style>
+<div class="panel panel-default panel-intro">
+    <div class="panel-body">
+        <div id="myTabContent" class="tab-content">
+            <div class="tab-pane fade active in" id="one">
+                <div class="widget-body no-padding">
+
+                    <div class="layui-tab">
+                        <ul class="layui-tab-title">
+                            <li class="layui-this">基础设置</li>
+                            <li>功能参数</li>
+                            <li>单号设置</li>
+                        </ul>
+                        <div class="layui-tab-content">
+                            <div class="layui-tab-item layui-show">
+                                <form id="add-form" class="form-horizontal" role="form" data-toggle="validator" method="POST" action="" style="max-width: 800px;">
+                                    {foreach name="sets" item="vo" key="k"}
+                                    {if condition="$vo.type==1"}
+                                    {if condition="$vo.name=='valuation'"}
+                                    <div class="form-group">
+                                        <label class="control-label col-xs-12 col-sm-2">{$vo.nickname}:</label>
+                                        <div class="col-xs-12 col-sm-8">
+                                            <input type="hidden" value="{$vo.id}" name="row[{$k}][id]">
+                                            <select id="c-{$vo.name}" class="form-control selectpicker" name="row[{$k}][value]">
+                                                <option value="1" {if condition="$vo.value==1"}selected{/if}>移动平均法</option>
+                                                <option value="2" {if condition="$vo.value==2"}selected{/if}>先进先出法</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    {else/}
+                                    <div class="form-group">
+                                        <label class="control-label col-xs-12 col-sm-2">{$vo.nickname}:</label>
+                                        <div class="col-xs-12 col-sm-8">
+                                            {if condition="$vo.is_edit<1"}<input type="hidden" value="{$vo.id}" name="row[{$k}][id]">{/if}
+                                            <input id="c-{$vo.name}" class="form-control" {if condition="$vo.is_edit<1"}name="row[{$k}][value]"{else/}disabled{/if} value="{$vo.value}" type="text" placeholder="{$vo.nickname}">
+                                            {if condition="!empty($vo.notice)"}<tips>{$vo.notice}</tips>{/if}
+                                        </div>
+                                    </div>
+                                    {/if}
+                                    {/if}
+                                    {/foreach}
+                                    <div class="form-group layer-footer">
+                                        <label class="control-label col-xs-12 col-sm-2"></label>
+                                        <div class="col-xs-12 col-sm-8">
+                                            <button type="button" data-id="add-form" class="sub_btn btn btn-success btn-embossed">{:__('OK')}</button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="layui-tab-item">
+                                <form id="edit-form" class="form-horizontal" role="form" data-toggle="validator" method="POST" action="">
+                                    <table class="table table-striped table-bordered table-hover table-nowrap">
+                                        <tr>
+                                            <th>功能</th><th class="center">操作</th><th>说明</th>
+                                        </tr>
+                                        {foreach name="sets" item="vo" key="k"}
+                                        {if condition="$vo.type==2"}
+                                        <tr>
+                                            <td>{$vo.nickname}:</td>
+                                            <td class="center">
+                                                <input type="hidden" value="{$vo.id}" name="row[{$k}][id]">
+                                                {if condition="!empty($vo.set)"}
+                                                <input type="checkbox" name="row[{$k}][is_checked]" value="1" checked style="display: none">
+                                                {php}$set = unserialize($vo['set']);$setvalue = explode(',',$vo['value']);{/php}
+                                                {foreach name="set" item="vo2"}
+                                                <div>
+                                                    <input type="checkbox" name="row[{$k}][value][]" value="{$vo2.id}" {if condition="in_array($vo2['id'],$setvalue)"}checked{/if}>
+                                                    {$vo2.name}
+                                                </div>
+                                                {/foreach}
+                                                {else/}
+                                                <input type="checkbox" id="set_{$vo.name}" name="row[{$k}][is_checked]" value="1" {if condition="$vo.is_checked==1"}checked{/if}>
+                                                <input type="hidden" name="row[{$k}][value]">
+                                                {/if}
+                                            </td>
+                                            <td class="explain">
+                                                {$vo.explain}
+                                                {if condition="$vo.name=='taxes'"}
+                                                <input type="number" name="row[{$k}][value]" value="{$vo.value}">%
+                                                {/if}
+                                            </td>
+                                        </tr>
+                                        {/if}
+                                        {/foreach}
+                                    </table>
+                                    <div class="form-group layer-footer">
+                                        <label class="control-label col-xs-12 col-sm-2"></label>
+                                        <div class="col-xs-12 col-sm-8">
+                                            <button type="button" data-id="edit-form" class="sub_btn btn btn-success btn-embossed">{:__('OK')}</button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="layui-tab-item">
+                                <form id="prefix-form" class="form-horizontal" role="form" data-toggle="validator" method="POST" action="">
+                                    <input type="hidden" value="3" name="row[type]">
+                                    <table class="table table-striped table-bordered table-hover table-nowrap">
+                                        <tr>
+                                            <th>单据</th><th class="center">单号前缀</th><th>年</th><th>月</th><th>日</th><th>时</th><th>分</th><th>秒</th><th>起始数</th><th>自定义数字长度</th><th>示例</th>
+                                        </tr>
+                                        {foreach name="prefix" item="vo" key="k"}
+                                        <tr>
+                                            <td>{$vo.name}:</td>
+                                            <td>
+                                                <input class="id" type="hidden" value="{$vo.id}" name="row[id][]">
+                                                <input class="prefix{$vo.id} dome" type="text" name="row[prefix{$vo.id}]" value="{$vo.prefix}">
+                                            </td>
+                                            <td class="center">
+                                                <input class="year{$vo.id} dome" type="checkbox" name="row[year{$vo.id}]" value="1" {if condition="$vo.year==1"}checked{/if}>
+                                            </td>
+                                            <td class="center">
+                                                <input class="month{$vo.id} dome" type="checkbox" name="row[month{$vo.id}]" value="1" {if condition="$vo.month==1"}checked{/if}>
+                                            </td>
+                                            <td class="center">
+                                                <input class="day{$vo.id} dome" type="checkbox" name="row[day{$vo.id}]" value="1" {if condition="$vo.day==1"}checked{/if}>
+                                            </td>
+                                            <td class="center">
+                                                <input class="hour{$vo.id} dome" type="checkbox" name="row[hour{$vo.id}]" value="1" {if condition="$vo.hour==1"}checked{/if}>
+                                            </td>
+                                            <td class="center">
+                                                <input class="minute{$vo.id} dome" type="checkbox" name="row[minute{$vo.id}]" value="1" {if condition="$vo.minute==1"}checked{/if}>
+                                            </td>
+                                            <td class="center">
+                                                <input class="second{$vo.id} dome" type="checkbox" name="row[second{$vo.id}]" value="1" {if condition="$vo.second==1"}checked{/if}>
+                                            </td>
+                                            <td>
+                                                <input class="start{$vo.id} dome" type="number" name="row[start{$vo.id}]" value="{$vo.start}">
+                                            </td>
+                                            <td>
+                                                <input class="strlen{$vo.id} dome" type="number" name="row[strlen{$vo.id}]" value="{$vo.strlen}">
+                                            </td>
+                                            <td>
+                                                <input class="example{$vo.id} dome" readonly type="text" name="row[example{$vo.id}]" value="{$vo.example}">
+                                            </td>
+                                        </tr>
+                                        {/foreach}
+                                    </table>
+                                    <div class="form-group layer-footer">
+                                        <label class="control-label col-xs-12 col-sm-2"></label>
+                                        <div class="col-xs-12 col-sm-8">
+                                            <button type="button" data-id="prefix-form" class="sub_btn btn btn-success btn-embossed">{:__('OK')}</button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
