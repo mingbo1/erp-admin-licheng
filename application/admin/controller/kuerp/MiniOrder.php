@@ -35,6 +35,53 @@ class MiniOrder extends Backend
     }
 
     /**
+     * 列表（展平：一个订单下的每个商品为一行，order_no 合并）
+     */
+    public function index()
+    {
+        $this->request->filter(['strip_tags', 'trim']);
+        if (false === $this->request->isAjax()) {
+            return $this->view->fetch();
+        }
+        list($where, $sort, $order, $offset, $limit) = $this->buildparams();
+        $total = $this->model->where($where)->order($sort, $order)->count();
+        $orders = $this->model->with('goods')->where($where)->order($sort, $order)->limit($offset, $limit)->select();
+
+        // 展平：每个商品一行，order 级字段重复用于 merge
+        $rows = [];
+        foreach ($orders as $ord) {
+            $orderData = $ord->toArray();
+            $goodsList = $orderData['goods'] ?? [];
+            unset($orderData['goods'], $orderData['delivery']);
+
+            if (empty($goodsList)) {
+                $orderData['goods_code']   = '';
+                $orderData['goods_name']   = '';
+                $orderData['goods_image']  = '';
+                $orderData['unit_name']    = '';
+                $orderData['attr_name']    = '';
+                $orderData['unit_price']   = '';
+                $orderData['quantity']     = '';
+                $rows[] = $orderData;
+            } else {
+                foreach ($goodsList as $g) {
+                    $row = $orderData;
+                    $row['goods_code']   = $g['goods_code']   ?? '';
+                    $row['goods_name']   = $g['goods_name']   ?? '';
+                    $row['goods_image']  = $g['goods_image']  ?? '';
+                    $row['unit_name']    = $g['unit_name']    ?? '';
+                    $row['attr_name']    = $g['attr_name']    ?? '';
+                    $row['unit_price']   = $g['unit_price']   ?? 0;
+                    $row['quantity']     = $g['quantity']     ?? 0;
+                    $rows[] = $row;
+                }
+            }
+        }
+
+        return json(['total' => $total, 'rows' => $rows]);
+    }
+
+    /**
      * 查看订单详情
      */
     public function detail()
@@ -60,16 +107,16 @@ class MiniOrder extends Backend
     }
 
     /**
-     * 确认订单（选择仓库）
+     * 确认审核订单（跳转到销货单新增页面）
      */
     public function confirm()
     {
         $id = $this->request->param('ids/d');
         if (!$id) {
-            $this->error(__('参数错误'));
+            $this->error(__('1参数错误'));
         }
 
-        $order = $this->model->with(['goods'])->find($id);
+        $order = $this->model->find($id);
         if (!$order) {
             $this->error(__('订单不存在'));
         }
@@ -77,93 +124,24 @@ class MiniOrder extends Backend
             $this->error(__('当前状态不可确认'));
         }
 
-        if ($this->request->isPost()) {
-            $storeId = $this->request->post('stores_id/d');
-            if (!$storeId) {
-                $this->error(__('请选择仓库'));
-            }
-
-            // 检查库存
-            $insufficient = [];
-            foreach ($order->goods as $item) {
-                $stock = Db::name('kuerp_goods_stock')
-                    ->where('goods_code', $item['goods_code'])
-                    ->where('stores_id', $storeId)
-                    ->value('stock');
-                if ((float)$stock < (float)$item['quantity']) {
-                    $insufficient[] = $item['goods_name'] . '(需' . $item['quantity'] . ', 库存' . ((float)$stock) . ')';
-                }
-            }
-            if (!empty($insufficient)) {
-                $this->error(__('库存不足: ' . implode('; ', $insufficient)));
-            }
-
-            Db::startTrans();
-            try {
-                $salesCode = \addons\kuerp\library\Goods::getCodes('', 11);
-                if (!$salesCode) {
-                    $salesCode = 'XHD' . date('Ymd') . str_pad(mt_rand(1, 999), 3, '0', STR_PAD_LEFT);
-                }
-
-                // 创建销货单草稿
-                $salesData = [
-                    'purchase_code'    => $salesCode,
-                    'customers_code'   => $order->customer_id,
-                    'customer_name'    => Db::name('kuerp_customers')->where('id', $order->customer_id)->value('customer_name'),
-                    'examine_status'   => 0,
-                    'account'          => $order->payable_amount,
-                    'all_money'        => $order->total_amount,
-                    'preferential'     => $order->preferential,
-                    'actual_money'     => 0,
-                    'money_whole'      => $order->payable_amount,
-                    'total'            => 0,
-                    'discount'         => 0,
-                    'discount_money'   => 0,
-                    'other_money'      => 0,
-                    'description'      => '订货通订单#' . $order->order_no,
-                    'sales_date'       => date('Y-m-d'),
-                    'stores_id'        => $storeId,
-                    'salesman'         => '',
-                    'admin_id'         => $this->auth->id,
-                    'createtime'       => time(),
-                    'updatetime'       => time(),
-                ];
-                Db::name('kuerp_goods_sales')->insert($salesData);
-
-                // 销货单明细
-                $salesInfoData = [];
-                foreach ($order->goods as $item) {
-                    $salesInfoData[] = [
-                        'purchase_code' => $salesCode,
-                        'goods_code'    => $item['goods_code'],
-                        'goods_name'    => $item['goods_name'],
-                        'basic_nmber'   => $item['quantity'],
-                        'unit_price'    => $item['unit_price'],
-                        'all_money'     => $item['all_money'],
-                        'createtime'    => time(),
-                    ];
-                }
-                Db::name('kuerp_goods_sales_info')->insertAll($salesInfoData);
-
-                // 更新订单
-                $order->status       = 'confirmed';
-                $order->admin_id     = $this->auth->id;
-                $order->confirm_time = time();
-                $order->sales_code   = $salesCode;
-                $order->updatetime   = time();
-                $order->save();
-
-                Db::commit();
-            } catch (\Exception $e) {
-                Db::rollback();
-                $this->error(__('确认失败: ' . $e->getMessage()));
-            }
-
-            $this->success(__('确认成功'));
+        // 标记为已确认，记录操作人
+        $order->status       = 'confirmed';
+        $order->admin_id     = $this->auth->id;
+        $order->confirm_time = time();
+        $order->updatetime   = time();
+        $order->save();
+        $this->success(__('审核成功'));
+    }
+    /** 
+     * 销货单
+    **/
+    public function sales()
+    {
+        $id = $this->request->param('ids/d');
+        if (!$id) {
+            $this->error(__('参数错误'));
         }
-
-        $this->view->assign('order', $order);
-        return $this->view->fetch();
+        $this->success(__('审核成功'));
     }
 
     /**
@@ -180,37 +158,69 @@ class MiniOrder extends Backend
         if (!$order) {
             $this->error(__('订单不存在'));
         }
-        if ($order->status !== 'confirmed') {
+        if ($order->status !== 'paid') {
             $this->error(__('当前状态不可发货'));
         }
 
         if ($this->request->isPost()) {
-            $deliveryType = $this->request->post('delivery_type', 'logistics');
-
-            $deliveryData = [
-                'order_id'      => $id,
-                'delivery_no'   => 'DN' . date('Ymd') . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT),
-                'delivery_type' => $deliveryType,
-                'status'        => 'shipped',
-                'shipped_time'  => time(),
-                'admin_id'      => $this->auth->id,
-                'remark'        => $this->request->post('remark', ''),
-                'createdtime'   => time(),
-                'updatetime'    => time(),
-            ];
-
-            if ($deliveryType == 'logistics') {
-                $deliveryData['express_company'] = $this->request->post('express_company', '');
-                $deliveryData['express_code']    = $this->request->post('express_code', '');
-                $deliveryData['express_no']      = $this->request->post('express_no', '');
-            } else {
-                $deliveryData['carrier_name']   = $this->request->post('carrier_name', '');
-                $deliveryData['carrier_mobile'] = $this->request->post('carrier_mobile', '');
-            }
+            $params = $this->request->post('row/a');
+            $deliveryType = $params['delivery_type'] ?? 'logistics';
+            $remark = $params['remark'] ?? '';
 
             Db::startTrans();
             try {
-                Db::name('kuerp_mini_delivery')->insert($deliveryData);
+                if ($deliveryType == 'logistics') {
+                    $expressItems = $params['express'] ?? [];
+                    if (is_string($expressItems)) {
+                        $expressItems = json_decode($expressItems, true) ?: [];
+                    }
+                    if (empty($expressItems) || !is_array($expressItems)) {
+                        $this->error(__('请填写快递信息'));
+                    }
+                    $hasData = false;
+                    foreach ($expressItems as $item) {
+                        $code = trim($item['code'] ?? '');
+                        $no   = trim($item['no'] ?? '');
+                        if (empty($code) || empty($no)) {
+                            continue;
+                        }
+                        $expressName = Db::name('kuerp_data_express')
+                            ->where('code', $code)
+                            ->value('name');
+                        $deliveryData = [
+                            'order_id'       => $id,
+                            'delivery_no'    => 'DN' . date('Ymd') . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT),
+                            'delivery_type'  => $deliveryType,
+                            'express_company'=> $expressName ?: $code,
+                            'express_code'   => $code,
+                            'express_no'     => $no,
+                            'status'         => 'shipped',
+                            'shipped_time'   => time(),
+                            'admin_id'       => $this->auth->id,
+                            'remark'         => $remark,
+                            'createdtime'    => time(),
+                            'updatetime'     => time(),
+                        ];
+                        Db::name('kuerp_mini_delivery')->insert($deliveryData);
+                        $hasData = true;
+                    }
+                    if (!$hasData) {
+                        $this->error(__('请填写快递信息'));
+                    }
+                } else {
+                    Db::name('kuerp_mini_delivery')->insert([
+                        'order_id'      => $id,
+                        'delivery_no'   => 'DN' . date('Ymd') . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT),
+                        'delivery_type' => $deliveryType,
+                        'status'        => 'shipped',
+                        'shipped_time'  => time(),
+                        'admin_id'      => $this->auth->id,
+                        'remark'        => $remark,
+                        'createdtime'   => time(),
+                        'updatetime'    => time(),
+                    ]);
+                }
+
                 $order->status     = 'shipped';
                 $order->updatetime  = time();
                 $order->save();
@@ -223,6 +233,11 @@ class MiniOrder extends Backend
             $this->success(__('发货成功'));
         }
 
+        $expressList = Db::name('kuerp_data_express')
+            ->order('weigh', 'desc')
+            ->field('code,name')
+            ->select();
+        $this->view->assign('expressList', $expressList);
         $this->view->assign('order', $order);
         return $this->view->fetch();
     }

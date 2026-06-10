@@ -30,10 +30,26 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             return d.status == 'normal' ? '<span class="label label-success">正常</span>' : '<span class="label label-default">禁用</span>';
                         }},
                         { field: 'id', title: __('Operate'), width: 100, templet: function (d) {
-                            var url = 'kuerp/mini_user';
-                            return '<a href="' + url + '/edit/ids/' + d.id + '" class="layui-btn layui-btn-xs">编辑</a>';
+                            return '<a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>';
                         }}
                     ]]
+                });
+
+                //头工具栏事件
+                table.on('toolbar(table)', function(obj){
+                    switch(obj.event){
+                        case 'refresh':
+                            table.reload('table', []);
+                            break;
+                    }
+                });
+
+                //监听行工具事件
+                table.on('tool(table)', function(obj){
+                    var data = obj.data;
+                    if(obj.event === 'edit'){
+                        Fast.api.open("kuerp/mini_user/edit/ids/" + data.id, "编辑", {area:['90%','75%']});
+                    }
                 });
 
                 $('#search').on('click', function () {

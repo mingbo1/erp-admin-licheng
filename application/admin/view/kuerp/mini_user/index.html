@@ -5,9 +5,11 @@
             <div class="tab-pane fade active in" id="one">
                 <div class="widget-body no-padding">
 
-                    <div id="toolbar" class="toolbar">
-                        {:build_toolbar('refresh')}
-                    </div>
+                    <script type="text/html" id="toolbar">
+                        <div class="layui-btn-container">
+                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-cyan btn-refresh" lay-event="refresh"><i class="layui-icon">&#xe669;</i> {:__('Refresh')}</button>
+                        </div>
+                    </script>
 
                     <form class="layui-form layui-search" id="layui-search">
                         <div class="layui-input-inline">

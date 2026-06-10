@@ -1,0 +1,43 @@
+
+.page.data-v-5d053e52 { min-height: 100vh; padding-bottom: 140rpx; background: #f5f7fa;
+}
+.addr-list.data-v-5d053e52 { padding: 20rpx;
+}
+.addr-card.data-v-5d053e52 {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 28rpx 24rpx;
+  margin-bottom: 16rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04);
+  transition: -webkit-transform 0.15s;
+  transition: transform 0.15s;
+  transition: transform 0.15s, -webkit-transform 0.15s;
+}
+.card-hover.data-v-5d053e52 { -webkit-transform: scale(0.98); transform: scale(0.98);
+}
+.addr-top.data-v-5d053e52 { display: flex; align-items: center; gap: 12rpx; margin-bottom: 12rpx;
+}
+.addr-name.data-v-5d053e52 { font-size: 30rpx; font-weight: 600; color: #303133;
+}
+.addr-mobile.data-v-5d053e52 { font-size: 26rpx; color: #606266;
+}
+.default-tag.data-v-5d053e52 { margin-left: auto;
+}
+.addr-detail.data-v-5d053e52 { font-size: 26rpx; color: #606266; line-height: 1.5;
+}
+.addr-actions.data-v-5d053e52 { display: flex; gap: 32rpx; margin-top: 20rpx; padding-top: 16rpx; border-top: 1rpx solid #f5f7fa;
+}
+.action-btn.data-v-5d053e52 { display: flex; align-items: center; gap: 6rpx;
+}
+.action-text.data-v-5d053e52 { font-size: 24rpx; color: #909399;
+}
+.loading-wrap.data-v-5d053e52 { padding: 20rpx;
+}
+.add-btn-wrap.data-v-5d053e52 {
+  position: fixed;
+  bottom: env(safe-area-inset-bottom);
+  left: 0; right: 0;
+  padding: 20rpx 20rpx 40rpx;
+  background: #f5f7fa;
+}
+

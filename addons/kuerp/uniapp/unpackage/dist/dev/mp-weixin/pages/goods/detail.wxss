@@ -1,0 +1,118 @@
+
+.page.data-v-f0a9f5ba { min-height: 100vh; padding-bottom: 120rpx; background: #f5f7fa;
+}
+
+/* 图片轮播 */
+.goods-swiper.data-v-f0a9f5ba { height: 520rpx; background: #f5f7fa;
+}
+.no-img.data-v-f0a9f5ba { height: 100%; display: flex; align-items: center; justify-content: center;
+}
+
+/* 信息区 */
+.info-section.data-v-f0a9f5ba { background: #fff; padding: 28rpx 24rpx; margin-bottom: 16rpx;
+}
+.price-row.data-v-f0a9f5ba { display: flex; align-items: baseline; gap: 12rpx; margin-bottom: 16rpx;
+}
+.price-symbol.data-v-f0a9f5ba { font-size: 28rpx; color: #f56c6c; font-weight: 700;
+}
+.price-value.data-v-f0a9f5ba { font-size: 48rpx; color: #f56c6c; font-weight: 700;
+}
+.cost-price.data-v-f0a9f5ba { font-size: 24rpx; color: #c0c4cc; text-decoration: line-through;
+}
+.goods-name.data-v-f0a9f5ba { font-size: 32rpx; color: #303133; font-weight: 600; line-height: 1.5;
+}
+.tags-row.data-v-f0a9f5ba { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 20rpx;
+}
+
+/* 卡片通用 */
+.section-card.data-v-f0a9f5ba { background: #fff; margin-bottom: 16rpx; padding: 24rpx;
+}
+.section-title.data-v-f0a9f5ba { font-size: 28rpx; font-weight: 600; color: #303133; margin-bottom: 16rpx;
+}
+.remark-text.data-v-f0a9f5ba { font-size: 26rpx; color: #606266; line-height: 1.6;
+}
+
+/* 富文本 */
+.rich-content.data-v-f0a9f5ba { line-height: 1.8; font-size: 26rpx; color: #303133; overflow: hidden;
+}
+.rich-content.data-v-f0a9f5ba ._img { max-width: 100%; height: auto; display: block;
+}
+
+/* 属性 */
+.attr-group.data-v-f0a9f5ba { margin-bottom: 20rpx;
+}
+.attr-group.data-v-f0a9f5ba:last-child { margin-bottom: 0;
+}
+.attr-label.data-v-f0a9f5ba { font-size: 24rpx; color: #606266; display: block; margin-bottom: 10rpx;
+}
+.attr-options.data-v-f0a9f5ba { display: flex; flex-wrap: wrap; gap: 12rpx;
+}
+.attr-tag.data-v-f0a9f5ba {
+  padding: 10rpx 24rpx;
+  font-size: 24rpx;
+  color: #606266;
+  background: #f5f7fa;
+  border-radius: 8rpx;
+  border: 2rpx solid #f5f7fa;
+}
+.attr-tag.selected.data-v-f0a9f5ba { color: #4A90D9; background: #ecf5ff; border-color: #4A90D9;
+}
+.unit-options.data-v-f0a9f5ba { display: flex; flex-wrap: wrap; gap: 12rpx;
+}
+
+/* 底部操作栏 */
+.bottom-bar.data-v-f0a9f5ba {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: #fff; display: flex; align-items: center;
+  padding: 0 24rpx; height: 100rpx;
+  border-top: 1rpx solid #f2f2f2; z-index: 10;
+}
+.action-btn.data-v-f0a9f5ba {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 96rpx; height: 100%; flex-shrink: 0; position: relative;
+}
+.action-label.data-v-f0a9f5ba { font-size: 20rpx; color: #909399; margin-top: 4rpx;
+}
+.cart-badge.data-v-f0a9f5ba {
+  position: absolute; top: 8rpx; right: 4rpx;
+  min-width: 28rpx; height: 28rpx; padding: 0 6rpx;
+  background: #f56c6c; color: #fff; font-size: 18rpx;
+  border-radius: 14rpx; text-align: center; line-height: 28rpx;
+}
+.cart-btn.data-v-f0a9f5ba, .buy-btn.data-v-f0a9f5ba, .sold-out-btn.data-v-f0a9f5ba {
+  flex: 1; height: 76rpx; line-height: 76rpx;
+  text-align: center; font-size: 28rpx; font-weight: 500; color: #fff;
+}
+.cart-btn.data-v-f0a9f5ba { background: #f5a623; border-radius: 38rpx 0 0 38rpx; margin-left: 20rpx;
+}
+.buy-btn.data-v-f0a9f5ba { background: #4A90D9; border-radius: 0 38rpx 38rpx 0;
+}
+.sold-out-btn.data-v-f0a9f5ba { background: #c0c4cc; border-radius: 38rpx; margin-left: 20rpx;
+}
+
+/* 弹窗内容 */
+.sheet-content.data-v-f0a9f5ba { padding: 24rpx 32rpx 48rpx;
+}
+.sheet-goods.data-v-f0a9f5ba { display: flex; align-items: center; margin-bottom: 24rpx;
+}
+.sheet-goods-img.data-v-f0a9f5ba {
+  width: 140rpx; height: 140rpx;
+  background: #f5f7fa; border-radius: 12rpx;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-right: 20rpx; overflow: hidden;
+}
+.sheet-goods-info.data-v-f0a9f5ba { flex: 1;
+}
+.sheet-goods-name.data-v-f0a9f5ba { font-size: 28rpx; color: #303133; font-weight: 500; display: block;
+}
+.sheet-goods-price.data-v-f0a9f5ba { font-size: 36rpx; color: #f56c6c; font-weight: 700; margin-top: 8rpx; display: block;
+}
+.sheet-stock.data-v-f0a9f5ba { font-size: 22rpx; color: #909399; margin-top: 6rpx; display: block;
+}
+.sheet-qty.data-v-f0a9f5ba { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 0;
+}
+.sheet-qty-label.data-v-f0a9f5ba { font-size: 28rpx; color: #303133; font-weight: 500;
+}
+.sheet-btn-wrap.data-v-f0a9f5ba { margin: 10rpx 0;
+}
+

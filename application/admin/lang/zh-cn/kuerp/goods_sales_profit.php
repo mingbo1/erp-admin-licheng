@@ -18,7 +18,7 @@ return [
     'Sales_cost'         => '销售成本',
     'Preferential_money' => '优惠额',
     'Purchase_money'     => '销售费用',
-    'Real_money'         => '优惠后金额',
+    'Real_money'         => '金额',
     'Customers_money'    => '客户承担费用',
     'Need_money'         => '应收金额',
     'Pay_money'          => '已收款金额',

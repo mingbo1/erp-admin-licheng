@@ -32,6 +32,31 @@
                                 <option value="1">{:__('Status 1')}</option>
                             </select>
                         </div>
+                        <div class="layui-input-inline">
+                            <select name="is_show" id="is_show" placeholder="{:__('Is_show')}" class="layui-input">
+                                <option value="">请选择{:__('Is_show')}</option>
+                                <option value="0">{:__('Is_show 0')}</option>
+                                <option value="1">{:__('Is_show 1')}</option>
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="product_type" id="product_type" placeholder="{:__('Product_type')}" class="layui-input">
+                                <option value="">请选择{:__('Product_type')}</option>
+                                <option value="finished">{:__('Product_type finished')}</option>
+                                <option value="semi_finished">{:__('Product_type semi_finished')}</option>
+                                <option value="part">{:__('Product_type part')}</option>
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="location_id" id="location_id" placeholder="{:__('Location_id')}" class="layui-input">
+                                <option value="">请选择{:__('Location_id')}</option>
+                                {foreach name="locationlist" item="vo" key="k"}
+                                {if $k neq ''}
+                                <option value="{$k}">{$vo}</option>
+                                {/if}
+                                {/foreach}
+                            </select>
+                        </div>
                         <div class="layui-input-inline " style="width: 90px">
                             <button class="layui-btn layui-btn-sm" type="button" id="search" data-type="reload">
                                  <i class="layui-icon"></i> {:__('Search')}

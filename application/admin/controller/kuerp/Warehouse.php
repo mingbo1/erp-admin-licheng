@@ -13,7 +13,7 @@ use think\Session;
  */
 class Warehouse extends Backend
 {
-    protected $noNeedRight = ['getserial'];
+    protected $noNeedRight = ['getserial','printpage'];
     /**
      * Warehouse模型对象
      * @var \app\admin\model\kuerp\Warehouse
@@ -1106,6 +1106,39 @@ class Warehouse extends Backend
                 $this->error('反审核失败');
             }
         }
+    }
+
+    // 打印其他出库单详情
+    public function printpage($ids = null)
+    {
+        $row = $this->model->where(['id' => $ids])->find();
+        if (!$row) {
+            $this->error(__('No Results were found'));
+        }
+        // 客户名称
+        $customer_name = Db::name('kuerp_customers')->where(['id' => $row['customers_id']])->value('customer_name');
+        $row['customer_name'] = $customer_name ? $customer_name : '';
+        // 制单人
+        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('username');
+        // 审核人
+        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('username');
+
+        // 出库单详情
+        $info = Db::name('kuerp_warehouse_info')->where(['purchase_code' => $row['purchase_code']])->select();
+        foreach ($info as $k => $v) {
+            $goods = Db::name('kuerp_goods')->where(['id' => $v['goods_id']])->find();
+            $info[$k]['goods_code'] = isset($goods['goods_code']) ? $goods['goods_code'] : '';
+            $info[$k]['goods_name'] = isset($goods['goods_name']) ? $goods['goods_name'] : '';
+            $info[$k]['stores_name'] = Db::name('kuerp_stores')->where(['id' => $v['stores_id']])->value('name');
+            $info[$k]['unit_name'] = Db::name('kuerp_unit')->where(['id' => $v['goods_unit']])->value('name');
+        }
+        $this->view->assign("row", $row);
+        $this->view->assign("purchase_info", $info);
+
+        // 增加打印次数
+        $this->model->where(['id' => $ids])->setInc('print_num');
+
+        return $this->view->fetch();
     }
 
     /**

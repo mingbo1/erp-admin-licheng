@@ -60,7 +60,7 @@ class SplitTemp extends Backend
             $list = $this->model
                 ->with(['admin'])
                 ->where($where)
-                ->where(['business_type'=>$type],'split_temp')
+                ->where('split_temp.business_type', $type)
                 ->order($sort, $order)
                 ->paginate($limit);
 

@@ -24,9 +24,14 @@ class User extends Base
         if (!$code) {
             return json(['code' => 1, 'msg' => '参数错误']);
         }
-
-        $config = get_addon_config('third');
-        $wxConfig = $config['wechat_miniapp'] ?? [];
+        $config = Db::name('kuerp_mini_config')
+            ->field('id,name,value')
+            ->where('name', 'in', ['app_id','app_secret'])
+            ->select();
+        $wxConfig = [
+            'app_id' => $config[0]['value'] ?? '',
+            'app_secret' => $config[1]['value'] ?? '',
+        ];
         if (empty($wxConfig['app_id']) || empty($wxConfig['app_secret'])) {
             return json(['code' => 1, 'msg' => '请先配置微信小程序参数']);
         }
@@ -83,11 +88,12 @@ class User extends Base
                 }
 
                 // 在 fa_kuerp_customers 创建客户
+                $customerCode = \addons\kuerp\library\Goods::getCodes('', 1);
                 $customerData = [
                     'customer_name'     => $nickname ?: '微信用户',
-                    'customer_code'     => '',
+                    'customer_code'     => $customerCode,
+                    'customertype_id' =>1,
                     'customerlevel_id'  => 1,
-                    'customertype_id'   => 0,
                     'customer_mobile'   => $mobile,
                     'status'            => 1,
                     'createtime'        => time(),
@@ -112,13 +118,6 @@ class User extends Base
                     'status'       => 'normal',
                     'createdtime'  => time(),
                     'updatetime'   => time(),
-                ]);
-
-                // 更新客户编码
-                $customerCode = 'KH' . str_pad($customerId, 5, '0', STR_PAD_LEFT);
-                Db::name('kuerp_customers')->where('id', $customerId)->update([
-                    'customer_code' => $customerCode,
-                    'updatetime'    => time(),
                 ]);
             }
             Db::commit();
@@ -162,12 +161,15 @@ class User extends Base
             // 创建 mini_user
             $customerId = Db::name('kuerp_customers')->where('customer_mobile', $mobile)->value('id');
             if (!$customerId) {
+                $customerCode = \addons\kuerp\library\Goods::getCodes('', 1);
                 $customerId = Db::name('kuerp_customers')->insertGetId([
-                    'customer_name'   => $user->nickname ?: $mobile,
-                    'customer_mobile' => $mobile,
+                    'customer_name'    => $user->nickname ?: $mobile,
+                    'customer_code'    => $customerCode,
+                    'customer_mobile'  => $mobile,
                     'customerlevel_id' => 1,
-                    'status'          => 1,
-                    'createtime'      => time(),
+                    'status'           => 1,
+                    'createtime'       => time(),
+                    'updatetime'       => time(),
                 ]);
             }
             $miniUser = MiniUser::create([
@@ -229,8 +231,10 @@ class User extends Base
         }
 
         // 创建客户
+        $customerCode = \addons\kuerp\library\Goods::getCodes('', 1);
         $customerId = Db::name('kuerp_customers')->insertGetId([
             'customer_name'    => $nickname ?: '用户' . substr($mobile, -4),
+            'customer_code'    => $customerCode,
             'customer_mobile'  => $mobile,
             'customerlevel_id' => 1,
             'status'           => 1,

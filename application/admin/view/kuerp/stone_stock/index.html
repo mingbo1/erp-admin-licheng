@@ -1,0 +1,27 @@
+<div class="panel panel-default">
+    <div class="panel-body">
+        <div id="toolbar" class="toolbar">
+            {:build_toolbar('refresh')}
+            <div class="form-inline" role="form">
+                <div class="form-group">
+                    <select name="store_id" class="form-control selectpicker" data-width="150px">
+                        <option value="">{:__('全部仓库')}</option>
+                        {volist name="storesList" id="vo"}
+                        <option value="{$vo.id}">{$vo.name}</option>
+                        {/volist}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <select name="goods_type_id" class="form-control selectpicker" data-width="150px">
+                        <option value="">{:__('全部分类')}</option>
+                        {volist name="typeList" id="vo"}
+                        <option value="{$vo.id}">{$vo.name}</option>
+                        {/volist}
+                    </select>
+                </div>
+            </div>
+        </div>
+        <table id="table" class="table table-striped table-bordered table-hover" width="100%">
+        </table>
+    </div>
+</div>

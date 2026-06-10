@@ -59,7 +59,20 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'supplyer_code', title: __('Supplyer_code'),templet: function (d) {
                                 return d.suppliers.supplyer_code+' '+d.suppliers.supplyer_name;
                             }},
-                        {field: 'purchase_id', title: __('Purchase_id'), operate: 'LIKE'},
+                        {field: 'purchase_id',width:180, title: __('Purchase_id'), operate: 'LIKE', templet: function (d) {
+                                if(d.purchase_list && d.purchase_list.length > 0){
+                                    var html = '';
+                                    for(var i=0; i<d.purchase_list.length; i++){
+                                        var v = d.purchase_list[i];
+                                        var badge = v.examine_status == 1
+                                            ? '<span style="color:green;font-size:11px">已审核</span>'
+                                            : '<span style="color:red;font-size:11px">未审核</span>';
+                                        html += '<div style="margin:1px 0">'+v.purchase_code+' '+badge+'</div>';
+                                    }
+                                    return html;
+                                }
+                                return '<span style="color:#999">未生成</span>';
+                            }},
                         {field: 'number', title: __('Number'),templet: function (d) {
                                 return (d.number).toFixed(number_decimal);
                             }},
@@ -86,6 +99,22 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'examine_id', title: __('Examine_id'),templet: function (d) {
                                 if(d.examine.username!=null){
                                     return d.examine.username;
+                                }else{
+                                    return '';
+                                }
+                            },hide:hideStatus},
+                        {field: 'second_examine_status', title: __('Second_examine_status'),templet: function (d) {
+                                if(d.second_examine_status==1){
+                                    return '<span style="color:green">'+__('Second_examine_status 1')+'</span>';
+                                }else if(d.examine_status==1){
+                                    return '<span style="color:orange">'+__('Second_examine_status 0')+'</span>';
+                                }else{
+                                    return '-';
+                                }
+                            },hide:hideStatus},
+                        {field: 'second_examine_id', title: __('Second_examine_id'),templet: function (d) {
+                                if(d.secondexamine && d.secondexamine.username!=null){
+                                    return d.secondexamine.username;
                                 }else{
                                     return '';
                                 }
@@ -152,6 +181,14 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             break;
                         case 'examine_f':
                             Fast.api.ajax("kuerp/goods_purchase_order/examine?examine=2&ids="+ids, function () {
+                                $('.btn-refresh').click();
+                            },'',true);
+                            break;
+                        case 'secondExamine':
+                            if(data.length<=0){
+                                Toastr.error('请选择要操作的数据');return;
+                            }
+                            Fast.api.ajax("kuerp/goods_purchase_order/secondExamine?ids="+ids, function () {
                                 $('.btn-refresh').click();
                             },'',true);
                             break;
@@ -256,6 +293,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     var examine_status = $('#examine_status').val();
                     if(examine_status!=''){
                         search.examine_status = examine_status;
+                    }
+                    var second_examine_status = $('#second_examine_status').val();
+                    if(second_examine_status!=''){
+                        search.second_examine_status = second_examine_status;
                     }
                     return search;
                 }
@@ -856,15 +897,15 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     changeGoodsInfo(obj,'tax_money')
                 });
                 // 折扣率
-                $(document).on("change", ".discount", function(){
-                    var obj = $(this).parents('tr');
-                    changeGoodsInfo(obj,'discount')
-                });
-                // 折扣额
-                $(document).on("change", ".dis_money", function(){
-                    var obj = $(this).parents('tr');
-                    changeGoodsInfo(obj,'dis_money')
-                });
+                // $(document).on("change", ".discount", function(){
+                //     var obj = $(this).parents('tr');
+                //     changeGoodsInfo(obj,'discount')
+                // });
+                // // 折扣额
+                // $(document).on("change", ".dis_money", function(){
+                //     var obj = $(this).parents('tr');
+                //     changeGoodsInfo(obj,'dis_money')
+                // });
                 //购货金额
                 $(document).on("change", ".all_money", function(){
                     var obj = $(this).parents('tr');

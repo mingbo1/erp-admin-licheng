@@ -11,7 +11,7 @@ use think\Db;
 class Order extends Base
 {
     // 后台管理接口无需登录校验
-    protected $noNeedLogin = ['adminIndex', 'adminDetail', 'confirm', 'ship', 'cancelAdmin', 'deliveryList'];
+    protected $noNeedLogin = [];
 
     /**
      * 提交订单
@@ -19,20 +19,24 @@ class Order extends Base
      */
     public function add()
     {
-        if (!$this->auth->isLogin()) {
-            return json(['code' => 1, 'msg' => '请先登录']);
-        }
+      
 
         $addressId   = $this->request->post('address_id/d', 0);
         $remark      = $this->request->post('remark', '');
         $deliveryType = 'logistics'; // 配送方式由后台发货时选择
-        // 商品列表
-        $goodsStr    = $this->request->post('goods', '');
+        // 商品列表（兼容 form-urlencoded 嵌套数组 和 JSON 字符串两种格式）
+        $goodsData   = $this->request->post('goods', '');
         $goodsList   = [];
-        if ($goodsStr) {
-            $decoded = json_decode($goodsStr, true);
-            if (is_array($decoded)) {
-                $goodsList = $decoded;
+        if ($goodsData) {
+            if (is_array($goodsData)) {
+                // form-urlencoded 提交：PHP 已自动解析为数组
+                $goodsList = $goodsData;
+            } else {
+                // JSON 字符串提交（引号可能被 HTML 实体编码）
+                $decoded = json_decode(htmlspecialchars_decode($goodsData), true);
+                if (is_array($decoded)) {
+                    $goodsList = $decoded;
+                }
             }
         }
         if (empty($goodsList)) {

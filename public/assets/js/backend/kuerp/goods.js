@@ -33,6 +33,25 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                                     return '';
                                 }
                             }},
+                        {field: 'product_type', title: __('Product_type'),templet: function (d) {
+                                if(d.product_type=='finished'){
+                                    return __('Product_type finished');
+                                }
+                                if(d.product_type=='semi_finished'){
+                                    return __('Product_type semi_finished');
+                                }
+                                if(d.product_type=='part'){
+                                    return __('Product_type part');
+                                }
+                                return '';
+                            }},
+                        {field: 'location_id', title: __('Location_id'),templet: function (d) {
+                                if(d.goodslocation && d.goodslocation.location_name){
+                                    return d.goodslocation.location_name;
+                                }else{
+                                    return '';
+                                }
+                            }},
                         {field: 'unit', title: __('Unit'),templet: function (d) {
                                 if(d.more_unit==1){
                                     return d.unitconversion;
@@ -42,8 +61,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                                 }
                             }},
                         {field: 'market_sell_price', title: __('Market_sell_price'), operate:'BETWEEN'},
-                        {field: 'wholesale_price', title: __('Wholesale_price'), operate:'BETWEEN'},
-                        {field: 'vip_price', title: __('Vip_price'), operate:'BETWEEN'},
+                        // {field: 'wholesale_price', title: __('Wholesale_price'), operate:'BETWEEN'},
+                        // {field: 'vip_price', title: __('Vip_price'), operate:'BETWEEN'},
                         {field: 'purchase', title: __('Purchase'), operate:'BETWEEN'},
                         {field: 'goods_image', title: __('Goods_image'), operate: false,templet: function (d) {
                                 return "<a href='javascript:;'><img src="+d.goods_image+" style='width:50px;height:50px;'></a>";
@@ -62,6 +81,13 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                                     return '<input type="checkbox" data-id="'+d.id+'" checked="" name="open" lay-skin="switch" lay-filter="switchList" lay-text="上架|下架">'
                                 }else{
                                     return '<input type="checkbox" data-id="'+d.id+'" name="open" lay-skin="switch" lay-filter="switchList" lay-text="上架|下架">'
+                                }
+                            }},
+                        {field: 'is_show', title: __('Is_show'),templet: function (d) {
+                                if(d.is_show==1){
+                                   return '<input type="checkbox" data-id="'+d.id+'" checked="" name="open" lay-skin="switch" lay-filter="switchShow" lay-text="显示|隐藏">'
+                                }else{
+                                    return '<input type="checkbox" data-id="'+d.id+'" name="open" lay-skin="switch" lay-filter="switchShow" lay-text="显示|隐藏">'
                                 }
                             }},
                         {field: 'updatetime', title: __('Updatetime'),templet: function (d) {
@@ -170,6 +196,25 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                         }
                     });
                 });
+                layui.form.on('switch(switchShow)', function (obj) {
+                    var onoff = this.checked ? '1' : '0';
+                    var id = $(this).data('id');
+                    $.ajax( {
+                        url: "kuerp/goods/multi",
+                        type: "POST",
+                        data:{
+                            'ids':id,
+                            'params':"is_show="+onoff,
+                        },
+                        success: function(res){
+                            if(res.code==0){
+                                Toastr.error(res.msg);
+                            }else{
+                                Toastr.success('操作成功');
+                            }
+                        }
+                    });
+                });
                 //监听行工具事件
                 table.on('tool(table)', function(obj){
                     var data = obj.data;
@@ -239,6 +284,14 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                     if(status!=''){
                         search.status = status;
                     }
+                    var product_type = $('#product_type').val();
+                    if(product_type!=''){
+                        search.product_type = product_type;
+                    }
+                    var location_id = $('#location_id').val();
+                    if(location_id!=''){
+                        search.location_id = location_id;
+                    }
                     return search;
                 }
                 function getOp() {
@@ -246,6 +299,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                     op.goods_code = 'LIKE';
                     op.goods_name = 'LIKE';
                     op.goods_barcode = 'LIKE';
+                    op.product_type = '=';
                     return op;
                 }
             });
@@ -414,6 +468,19 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                                     return '';
                                 }else{
                                     return d.goods_type.name;
+                                }
+                            }},
+                        {field: 'product_type', title: __('Product_type'),templet: function (d) {
+                                if(d.product_type=='finished') return __('Product_type finished');
+                                if(d.product_type=='semi_finished') return __('Product_type semi_finished');
+                                if(d.product_type=='part') return __('Product_type part');
+                                return '';
+                            }},
+                        {field: 'location_id', title: __('Location_id'),templet: function (d) {
+                                if(d.goods_location && d.goods_location.name){
+                                    return d.goods_location.name;
+                                }else{
+                                    return '';
                                 }
                             }},
                         {field: 'attr_name', title: __('商品属性')},
@@ -596,11 +663,20 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                     if(rdata!=''){
                         search.type = rdata;
                     }
+                    var product_type = $('#product_types').val();
+                    if(product_type!=''){
+                        search.product_type = product_type;
+                    }
+                    var location_id = $('#location_ids').val();
+                    if(location_id!=''){
+                        search.location_id = location_id;
+                    }
                     return search;
                 }
                 function getOp() {
                     var op = {};
                     op.store = 'LIKE';
+                    op.product_type = '=';
                     return op;
                 }
                 $.ajax({
@@ -670,6 +746,14 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                     }
                     if(r!=''){
                         search.type = r;
+                    }
+                    var product_type = $('#product_types').val();
+                    if(product_type!=''){
+                        search.product_type = product_type;
+                    }
+                    var location_id = $('#location_ids').val();
+                    if(location_id!=''){
+                        search.location_id = location_id;
                     }
                     return search;
                 }

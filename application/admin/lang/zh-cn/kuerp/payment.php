@@ -9,6 +9,7 @@ return [
     'Discount'         => '整单折扣',
     'Advance'          => '预付款',
     'Staff_member_id'  => '付款人',
+    'Voucher_images'   => '收款凭证',
     'Remarks'          => '备注',
     'Preparation_id'   => '制单人',
     'Examine_id'       => '审核人',

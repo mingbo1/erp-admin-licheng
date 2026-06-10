@@ -42,8 +42,39 @@ class Base extends Controller
     protected function getCustomerId()
     {
         $miniUser = $this->getMiniUser();
-        return $miniUser ? $miniUser->customer_id : 0;
+        $customer_id = $miniUser ? $miniUser->customer_id : 0;
+        //检查客户是否存在
+        if ($customer_id) {
+            $customer = Db::name('kuerp_customers')->where('id', $customer_id)->find();
+            if (!$customer) {
+                $customer_id = 0;
+            }
+        }
+        return $customer_id;
     }
+    public function createCustomer($nickname = '',$mobile = '')
+    {
+         // 在 fa_kuerp_customers 创建客户
+         $customerCode = \addons\kuerp\library\Goods::getCodes('', 1);
+       $customerData = [
+                    'customer_name'     => $nickname ?: '微信用户',
+                    'customer_code'     => $customerCode,
+                    'customertype_id' =>1,
+                    'customerlevel_id'  => 1,
+                    'customer_mobile'   => $mobile,
+                    'status'            => 1,
+                    'createtime'        => time(),
+                    'updatetime'        => time(),
+                ];
+                $customerId = Db::name('kuerp_customers')->insertGetId($customerData);
+        if (!$customerId) {
+            // 创建客户
+            $this->createCustomer();
+        }
+        return $customerId;
+    }
+
+   
 
     /**
      * 根据客户等级获取对应价格字段

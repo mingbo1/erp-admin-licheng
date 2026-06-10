@@ -1,0 +1,96 @@
+{include file="kuerp/common/menu" /}
+<div class="panel panel-default panel-intro">
+    <div class="panel-body">
+        <div id="myTabContent" class="tab-content">
+            <div class="tab-pane fade active in" id="one">
+                <div class="widget-body no-padding">
+
+                    <!-- 选择区 -->
+                    <div class="row" style="padding:15px;">
+                        <div class="col-xs-12 col-sm-4">
+                            <div class="form-group">
+                                <label class="control-label">{:__('Select_bom')}:</label>
+                                <select id="bom-select" class="form-control selectpicker" data-live-search="true">
+                                    <option value="">-- {:__('Please_select_bom')} --</option>
+                                    {foreach name="bomList" item="bom"}
+                                    <option value="{$bom.id}">{$bom.bom_name} ({$bom.goods_code})</option>
+                                    {/foreach}
+                                </select>
+                            </div>
+                        </div>
+                        {if condition="$is_branch eq '1'"}
+                        <div class="col-xs-12 col-sm-3">
+                            <div class="form-group">
+                                <label class="control-label">{:__('Select_stores')}:</label>
+                                <select id="stores-select" class="form-control selectpicker">
+                                    <option value="">{:__('All_stores')}</option>
+                                    {foreach name="stores" item="store"}
+                                    <option value="{$store.id}">{$store.name}</option>
+                                    {/foreach}
+                                </select>
+                            </div>
+                        </div>
+                        {/if}
+                        <div class="col-xs-12 col-sm-3">
+                            <div class="form-group">
+                                <label class="control-label">&nbsp;</label>
+                                <button id="btn-calculate" class="btn btn-primary btn-block" type="button">
+                                    <i class="fa fa-calculator"></i> {:__('Calculate')}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 结果区 -->
+                    <div id="result-area" style="display:none;padding:15px;">
+                        <!-- 结果卡片 -->
+                        <div class="row">
+                            <div class="col-xs-12 col-sm-6 col-sm-offset-3">
+                                <div class="panel panel-default">
+                                    <div class="panel-body text-center" style="padding:30px;">
+                                        <h4 style="margin:0;color:#666;">{:__('Max_assemble_count')}</h4>
+                                        <h1 id="max-count" style="margin:15px 0;font-size:64px;font-weight:bold;color:#18bc9c;">0</h1>
+                                        <p style="color:#666;" id="parent-info"></p>
+                                        <div id="bottleneck-alert" style="display:none;" class="alert alert-warning">
+                                            <strong>{:__('Bottleneck_hint')}:</strong>
+                                            <span id="bottleneck-text"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 明细表格 -->
+                        <div class="panel panel-default">
+                            <div class="panel-heading">{:__('Calc_detail')}</div>
+                            <div class="panel-body no-padding">
+                                <table class="table table-striped table-bordered" id="calc-result-table">
+                                    <thead>
+                                        <tr>
+                                            <th>{:__('Goods_name')}</th>
+                                            <th>{:__('Goods_code')}</th>
+                                            <th>{:__('Product_type')}</th>
+                                            <th>{:__('Consumption')}</th>
+                                            <th>{:__('Total_stock')}</th>
+                                            <th>{:__('Producible')}</th>
+                                            <th>{:__('Is_bottleneck')}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="calc-result-tbody">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 空状态 -->
+                    <div id="empty-state" style="padding:60px;text-align:center;color:#999;">
+                        <i class="fa fa-calculator" style="font-size:64px;display:block;margin-bottom:15px;"></i>
+                        <p style="font-size:16px;">请选择BOM模板，点击"开始计算"查看结果</p>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

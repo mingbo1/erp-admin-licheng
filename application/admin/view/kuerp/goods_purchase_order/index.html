@@ -13,6 +13,7 @@
                             {if condition="isset($set['examine']['is_checked']) && $set['examine']['is_checked']==1"}
                             <button class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger fright {if condition="$auth->check($nowmenu.'/examine')!=1"}hiddens{/if}" lay-event="examine_f"><i class="layui-icon">&#xe674;</i> 反审核</button>
                             <button class="layui-btn layui-icon-btn layui-btn-sm fright {if condition="$auth->check($nowmenu.'/examine')!=1"}hiddens{/if}" lay-event="examine"><i class="layui-icon">&#xe674;</i> 审核</button>
+                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-orange fright {if condition="$auth->check($nowmenu.'/secondExamine')!=1"}hiddens{/if}" lay-event="secondExamine"><i class="layui-icon">&#xe674;</i> 二次审核</button>
                             {/if}
 
                             <input type="hidden" id="createpurchase" value="">
@@ -81,6 +82,13 @@
                                 <option value="">请选择{:__('Examine_status')}</option>
                                 <option value="0">{:__('Examine_status 0')}</option>
                                 <option value="1">{:__('Examine_status 1')}</option>
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="second_examine_status" id="second_examine_status" placeholder="{:__('Second_examine_status')}" class="layui-input">
+                                <option value="">请选择{:__('Second_examine_status')}</option>
+                                <option value="0">{:__('Second_examine_status 0')}</option>
+                                <option value="1">{:__('Second_examine_status 1')}</option>
                             </select>
                         </div>
                         <div class="layui-input-inline " style="width: 90px">

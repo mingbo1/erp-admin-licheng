@@ -51,5 +51,14 @@ return [
     'Allow_stock'                    => '可用库存',
     'Unit_price'                     => '入库单价',
     'All_money'                      => '入库金额',
-    'Remark'                         => '备注'
+    'Remark'                         => '备注',
+    'Print_page'                     => '打印入库单',
+    'Goods_name'                     => '商品名称',
+    'Stores_name'                    => '仓库名称',
+    'Unit_name'                      => '单位',
+    'Goods_code'                     => '商品编号',
+    'Total_amount'                   => '总金额',
+    'Preparation_name'               => '制单人',
+    'Examine_name'                   => '审核人',
+    'Warehousing_detail'             => '其他入库单详情',
 ];

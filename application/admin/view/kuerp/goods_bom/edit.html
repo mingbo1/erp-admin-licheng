@@ -1,0 +1,191 @@
+{include file="kuerp/common/menu" /}
+<form id="edit-form" class="form-horizontal" role="form" data-toggle="validator" method="POST" action="">
+
+    <div class="row">
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">{:__('Bom_name')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-bom_name" data-rule="required" class="form-control" name="row[bom_name]" type="text" value="{$row.bom_name|htmlentities}" placeholder="请输入模板名称">
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">{:__('Remark')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-remark" class="form-control" name="row[remark]" type="text" value="{$row.remark|htmlentities}" placeholder="{:__('Remark')}">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="table_box">
+        <!-- 父商品（组合件） -->
+        <div class="row">
+            <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+                <div class="form-group">
+                    <label class="control-label col-xs-12 col-sm-12" style="text-align: left;font-weight: bold;">{:__('Parent_goods')}：</label>
+                </div>
+            </div>
+        </div>
+        <div class="list" style="overflow-x: auto">
+            <table id="parent_table">
+                <tr>
+                    <th width="60%"><span class="must">*</span>商品</th>
+                    <th width="20%">{:__('Product_type')}</th>
+                    <th width="20%">{:__('Goods_unit')}</th>
+                </tr>
+                <tr>
+                    <td>
+                        <div class="goods_code_box">
+                            <input type="hidden" name="row[goods_code]" class="goods_code" id="parent_goods_code" value="{$parent.goods_code|default=''}">
+                            <input type="hidden" name="row[goods_id]" class="goods_id" id="parent_goods_id" value="{$parent.goods_id|default=''}">
+                            <span class="goods_code_spans"><img src="__CDN__/assets/addons/kuerp/img/more.png"></span>
+                            <input type="text" class="ipt goods_names" id="parent_goods_name" value="{$parent.goods_code|default=''} {$parent.goods_name|default=''}">
+                        </div>
+                    </td>
+                    <td>
+                        <span id="parent_product_type" class="product-type-label">
+                            {if isset($parent)}
+                                {if $parent.product_type=='finished'}成品{elseif $parent.product_type=='semi_finished'}半成品{elseif $parent.product_type=='part'}零件{/if}
+                            {/if}
+                        </span>
+                    </td>
+                    <td>
+                        <select name="row[unit_id]" class="form-control goods_unit" id="parent_unit">
+                            <option value="{$parent.unit_id|default=''}"></option>
+                        </select>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- 子商品 -->
+        <div class="row" style="margin-top: 20px;">
+            <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+                <div class="form-group">
+                    <label class="control-label col-xs-12 col-sm-12" style="text-align: left;font-weight: bold;">{:__('Child_goods')}：</label>
+                </div>
+            </div>
+        </div>
+        <div class="list" style="overflow-x: auto">
+            <table id="child_table">
+                <tr>
+                    <th width="30%"><span class="must">*</span>商品</th>
+                    <th width="12%">{:__('Product_type')}</th>
+                    <th width="15%"><span class="must">*</span>{:__('Child_number')}</th>
+                    <th width="12%">{:__('Goods_unit')}</th>
+                    <th width="20%">{:__('Child_remark')}</th>
+                    <th width="11%">{:__('Operate')}</th>
+                </tr>
+                <!-- 隐藏模板行 -->
+                <tr style="display: none" id="child_row_template">
+                    <td>
+                        <div class="goods_code_box">
+                            <input type="hidden" name="child_goods_code[]" class="goods_code">
+                            <input type="hidden" name="child_goods_id[]" class="goods_id">
+                            <span class="goods_code_span"><img src="__CDN__/assets/addons/kuerp/img/more.png"></span>
+                            <input type="text" class="ipt goods_name">
+                        </div>
+                    </td>
+                    <td><span class="product-type-label"></span></td>
+                    <td>
+                        <input type="number" name="child_number[]" class="child_number number_decimal" value="1" min="0.0001" step="any">
+                    </td>
+                    <td>
+                        <select name="child_unit[]" class="form-control goods_unit">
+                            <option value=""></option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="text" name="child_remark[]" class="child_remark" placeholder="备注">
+                    </td>
+                    <td>
+                        <div class="btn">
+                            <span class="add"><i class="fa fa-plus"></i></span>
+                            <span class="del"><i class="fa fa-trash"></i></span>
+                        </div>
+                    </td>
+                </tr>
+                <!-- 已有子商品数据 -->
+                {if isset($childList) && count($childList) > 0}
+                    {foreach name="childList" item="child" key="k"}
+                    <tr class="child_data_row">
+                        <td>
+                            <div class="goods_code_box">
+                                <input type="hidden" name="child_goods_code[]" class="goods_code" value="{$child.goods_code}">
+                                <input type="hidden" name="child_goods_id[]" class="goods_id" value="{$child.goods_id}">
+                                <span class="goods_code_span"><img src="__CDN__/assets/addons/kuerp/img/more.png"></span>
+                                <input type="text" class="ipt goods_name" value="{$child.goods_code} {$child.goods_name_display|htmlentities}">
+                            </div>
+                        </td>
+                        <td>
+                            <span class="product-type-label">
+                                {if $child.product_type=='finished'}成品{elseif $child.product_type=='semi_finished'}半成品{elseif $child.product_type=='part'}零件{/if}
+                            </span>
+                        </td>
+                        <td>
+                            <input type="number" name="child_number[]" class="child_number number_decimal" value="{$child.number}" min="0.0001" step="any">
+                        </td>
+                        <td>
+                            <select name="child_unit[]" class="form-control goods_unit">
+                                <option value="{$child.unit_id}"></option>
+                            </select>
+                        </td>
+                        <td>
+                            <input type="text" name="child_remark[]" class="child_remark" value="{$child.remark|htmlentities}" placeholder="备注">
+                        </td>
+                        <td>
+                            <div class="btn">
+                                <span class="add"><i class="fa fa-plus"></i></span>
+                                <span class="del"><i class="fa fa-trash"></i></span>
+                            </div>
+                        </td>
+                    </tr>
+                    {/foreach}
+                {else /}
+                    {php}for($a=0;$a<4;$a++){ {/php}
+                    <tr class="child_data_row">
+                        <td>
+                            <div class="goods_code_box">
+                                <input type="hidden" name="child_goods_code[]" class="goods_code">
+                                <input type="hidden" name="child_goods_id[]" class="goods_id">
+                                <span class="goods_code_span"><img src="__CDN__/assets/addons/kuerp/img/more.png"></span>
+                                <input type="text" class="ipt goods_name">
+                            </div>
+                        </td>
+                        <td><span class="product-type-label"></span></td>
+                        <td>
+                            <input type="number" name="child_number[]" class="child_number number_decimal" value="1" min="0.0001" step="any">
+                        </td>
+                        <td>
+                            <select name="child_unit[]" class="form-control goods_unit">
+                                <option value=""></option>
+                            </select>
+                        </td>
+                        <td>
+                            <input type="text" name="child_remark[]" class="child_remark" placeholder="备注">
+                        </td>
+                        <td>
+                            <div class="btn">
+                                <span class="add"><i class="fa fa-plus"></i></span>
+                                <span class="del"><i class="fa fa-trash"></i></span>
+                            </div>
+                        </td>
+                    </tr>
+                    {php}}{/php}
+                {/if}
+            </table>
+        </div>
+    </div>
+    <div class="chose_goods_boxs"></div>
+
+    <div class="form-group layer-footer">
+        <label class="control-label col-xs-12 col-sm-2"></label>
+        <div class="col-xs-12 col-sm-8">
+            <button type="submit" class="btn btn-success btn-embossed disabled">{:__('OK')}</button>
+            <button type="reset" class="btn btn-default btn-embossed">{:__('Reset')}</button>
+        </div>
+    </div>
+</form>

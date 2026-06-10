@@ -32,7 +32,7 @@ class Cost extends Model
     
     public function getBusinessTypeList()
     {
-        return ['1' => __('Business_type 1'), '2' => __('Business_type 2')];
+        return ['1' => __('Business_type 1'), '2' => __('Business_type 2'), '3' => __('Business_type 3'), '4' => __('Business_type 4'), '5' => __('Business_type 5')];
     }
 
     public function getExamineStatusList()

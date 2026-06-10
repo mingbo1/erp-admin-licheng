@@ -14,7 +14,7 @@ use think\Session;
  */
 class GoodsPurchase extends Backend
 {
-    protected $noNeedRight = ['checkpurchase','getsuppliers','getunit','formatinfo','formatinfo2','getbranch','gettime'];
+    protected $noNeedRight = ['checkpurchase','getsuppliers','getunit','formatinfo','formatinfo2','getbranch','gettime','printpage'];
     /**
      * GoodsPurchase模型对象
      * @var \app\admin\model\kuerp\GoodsPurchase
@@ -54,6 +54,12 @@ class GoodsPurchase extends Backend
                 $this->assignconfig("accountsDefault", $accountsList_v['id']);
             }
         }
+
+        $this->view->assign("secondExamineStatusList", $this->model->getSecondExamineStatusList());
+
+        // 二次审核金额阈值
+        $purchase_order_examine_money = Db::name('kuerp_sets')->where(['name'=>'purchase_order_examine_money'])->value('value');
+        $this->assignconfig('purchase_order_examine_money', $purchase_order_examine_money ? $purchase_order_examine_money : '0');
     }
 
     public function index()
@@ -70,7 +76,7 @@ class GoodsPurchase extends Backend
             list($where, $sort, $order, $offset, $limit) = $this->buildparams();
             $sort = 'purchase_time';$order='DESC';
             $list = $this->model
-                ->with(['suppliers','preparation','examine'])
+                ->with(['suppliers','preparation','examine','secondExamine'])
                 ->where($where)
                 ->order($sort, $order)
                 ->order('purchase_code', 'DESC')
@@ -80,6 +86,9 @@ class GoodsPurchase extends Backend
                 $row->getRelation('suppliers')->visible(['supplyer_code','supplyer_name']);
                 $row->getRelation('preparation')->visible(['username']);
                 $row->getRelation('examine')->visible(['username']);
+                if ($row->getRelation('secondExamine')) {
+                    $row->getRelation('secondExamine')->visible(['username']);
+                }
             }
             foreach ($list as $list_k=>$list_v){
                 if(isset($list_v['print_num']) && empty($list_v['print_num'])){
@@ -227,8 +236,8 @@ class GoodsPurchase extends Backend
                             'default_unit'      =>  (float)$params['default_unit'][$k],
                             'basic_nmber'       =>  (float)$params['basic_nmber'][$k],
                             'unit_price'        =>  (float)$params['unit_price'][$k],
-                            'discount'          =>  (float)$params['discount'][$k],
-                            'dis_money'         =>  (float)$params['dis_money'][$k],
+                            // 'discount'          =>  (float)$params['discount'][$k],
+                            // 'dis_money'         =>  (float)$params['dis_money'][$k],
                             'all_money'         =>  (float)$params['all_money'][$k],
                             'remark'            =>  $params['remark'][$k],
 
@@ -603,8 +612,8 @@ class GoodsPurchase extends Backend
                             'default_unit'      =>  (float)$params['default_unit'][$k],
                             'basic_nmber'       =>  (float)$params['basic_nmber'][$k],
                             'unit_price'        =>  (float)$params['unit_price'][$k],
-                            'discount'          =>  (float)$params['discount'][$k],
-                            'dis_money'         =>  (float)$params['dis_money'][$k],
+                            // 'discount'          =>  (float)$params['discount'][$k],
+                            // 'dis_money'         =>  (float)$params['dis_money'][$k],
                             'all_money'         =>  (float)$params['all_money'][$k],
                             'remark'            =>  $params['remark'][$k],
 
@@ -2259,7 +2268,7 @@ class GoodsPurchase extends Backend
                 //单价
                 $data['tax_included'] = $data['unit_price']*(100+$data['tax_rate'])/100;//含税单价
                 $data['money_tax_price'] = $data['tax_included']*$data['number'];//价税合计未减折扣额
-                $data['dis_money'] = $data['money_tax_price']/(100+$data['tax_rate'])*$data['discount'];//折扣额
+                $data['dis_money'] = 0;//$data['money_tax_price']/(100+$data['tax_rate'])*$data['discount'];//折扣额
                 $data['money_tax_price'] = $data['money_tax_price'] - ($data['money_tax_price'] * ($data['discount'])/100);//价税合计减折扣额
                 $data['all_money'] = $data['money_tax_price']*100/(100+$data['tax_rate']);//购货金额
                 $data['tax_money'] = $data['all_money']*$data['tax_rate']/100;//税
@@ -2408,5 +2417,69 @@ class GoodsPurchase extends Backend
             $shelf_life = ceil((strtotime($validity)-strtotime($manufacture))/86400);
         }
         return json_encode(['manufacture'=>$manufacture,'shelf_life'=>$shelf_life,'validity'=>$validity]);
+    }
+
+    // 打印采购单详情
+    public function printpage($ids = null)
+    {
+        $row = $this->model->get($ids);
+        if (!$row) {
+            $this->error(__('No Results were found'));
+        }
+        // 供应商名称
+        $supplyer_name = Db::name('kuerp_suppliers')->where(['supplyer_code' => $row['supplyer_code']])->value('supplyer_name');
+        $row['supplyer_name'] = $supplyer_name ? $supplyer_name : '';
+        // 制单人
+        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('username');
+        // 审核人
+        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('username');
+
+        // 购货单详情
+        $purchase_info = Db::name('kuerp_goods_purchase_info')->where(['purchase_code' => $row['purchase_code']])->select();
+        foreach ($purchase_info as $k => $v) {
+            $purchase_info[$k]['goods_name'] = Db::name('kuerp_goods')->where(['goods_code' => $v['goods_code']])->value('goods_name');
+            $purchase_info[$k]['stores_name'] = Db::name('kuerp_stores')->where(['id' => $v['stores_id']])->value('name');
+            $purchase_info[$k]['unit_name'] = Db::name('kuerp_unit')->where(['id' => $v['goods_unit']])->value('name');
+        }
+        $this->view->assign("row", $row);
+        $this->view->assign("purchase_info", $purchase_info);
+
+        // 增加打印次数
+        $this->model->where(['id' => $ids])->setInc('print_num');
+
+        return $this->view->fetch();
+    }
+
+    // 董事长二次审核
+    public function secondExamine($ids = null){
+        $ids = $ids ? $ids : $this->request->post("ids");
+        if(empty($ids)){
+            $this->error('请选择要操作的数据');
+        }
+
+        $list = $this->model->where(['id'=>['in',$ids],'examine_status'=>'1','second_examine_status'=>'0'])->select();
+        if(empty($list)){
+            $this->error('请选择已一审通过且未二审的数据');
+        }
+
+        $admin = Session::get('admin');
+        Db::startTrans();
+        try {
+            $result = $this->model->where(['id'=>['in',$ids],'examine_status'=>'1','second_examine_status'=>'0'])->update([
+                'second_examine_status' => 1,
+                'second_examine_id'     => $admin['id'],
+                'second_examine_time'   => time(),
+                'operation_id'          => $admin['id']
+            ]);
+            Db::commit();
+        } catch (Exception $e) {
+            Db::rollback();
+            $this->error($e->getMessage());
+        }
+        if(isset($result) && $result !== false){
+            $this->success(sizeof($list).'条数据二次审核成功');
+        }else{
+            $this->error('二次审核失败');
+        }
     }
 }

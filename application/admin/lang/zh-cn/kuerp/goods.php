@@ -27,6 +27,9 @@ return [
     'Status'                       => '状态',
     'Status 0'                     => '下架',
     'Status 1'                     => '上架',
+    'Is_show'                      => '用户端展示',
+    'Is_show 0'                    => '否',
+    'Is_show 1'                    => '是',
     'Createtime'                   => '创建时间',
     'Updatetime'                   => '更新时间',
     'Deletetime'                   => '删除时间',
@@ -40,5 +43,11 @@ return [
     'Warehouse'                    => '首选出库单位',
     'Attribute_id'                 => '商品属性条码',
 
-    'Auxiliary'                    => '商品辅助属性'
+    'Auxiliary'                    => '商品辅助属性',
+
+    'Product_type'                => '商品类型',
+    'Product_type finished'       => '成品',
+    'Product_type semi_finished'  => '半成品',
+    'Product_type part'           => '零件',
+    'Location_id'                 => '商品库位',
 ];

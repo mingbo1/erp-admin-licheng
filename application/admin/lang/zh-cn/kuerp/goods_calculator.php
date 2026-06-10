@@ -1,0 +1,26 @@
+<?php
+
+return [
+    'Goods_calculator'            => '商品计算器',
+    'Select_bom'                  => '选择BOM模板',
+    'Please_select_bom'           => '请选择BOM模板',
+    'Max_assemble_count'          => '最大可组装成品数量',
+    'Parent_goods'                => '父商品',
+    'Calc_detail'                 => '计算明细',
+    'Child_goods'                 => '子商品',
+    'Product_type'                => '商品类型',
+    'Consumption'                 => '单耗数量',
+    'Total_stock'                 => '当前总库存',
+    'Producible'                  => '可支持生产数',
+    'Is_bottleneck'               => '是否瓶颈',
+    'Bottleneck_hint'             => '瓶颈提示',
+    'Bottleneck_goods'            => '瓶颈商品',
+    'Bottleneck_msg'              => '以下子件库存不足，限制了最大产量：',
+    'No_bom_selected'             => '请先选择BOM模板',
+    'Calculating'                 => '正在计算...',
+    'Calculate'                   => '开始计算',
+    'Select_stores'               => '选择仓库',
+    'All_stores'                  => '全部仓库',
+    'Yes'                         => '是',
+    'No'                          => '否',
+];

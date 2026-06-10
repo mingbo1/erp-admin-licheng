@@ -1,61 +1,57 @@
-define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp/layui/layui.js'], function ($, undefined, Backend, Table, Form, Layui) {
+define(['jquery', 'bootstrap', 'backend', 'table', 'form'], function ($, undefined, Backend, Table, Form) {
 
     var Controller = {
         index: function () {
-            layui.use(['table', 'form'], function () {
-                var table = layui.table;
-
-                table.render({
-                    elem: '#table',
-                    url: 'kuerp/mini_banner/index',
-                    parseData: function (res) {
-                        return { "code": 0, "msg": '', "count": res.total, "data": res.rows };
-                    },
-                    toolbar: '#toolbar',
-                    page: true,
-                    cellMinWidth: 100,
-                    cols: [[
-                        { checkbox: true },
-                        { field: 'title', title: __('Title'), width: 150 },
-                        { field: 'image', title: __('Image'), width: 200, templet: function (d) {
-                            return '<img src="' + d.image + '" style="height:30px;">';
-                        }},
-                        { field: 'sort', title: __('Sort'), width: 80, sort: true },
-                        { field: 'status', title: __('Status'), width: 80, templet: function (d) {
-                            return d.status == 'normal' ? '<span class="label label-success">启用</span>' : '<span class="label label-default">禁用</span>';
-                        }},
-                        { field: 'id', title: __('Operate'), width: 200, templet: function (d) {
-                            var url = 'kuerp/mini_banner';
-                            return '<a href="' + url + '/edit/ids/' + d.id + '" class="layui-btn layui-btn-xs">编辑</a>'
-                                + '<a href="javascript:" class="layui-btn layui-btn-xs layui-btn-danger" onclick="if(confirm(\'确认删除?\')){ $.ajax({type:\'post\',url:\'' + url + '/del/ids/' + d.id + '\',success:function(){location.reload()}}) }">删除</a>';
-                        }}
-                    ]]
-                });
-
-                $('#search').on('click', function () {
-                    table.reload('table', {
-                        where: {
-                            filter: JSON.stringify(getSearch()),
-                            op: JSON.stringify(getOp())
-                        },
-                        page: { curr: 1 }
-                    });
-                });
-
-                function getSearch() {
-                    var search = {};
-                    var title = $('#title').val();
-                    if (title) search.title = title;
-                    var status = $('#status').val();
-                    if (status) search.status = status;
-                    return search;
-                }
-
-                function getOp() {
-                    return { title: 'LIKE' };
+            // 初始化表格参数配置
+            Table.api.init({
+                extend: {
+                    index_url: 'kuerp/mini_banner/index' + location.search,
+                    add_url: 'kuerp/mini_banner/add',
+                    edit_url: 'kuerp/mini_banner/edit',
+                    del_url: 'kuerp/mini_banner/del',
+                    multi_url: 'kuerp/mini_banner/multi',
                 }
             });
-            Controller.api.bindevent();
+
+            var table = $("#table");
+
+            // 初始化表格
+            table.bootstrapTable({
+                url: $.fn.bootstrapTable.defaults.extend.index_url,
+                pk: 'id',
+                sortName: 'id',
+                columns: [
+                    [
+                        {checkbox: true},
+                        {field: 'title', title: __('Title'), operate: 'LIKE'},
+                        {field: 'image', title: __('Image'), formatter: function (value) {
+                            return '<img src="' + value + '" style="height:30px;">';
+                        }},
+                        {field: 'sort', title: __('Sort'), sortable: true},
+                        {field: 'status', title: __('Status'), searchList: {"normal": __('启用'), "hidden": __('禁用')}, formatter: Table.api.formatter.status},
+                        {field: 'operate', title: __('Operate'), table: table, events: Table.api.events.operate, formatter: Table.api.formatter.operate}
+                    ]
+                ]
+            });
+
+            // 为表格绑定事件
+            Table.api.bindevent(table);
+
+            // 搜索事件
+            $('#search').on('click', function () {
+                var search = {};
+                var title = $('#title').val();
+                if (title) search.title = title;
+                var status = $('#status').val();
+                if (status) search.status = status;
+                table.bootstrapTable('refresh', {
+                    url: $.fn.bootstrapTable.defaults.extend.index_url,
+                    query: {
+                        filter: JSON.stringify(search),
+                        op: JSON.stringify({title: 'LIKE'})
+                    }
+                });
+            });
         },
 
         add: function () {

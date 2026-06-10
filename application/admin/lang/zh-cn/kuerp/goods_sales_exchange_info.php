@@ -30,7 +30,7 @@ return [
     'Purchase_info_id'        => '购货单详情ID',
     'Preferential_rate'       => '优惠率',
     'Preferential_money'      => '优惠额',
-    'Real_money'              => '优惠后金额',
+    'Real_money'              => '金额',
     'Purchase_money'          => '采购费用',
     'Customers_money'         => '客户承担费用',
     'Preparation_id'          => '制单人',

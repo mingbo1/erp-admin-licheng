@@ -452,6 +452,17 @@ class Datainfo extends Backend
                     unset($list[$list_k]);
                 }
             }
+            // 按预警类型筛选
+            if(!empty($filter['warn_type'])){
+                foreach ($list as $list_k=>$list_v){
+                    if($filter['warn_type'] == 'below' && $list_v['stock'] >= $list_v['min_stock']){
+                        unset($list[$list_k]);
+                    }
+                    if($filter['warn_type'] == 'above' && $list_v['stock'] <= $list_v['max_stock']){
+                        unset($list[$list_k]);
+                    }
+                }
+            }
             $result = array("total" => sizeof($list), "rows" => $list);
 
             return json($result);

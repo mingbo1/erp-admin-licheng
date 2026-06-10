@@ -41,10 +41,7 @@ class Address extends Base
             return json(['code' => 1, 'msg' => '请先登录']);
         }
 
-        $customerId = $this->getCustomerId();
-        if (!$customerId) {
-            return json(['code' => 1, 'msg' => '客户信息不存在']);
-        }
+      
 
         $name    = $this->request->post('name', '');
         $mobile  = $this->request->post('mobile', '');
@@ -56,6 +53,13 @@ class Address extends Base
 
         if (!$name || !$mobile || !$address) {
             return json(['code' => 1, 'msg' => '请填写完整信息']);
+        }
+        $customerId = $this->getCustomerId();
+        if (!$customerId) {
+            // 创建客户
+            $customerId = $this->createCustomer($name, $mobile);
+            //绑定到用户表
+            Db::name('kuerp_mini_user')->where('user_id', $this->auth->id)->update(['customer_id' => $customerId]);
         }
 
         // 如果设为默认，先取消其他默认
@@ -82,6 +86,21 @@ class Address extends Base
             'updatetime'           => time(),
         ];
         $id = Db::name('kuerp_customers_user')->insertGetId($data);
+
+        // 更新 kuerp_customers.getgoods_address：有默认取默认，无默认取第一条
+        $defaultAddress = Db::name('kuerp_customers_user')
+            ->where('sid', $customerId)
+            ->where('status', '1')
+            ->order('is_first', 'desc')
+            ->order('id', 'asc')
+            ->find();
+        if ($defaultAddress) {
+            Db::name('kuerp_customers')->where('id', $customerId)->update([
+                'getgoods_address' => $defaultAddress['connect_address']
+            ]);
+        }
+        
+
 
         $addressDetail = Db::name('kuerp_customers_user')->find($id);
         return json(['code' => 0, 'msg' => '新增成功', 'data' => ['address' => $addressDetail]]);
@@ -149,6 +168,19 @@ class Address extends Base
 
         Db::name('kuerp_customers_user')->where('id', $id)->update($data);
 
+        // 更新 getgoods_address：有默认取默认，无默认取第一条
+        $defaultAddress = Db::name('kuerp_customers_user')
+            ->where('sid', $customerId)
+            ->where('status', '1')
+            ->order('is_first', 'desc')
+            ->order('id', 'asc')
+            ->find();
+        if ($defaultAddress) {
+            Db::name('kuerp_customers')->where('id', $customerId)->update([
+                'getgoods_address' => $defaultAddress['connect_address']
+            ]);
+        }
+
         $addressDetail = Db::name('kuerp_customers_user')->find($id);
         return json(['code' => 0, 'msg' => '编辑成功', 'data' => ['address' => $addressDetail]]);
     }
@@ -174,6 +206,19 @@ class Address extends Base
             ->where('id', $id)
             ->where('sid', $customerId)
             ->delete();
+
+        // 更新 getgoods_address：有默认取默认，无默认取第一条
+        $defaultAddress = Db::name('kuerp_customers_user')
+            ->where('sid', $customerId)
+            ->where('status', '1')
+            ->order('is_first', 'desc')
+            ->order('id', 'asc')
+            ->find();
+        if ($defaultAddress) {
+            Db::name('kuerp_customers')->where('id', $customerId)->update([
+                'getgoods_address' => $defaultAddress['connect_address']
+            ]);
+        }
 
         return json(['code' => 0, 'msg' => '删除成功']);
     }
@@ -203,6 +248,14 @@ class Address extends Base
             ->where('id', $id)
             ->where('sid', $customerId)
             ->update(['is_first' => 1, 'updatetime' => time()]);
+
+        // 更新 getgoods_address 为新默认地址
+        $defaultAddress = Db::name('kuerp_customers_user')->find($id);
+        if ($defaultAddress) {
+            Db::name('kuerp_customers')->where('id', $customerId)->update([
+                'getgoods_address' => $defaultAddress['connect_address']
+            ]);
+        }
 
         return json(['code' => 0, 'msg' => '设置成功']);
     }

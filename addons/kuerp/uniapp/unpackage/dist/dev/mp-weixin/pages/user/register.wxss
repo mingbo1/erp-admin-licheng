@@ -1,0 +1,28 @@
+
+.page.data-v-f11a6d84 {
+  min-height: 100vh;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+}
+.register-wrap.data-v-f11a6d84 {
+  flex: 1;
+  padding: 60rpx 48rpx 60rpx;
+  display: flex;
+  flex-direction: column;
+}
+.logo-area.data-v-f11a6d84 { text-align: center; margin-bottom: 60rpx;
+}
+.logo-title.data-v-f11a6d84 { font-size: 36rpx; font-weight: 700; color: #303133; display: block; margin-top: 16rpx;
+}
+.logo-desc.data-v-f11a6d84 { font-size: 26rpx; color: #909399; margin-top: 10rpx; display: block;
+}
+.form-area.data-v-f11a6d84 { margin-bottom: 40rpx;
+}
+.register-btn-wrap.data-v-f11a6d84 { margin-bottom: 24rpx;
+}
+.links.data-v-f11a6d84 { text-align: center;
+}
+.link.data-v-f11a6d84 { font-size: 26rpx; color: #4A90D9;
+}
+

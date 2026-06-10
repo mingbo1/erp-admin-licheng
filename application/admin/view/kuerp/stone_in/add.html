@@ -1,0 +1,108 @@
+<form id="add-form" class="form-horizontal" role="form" data-toggle="validator" method="POST">
+    <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2">{:__('供应商')}:</label>
+        <div class="col-xs-12 col-sm-8">
+            <select name="row[supplier_id]" class="form-control selectpicker" data-live-search="true">
+                <option value="">{:__('请选择供应商')}</option>
+                {volist name="supplierList" id="vo"}
+                <option value="{$vo.id}">{$vo.supplyer_full_name}</option>
+                {/volist}
+            </select>
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2">{:__('仓库')}:</label>
+        <div class="col-xs-12 col-sm-8">
+            <select name="row[store_id]" class="form-control selectpicker" required>
+                <option value="">{:__('请选择仓库')}</option>
+                {volist name="storesList" id="vo"}
+                <option value="{$vo.id}">{$vo.name}</option>
+                {/volist}
+            </select>
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2">{:__('备注')}:</label>
+        <div class="col-xs-12 col-sm-8">
+            <textarea name="row[remark]" class="form-control" rows="2"></textarea>
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2">{:__('入库商品')}:</label>
+        <div class="col-xs-12 col-sm-8">
+            <button type="button" class="btn btn-success btn-sm" id="add-goods-btn">
+                <i class="fa fa-plus"></i> {:__('选择商品')}
+            </button>
+        </div>
+    </div>
+    <div class="form-group">
+        <div class="col-xs-12 col-sm-8 col-sm-offset-2">
+            <table id="goods-table" class="table table-bordered table-hover">
+                <thead>
+                    <tr>
+                        <th>{:__('商品编码')}</th>
+                        <th>{:__('商品名称')}</th>
+                        <th>{:__('单位')}</th>
+                        <th>{:__('数量')}</th>
+                        <th>{:__('单价')}</th>
+                        <th>{:__('小计')}</th>
+                        <th>{:__('操作')}</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="5" class="text-right">{:__('合计')}:</td>
+                        <td><strong id="total-amount">0.00</strong></td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+    <div class="form-group">
+        <div class="col-xs-12 col-sm-8 col-sm-offset-2">
+            <button type="submit" class="btn btn-primary">{:__('提交')}</button>
+            <a href="javascript:history.back()" class="btn btn-default">{:__('返回')}</a>
+        </div>
+    </div>
+</form>
+
+<!-- 选择商品弹窗 -->
+<div class="modal fade" id="goods-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                <h4 class="modal-title">{:__('选择商品')}</h4>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <input type="text" class="form-control" id="goods-search" placeholder="{:__('搜索商品名称/编码')}">
+                </div>
+                <table id="goods-select-table" class="table table-bordered table-hover">
+                    <thead>
+                        <tr>
+                            <th>{:__('商品编码')}</th>
+                            <th>{:__('商品名称')}</th>
+                            <th>{:__('单位')}</th>
+                            <th>{:__('参考单价')}</th>
+                            <th>{:__('操作')}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {volist name="goodsList" id="vo"}
+                        <tr data-id="{$vo.id}" data-code="{$vo.goods_code}" data-name="{$vo.goods_name}" data-unit="{$vo.unit_name}" data-price="{$vo.price}">
+                            <td>{$vo.goods_code}</td>
+                            <td>{$vo.goods_name}</td>
+                            <td>{$vo.unit_name}</td>
+                            <td>{$vo.price}</td>
+                            <td><button type="button" class="btn btn-primary btn-xs select-goods-btn">{:__('选择')}</button></td>
+                        </tr>
+                        {/volist}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

@@ -24,6 +24,13 @@
                         <div class="layui-input-inline">
                             <input type="text" name="goods_name" id="goods_name" autocomplete="off" placeholder="{:__('商品名称')}" class="layui-input">
                         </div>
+                        <div class="layui-input-inline">
+                            <select name="warn_type" id="warn_type" class="layui-input" lay-search="">
+                                <option value="">{:__('全部预警')}</option>
+                                <option value="below">{:__('低于库存预警下限')}</option>
+                                <option value="above">{:__('高于库存预警上限')}</option>
+                            </select>
+                        </div>
                         <div class="layui-input-inline " style="width: 90px">
                             <button class="layui-btn layui-btn-sm btn-refresh" type="button" id="search" data-type="reload">
                                  <i class="layui-icon"></i> {:__('Search')}

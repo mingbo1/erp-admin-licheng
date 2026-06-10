@@ -34,6 +34,7 @@ class Goods extends Base
             ->alias('g')
             ->field('g.id, g.goods_code, g.goods_name, g.goods_image, g.market_sell_price, g.wholesale_price, g.vip_price, g.unit_id, g.status')
             ->where('g.status', '1')
+            ->where('g.is_show', '1')
             ->where($where)
             ->where(function ($query) use ($keyword) {
                 if ($keyword) {
@@ -69,6 +70,7 @@ class Goods extends Base
         $total = Db::name('kuerp_goods')
             ->alias('g')
             ->where('g.status', '1')
+            ->where('g.is_show', '1')
             ->where($where)
             ->where(function ($query) use ($keyword) {
                 if ($keyword) {
@@ -97,7 +99,7 @@ class Goods extends Base
             return json(['code' => 1, 'msg' => '参数错误']);
         }
 
-        $goods = Db::name('kuerp_goods')->where('id', $id)->where('status', '1')->find();
+        $goods = Db::name('kuerp_goods')->where('id', $id)->where('status', '1')->where('is_show', '1')->find();
         if (!$goods) {
             return json(['code' => 1, 'msg' => '商品不存在或已下架']);
         }

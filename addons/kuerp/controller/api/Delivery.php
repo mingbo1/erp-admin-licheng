@@ -16,12 +16,19 @@ class Delivery extends Base
             return json(['code' => 1, 'msg' => '请先登录']);
         }
 
-        $orderId = $this->request->get('order_id/d', 0);
-        if (!$orderId) {
+        $deliveryId = $this->request->get('delivery_id/d', 0);
+        $orderId    = $this->request->get('order_id/d', 0);
+
+        if ($deliveryId) {
+            // 查指定发货记录
+            $delivery = MiniDelivery::where('id', $deliveryId)->find();
+        } elseif ($orderId) {
+            // 查该订单最近一条（向后兼容）
+            $delivery = MiniDelivery::where('order_id', $orderId)->order('id', 'desc')->find();
+        } else {
             return json(['code' => 1, 'msg' => '参数错误']);
         }
 
-        $delivery = MiniDelivery::where('order_id', $orderId)->order('id', 'desc')->find();
         if (!$delivery) {
             return json(['code' => 1, 'msg' => '暂无物流信息']);
         }

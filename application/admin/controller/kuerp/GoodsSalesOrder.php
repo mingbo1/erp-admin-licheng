@@ -46,6 +46,12 @@ class GoodsSalesOrder extends Backend
 
         $this->view->assign("customers", $this->model->getCustomersList());
         $this->view->assign("saleList", $this->model->getSaleList());
+
+        $this->view->assign("secondExamineStatusList", $this->model->getSecondExamineStatusList());
+
+        // 二次审核金额阈值
+        $sales_order_examine_money = Db::name('kuerp_sets')->where(['name'=>'sales_order_examine_money'])->value('value');
+        $this->assignconfig('sales_order_examine_money', $sales_order_examine_money ? $sales_order_examine_money : '0');
     }
 
     /**
@@ -72,7 +78,7 @@ class GoodsSalesOrder extends Backend
             list($where, $sort, $order, $offset, $limit) = $this->buildparams();
             $sort = 'purchase_time';$order='DESC';
             $list = $this->model
-                ->with(['customers','preparation','examine'])
+                ->with(['customers','preparation','examine','secondExamine'])
                 ->where($where)
                 ->order($sort, $order)
                 ->order('purchase_code', 'DESC')
@@ -82,6 +88,9 @@ class GoodsSalesOrder extends Backend
                 $row->getRelation('customers')->visible(['customer_name']);
                 $row->getRelation('preparation')->visible(['username']);
                 $row->getRelation('examine')->visible(['username']);
+                if ($row->getRelation('secondExamine')) {
+                    $row->getRelation('secondExamine')->visible(['username']);
+                }
             }
             foreach ($list as $list_k=>$list_v){
                 if(isset($list_v['print_num']) && empty($list_v['print_num'])){
@@ -648,9 +657,46 @@ class GoodsSalesOrder extends Backend
                 $this->error('请选择需要审核的数据');
             }
             $admin = Session::get('admin');
+
+            // 获取二次审核金额阈值
+            $threshold = Db::name('kuerp_sets')->where(['name'=>'sales_order_examine_money'])->value('value');
+            $threshold = floatval($threshold);
+
+            // 分组：低于/等于阈值的自动完成二次审核，高于阈值的需要董事长二次审核
+            $belowIds = [];  // 低于阈值，自动跳过二次审核
+            $aboveIds = [];  // 高于阈值，需要二次审核
+            foreach ($list as $list_v){
+                if ($threshold > 0 && floatval($list_v['all_money']) > $threshold){
+                    $aboveIds[] = $list_v['id'];
+                } else {
+                    $belowIds[] = $list_v['id'];
+                }
+            }
+
             Db::startTrans();
             try {
-                $result = $this->model->where(['id'=>['in',$ids],'examine_status'=>'0'])->update(['examine_status'=>1,'examine_id'=>$admin['id'],'examine_time'=>time(),'operation_id'=>$admin['id']]);
+                $result = 0;
+                // 低于阈值的：审核同时自动完成二次审核
+                if (!empty($belowIds)){
+                    $result += $this->model->where(['id'=>['in',$belowIds],'examine_status'=>'0'])->update([
+                        'examine_status'        => 1,
+                        'examine_id'            => $admin['id'],
+                        'examine_time'          => time(),
+                        'second_examine_status' => 1,
+                        'second_examine_id'     => $admin['id'],
+                        'second_examine_time'   => time(),
+                        'operation_id'          => $admin['id']
+                    ]);
+                }
+                // 高于阈值的：只做一审，需要董事长二次审核
+                if (!empty($aboveIds)){
+                    $result += $this->model->where(['id'=>['in',$aboveIds],'examine_status'=>'0'])->update([
+                        'examine_status'        => 1,
+                        'examine_id'            => $admin['id'],
+                        'examine_time'          => time(),
+                        'operation_id'          => $admin['id']
+                    ]);
+                }
                 Db::commit();
             } catch (Exception $e) {
                 Db::rollback();
@@ -660,7 +706,11 @@ class GoodsSalesOrder extends Backend
                 if($examine_set!=1){
                     return ['status'=>1,'msg'=>'操作成功'];
                 }
-                $this->success(sizeof($list).'条数据审核成功');
+                $msg = sizeof($list).'条数据审核成功';
+                if (!empty($aboveIds)){
+                    $msg .= '，其中'.sizeof($aboveIds).'条金额超过阈值，需董事长二次审核';
+                }
+                $this->success($msg);
             }else{
                 if($examine_set!=1){
                     return ['status'=>0,'msg'=>'操作失败'];
@@ -668,7 +718,7 @@ class GoodsSalesOrder extends Backend
                 $this->error('审核失败');
             }
         }else{
-            $list = $this->model->where(['id'=>['in',$ids],'examine_status'=>'1'])->field('id,purchase_id')->select();
+            $list = $this->model->where(['id'=>['in',$ids],'examine_status'=>'1'])->field('id,purchase_id,purchase_time')->select();
             foreach ($list as $list_k=>$list_v){
                 $checkout = (new \addons\kuerp\library\Checkout())->checkOutTime($list_v['purchase_time']);
                 if($checkout!==true){
@@ -700,7 +750,15 @@ class GoodsSalesOrder extends Backend
             $admin = Session::get('admin');
             Db::startTrans();
             try {
-                $result = $this->model->where(['id'=>['in',$ids],'examine_status'=>'1'])->update(['examine_status'=>0,'examine_id'=>0,'examine_time'=>'','operation_id'=>$admin['id']]);
+                $result = $this->model->where(['id'=>['in',$ids],'examine_status'=>'1'])->update([
+                    'examine_status'        => 0,
+                    'examine_id'            => 0,
+                    'examine_time'          => '',
+                    'second_examine_status' => 0,
+                    'second_examine_id'     => 0,
+                    'second_examine_time'   => '',
+                    'operation_id'          => $admin['id']
+                ]);
                 Db::commit();
             } catch (Exception $e) {
                 Db::rollback();
@@ -717,6 +775,43 @@ class GoodsSalesOrder extends Backend
                 }
                 $this->error('反审核失败');
             }
+        }
+    }
+
+    // 董事长二次审核
+    public function secondExamine($ids = null){
+        $examine_set= Db::name('kuerp_sets')->where(['name'=>'examine'])->value('is_checked');
+        if(empty($ids)){
+            $this->error('请选择要操作的数据');
+        }
+        $ids = $ids ? $ids : $this->request->post("ids");
+        if(empty($ids)){
+            $this->error('请选择要操作的数据');
+        }
+
+        $list = $this->model->where(['id'=>['in',$ids],'examine_status'=>'1','second_examine_status'=>'0'])->select();
+        if(empty($list)){
+            $this->error('请选择已一审通过且未二审的数据');
+        }
+
+        $admin = Session::get('admin');
+        Db::startTrans();
+        try {
+            $result = $this->model->where(['id'=>['in',$ids],'examine_status'=>'1','second_examine_status'=>'0'])->update([
+                'second_examine_status' => 1,
+                'second_examine_id'     => $admin['id'],
+                'second_examine_time'   => time(),
+                'operation_id'          => $admin['id']
+            ]);
+            Db::commit();
+        } catch (Exception $e) {
+            Db::rollback();
+            $this->error($e->getMessage());
+        }
+        if(isset($result) && $result !== false){
+            $this->success(sizeof($list).'条数据二次审核成功');
+        }else{
+            $this->error('二次审核失败');
         }
     }
 

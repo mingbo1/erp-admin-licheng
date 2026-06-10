@@ -1,0 +1,16 @@
+
+.page.data-v-6c4d65be { min-height: 100vh; padding-top: 20rpx; background: #f5f7fa;
+}
+.form-card.data-v-6c4d65be {
+  background: #fff;
+  margin: 0 20rpx;
+  border-radius: 16rpx;
+  padding: 12rpx 32rpx;
+}
+.region-value.data-v-6c4d65be { font-size: 28rpx; color: #303133; flex: 1;
+}
+.region-placeholder.data-v-6c4d65be { font-size: 28rpx; color: #c0c4cc; flex: 1;
+}
+.save-btn-wrap.data-v-6c4d65be { margin: 60rpx 20rpx 0;
+}
+

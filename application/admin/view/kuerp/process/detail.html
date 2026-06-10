@@ -1,0 +1,163 @@
+{include file="kuerp/common/menu" /}
+<style>
+    .table-bordered tr th{
+        text-align: center;
+    }
+</style>
+<div class="panel panel-default panel-intro">
+    <div class="panel-heading">
+        <div class="panel-lead"><em>外协加工单详情</em></div>
+    </div>
+    <div class="panel-body">
+        <div class="tab-content">
+            <div class="tab-pane fade active in" id="one">
+                <div class="widget-body no-padding">
+
+                    <!-- 基本信息 -->
+                    <div class="row" style="padding:10px 15px;">
+                        <div class="col-xs-12 col-sm-3">
+                            <div class="form-group">
+                                <label class="control-label col-xs-4">加工单号:</label>
+                                <div class="col-xs-8"><p class="form-control-static">{$row.process_code}</p></div>
+                            </div>
+                        </div>
+                        <div class="col-xs-12 col-sm-3">
+                            <div class="form-group">
+                                <label class="control-label col-xs-4">单据日期:</label>
+                                <div class="col-xs-8"><p class="form-control-static">{$row.process_time|date='Y-m-d',###}</p></div>
+                            </div>
+                        </div>
+                        <div class="col-xs-12 col-sm-3">
+                            <div class="form-group">
+                                <label class="control-label col-xs-4">加工商:</label>
+                                <div class="col-xs-8"><p class="form-control-static">{$row.suppliers.supplyer_code} {$row.suppliers.supplyer_name}</p></div>
+                            </div>
+                        </div>
+                        <div class="col-xs-12 col-sm-3">
+                            <div class="form-group">
+                                <label class="control-label col-xs-4">状态:</label>
+                                <div class="col-xs-8">
+                                    <p class="form-control-static">
+                                        {if $row.examine_status==1}<span class="label label-success">已审核</span>
+                                        {else}<span class="label label-default">未审核</span>{/if}
+                                        &nbsp;
+                                        {if $row.in_status==0}<span class="label label-default">未入库</span>
+                                        {elseif $row.in_status==1}<span class="label label-warning">部分入库</span>
+                                        {else}<span class="label label-success">全部入库</span>{/if}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row" style="padding:0px 15px 10px;">
+                        <div class="col-xs-12 col-sm-3">
+                            <div class="form-group">
+                                <label class="control-label col-xs-4">制单人:</label>
+                                <div class="col-xs-8"><p class="form-control-static">{$row.preparation.username|default='-'}</p></div>
+                            </div>
+                        </div>
+                        <div class="col-xs-12 col-sm-3">
+                            <div class="form-group">
+                                <label class="control-label col-xs-4">审核人:</label>
+                                <div class="col-xs-8"><p class="form-control-static">{$row.examine.username|default='-'}</p></div>
+                            </div>
+                        </div>
+                        <div class="col-xs-12 col-sm-6">
+                            <div class="form-group">
+                                <label class="control-label col-xs-2">备注:</label>
+                                <div class="col-xs-10"><p class="form-control-static">{$row.remark|default='-'}</p></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr style="margin:5px 0">
+
+                    <!-- 出库原材料 -->
+                    <div style="padding:10px 15px;">
+                        <h5 style="font-weight: bold;">出库原材料</h5>
+                        <table class="table table-striped table-bordered">
+                            <tr>
+                                <th>商品编号</th><th>商品名称</th><th>规格</th><th>单位</th>
+                                <th>仓库</th><th>数量</th><th>单价</th><th>金额</th><th>批次</th>
+                            </tr>
+                            {foreach name="info_list" item="vo"}
+                            {if $vo.type==1}
+                            <tr>
+                                <td>{$vo.goods_code}</td>
+                                <td>{$vo.goods_name}</td>
+                                <td>{$vo.goods_attr_name|default='-'}</td>
+                                <td>{$vo.goods_unit_name|default='-'}</td>
+                                <td>{$vo.store_name|default='-'}</td>
+                                <td style="text-align:right">{$vo.number}</td>
+                                <td style="text-align:right">{$vo.unit_cost}</td>
+                                <td style="text-align:right">{$vo.cost_money}</td>
+                                <td>{$vo.batch|default='-'}</td>
+                            </tr>
+                            {/if}
+                            {/foreach}
+                        </table>
+                    </div>
+
+                    <!-- 入库成品 -->
+                    <div style="padding:10px 15px;">
+                        <h5 style="font-weight: bold;">入库成品 <small>（计划数 / 已入库 / 入库成本）</small></h5>
+                        <table class="table table-striped table-bordered">
+                            <tr>
+                                <th>商品编号</th><th>商品名称</th><th>规格</th><th>单位</th>
+                                <th>仓库</th><th>计划数</th><th>已入库</th><th>单位成本</th><th>成本金额</th>
+                            </tr>
+                            {foreach name="info_list" item="vo"}
+                            {if $vo.type==2}
+                            <tr>
+                                <td>{$vo.goods_code}</td>
+                                <td>{$vo.goods_name}</td>
+                                <td>{$vo.goods_attr_name|default='-'}</td>
+                                <td>{$vo.goods_unit_name|default='-'}</td>
+                                <td>{$vo.store_name|default='-'}</td>
+                                <td style="text-align:right">{$vo.number}</td>
+                                <td style="text-align:right">{$vo.in_number}</td>
+                                <td style="text-align:right">{$vo.unit_cost}</td>
+                                <td style="text-align:right">{$vo.cost_money}</td>
+                            </tr>
+                            {/if}
+                            {/foreach}
+                        </table>
+                    </div>
+
+                    <!-- 加工费记录 -->
+                    <div style="padding:10px 15px;">
+                        <h5 style="font-weight: bold;">加工费记录 <small>（合计: ¥{$row.total_process_fee|default=0}）</small></h5>
+                        {if count($fee_list)>0}
+                        <table class="table table-striped table-bordered">
+                            <tr>
+                                <th>日期</th><th>金额</th><th>结算账户</th><th>支出类别</th><th>备注</th>
+                            </tr>
+                            {foreach name="fee_list" item="vo"}
+                            <tr>
+                                <td>{$vo.fee_time|date='Y-m-d',###}</td>
+                                <td >¥{$vo.fee_money}</td>
+                                <td>{$vo.account_name|default='-'}</td>
+                                <td>{$vo.expend_name|default='-'}</td>
+                                <td>{$vo.remark|default='-'}</td>
+                            </tr>
+                            {/foreach}
+                        </table>
+                        {else}
+                        <p class="text-muted">暂无加工费记录</p>
+                        {/if}
+                    </div>
+
+                    <!-- 操作 -->
+                    <div class="row" style="padding:10px 15px;">
+                        <div class="col-xs-12">
+                            <button type="button" class="btn btn-default btn-embossed" onclick="parent.Layer.closeAll();">
+                                <i class="fa fa-close"></i> 关闭
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

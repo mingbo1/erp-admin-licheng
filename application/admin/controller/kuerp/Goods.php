@@ -40,6 +40,8 @@ class Goods extends Backend
         $this->view->assign("moreUnitList", $this->model->getMoreUnitList());
         $this->view->assign("isOfftenList", $this->model->getIsOfftenList());
         $this->view->assign("statusList", $this->model->getStatusList());
+        $this->view->assign("isShowList", $this->model->getIsShowList());
+        $this->view->assign("productTypeList", $this->model->getProductTypeList());
         $stores = Db::name('kuerp_stores')->where(['status'=>1])->select();
         $this->view->assign("stores", $stores);
         $this->assignconfig("stores", json_encode($stores));
@@ -52,6 +54,15 @@ class Goods extends Backend
             $categorylist[$v['id']] = $v['name'];
         }
         $this->view->assign('categorylist', $categorylist);
+
+        $locationlists = collection(model('\app\admin\model\kuerp\GoodsLocation')->where(['status'=>'1'])->field('id,pid,location_name as name')->select())->toArray();
+        Tree::instance()->init($locationlists);
+        $locationlists = Tree::instance()->getTreeList(Tree::instance()->getTreeArray(0), 'name');
+        $locationlist = array('' => '==请选择==');
+        foreach ($locationlists as $k => $v) {
+            $locationlist[$v['id']] = $v['name'];
+        }
+        $this->view->assign('locationlist', $locationlist);
 
         //商品属性数据
         $auxiliary = Db::name('kuerp_auxiliary')->where(['status'=>1])->column('name','id');
@@ -792,7 +803,7 @@ class Goods extends Backend
                 $wheres['goods.status'] = '1';
             }
             $list = $this->model
-                ->with(['goodstype'])
+                ->with(['goodstype','goodslocation'])
                 ->where($where)->where($wheres)
                 ->order($sort, $order)
                 ->paginate($limit);
@@ -826,6 +837,7 @@ class Goods extends Backend
             }
             foreach ($list as $row) {
                 $row->getRelation('goodstype')->visible(['supplier_type_name']);
+                $row->getRelation('goodslocation')->visible(['location_name']);
             }
             $number_decimal = Db::name('kuerp_sets')->where(['name'=>'number_decimal'])->value('value');
             $price_decimal = Db::name('kuerp_sets')->where(['name'=>'price_decimal'])->value('value');
@@ -2436,6 +2448,12 @@ class Goods extends Backend
                 if(!empty($filter['type'])){
                     $where['goods_type_id'] = ['in',$filter['type']];
                 }
+                if(!empty($filter['product_type'])){
+                    $where['product_type'] = $filter['product_type'];
+                }
+                if(!empty($filter['location_id'])){
+                    $where['location_id'] = $filter['location_id'];
+                }
             }
             if(!empty($data['goods_name'])){
                 $where['goods_code|goods_name|goods_barcode'] = ['like','%'.$data['goods_name'].'%'];
@@ -2492,6 +2510,9 @@ class Goods extends Backend
 
                 $type = Db::name('kuerp_goods_type')->where(['id'=>$list_v['goods_type_id']])->field('id,supplier_type_name as name')->find();
                 $list[$list_k]['goods_type'] = $type;
+
+                $location = Db::name('kuerp_goods_location')->where(['id'=>$list_v['location_id']])->field('id,location_name as name')->find();
+                $list[$list_k]['goods_location'] = $location;
             }
             $result = array("total" => $total, "rows" => $list);
 
@@ -2502,6 +2523,8 @@ class Goods extends Backend
         $this->view->assign("storeList", $storeList);
         $goods_type = Db::name('kuerp_goods_type')->select();
         $this->view->assign("goods_type", $goods_type);
+        $goods_location = Db::name('kuerp_goods_location')->select();
+        $this->view->assign("goods_location", $goods_location);
         return $this->view->fetch();
     }
     //树形商品分类
@@ -2533,7 +2556,7 @@ class Goods extends Backend
 
         foreach ($whereData as $goods_list_k=>$goods_list_v){
             $row = Db::name('kuerp_goods')->where(['id'=>$goods_list_v['goods_id']])
-                ->field('manager_warehouse_id,goods_name,market_sell_price,wholesale_price,vip_price,discount,discount2,batch,serial,id,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life')
+                ->field('manager_warehouse_id,goods_name,market_sell_price,wholesale_price,vip_price,discount,discount2,batch,serial,id,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,product_type,location_id')
                 ->find();
             $goods_id = isset($row['id'])?$row['id']:0;
 

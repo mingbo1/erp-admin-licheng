@@ -9,7 +9,7 @@ class Goods extends Model
 
     // 表名
     protected $name = 'kuerp_goods';
-    
+
     // 自动写入时间戳字段
     protected $autoWriteTimestamp = 'int';
 
@@ -21,11 +21,13 @@ class Goods extends Model
     protected $append = [
         'more_unit_text',
         'is_offten_text',
-        'status_text'
+        'status_text',
+        'is_show_text',
+        'product_type_text'
     ];
-    
 
-    
+
+
     public function getMoreUnitList()
     {
         return ['1' => __('More_unit 1'), '2' => __('More_unit 2')];
@@ -39,6 +41,11 @@ class Goods extends Model
     public function getStatusList()
     {
         return ['0' => __('Status 0'), '1' => __('Status 1')];
+    }
+
+    public function getIsShowList()
+    {
+        return ['0' => __('Is_show 0'), '1' => __('Is_show 1')];
     }
 
 
@@ -66,11 +73,33 @@ class Goods extends Model
     }
 
 
+    public function getIsShowTextAttr($value, $data)
+    {
+        $value = $value ? $value : (isset($data['is_show']) ? $data['is_show'] : '');
+        $list = $this->getIsShowList();
+        return isset($list[$value]) ? $list[$value] : '';
+    }
 
+
+    public function getProductTypeList()
+    {
+        return ['finished' => __('Product_type finished'), 'semi_finished' => __('Product_type semi_finished'), 'part' => __('Product_type part')];
+    }
+
+    public function getProductTypeTextAttr($value, $data)
+    {
+        $value = $value ? $value : (isset($data['product_type']) ? $data['product_type'] : '');
+        $list = $this->getProductTypeList();
+        return isset($list[$value]) ? $list[$value] : '';
+    }
 
     public function goodstype()
     {
         return $this->belongsTo('GoodsType', 'goods_type_id', 'id', [], 'LEFT')->setEagerlyType(0);
+    }
+    public function goodslocation()
+    {
+        return $this->belongsTo('GoodsLocation', 'location_id', 'id', [], 'LEFT')->setEagerlyType(0);
     }
     public function unitconversion()
     {

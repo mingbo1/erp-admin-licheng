@@ -88,6 +88,7 @@ class GoodsLog extends Backend
                 ->where($where)
                 ->where($wheres)
                 ->order('business_type','ASC')
+                ->order($sort, $order)
                 ->paginate($limit);
 
             foreach ($list as $row) {

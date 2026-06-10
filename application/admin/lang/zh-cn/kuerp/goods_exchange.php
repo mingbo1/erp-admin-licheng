@@ -16,7 +16,7 @@ return [
     'Purchase_id'        => '原购货单号',
     'Preferential_rate'  => '优惠率',
     'Preferential_money' => '优惠额',
-    'Real_money'         => '优惠后金额',
+    'Real_money'         => '金额',
     'Purchase_money'     => '采购费用',
     'Preparation_id'     => '制单人',
     'Examine_id'         => '审核人',

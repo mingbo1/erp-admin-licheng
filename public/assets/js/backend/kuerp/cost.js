@@ -33,15 +33,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'purchase_code', title: __('单据编号'), merge:true,width:160},
                         {field: 'suppliers', title: __('供应商'), merge:['purchase_code']},
                         {field: 'business_type', title: __('Business_type'),templet: function (d) {
-                                if(d.business_type==1){
-                                    return __('Business_type 1');
-                                }else if(d.business_type==2){
-                                    return __('Business_type 2');
-                                }else if(d.business_type==3){
-                                    return __('Business_type 3');
-                                }else if(d.business_type==4){
-                                    return __('Business_type 4');
-                                }
+                             return __('Business_type '+d.business_type);
                             }, merge:['purchase_code']},
                         {field: 'money', title: __('金额'), merge:['purchase_code']},
                         {field: 'pay_money', title: __('未付金额'), merge:['purchase_code']},

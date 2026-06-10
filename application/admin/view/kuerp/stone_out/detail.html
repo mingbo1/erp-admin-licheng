@@ -1,0 +1,74 @@
+<style>
+    .detail-table th { width: 120px; text-align: right; background: #f8f8f8; }
+</style>
+<div class="panel panel-default">
+    <div class="panel-heading">{:__('出库单详情')} - {$row.out_no}</div>
+    <div class="panel-body">
+        <table class="table table-bordered detail-table">
+            <tr>
+                <th>{:__('出库单号')}</th>
+                <td>{$row.out_no}</td>
+                <th>{:__('审核状态')}</th>
+                <td>{$row.examine_status_text}</td>
+            </tr>
+            <tr>
+                <th>{:__('客户')}</th>
+                <td>{$row.customer_name}</td>
+                <th>{:__('仓库')}</th>
+                <td>{$row.store_name}</td>
+            </tr>
+            <tr>
+                <th>{:__('出库总金额')}</th>
+                <td>¥ {$row.total_amount}</td>
+                <th>{:__('审核时间')}</th>
+                <td>{$row.examine_time ? date('Y-m-d H:i:s', $row.examine_time) : ''}</td>
+            </tr>
+            <tr>
+                <th>{:__('备注')}</th>
+                <td colspan="3">{$row.remark}</td>
+            </tr>
+            <tr>
+                <th>{:__('创建时间')}</th>
+                <td>{$row.createtime ? date('Y-m-d H:i:s', $row.createtime) : ''}</td>
+                <th>{:__('更新时间')}</th>
+                <td>{$row.updatetime ? date('Y-m-d H:i:s', $row.updatetime) : ''}</td>
+            </tr>
+        </table>
+
+        <h4 class="header">{:__('出库明细')}</h4>
+        <table class="table table-bordered table-hover">
+            <thead>
+                <tr>
+                    <th>{:__('商品编码')}</th>
+                    <th>{:__('商品名称')}</th>
+                    <th>{:__('单位')}</th>
+                    <th>{:__('数量')}</th>
+                    <th>{:__('单价')}</th>
+                    <th>{:__('小计')}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {volist name="$row->info" id="vo"}
+                <tr>
+                    <td>{$vo.goods_code}</td>
+                    <td>{$vo.goods_name}</td>
+                    <td>{$vo.unit_name}</td>
+                    <td>{$vo.quantity}</td>
+                    <td>¥ {$vo.unit_price}</td>
+                    <td>¥ {$vo.total_price}</td>
+                </tr>
+                {/volist}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="5" class="text-right">{:__('合计')}:</td>
+                    <td>¥ {$row.total_amount}</td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <div class="form-group">
+            <a href="javascript:history.back()" class="btn btn-default">{:__('返回')}</a>
+        </div>
+    </div>
+</div>

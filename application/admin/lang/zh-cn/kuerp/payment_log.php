@@ -12,7 +12,7 @@ return [
     'Bill_codes'              => '单据编号',
     'Purchase_money'          => '采购金额',
     'Discount_money'          => '优惠金额',
-    'Real_money'              => '优惠后金额',
+    'Real_money'              => '金额',
     'Pay_money'               => '本次付款',
     'Give_money'              => '应付款余额',
     'Reamrk'                  => '备注',

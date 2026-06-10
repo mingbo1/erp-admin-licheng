@@ -1,0 +1,11 @@
+{
+  "navigationBarTitleText": "确认订单",
+  "backgroundColor": "#f5f7fa",
+  "usingComponents": {
+    "u-tag": "/node-modules/uview-ui/components/u-tag/u-tag",
+    "u-icon": "/node-modules/uview-ui/components/u-icon/u-icon",
+    "u-divider": "/node-modules/uview-ui/components/u-divider/u-divider",
+    "u--textarea": "/node-modules/uview-ui/components/u--textarea/u--textarea",
+    "u-button": "/node-modules/uview-ui/components/u-button/u-button"
+  }
+}

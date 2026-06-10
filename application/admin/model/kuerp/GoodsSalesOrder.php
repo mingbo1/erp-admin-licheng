@@ -28,7 +28,9 @@ class GoodsSalesOrder extends Model
         'status_text',
         'check_status_text',
         'examine_status_text',
-        'examine_time_text'
+        'examine_time_text',
+        'second_examine_status_text',
+        'second_examine_time_text'
     ];
     
 
@@ -156,5 +158,33 @@ class GoodsSalesOrder extends Model
     public function examine()
     {
         return $this->belongsTo('app\admin\model\Admin', 'examine_id', 'id', [], 'LEFT')->setEagerlyType(0);
+    }
+
+    public function secondExamine()
+    {
+        return $this->belongsTo('app\admin\model\Admin', 'second_examine_id', 'id', [], 'LEFT')->setEagerlyType(0);
+    }
+
+    public function getSecondExamineStatusList()
+    {
+        return ['0' => __('Second_examine_status 0'), '1' => __('Second_examine_status 1')];
+    }
+
+    public function getSecondExamineStatusTextAttr($value, $data)
+    {
+        $value = $value ? $value : (isset($data['second_examine_status']) ? $data['second_examine_status'] : '');
+        $list = $this->getSecondExamineStatusList();
+        return isset($list[$value]) ? $list[$value] : '';
+    }
+
+    public function getSecondExamineTimeTextAttr($value, $data)
+    {
+        $value = $value ? $value : (isset($data['second_examine_time']) ? $data['second_examine_time'] : '');
+        return is_numeric($value) ? date("Y-m-d H:i:s", $value) : $value;
+    }
+
+    protected function setSecondExamineTimeAttr($value)
+    {
+        return $value === '' ? null : ($value && !is_numeric($value) ? strtotime($value) : $value);
     }
 }

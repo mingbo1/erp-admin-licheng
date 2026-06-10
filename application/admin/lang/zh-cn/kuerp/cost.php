@@ -8,6 +8,7 @@ return [
     'Business_type 2'  => '销售',
     'Business_type 3'  => '采购退回',
     'Business_type 4'  => '销售退回',
+    'Business_type 5'  => '加工费',
     'Suppliers_id'     => '供应商',
     'Expend_type_id'   => '支出类别',
     'Customers_id'     => '客户',

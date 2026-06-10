@@ -30,6 +30,7 @@ class MiniOrder extends Model
         return [
             'pending_confirm' => __('待确认'),
             'confirmed'       => __('已确认'),
+            'paid'            => __('已支付'),
             'shipped'         => __('已发货'),
             'received'        => __('已签收'),
             'completed'       => __('已完成'),
@@ -47,11 +48,11 @@ class MiniOrder extends Model
 
     public function goods()
     {
-        return $this->hasMany(\app\admin\model\kuerp\KuerpMiniOrderGoods::class, 'order_id', 'id');
+        return $this->hasMany(\app\admin\model\kuerp\MiniOrderGoods::class, 'order_id', 'id');
     }
 
     public function delivery()
     {
-        return $this->hasMany(\app\admin\model\kuerp\KuerpMiniDelivery::class, 'order_id', 'id');
+        return $this->hasMany(\app\admin\model\kuerp\MiniDelivery::class, 'order_id', 'id');
     }
 }

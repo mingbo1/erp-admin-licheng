@@ -4,7 +4,7 @@ namespace app\admin\model\kuerp;
 
 use think\Model;
 
-
+//收款单模型
 class Collection extends Model
 {
 

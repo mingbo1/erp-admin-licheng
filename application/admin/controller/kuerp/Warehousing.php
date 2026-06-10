@@ -13,7 +13,7 @@ use think\Session;
  */
 class Warehousing extends Backend
 {
-    protected $noNeedRight = ['formatinfo','checkinventory'];
+    protected $noNeedRight = ['formatinfo','checkinventory','printpage'];
     /**
      * Warehousing模型对象
      * @var \app\admin\model\kuerp\Warehousing
@@ -1221,6 +1221,39 @@ class Warehousing extends Backend
                 $this->error('反审核失败');
             }
         }
+    }
+
+    // 打印其他入库单详情
+    public function printpage($ids = null)
+    {
+        $row = $this->model->where(['id' => $ids])->find();
+        if (!$row) {
+            $this->error(__('No Results were found'));
+        }
+        // 供应商名称
+        $supplier = Db::name('kuerp_suppliers')->where(['id' => $row['suppliers_id']])->find();
+        $row['supplyer_name'] = isset($supplier['supplyer_name']) ? $supplier['supplyer_name'] : '';
+        // 制单人
+        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('username');
+        // 审核人
+        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('username');
+
+        // 入库单详情
+        $info = Db::name('kuerp_warehousing_info')->where(['purchase_code' => $row['purchase_code']])->select();
+        foreach ($info as $k => $v) {
+            $goods = Db::name('kuerp_goods')->where(['id' => $v['goods_id']])->find();
+            $info[$k]['goods_code'] = isset($goods['goods_code']) ? $goods['goods_code'] : '';
+            $info[$k]['goods_name'] = isset($goods['goods_name']) ? $goods['goods_name'] : '';
+            $info[$k]['stores_name'] = Db::name('kuerp_stores')->where(['id' => $v['stores_id']])->value('name');
+            $info[$k]['unit_name'] = Db::name('kuerp_unit')->where(['id' => $v['goods_unit']])->value('name');
+        }
+        $this->view->assign("row", $row);
+        $this->view->assign("purchase_info", $info);
+
+        // 增加打印次数
+        $this->model->where(['id' => $ids])->setInc('print_num');
+
+        return $this->view->fetch();
     }
 
     public function formatInfo(){

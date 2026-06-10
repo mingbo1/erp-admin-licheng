@@ -56,39 +56,40 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             }, rowspan: 2,width:120},
                         {field: 'purchase_code', title: __('Purchase_code'), rowspan: 2,width:150},
                         {field: 'business_type', title: __('Business_type'),templet: function (d) {
-                            if(d.business_type==1){
-                                return __('Business_type 1');
-                            }
-                            if(d.business_type==2){
-                                return __('Business_type 2');
-                            }
-                            if(d.business_type==3){
-                                return __('Business_type 3');
-                            }
-                            if(d.business_type==4){
-                                return __('Business_type 4');
-                            }
-                            if(d.business_type==5){
-                                return __('Business_type 5');
-                            }
-                            if(d.business_type==6){
-                                return __('Business_type 6');
-                            }
-                            if(d.business_type==7){
-                                return __('Business_type 7');
-                            }
-                                if(d.business_type==8){
-                                    return __('Business_type 8');
-                                }
-                                if(d.business_type==9){
-                                    return __('Business_type 9');
-                                }
-                                if(d.business_type==10){
-                                    return __('Business_type 10');
-                                }
-                                if(d.business_type==11){
-                                    return __('Business_type 11');
-                                }
+                           return __('Business_type '+d.business_type);
+                            // if(d.business_type==1){
+                            //     return __('Business_type 1');
+                            // }
+                            // if(d.business_type==2){
+                            //     return __('Business_type 2');
+                            // }
+                            // if(d.business_type==3){
+                            //     return __('Business_type 3');
+                            // }
+                            // if(d.business_type==4){
+                            //     return __('Business_type 4');
+                            // }
+                            // if(d.business_type==5){
+                            //     return __('Business_type 5');
+                            // }
+                            // if(d.business_type==6){
+                            //     return __('Business_type 6');
+                            // }
+                            // if(d.business_type==7){
+                            //     return __('Business_type 7');
+                            // }
+                            //     if(d.business_type==8){
+                            //         return __('Business_type 8');
+                            //     }
+                            //     if(d.business_type==9){
+                            //         return __('Business_type 9');
+                            //     }
+                            //     if(d.business_type==10){
+                            //         return __('Business_type 10');
+                            //     }
+                            //     if(d.business_type==11){
+                            //         return __('Business_type 11');
+                            //     }
                         }, rowspan: 2},
                         {field: 'customer_id', title: __('往来单位'), rowspan: 2},
                         {field: 'unit_name', title: __('单位'), rowspan: 2},
@@ -105,7 +106,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'out_basics', title: __('基本单位数量'),totalRow:true},
                         {field: 'out_unit', title: __('单位成本')},
                         {field: 'out_cost', title: __('成本'),totalRow:true},
-                        {field: 'balance_basics', title: __('基本单位数量')},
+                        {field: 'balance_basics', title: __('库存数量')},
                         {field: 'balance_unit', title: __('单位成本')},
                         {field: 'balance_cost', title: __('成本')},
                     ]],

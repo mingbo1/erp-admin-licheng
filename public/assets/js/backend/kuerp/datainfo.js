@@ -196,6 +196,20 @@ define(['jquery', 'bootstrap', 'backend', 'addtabs', 'table', 'echarts', 'echart
                         {field: 'max_stock', title: __('最高库存')},
                         {field: 'stock', title: __('当前库存')},
                     ]]
+                    ,done: function(res, curr, count){
+                        // 根据库存预警上下限设置当前库存列的背景色
+                        var tableElem = $(this.elem).next();
+                        res.data.forEach(function(item, index){
+                            var tr = tableElem.find('.layui-table-body tbody tr[data-index="' + index + '"]');
+                            if(parseFloat(item.stock) < parseFloat(item.min_stock)){
+                                // 低于库存预警下限 - 红色背景
+                                tr.find('td[data-field="stock"]').css({'background-color': '#ffcccc', 'color': '#a00'});
+                            }else if(parseFloat(item.stock) > parseFloat(item.max_stock)){
+                                // 高于库存预警上限 - 黄色背景
+                                tr.find('td[data-field="stock"]').css({'background-color': '#ffffcc', 'color': '#660'});
+                            }
+                        });
+                    }
                 });
 
                 //头工具栏事件
@@ -254,6 +268,10 @@ define(['jquery', 'bootstrap', 'backend', 'addtabs', 'table', 'echarts', 'echart
                     var goods_name = $('#goods_name').val();
                     if(goods_name!=''){
                         search.goods_name = goods_name;
+                    }
+                    var warn_type = $('#warn_type').val();
+                    if(warn_type!=''){
+                        search.warn_type = warn_type;
                     }
                     return search;
                 }
