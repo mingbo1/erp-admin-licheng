@@ -165,6 +165,16 @@ class GoodsSalesOrder extends Model
         return $this->belongsTo('app\admin\model\Admin', 'second_examine_id', 'id', [], 'LEFT')->setEagerlyType(0);
     }
 
+    public function delivery()
+    {
+        return $this->hasMany(\app\admin\model\kuerp\GoodsSalesOrderDelivery::class, 'order_id', 'id');
+    }
+
+    public function logs()
+    {
+        return $this->hasMany(\app\admin\model\kuerp\GoodsSalesOrderLog::class, 'order_id', 'id')->order('id', 'desc');
+    }
+
     public function getSecondExamineStatusList()
     {
         return ['0' => __('Second_examine_status 0'), '1' => __('Second_examine_status 1')];

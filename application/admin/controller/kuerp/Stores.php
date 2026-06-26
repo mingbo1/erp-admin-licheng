@@ -35,6 +35,7 @@ class Stores extends Backend
 
         $this->model = new \app\admin\model\kuerp\Stores;
         $this->view->assign("statusList", $this->model->getStatusList());
+        $this->view->assign("storeTypeList", $this->model->getStoreTypeList());
     }
 
     public function import()

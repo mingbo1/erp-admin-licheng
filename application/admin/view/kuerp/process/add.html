@@ -64,8 +64,6 @@
                     <th class="goods_batch_sd">保质期(天)</th>
                     <th class="goods_batch_sd">有效期至</th>
                     <th>{:__('Number')}</th>
-                    <th>{:__('Unit_price')}</th>
-                    <th>{:__('All_money')}</th>
                     <th>{:__('Remark')}</th>
                 </tr>
                 <tr>
@@ -122,8 +120,8 @@
                             <input type="hidden" class="period_period" name="row[period_period][]">
                         </div>
                     </td>
-                    <td><div><input type="number" name="row[unit_price][]" class="unit_price price_decimal" readonly></div></td>
-                    <td><div><input type="number" name="row[all_money][]" class="all_money price_decimal" readonly></div></td>
+                    <td><div><input type="hidden" name="row[unit_price][]" class="unit_price price_decimal"></div></td>
+                    <td style="display:none"><input type="hidden" name="row[all_money][]" class="all_money price_decimal"></td>
                     <td><div><input type="text" name="row[remark][]" class="remark"></div></td>
                 </tr>
             </table>
@@ -157,7 +155,7 @@
                     <th class="goods_attr_sd">{:__('Goods_attr')}</th>
                     <th>{:__('Goods_unit')}</th>
                     <th>{:__('Stores_id')}</th>
-                    <th>{:__('Number')}</th>
+                    <th>{:__('入库数量')}</th>
                     <th>{:__('Remark')}</th>
                 </tr>
                 <tr>

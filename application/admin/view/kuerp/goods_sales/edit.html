@@ -61,6 +61,14 @@
                 </div>
             </div>
         </div>
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Delivery_time')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-delivery_time" class="form-control" name="row[delivery_time]" type="text" value="{$row.delivery_time|date='Y-m-d',###}" placeholder="{:__('Delivery_time')}" readonly>
+                </div>
+            </div>
+        </div>
         <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3" style="display: none">
             <div class="form-group">
                 <label class="control-label col-xs-12 col-sm-4">{:__('Purchase_type')}:</label>
@@ -443,3 +451,73 @@
         </div>
     </div>
 </form>
+
+<div class="row" style="margin-top:20px;">
+    <div class="col-md-12">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h4 class="panel-title">{:__('催收记录')}</h4>
+            </div>
+            <div class="panel-body">
+                {if !empty($dunningList)}
+                <table class="table table-bordered table-striped">
+                    <thead>
+                        <tr>
+                            <th style="width:100px; text-align:center;">{:__('时间')}</th>
+                            <th style="width:400px; text-align:center;">{:__('Note')}</th>
+                            <th style="width:100px; text-align:center;">{:__('操作人')}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {volist name="dunningList" id="vo"}
+                        <tr>
+                            <td>{$vo.createtime|date="Y-m-d H:i:s",###}</td>
+                            <td>{$vo.note}</td>
+                            <td>{$vo.admin_username ?? '-'}</td>
+                        </tr>
+                    {/volist}
+                    </tbody>
+                </table>
+                {else}
+                <p style="color:#999;">暂无催收记录</p>
+                {/if}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row" style="margin-top:20px;">
+    <div class="col-md-12">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h4 class="panel-title">操作日志</h4>
+            </div>
+            <div class="panel-body">
+                {if !empty($logList)}
+                <table class="table table-bordered table-striped">
+                    <thead>
+                        <tr>
+                            <th style="width:160px; text-align:center;">时间</th>
+                            <th style="width:100px; text-align:center;">操作类型</th>
+                            <th style="text-align:center;">备注</th>
+                            <th style="width:100px; text-align:center;">操作人</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {volist name="logList" id="vo"}
+                        <tr>
+                            <td>{$vo.createtime|date="Y-m-d H:i:s",###}</td>
+                            <td>{$vo.action}</td>
+                            <td>{$vo.note}</td>
+                            <td>{$vo.admin_username ?? '-'}</td>
+                        </tr>
+                    {/volist}
+                    </tbody>
+                </table>
+                {else}
+                <p style="color:#999;">暂无操作日志</p>
+                {/if}
+            </div>
+        </div>
+    </div>
+</div>

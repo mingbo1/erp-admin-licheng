@@ -52,7 +52,6 @@
         <div class="item"><strong>{:__('Supplyer_code')}：</strong>{$row.supplyer_code|htmlentities} {$row.supplyer_name|htmlentities}</div>
         <div class="item"><strong>{:__('Examine_status')}：</strong>{if condition="$row.examine_status==1"}已审核{else/}未审核{/if}</div>
         <div class="item"><strong>{:__('In_status')}：</strong>{if condition="$row.in_status==2"}全部入库{elseif condition="$row.in_status==1"/}部分入库{else/}未入库{/if}</div>
-        <div class="item"><strong>{:__('Total_process_fee')}：</strong>￥{$row.total_process_fee|htmlentities}</div>
         <div class="item"><strong>{:__('Preparation_id')}：</strong>{$row.preparation_name|htmlentities}</div>
         <div class="item"><strong>{:__('Examine_id')}：</strong>{$row.examine_name|htmlentities}</div>
     </div>
@@ -69,15 +68,13 @@
                 <th>{:__('Unit_name')}</th>
                 <th>{:__('Stores_name')}</th>
                 <th>{:__('Number')}</th>
-                <th>{:__('Unit_price')}</th>
-                <th>{:__('All_money')}</th>
                 <th>{:__('Remark')}</th>
             </tr>
         </thead>
         <tbody>
-            {php}$out_total_number = 0;$out_total_money = 0;{/php}
+            {php}$out_total_number = 0;{/php}
             {foreach name="out_materials" item="info" key="k"}
-            {php}$out_total_number += $info['number'];$out_total_money += $info['cost_money'];{/php}
+            {php}$out_total_number += $info['number'];{/php}
             <tr>
                 <td>{$k+1}</td>
                 <td>{$info.goods_code|htmlentities}</td>
@@ -86,21 +83,17 @@
                 <td>{$info.unit_name|htmlentities}</td>
                 <td>{$info.stores_name|htmlentities}</td>
                 <td class="right">{$info.number|htmlentities}</td>
-                <td class="right">{$info.unit_cost|htmlentities}</td>
-                <td class="right">{$info.cost_money|htmlentities}</td>
                 <td class="left">{$info.remark|htmlentities}</td>
             </tr>
             {/foreach}
             {if condition="empty($out_materials)"}
-            <tr><td colspan="10">无出库原材料</td></tr>
+            <tr><td colspan="8">无出库原材料</td></tr>
             {/if}
         </tbody>
         <tfoot>
             <tr>
                 <th colspan="6">合计</th>
                 <th class="right">{$out_total_number}</th>
-                <th></th>
-                <th class="right">{$out_total_money}</th>
                 <th></th>
             </tr>
         </tfoot>
@@ -148,10 +141,6 @@
             </tr>
         </tfoot>
     </table>
-
-    <div class="summary-row">
-        <span>{:__('Total_process_fee')}：<strong>￥{$row.total_process_fee|htmlentities}</strong></span>
-    </div>
 
     {if condition="!empty($row['remark'])"}
     <div class="footer-info">

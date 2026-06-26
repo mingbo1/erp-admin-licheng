@@ -58,7 +58,6 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'preparation_id', title: __('Preparation_id'), merge:['purchase_code']},
                         {field: 'examine_id', title: __('Examine_id'), merge:['purchase_code'],hide:hideStatus},
                         {field: 'remarks', title: __('Remarks'), merge:['purchase_code']},
-                        {field: 'print_num', title: __('Print_num'), merge:['purchase_code']},
                         {fixed: false, title:__('Operate'), toolbar: '#barDemo', width:150, merge:['purchase_code']}
                     ]],
                     done: function(){
@@ -110,6 +109,18 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             Fast.api.ajax("kuerp/allocation/examine?examine=2&ids="+ids, function () {
                                 $('.btn-refresh').click();
                             },'',true);
+                            break;
+                        case 'print':
+                            if(data.length<=0){
+                                Toastr.error('请选择要打印的数据');return;
+                            }
+                            if(data.length > 1){
+                                Toastr.error('一次只能打印一条数据');return;
+                            }
+                            var printUrl = "kuerp/allocation/printpage?ids=" + data[0].id;
+                            parent.Fast.api.open(printUrl, "打印", {
+                                area: ['90%', '75%'],
+                            });
                             break;
                     }
                 });

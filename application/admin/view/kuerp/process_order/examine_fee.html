@@ -1,0 +1,118 @@
+{include file="kuerp/common/menu" /}
+<div class="panel panel-default panel-intro">
+    <div class="panel-heading">
+        <div class="panel-lead"><em>外协订单审核 — 填写加工费</em></div>
+    </div>
+    <div class="panel-body">
+        <form id="examine-fee-form" class="form-horizontal" role="form" method="POST" action="{:url('kuerp/process_order/examine_fee', ['ids' => $row.id])}" style="overflow:visible">
+
+            <!-- 基本信息（只读） -->
+            <div class="row">
+                <div class="col-xs-12 col-sm-3">
+                    <div class="form-group">
+                        <label class="control-label col-xs-4">{:__('Process_code')}:</label>
+                        <div class="col-xs-8">
+                            <p class="form-control-static">{$row.process_code|htmlentities}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xs-12 col-sm-3">
+                    <div class="form-group">
+                        <label class="control-label col-xs-4">{:__('Process_time')}:</label>
+                        <div class="col-xs-8">
+                            <p class="form-control-static">{$row.process_time|date='Y-m-d',###}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xs-12 col-sm-3">
+                    <div class="form-group">
+                        <label class="control-label col-xs-4">{:__('Supplyer_code')}:</label>
+                        <div class="col-xs-8">
+                            <p class="form-control-static">{$row.supplyer_code|htmlentities} {$row.suppliers.supplyer_name|default=''}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xs-12 col-sm-3">
+                    <div class="form-group">
+                        <label class="control-label col-xs-4">备注:</label>
+                        <div class="col-xs-8">
+                            <p class="form-control-static">{$row.remark|default='-'}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr>
+
+            <!-- 出库原材料（只读） -->
+            <h5 style="font-weight: bold;">出库原材料</h5>
+            <table class="table table-striped table-bordered">
+                <tr>
+                    <th>商品编号</th><th>商品名称</th><th>规格</th><th>单位</th>
+                    <th>仓库</th><th>数量</th><th>单价</th><th>金额</th>
+                </tr>
+                {foreach name="info_list" item="vo"}
+                {if $vo.type==1}
+                <tr>
+                    <td>{$vo.goods_code}</td>
+                    <td>{$vo.goods_name}</td>
+                    <td>{$vo.goods_attr_name|default='-'}</td>
+                    <td>{$vo.goods_unit_name|default='-'}</td>
+                    <td>{$vo.stores_name|default='-'}</td>
+                    <td style="text-align:right">{$vo.number}</td>
+                    <td style="text-align:right">{$vo.unit_cost}</td>
+                    <td style="text-align:right">{$vo.cost_money}</td>
+                </tr>
+                {/if}
+                {/foreach}
+            </table>
+
+            <!-- 入库成品 — 填写加工费 -->
+            <h5 style="font-weight: bold;">入库成品 — 请填写加工费（单件）</h5>
+            <table class="table table-striped table-bordered" id="fee-table">
+                <tr>
+                    <th>商品编号</th><th>商品名称</th><th>规格</th><th>单位</th>
+                    <th>仓库</th><th>计划数</th><th>单件加工费</th><th>小计</th>
+                </tr>
+                {php}$total_fee = 0;{/php}
+                {foreach name="info_list" item="vo"}
+                {if $vo.type==2}
+                <tr>
+                    <td>{$vo.goods_code}</td>
+                    <td>{$vo.goods_name}</td>
+                    <td>{$vo.goods_attr_name|default='-'}</td>
+                    <td>{$vo.goods_unit_name|default='-'}</td>
+                    <td>{$vo.stores_name|default='-'}</td>
+                    <td>{$vo.number}</td>
+                    <td>
+                        <input type="number" name="process_fee[{$vo.id}]" class="form-control process-fee price_decimal"
+                               value="{$vo.process_fee|default=0}" step="0.01" min="0"
+                               data-number="{$vo.number}" style="width:120px">
+                    </td>
+                    <td>
+                        <span class="fee-subtotal">0.00</span>
+                    </td>
+                </tr>
+                {/if}
+                {/foreach}
+                <tr style="font-weight: bold; background: #f9f9f9;">
+                    <td colspan="7" style="text-align:right">加工费合计：</td>
+                    <td style="text-align:right"><span id="total-fee">0.00</span></td>
+                </tr>
+            </table>
+
+            <div class="row">
+                <div class="col-xs-12">
+                    <div class="form-group">
+                        <label class="control-label col-xs-2"></label>
+                        <div class="col-xs-8">
+                            <button type="submit" class="btn btn-success btn-embossed"><i class="fa fa-check"></i> 保存加工费并审核</button>
+                            <button type="button" class="btn btn-default btn-embossed" onclick="parent.Layer.closeAll();"><i class="fa fa-close"></i> 取消</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+

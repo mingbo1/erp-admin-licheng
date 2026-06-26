@@ -1,0 +1,406 @@
+{include file="kuerp/common/menu" /}
+<div class="">
+    <a href="{:url('kuerp/goods_sales_outbound/printpage', ['ids' => $row.id])}" target="_blank" class="layui-btn layui-icon-btn layui-btn-sm layui-btn-normal fright" style="margin-right: 10px;"><i class="layui-icon">&#xe65a;</i> {:__('Print_page')}</a>
+  
+</div>
+<div style="clear: both;"></div>
+
+<form id="edit-form" class="form-horizontal" role="form" data-toggle="validator" method="POST" action="">
+    <div class="row">
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Purchase_code')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-purchase_code" class="form-control" value="{$row.purchase_code|htmlentities}" data-rule="required" name="row[purchase_code]" type="text" placeholder="{:__('Purchase_code')}">
+                    <input type="hidden" name="row[old_purchase_code]" value="{$row.purchase_code|htmlentities}">
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Customers_id')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <select name="row[customers_id]" id="customers_id" class="form-control" data-rule="required">
+                        <option value="">请选择{:__('Customers_id')}</option>
+                        {foreach name="customers" item="vo"}
+                        <option value="{$vo.id}" {if condition="isset($row['customers_id']) && $vo.id==$row.customers_id"}selected{/if}>{$vo.customer_name}</option>
+                        {/foreach}
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Receiving_address')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-receiving_address" name="row[receiving_address]" class="form-control" type="text" value="{$row.receiving_address|default=''}" placeholder="{:__('Receiving_address')}">
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Sale_user')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <select name="row[sale_user]" id="Sale_user" class="form-control">
+                        <option value="">请选择{:__('Sale_user')}</option>
+                        {foreach name="saleList" item="vo"}
+                        <option value="{$vo.id}" {if condition="isset($row['sale_user']) && $vo.id==$row.sale_user"}selected{/if}>{$vo.name}</option>
+                        {/foreach}
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Purchase_time')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-purchase_time" class="form-control datetime" data-date-format="YYYY-MM-DD" data-use-current="true" name="row[purchase_time]" type="text" value="{$row.purchase_time|date='Y-m-d',###}" placeholder="{:__('Purchase_time')}">
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3" style="display: none">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Purchase_type')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <div class="radio">
+                        {foreach name="purchaseTypeList" item="vo"}
+                        <label for="row[purchase_type]-{$key}"><input id="row[purchase_type]-{$key}" name="row[purchase_type]" type="radio" value="{$key}" {in name="key" value="$row.purchase_type"}checked{/in} /> {$vo}</label>
+                        {/foreach}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-12" style="text-align: left;">
+                    <a href="javascript:;" id="choseEnclosure" style="text-decoration: revert;">选择原始单据 </a>
+                    <span>&nbsp;&nbsp;附单据<span class="enclosure_number">{$enclosure_count|default='0'}</span>张</span>
+                    <span class="voucherAttachment" {if condition="!empty($enclosure_ids)"}style="display:inline-block;"{/if}><img src="/assets/addons/kuerp/img/voucherAttachment.png"></span>
+                </label>
+                <input id="c-enclosure" type="hidden" name="row[enclosure]" value="{$enclosure_ids|default=''}">
+            </div>
+        </div>
+    </div>
+
+
+    <div class="table_box">
+        {if condition="$row.examine_status==1 && isset($set['examine']['is_checked']) && $set['examine']['is_checked']==1"}
+        <div id="mark" class="has-audit"></div>
+        {/if}
+        <div class="list" style="overflow-x: auto">
+            <table id="sale_table">
+                <tr>
+                    <th class="{$exclass|default=''}"></th>
+                    <th>
+                        <span class="must">*</span>
+                        商品
+                        <span class="smq_switch" style="display: none;">
+                            <span>--扫码枪录入</span>
+                            <span>
+                                <input  id="c-switch" name="row[switch]" type="hidden" value="0">
+                                <a href="javascript:;" data-toggle="switcher" class="btn-switcher" data-input-id="c-switch" data-yes="1" data-no="0" >
+                                    <i class="fa fa-toggle-on text-success fa-2x fa-flip-horizontal text-gray"></i>
+                                </a>
+                            </span>
+                        </span>
+                    </th>
+                    <th>{:__('Goods_note')}</th><th class="goods_attr_sd">{:__('Goods_attr')}</th><th>{:__('Goods_unit')}</th><th>{:__('Stores_id')}</th><th>{:__('Allow_stock')}</th>
+                    <th class="goods_batch_sd">批次</th><th class="goods_batch_sd">生产日期</th><th class="goods_batch_sd">保质期(天)</th><th class="goods_batch_sd">有效期至</th>
+                    <th>{:__('Number')}</th><th>{:__('Default_unit')}</th><th>{:__('Basic_nmber')}</th>
+                    <th class="hidden">{:__('Purchase_money')}</th><th>{:__('Remark')}</th><th>{:__('Sales_order_id')}</th>
+                </tr>
+
+                <tr style="display: none;">
+                    <td class="{$exclass|default=''}"><div class="btn"><span class="add"><i class="fa fa-plus"></i></span><span class="del"><i class="fa fa-trash"></i></span></div></td>
+                    <td>
+                        <div class="goods_code_box">
+                            <input type="hidden" name="row[goods_code][]" class="goods_code">
+                            <span class="goods_code_span"><img src="__CDN__/assets/addons/kuerp/img/more.png"></span>
+                            <input type="text" class="ipt goods_name">
+                        </div>
+                    </td>
+                    <td><div><input type="text" name="row[goods_note][]" class="goods_note" readonly></div></td>
+                    <td class="goods_attr_sd">
+                        <div>
+                            <select name="row[goods_attr][]" class="form-control goods_attr">
+                                <option value=""></option>
+                            </select>
+                        </div>
+                    </td>
+                    <td>
+                        <div>
+                            <select name="row[goods_unit][]" class="form-control goods_unit">
+                                <option value=""></option>
+                            </select>
+                        </div>
+                    </td>
+                    <td>
+                        <div>
+                            <select name="row[stores_id][]" class="form-control stores_id">
+                                <option value=""></option>
+                                {foreach name="storesList" item="vo"}
+                                <option value="{$vo.id}">{$vo.name}</option>
+                                {/foreach}
+                            </select>
+                        </div>
+                    </td>
+                    <td><div><input type="number" name="row[allow_stock][]" class="allow_stock" readonly><input type="hidden" name="row[info_id][]" value=""></div></td>
+
+                    <td class="goods_batch_sd">
+                        <div>
+                            <div class="batch_div">
+                                <input name="row[batch][]" class="batch_sec"><input type="hidden" name="row[batch_id][]" class="batch_id">
+                                <span class="batch_span"><img src="__CDN__/assets/addons/kuerp/img/more.png"></span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="goods_batch_sd"><div><input type="text" class="ipt manufacture" name="row[manufacture][]"></div></td>
+                    <td class="goods_batch_sd"><div><input type="text" class="ipt guarantee" name="row[guarantee][]"></div></td>
+                    <td class="goods_batch_sd"><div><input type="text" class="ipt validity" name="row[validity][]"></div></td>
+
+                    <td><div><input type="number" name="row[number][]" class="number number_decimal number_decimal"><input type="hidden" class="period_period" name="row[period_period][]" value=''></div></td>
+                    <td><div><input type="text" readonly class="default_unit"><input type="hidden" name="row[default_unit][]" class="default_unit_id"></div></td>
+                    <td><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly></div></td>
+                    <input type="hidden" name="row[unit_price][]" class="unit_price price_decimal">
+                    <input type="hidden" name="row[tax_included][]" class="tax_included price_decimal">
+                    <input type="hidden" name="row[discount][]" class="discount">
+                    <input type="hidden" name="row[dis_money][]" class="dis_money price_decimal">
+                    <input type="hidden" name="row[all_money][]" class="all_money price_decimal">
+                    <input type="hidden" name="row[tax_rate][]" class="tax_rate">
+                    <input type="hidden" name="row[tax_money][]" class="tax_money price_decimal">
+                    <input type="hidden" name="row[money_tax_price][]" class="money_tax_price price_decimal">
+                    <input type="hidden" name="row[purchase_money][]" class="purchase_money price_decimal">
+                    <td><div><input type="text" name="row[remark][]" class="remark"></div></td>
+                    <td><div><input type="text" name="row[purchase_order_id][]" readonly><input type="hidden" name="row[user_order_info_id][]" value=""></div></td>
+                </tr>
+                {foreach name="purchase_info" item="info" key="k"}
+                <tr>
+                    <td class="{$exclass|default=''}"><div class="btn"><span class="add"><i class="fa fa-plus"></i></span><span class="del"><i class="fa fa-trash"></i></span></div></td>
+                    <td>
+                        <div class="goods_code_box">
+                            {foreach name="goodsList" item="vo"}
+                            {if condition="$vo.goods_code==$info.goods_code"}{php}$shelf_life = $vo['shelf_life'];{/php}
+                            <input type="hidden" name="row[goods_code][]" class="goods_code" value="{$vo.goods_code}">
+                            <span class="goods_code_span"><img src="__CDN__/assets/addons/kuerp/img/more.png"></span>
+                            <input type="text" class="ipt goods_name" value="{$vo.goods_code} {$vo.goods_name}">
+                            {/if}
+                            {/foreach}
+                        </div>
+                    </td>
+                    <td><div><input type="text" name="row[goods_note][]" class="goods_note" value="{$info.goods_note|htmlentities}" readonly></div></td>
+                    <td class="goods_attr_sd">
+                        <div>
+                            <select name="row[goods_attr][]" class="form-control goods_attr">
+                                <option value=""></option>
+                                {foreach name="info.unit.attr" item="vo"}
+                                <option value="{$vo.id}" {if condition="$vo.id==$info.goods_attr"}selected{/if}>{$vo.attr_name}</option>
+                                {/foreach}
+                            </select>
+                        </div>
+                    </td>
+                    <td>
+                        <div>
+                            <select name="row[goods_unit][]" class="form-control goods_unit">
+                                <option value=""></option>
+                                {foreach name="info.unit.unit" item="vo"}
+                                {if condition="$vo.id==$info.default_unit"}{php}$unit_name=$vo['name'];{/php}{/if}
+                                <option value="{$vo.id}" {if condition="$vo.id==$info.goods_unit"}selected{/if}>{$vo.name}</option>
+                                {/foreach}
+                            </select>
+                        </div>
+                    </td>
+                    <td>
+                        <div>
+                            <select name="row[stores_id][]" class="form-control stores_id">
+                                <option value=""></option>
+                                {foreach name="storesList" item="vo"}
+                                <option value="{$vo.id}" {if condition="$vo.id==$info.stores_id"}selected{/if}>{$vo.name}</option>
+                                {/foreach}
+                            </select>
+                        </div>
+                    </td>
+                    <td><div><input type="number" name="row[allow_stock][]" value="{$info.allow_stock|htmlentities}" class="allow_stock" readonly><input type="hidden" name="row[info_id][]" value="{$info.order_info_id|htmlentities}"></div></td>
+                    <td class="goods_batch_sd">
+                        <div>
+                            <div class="batch_div">
+                                <input name="row[batch][]" class="batch_sec" value="{$info.batch_name|default=''}">
+                                <input type="hidden" value="{$info.batch_id|default=''}" name="row[batch_id][]" class="batch_id">
+                                <span class="batch_span"><img src="__CDN__/assets/addons/kuerp/img/more.png"></span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="goods_batch_sd"><div><input type="text" class="ipt manufacture" name="row[manufacture][]" value="{if condition="!empty($info['manufacture'])"}{$info.manufacture|date='Y-m-d',###}{/if}"></div></td>
+                    <td class="goods_batch_sd"><div><input type="text" class="ipt guarantee" name="row[guarantee][]" value="{if condition="!empty($info['manufacture'])"}{$info.guarantee|htmlentities}{/if}"></div></td>
+                    <td class="goods_batch_sd"><div><input type="text" class="ipt validity" name="row[validity][]" value="{if condition="!empty($info['validity'])"}{$info.validity|date='Y-m-d',###}{/if}"></div></td>
+
+                    <td><div><input type="number" name="row[number][]" value="{$info.number|htmlentities}" class="number number_decimal"><input type="hidden" class="period_period" name="row[period_period][]" value='{$info.serial|default=""}'></div></td>
+                    <td><div><input type="text" readonly class="default_unit" value="{$unit_name|default=''}"><input type="hidden" value="{$info.default_unit|htmlentities}" name="row[default_unit][]" class="default_unit_id"></div></td>
+                    <td><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" value="{$info.basic_nmber|htmlentities}" readonly></div></td>
+                    <input type="hidden" name="row[unit_price][]" class="unit_price price_decimal" value="{$info.unit_price|htmlentities}">
+                    <input type="hidden" name="row[tax_included][]" class="tax_included price_decimal" value="{$info.tax_included|htmlentities}">
+                    <input type="hidden" name="row[discount][]" class="discount" value="{$info.discount|htmlentities}">
+                    <input type="hidden" name="row[dis_money][]" class="dis_money price_decimal" value="{$info.dis_money|htmlentities}">
+                    <input type="hidden" name="row[all_money][]" class="all_money price_decimal" value="{$info.all_money|htmlentities}">
+                    <input type="hidden" name="row[tax_rate][]" class="tax_rate" value="{$info.tax_rate|htmlentities}">
+                    <input type="hidden" name="row[tax_money][]" class="tax_money price_decimal" value="{$info.tax_money|htmlentities}">
+                    <input type="hidden" name="row[money_tax_price][]" class="money_tax_price price_decimal" value="{$info.money_tax_price|htmlentities}">
+                    <input type="hidden" name="row[purchase_money][]" class="purchase_money" value="{$info.purchase_money|htmlentities}">
+                    <td><div><input type="text" name="row[remark][]" class="remark" value="{$info.remark|htmlentities}"></div></td>
+                    <td><div><input type="text" name="row[purchase_order_id][]" readonly value="{$info.purchase_order_id|htmlentities}">
+                        <input type="hidden" name="row[user_order_info_id][]" value="{$info.user_order_info_id|default=''}"></div></td>
+                </tr>
+                {/foreach}
+                {php}for($a=0;$a<(4-sizeof($purchase_info));$a++){ {/php}
+                <tr>
+                    <td class="{$exclass|default=''}"><div class="btn"><span class="add"><i class="fa fa-plus"></i></span><span class="del"><i class="fa fa-trash"></i></span></div></td>
+                    <td>
+                        <div class="goods_code_box">
+                            <input type="hidden" name="row[goods_code][]" class="goods_code">
+                            <span class="goods_code_span"><img src="__CDN__/assets/addons/kuerp/img/more.png"></span>
+                            <input type="text" class="ipt goods_name">
+                        </div>
+                    </td>
+                    <td><div><input type="text" name="row[goods_note][]" class="goods_note" readonly></div></td>
+                    <td class="goods_attr_sd">
+                        <div>
+                            <select name="row[goods_attr][]" class="form-control goods_attr">
+                                <option value=""></option>
+                            </select>
+                        </div>
+                    </td>
+                    <td>
+                        <div>
+                            <select name="row[goods_unit][]" class="form-control goods_unit">
+                                <option value=""></option>
+                            </select>
+                        </div>
+                    </td>
+                    <td>
+                        <div>
+                            <select name="row[stores_id][]" class="form-control stores_id">
+                                <option value=""></option>
+                                {foreach name="storesList" item="vo"}
+                                <option value="{$vo.id}">{$vo.name}</option>
+                                {/foreach}
+                            </select>
+                        </div>
+                    </td>
+                    <td><div><input type="number" name="row[allow_stock][]" class="allow_stock" readonly><input type="hidden" name="row[info_id][]" value=""></div></td>
+
+                    <td class="goods_batch_sd">
+                        <div>
+                            <div class="batch_div">
+                                <input name="row[batch][]" class="batch_sec"><input type="hidden" name="row[batch_id][]" class="batch_id">
+                                <span class="batch_span"><img src="__CDN__/assets/addons/kuerp/img/more.png"></span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="goods_batch_sd"><div><input type="text" class="ipt manufacture" name="row[manufacture][]"></div></td>
+                    <td class="goods_batch_sd"><div><input type="text" class="ipt guarantee" name="row[guarantee][]"></div></td>
+                    <td class="goods_batch_sd"><div><input type="text" class="ipt validity" name="row[validity][]"></div></td>
+
+                    <td><div><input type="number" name="row[number][]" class="number number_decimal number_decimal"><input type="hidden" class="period_period" name="row[period_period][]" value=''></div></td>
+                    <td><div><input type="text" readonly class="default_unit"><input type="hidden" name="row[default_unit][]" class="default_unit_id"></div></td>
+                    <td><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly></div></td>
+                    <input type="hidden" name="row[unit_price][]" class="unit_price price_decimal">
+                    <input type="hidden" name="row[tax_included][]" class="tax_included price_decimal">
+                    <input type="hidden" name="row[discount][]" class="discount">
+                    <input type="hidden" name="row[dis_money][]" class="dis_money price_decimal">
+                    <input type="hidden" name="row[all_money][]" class="all_money price_decimal">
+                    <input type="hidden" name="row[tax_rate][]" class="tax_rate">
+                    <input type="hidden" name="row[tax_money][]" class="tax_money price_decimal">
+                    <input type="hidden" name="row[money_tax_price][]" class="money_tax_price price_decimal">
+                    <input type="hidden" name="row[purchase_money][]" class="purchase_money price_decimal">
+                    <td><div><input type="text" name="row[remark][]" class="remark"></div></td>
+                    <td><div><input type="text" name="row[purchase_order_id][]" readonly><input type="hidden" name="row[user_order_info_id][]" value=""></div></td>
+                </tr>
+                {php}}{/php}
+            </table>
+        </div>
+    </div>
+    <div class="chose_goods_boxs"></div>
+
+    <input name="row[order_id]" type="hidden" value="{$row.order_id|default=''}">
+
+    <div class="row" style="margin-bottom: 10px;">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+            <textarea id="c-note" class="form-control" rows="4" name="row[note]" cols="30" placeholder="备注信息">{$row.note|htmlentities}</textarea>
+        </div>
+    </div>
+    <div class="row">
+           <input id="c-preferential_rate" class="form-control" step="0.01" name="row[preferential_rate]" type="hidden" value="{$row.preferential_rate|default=''}" placeholder="{:__('Preferential_rate')}">
+        <input id="c-preferential_money" class="form-control price_decimal" step="0.01" name="row[preferential_money]" type="hidden" value="{$row.preferential_money|default=''}" placeholder="{:__('Preferential_money')}">
+        <input id="c-real_money" class="form-control" step="0.01" name="row[real_money]" type="hidden" value="{$row.real_money|htmlentities}">
+        <input id="c-customers_money" class="form-control" step="0.01" name="row[customers_money]" type="hidden" value="{$row.customers_money|default=''}">
+        <input id="c-now_pay_money" class="form-control" step="0.01" name="row[now_pay_money]" type="hidden" value="{$row.pay_money|htmlentities}">
+        <input name="row[account]" id="account" type="hidden" value="{$row.account|default=''}">
+        <input type="hidden" value="{$accountsDefault|default=''}" id="accountsDefault">
+        <input id="c-arrears" class="form-control" step="0.01" name="row[arrears]" type="hidden" value="{$row.arrears|htmlentities}">
+        <input id="c-add_arrears" class="form-control" step="0.01" name="row[add_arrears]" type="hidden" value="{$give_account|default=''}">
+        <input id="c-costs" readonly class="form-control price_decimal" name="row[costs]" type="hidden" value="{$row.purchase_money|default=''}">
+        <input type="hidden" id="cost_data" name="row[cost_data]" value='{$row.cost_data|default=""}'>
+    </div>
+
+    <div class="form-group layer-footer">
+        <label class="control-label col-xs-12 col-sm-2"></label>
+        <div class="col-xs-12 col-sm-8">
+            <button type="submit" class="btn btn-success btn-embossed disabled">{:__('OK')}</button>
+            <button type="reset" class="btn btn-default btn-embossed">{:__('Reset')}</button>
+        </div>
+    </div>
+</form>
+
+<!-- 来源销货订单信息 -->
+<div class="panel panel-default" style="margin-bottom: 15px;">
+    <div class="panel-heading">
+        <h3 class="panel-title">来源销货订单信息</h3>
+    </div>
+    <div class="panel-body">
+        <div class="row">
+            <div class="col-xs-12 col-sm-6">
+                <div class="form-group" style="margin-bottom:5px;">
+                    <label class="control-label col-xs-12 col-sm-4">销货订单号：</label>
+                    <div class="col-xs-12 col-sm-8">
+                        <p class="form-control-static">{$row.purchase_order_id|default='无'}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xs-12 col-sm-6">
+                <div class="form-group" style="margin-bottom:5px;">
+                    <label class="control-label col-xs-12 col-sm-4">审核通过人：</label>
+                    <div class="col-xs-12 col-sm-8">
+                        <p class="form-control-static">{$examine_name|default='无'}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {if !empty($order_goods_list)}
+        <div class="table-responsive" style="margin-top: 10px;">
+            <table class="table table-bordered table-condensed">
+                <thead>
+                    <tr>
+                        <th>商品编号</th>
+                        <th>商品名称</th>
+                        <th>单位</th>
+                        <th>数量</th>
+                        <th>备注</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {foreach $order_goods_list as $order_goods}
+                    <tr>
+                        <td>{$order_goods.goods_code}</td>
+                        <td>{$order_goods.goods_name|default=''}</td>
+                        <td>{$order_goods.unit_name|default=''}</td>
+                        <td>{$order_goods.number}</td>
+                        <td>{$order_goods.remark|default=''}</td>
+                    </tr>
+                    {/foreach}
+                </tbody>
+            </table>
+        </div>
+        {/if}
+    </div>
+</div>

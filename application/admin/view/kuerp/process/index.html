@@ -7,16 +7,11 @@
                     <script type="text/html" id="thisToolbar">
                         <div class="layui-btn-container">
                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-cyan btn-refresh" lay-event="refresh"><i class="layui-icon">&#xe669;</i> {:__('Refresh')}</button>
-                            <button class="layui-btn layui-icon-btn layui-btn-sm {if condition="$auth->check($nowmenu.'/add')!=1"}hiddens{/if}" lay-event="add"><i class="layui-icon">&#xe654;</i> {:__('Add')}</button>
-                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger {if condition="$auth->check($nowmenu.'/del')!=1"}hiddens{/if}" lay-event="delAll"><i class="layui-icon">&#xe640;</i> {:__('Delete')}</button>
-
-                            {if condition="isset($set['examine']['is_checked']) && $set['examine']['is_checked']==1"}
-                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger fright {if condition="$auth->check($nowmenu.'/examine')!=1"}hiddens{/if}" lay-event="examine_f"><i class="layui-icon">&#xe674;</i> 反审核</button>
-                            <button class="layui-btn layui-icon-btn layui-btn-sm fright {if condition="$auth->check($nowmenu.'/examine')!=1"}hiddens{/if}" lay-event="examine"><i class="layui-icon">&#xe674;</i> 审核</button>
-                            {/if}
-
+                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-green {if condition="$auth->check($nowmenu.'/printpage')!=1"}hiddens{/if}" lay-event="print"><i class="layui-icon">&#xe60b;</i> {:__('Print')}</button>
                             <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-orange fright {if condition="$auth->check($nowmenu.'/processIn')!=1"}hiddens{/if}" lay-event="processIn"><i class="layui-icon">&#xe654;</i> 外协入库</button>
-                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-blue fright {if condition="$auth->check($nowmenu.'/detail')!=1"}hiddens{/if}" lay-event="detail"><i class="layui-icon">&#xe615;</i> 查看详情</button>
+
+                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-red fright {if condition="$auth->check($nowmenu.'/cancelOutbound')!=1"}hiddens{/if}" lay-event="cancelOutbound"><i class="layui-icon">&#x1006;</i> {:__('Cancel_outbound')}</button>
+                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-green fright {if condition="$auth->check($nowmenu.'/outbound')!=1"}hiddens{/if}" lay-event="outbound"><i class="layui-icon">&#xe65a;</i> {:__('Outbound')}</button>
                         </div>
                     </script>
 
@@ -73,10 +68,9 @@
                             </button>
                         </div>
                     </form>
-                    <script type="text/html" id="barDemo">
+                    <script type="text/html" id="barDemoProcess">
                         <a class="layui-btn layui-btn-xs layui-bg-blue" lay-event="detail">详情</a>
                         <a class="layui-btn layui-btn-xs {if condition="$auth->check($nowmenu.'/edit')!=1"}hiddens{/if}" lay-event="edit">编辑</a>
-                        <a class="layui-btn layui-btn-danger layui-btn-xs {if condition="$auth->check($nowmenu.'/del')!=1"}hiddens{/if}" lay-event="del">删除</a>
                     </script>
 
                     <table id="table" class="table table-striped table-bordered table-hover table-nowrap"

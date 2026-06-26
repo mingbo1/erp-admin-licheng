@@ -78,6 +78,33 @@ class MiniOrder extends Backend
             }
         }
 
+        // 批量查询关联销货单的审核/对单状态
+        $salesCodes = [];
+        foreach ($rows as $r) {
+            if (!empty($r['sales_code'])) {
+                $salesCodes[] = $r['sales_code'];
+            }
+        }
+        $salesMap = [];
+        if (!empty($salesCodes)) {
+            $salesList = Db::name('kuerp_goods_sales')
+                ->where('purchase_code', 'in', array_unique($salesCodes))
+                ->column('examine_status,check_status', 'purchase_code');
+            $salesMap = $salesList ?: [];
+        }
+
+        foreach ($rows as &$r) {
+            $sc = $r['sales_code'] ?? '';
+            if (!empty($sc) && isset($salesMap[$sc])) {
+                $r['sales_examine_status'] = $salesMap[$sc]['examine_status'];
+                $r['sales_check_status']   = $salesMap[$sc]['check_status'];
+            } else {
+                $r['sales_examine_status'] = '';
+                $r['sales_check_status']   = '';
+            }
+        }
+        unset($r);
+
         return json(['total' => $total, 'rows' => $rows]);
     }
 
@@ -160,6 +187,25 @@ class MiniOrder extends Backend
         }
         if ($order->status !== 'paid') {
             $this->error(__('当前状态不可发货'));
+        }
+
+        // 检查关联销货单的审核/对单状态
+        if ($order->sales_code) {
+            $sales = Db::name('kuerp_goods_sales')
+                ->where('purchase_code', $order->sales_code)
+                ->field('examine_status,check_status')
+                ->find();
+            if (!$sales) {
+                $this->error(__('Sales_not_found'));
+            }
+            if ($sales['examine_status'] != 1) {
+                $this->error(__('Sales_not_examined'));
+            }
+            if ($sales['check_status'] != 1) {
+                $this->error(__('Sales_not_checked'));
+            }
+        } else {
+            $this->error(__('No_sales_linked'));
         }
 
         if ($this->request->isPost()) {

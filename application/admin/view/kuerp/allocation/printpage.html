@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>{:__('Allocation_detail')} - {$row.purchase_code|htmlentities}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: "Microsoft YaHei", "SimSun", Arial, sans-serif; font-size: 14px; color: #333; padding: 20px; }
+        .print-wrap { max-width: 900px; margin: 0 auto; }
+        .print-title { text-align: center; font-size: 22px; font-weight: bold; margin-bottom: 20px; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; margin-bottom: 15px; }
+        .info-grid .item { padding: 4px 0; }
+        .goods-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        .goods-table th, .goods-table td { padding: 6px 8px; border: 1px solid #666; text-align: center; }
+        .goods-table th { background: #f0f0f0; font-weight: bold; }
+        .goods-table td.left { text-align: left; }
+        .goods-table td.right { text-align: right; }
+        .footer-info { margin-top: 20px; }
+        .footer-info span { display: inline-block; margin-right: 30px; }
+        .print-time { text-align: right; color: #999; margin-top: 20px; font-size: 12px; }
+        @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+        }
+        .no-print { text-align: center; margin-bottom: 20px; }
+        .no-print button { padding: 8px 30px; font-size: 16px; cursor: pointer; }
+    </style>
+</head>
+<body>
+<div class="no-print">
+    <button onclick="window.print()">🖨 {:__('Print')}</button>
+</div>
+
+<div class="print-wrap">
+    <div class="print-title">{:__('Allocation_detail')}</div>
+
+    <div class="info-grid">
+        <div class="item"><strong>{:__('Purchase_code')}：</strong>{$row.purchase_code|htmlentities}</div>
+        <div class="item"><strong>{:__('Purchase_time')}：</strong>{$row.purchase_time|date='Y-m-d',###}</div>
+        <div class="item"><strong>{:__('Preparation_id')}：</strong>{$row.preparation_name|default=''}</div>
+        <div class="item"><strong>{:__('Examine_id')}：</strong>{$row.examine_name|default=''}</div>
+        <div class="item"><strong>{:__('Examine_status')}：</strong>{if condition="$row.examine_status==1"}{:__('Examine_status 1')}{else/}{:__('Examine_status 0')}{/if}</div>
+        <div class="item"></div>
+    </div>
+
+    <table class="goods-table">
+        <thead>
+            <tr>
+                <th>序号</th>
+                <th>{:__('Goods_code')}</th>
+                <th>{:__('Goods_name')}</th>
+                <th>{:__('Goods_attr')}</th>
+                <th>{:__('Goods_note')}</th>
+                <th>{:__('Goods_unit')}</th>
+                <th>{:__('Number')}</th>
+                <th>{:__('Stores_out')}</th>
+                <th>{:__('Stores_enter')}</th>
+                <th>{:__('Remark')}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {php}$total_number = 0;{/php}
+            {foreach name="info_list" item="info" key="k"}
+            {php}$total_number += $info['number'];{/php}
+            <tr>
+                <td>{$k+1}</td>
+                <td>{$info.goods_code|htmlentities}</td>
+                <td class="left">{$info.goods_name|htmlentities}</td>
+                <td>{$info.attr_name|default=''}</td>
+                <td class="left">{$info.goods_note|htmlentities}</td>
+                <td>{$info.unit_name|default=''}</td>
+                <td class="right">{$info.number|htmlentities}</td>
+                <td>{$info.stores_out_name|htmlentities}</td>
+                <td>{$info.stores_enter_name|htmlentities}</td>
+                <td class="left">{$info.remarks|htmlentities}</td>
+            </tr>
+            {/foreach}
+            {if condition="empty($info_list)"}
+            <tr><td colspan="10">无明细数据</td></tr>
+            {/if}
+        </tbody>
+        <tfoot>
+            <tr>
+                <th colspan="6">合计</th>
+                <th class="right">{$total_number}</th>
+                <th colspan="3"></th>
+            </tr>
+        </tfoot>
+    </table>
+
+    {if condition="!empty($row['remarks'])"}
+    <div class="footer-info">
+        <strong>{:__('Remarks')}：</strong>{$row.remarks|htmlentities}
+    </div>
+    {/if}
+
+    <div class="print-time">
+        打印时间：{:date('Y-m-d H:i:s')} &nbsp;|&nbsp; 打印次数：{$row.print_num + 1}
+    </div>
+</div>
+
+<script>
+    window.onload = function() {
+        setTimeout(function() {
+            window.print();
+        }, 500);
+    };
+</script>
+</body>
+</html>

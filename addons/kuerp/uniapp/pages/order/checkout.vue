@@ -3,18 +3,23 @@
     <!-- 收货地址 -->
     <view class="section-card" hover-class="card-hover" @click="selectAddress">
       <view class="address-area" v-if="address">
-        <view class="address-top">
-          <text class="address-name">{{ address.first_connect_name }}</text>
-          <text class="address-mobile">{{ address.first_connect_mobile }}</text>
-          <u-tag v-if="address.is_first == 1" text="默认" type="primary" size="mini" plain />
+        <view class="address-info">
+          <view class="address-top">
+            <text class="address-name">{{ address.first_connect_name }}</text>
+            <text class="address-mobile">{{ address.first_connect_mobile }}</text>
+            <u-tag v-if="address.is_first == 1" text="默认" type="primary" size="mini" plain />
+          </view>
+          <text class="address-detail u-line-2">{{ address.connect_address }}</text>
         </view>
-        <text class="address-detail">{{ address.connect_address }}</text>
+        <u-icon name="arrow-right" size="28" color="#c0c4cc" class="address-arrow" />
       </view>
       <view class="address-empty" v-else>
-        <u-icon name="plus-circle" size="36" color="#c0c4cc" />
-        <text class="address-empty-text">请添加收货地址</text>
+        <view class="address-empty-info">
+          <u-icon name="plus-circle" size="36" color="#c0c4cc" />
+          <text class="address-empty-text">请添加收货地址</text>
+        </view>
+        <u-icon name="arrow-right" size="28" color="#c0c4cc" class="address-arrow" />
       </view>
-      <u-icon name="arrow-right" size="28" color="#c0c4cc" class="address-arrow" />
     </view>
 
     <!-- 商品清单 -->
@@ -80,6 +85,7 @@ export default {
       submitting: false,
       // buyNow 模式
       directGoods: null,
+      cartIds:''
     }
   },
   computed: {
@@ -98,9 +104,13 @@ export default {
       this.directGoods = {
         goods_id: Number(options.goods_id),
         quantity: Number(options.quantity) || 1,
-        attr_ids: options.attr_ids || '',
+        attr_ids: decodeURIComponent(options.attr_ids || ''),
         goods_unit: Number(options.goods_unit) || 0,
+        attr_name: decodeURIComponent(options.attr_name || ''),
       }
+    }
+    if (options.ids) {
+      this.cartIds = options.ids
     }
   },
   onShow() {
@@ -129,7 +139,9 @@ export default {
     },
     async loadCart() {
       try {
-        const res = await cartApi.index()
+        const res = await cartApi.index({
+          ids: this.cartIds,
+        })
         const list = (res.list || []).filter(i => !i.sell_out)
         if (list.length === 0) {
           uni.showToast({ title: '购物车为空', icon: 'none' })
@@ -167,30 +179,47 @@ export default {
           const unit = res.units.find(u => u.id == unitId)
           if (unit) unitName = unit.name
         }
-        // 解析属性名称
-        let attrName = ''
+        // 解析属性名称：优先用传入的，其次从 API 解析
+        let attrName = this.directGoods.attr_name || ''
         const attrIds = this.directGoods.attr_ids
-        if (attrIds && res.attrs) {
-          const ids = attrIds.split('&').map(Number)
+        if (!attrName && attrIds) {
+          const ids = ('' + attrIds).split('&').map(Number)
           const names = []
-          res.attrs.forEach(group => {
+          const source = res.attr_groups || res.attrs || []
+          source.forEach(group => {
             (group.values || []).forEach(v => {
-              const vid = v.id || v.value_id
-              if (ids.includes(vid)) names.push(v.name || v.value_name || v)
+              const vid = v.attribute_id || v.id
+              if (ids.includes(vid)) names.push(v.value_name || v.name || v)
             })
           })
           attrName = names.join(' / ')
+        }
+        // 根据 attr_ids 匹配 SKU，获取规格价格（而非商品级最低价）
+        let skuPrice = goods.show_price || goods.market_sell_price || 0
+        let skuStock = goods.stock || 0
+        if (attrIds && res.attrs && res.attrs.length > 0) {
+          const sortedIds = ('' + attrIds).split('&').map(Number).sort((a, b) => a - b).join('&')
+          const matched = res.attrs.find(a => {
+            if (!a.aux_value_ids || a.aux_value_ids.length === 0) return false
+            const aSorted = [...a.aux_value_ids].sort((a, b) => a - b).join('&')
+            return aSorted === sortedIds
+          })
+          if (matched) {
+            skuPrice = matched.show_price || skuPrice
+            skuStock = matched.stock || 0
+          }
         }
         this.goodsList = [{
           goods_id: goods.id,
           goods_name: goods.goods_name,
           goods_image: goods.goods_image,
           quantity: this.directGoods.quantity,
-          unit_price: goods.show_price || goods.market_sell_price || 0,
+          unit_price: skuPrice,
           goods_unit: unitId,
           attr_ids: attrIds,
           attr_name: attrName,
           unit_name: unitName,
+          stock: skuStock,
         }]
       } catch (e) { uni.showToast({ title: e, icon: 'none' }) }
     },
@@ -246,21 +275,22 @@ export default {
 
 .section-card {
   background: #fff; margin: 20rpx; border-radius: 16rpx; padding: 24rpx; transition: transform 0.15s;
-  position: relative;    /* 让内部 absolute 元素相对于此容器定位 */
   overflow: hidden;      /* 防止内容溢出圆角 */
 }
 .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16rpx; }
 .section-title { font-size: 28rpx; font-weight: 600; color: #303133; }
 
 /* 地址 */
-.address-area { position: relative; padding-right: 40rpx; }
+.address-area { display: flex; align-items: center; }
+.address-info { flex: 1; min-width: 0; }
 .address-top { display: flex; align-items: center; gap: 12rpx; margin-bottom: 8rpx; }
-.address-name { font-size: 30rpx; font-weight: 600; color: #303133; }
-.address-mobile { font-size: 26rpx; color: #606266; }
+.address-name { font-size: 30rpx; font-weight: 600; color: #303133; flex-shrink: 0; }
+.address-mobile { font-size: 26rpx; color: #606266; flex-shrink: 0; }
 .address-detail { font-size: 26rpx; color: #909399; line-height: 1.5; }
-.address-empty { display: flex; align-items: center; gap: 12rpx; padding: 20rpx 0; }
+.address-empty { display: flex; align-items: center; padding: 20rpx 0; }
+.address-empty-info { display: flex; align-items: center; gap: 12rpx; flex: 1; min-width: 0; }
 .address-empty-text { font-size: 26rpx; color: #c0c4cc; }
-.address-arrow { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
+.address-arrow { flex-shrink: 0; margin-left: 16rpx; }
 
 /* 商品 */
 .goods-item { display: flex; align-items: center; padding: 16rpx 0; }

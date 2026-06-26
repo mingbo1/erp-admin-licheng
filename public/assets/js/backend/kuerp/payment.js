@@ -60,7 +60,6 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'examine', title: __('审核人'), merge:['purchase_code'],hide:hideStatus},
                         {field: 'preparation', title: __('制单人'), merge:['purchase_code']},
                         {field: 'remarks', title: __('备注'), merge:['purchase_code']},
-                        {field: 'print_num', title: __('打印次数'), merge:['purchase_code']},
                         {fixed: 'right', title:__('Operate'), toolbar: '#barDemo', width:150, merge:['purchase_code']}
                     ]],
                     done: function(res, curr, count){

@@ -1,0 +1,89 @@
+{include file="kuerp/common/menu" /}
+<div class="panel panel-default panel-intro">
+    <div class="panel-body">
+        <div id="myTabContent" class="tab-content">
+            <div class="tab-pane fade active in" id="one">
+                <div class="widget-body no-padding">
+                    <script type="text/html" id="thisToolbar">
+                        <div class="layui-btn-container">
+                           <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-cyan btn-refresh" lay-event="refresh"><i class="layui-icon">&#xe669;</i> {:__('Refresh')}</button>
+                            <button class="layui-btn layui-icon-btn layui-btn-sm {if condition="$auth->check($nowmenu.'/add')!=1"}hiddens{/if}" lay-event="add"><i class="layui-icon">&#xe654;</i> {:__('Add')}</button>
+                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger {if condition="$auth->check($nowmenu.'/del')!=1"}hiddens{/if}" lay-event="delAll"><i class="layui-icon">&#xe640;</i> {:__('Delete')}</button>
+                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-green {if condition="$auth->check($nowmenu.'/printpage')!=1"}hiddens{/if}" lay-event="print"><i class="layui-icon">&#xe60b;</i> {:__('Print')}</button>
+
+                            {if condition="isset($set['examine']['is_checked']) && $set['examine']['is_checked']==1"}
+                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger fright {if condition="$auth->check($nowmenu.'/examine')!=1"}hiddens{/if}" lay-event="examine_f"><i class="layui-icon">&#xe674;</i> 反审核</button>
+                            <button class="layui-btn layui-icon-btn layui-btn-sm fright {if condition="$auth->check($nowmenu.'/examine')!=1"}hiddens{/if}" lay-event="examine"><i class="layui-icon">&#xe674;</i> 审核</button>
+                            {/if}
+                        </div>
+                    </script>
+
+                    <form class="layui-form layui-search" id="layui-search">
+
+                        <div class="layui-input-inline">
+                            <input type="text" name="process_code" id="process_code" autocomplete="off" placeholder="{:__('Process_code')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="process_time" id="process_time" autocomplete="off" placeholder="{:__('Process_time')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="supplyer_code" id="supplyer_code" placeholder="{:__('Supplyer_code')}" class="layui-input">
+                                <option value="">请选择{:__('Supplyer_code')}</option>
+                                {foreach name="suppliersList" item="vo"}
+                                <option value="{$vo.supplyer_code}">{$vo.supplyer_code} {$vo.supplyer_name}</option>
+                                {/foreach}
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="preparation_id" id="preparation_id" placeholder="{:__('Preparation_id')}" class="layui-input">
+                                <option value="">请选择{:__('Preparation_id')}</option>
+                                {foreach name="adminList" item="vo"}
+                                <option value="{$vo.id}">{$vo.username}</option>
+                                {/foreach}
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="examine_id" id="examine_id" placeholder="{:__('Examine_id')}" class="layui-input">
+                                <option value="">请选择{:__('Examine_id')}</option>
+                                {foreach name="adminList" item="vo"}
+                                <option value="{$vo.id}">{$vo.username}</option>
+                                {/foreach}
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="examine_status" id="examine_status" placeholder="{:__('Examine_status')}" class="layui-input">
+                                <option value="">请选择{:__('Examine_status')}</option>
+                                <option value="0">{:__('Examine_status 0')}</option>
+                                <option value="1">{:__('Examine_status 1')}</option>
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="in_status" id="in_status" placeholder="{:__('In_status')}" class="layui-input">
+                                <option value="">请选择{:__('In_status')}</option>
+                                <option value="0">{:__('In_status 0')}</option>
+                                <option value="1">{:__('In_status 1')}</option>
+                                <option value="2">{:__('In_status 2')}</option>
+                            </select>
+                        </div>
+                        <div class="layui-input-inline " style="width: 90px">
+                            <button class="layui-btn layui-btn-sm" type="button" id="search" data-type="reload">
+                                <i class="layui-icon"></i> {:__('Search')}
+                            </button>
+                        </div>
+                    </form>
+                    <!-- 计划部门专用行操作模板（无删除按钮） -->
+                    <script type="text/html" id="barDemoOrder">
+                        <a class="layui-btn layui-btn-xs layui-bg-blue" lay-event="detail">详情</a>
+                        <a class="layui-btn layui-btn-xs {if condition="$auth->check($nowmenu.'/edit')!=1"}hiddens{/if}" lay-event="edit">编辑</a>
+                        <a class="layui-btn layui-btn-danger layui-btn-xs {if condition="$auth->check($nowmenu.'/del')!=1"}hiddens{/if}" lay-event="del">删除</a>
+                    </script>
+
+                    <table id="table" class="table table-striped table-bordered table-hover table-nowrap"
+                           width="100%" lay-filter="table">
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>

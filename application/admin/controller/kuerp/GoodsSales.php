@@ -13,7 +13,7 @@ use think\Session;
  */
 class GoodsSales extends Backend
 {
-    protected $noNeedRight = ['checkpurchase','getsuppliers','getunits','getunit','formatinfo2','getbranch','gettime','getreceivingaddress','printpage'];
+    protected $noNeedRight = ['checkpurchase','getsuppliers','getunits','getunit','formatinfo2','getbranch','gettime','getreceivingaddress','printpage','dunning','deldunning'];
     /**
      * GoodsSales模型对象
      * @var \app\admin\model\kuerp\GoodsSales
@@ -88,7 +88,7 @@ class GoodsSales extends Backend
             list($where, $sort, $order, $offset, $limit) = $this->buildparams();
             $sort = 'purchase_time';$order='DESC';
             $list = $this->model
-                ->with(['customers','preparation','examine','secondExamine'])
+                ->with(['customers','preparation','examine','secondExamine','dunning'])
                 ->where($where)
                 ->order($sort, $order)
                 ->order('purchase_code', 'DESC')
@@ -102,6 +102,19 @@ class GoodsSales extends Backend
                     $row->getRelation('secondExamine')->visible(['username']);
                 }
             }
+            // 收集交货时间为空的销货订单号，批量查询订单的交货时间
+            $emptyDeliveryCodes = [];
+            foreach ($list as $list_v) {
+                if (empty($list_v['delivery_time']) && !empty($list_v['purchase_order_id'])) {
+                    $emptyDeliveryCodes[] = $list_v['purchase_order_id'];
+                }
+            }
+            $orderDeliveryMap = [];
+            if (!empty($emptyDeliveryCodes)) {
+                $orderDeliveryMap = Db::name('kuerp_goods_sales_order')
+                    ->where('purchase_code', 'in', array_unique($emptyDeliveryCodes))
+                    ->column('delivery_time', 'purchase_code');
+            }
             foreach ($list as $list_k=>$list_v){
                 if(isset($list_v['print_num']) && empty($list_v['print_num'])){
                     $list[$list_k]['print_num'] = 0;
@@ -109,6 +122,13 @@ class GoodsSales extends Backend
                 $purchase_id = Db::name('kuerp_goods_saleexc')->where(['purchase_id'=>$list_v['id']])->column('exchange_id');
                 $purchase = Db::name('kuerp_goods_sales_exchange')->where(['id'=>['in',$purchase_id]])->column('purchase_code');
                 $list[$list_k]['returns_order_id'] = implode(',',$purchase);
+                // 催收记录数量
+                $dunningList = $list_v->getRelation('dunning');
+                $list_v['dunning_count'] = ($dunningList && count($dunningList) > 0) ? count($dunningList) : 0;
+                // 如果交货时间为空，从关联的销货订单获取
+                if (empty($list_v['delivery_time']) && !empty($list_v['purchase_order_id']) && isset($orderDeliveryMap[$list_v['purchase_order_id']])) {
+                    $list_v['delivery_time'] = $orderDeliveryMap[$list_v['purchase_order_id']];
+                }
             }
 
             $result = array("total" => $list->total(), "rows" => $list->items());
@@ -324,6 +344,7 @@ class GoodsSales extends Backend
                         'purchase_code'     =>  $params['purchase_code'],
                         'purchase_type'     =>  $params['purchase_type'],
                         'purchase_time'     =>  strtotime($params['purchase_time']),
+                        'delivery_time'     =>  isset($params['delivery_time']) ? strtotime($params['delivery_time']) : null,
                         'customers_id'      =>  (int)$params['customers_id'],//客户
                         'sale_user'         =>  (int)$params['sale_user'],//销售员
                         'receiving_address' =>  $params['receiving_address'],
@@ -444,6 +465,14 @@ class GoodsSales extends Backend
                     if(!empty($purchase_order_id)){
                         if($result){
                             Db::name('kuerp_goods_saleord')->insert(['order_id'=>$order_id,'purchase_id'=>$result]);
+                            // 在订单上记录"生成销货单"日志
+                            Db::name('kuerp_goods_sales_order_log')->insert([
+                                'order_id'   => $order_id,
+                                'action'     => '生成销货单',
+                                'note'       => '生成销货单：' . $params['purchase_code'],
+                                'admin_id'   => $admin['id'],
+                                'createtime' => time(),
+                            ]);
                         }
                     }
                     Db::commit();
@@ -452,6 +481,8 @@ class GoodsSales extends Backend
                     $this->error($e->getMessage());
                 }
                 if (isset($result) && $result !== false) {
+                    // 写入操作日志
+                    $this->writeSalesLog($result, '创建', '创建销货单');
                     // 来自订货通订单 → 回写 sales_code
                     if (!empty($params['order_id'])) {
                         $miniOrder = Db::name('kuerp_mini_order')
@@ -459,12 +490,18 @@ class GoodsSales extends Backend
                             ->where('status', 'confirmed')
                             ->find();
                         if ($miniOrder && empty($miniOrder['sales_code'])) {
+                            $updateData = [
+                                'sales_code' => $params['purchase_code'],
+                                'updatetime' => time(),
+                            ];
+                            // 如果销货单已收款，同步支付状态到 mini 订单
+                            if (isset($pay_status) && $pay_status == 1) {
+                                $updateData['status'] = 'paid';
+                                $updateData['payment_time'] = time();
+                            }
                             Db::name('kuerp_mini_order')
                                 ->where('id', $miniOrder['id'])
-                                ->update([
-                                    'sales_code' => $params['purchase_code'],
-                                    'updatetime' => time(),
-                                ]);
+                                ->update($updateData);
                         }
                     }
 
@@ -606,9 +643,9 @@ class GoodsSales extends Backend
         // 来自销货排期：预填商品列表
         $schedule_id = $this->request->param('schedule_id');
         if ($schedule_id && empty($purchase_info)) {
-            $schedule = Db::name('kuerp_goods_sales_schedule')->where(['id' => $schedule_id])->find();
+            $schedule = Db::name('kuerp_goods_sales')->where(['id' => $schedule_id])->find();
             if ($schedule) {
-                $info_list = Db::name('kuerp_goods_sales_schedule_info')
+                $info_list = Db::name('kuerp_goods_sales_info')
                     ->where(['purchase_code' => $schedule['purchase_code']])
                     ->select();
                 $sche_goods = [];
@@ -672,6 +709,15 @@ class GoodsSales extends Backend
         $row = $this->model->get($ids);
         if (!$row) {
             $this->error(__('No Results were found'));
+        }
+        // 如果销货单没有交货时间，从关联的销货订单获取
+        if (empty($row['delivery_time']) && !empty($row['purchase_order_id'])) {
+            $orderDeliveryTime = Db::name('kuerp_goods_sales_order')
+                ->where('purchase_code', $row['purchase_order_id'])
+                ->value('delivery_time');
+            if ($orderDeliveryTime) {
+                $row['delivery_time'] = $orderDeliveryTime;
+            }
         }
         $adminIds = $this->getDataLimitAdminIds();
         if (is_array($adminIds)) {
@@ -885,6 +931,7 @@ class GoodsSales extends Backend
                         'purchase_code'     =>  $params['purchase_code'],
                         'purchase_type'     =>  $params['purchase_type'],
                         'purchase_time'     =>  strtotime($params['purchase_time']),
+                        'delivery_time'     =>  isset($params['delivery_time']) ? strtotime($params['delivery_time']) : null,
                         'customers_id'      =>  (int)$params['customers_id'],//客户
                         'sale_user'         =>  (int)$params['sale_user'],//销售员
                         'receiving_address' =>  $params['receiving_address'],
@@ -1012,6 +1059,23 @@ class GoodsSales extends Backend
                     $this->error($e->getMessage());
                 }
                 if ($result !== false) {
+                    // 写入操作日志
+                    $this->writeSalesLog($ids, '编辑', '编辑销货单');
+                    // 同步 Mini 订单支付状态（根据 sales_code 关联）
+                    $miniOrder = Db::name('kuerp_mini_order')
+                        ->where('sales_code', $rowdata['purchase_code'])
+                        ->where('status', 'confirmed')
+                        ->find();
+                    if ($miniOrder && $rowdata['pay_status'] == 1) {
+                        Db::name('kuerp_mini_order')
+                            ->where('id', $miniOrder['id'])
+                            ->update([
+                                'status' => 'paid',
+                                'payment_time' => time(),
+                                'updatetime' => time(),
+                            ]);
+                    }
+
                     if($examine!=1){
                         try {
                             $exa = $this->examine($ids,1);
@@ -1064,6 +1128,28 @@ class GoodsSales extends Backend
         $this->assignconfig("examine_status", $row['examine_status']);
         $this->assignconfig("suppliersList", $this->model->getSuppliersList());
         $this->assignconfig("expendTypeList", $this->model->getExpendTypeList());
+
+        // 查询催收记录
+        $dunningList = Db::name('kuerp_goods_sales_dunning')
+            ->where('sales_id', $ids)
+            ->order('id', 'desc')
+            ->select();
+        foreach ($dunningList as $dk => $dv) {
+            $admin = Db::name('admin')->where('id', $dv['admin_id'])->value('username');
+            $dunningList[$dk]['admin_username'] = $admin ?: '';
+        }
+        $this->view->assign('dunningList', $dunningList);
+
+        // 查询操作日志
+        $logList = Db::name('kuerp_goods_sales_log')
+            ->where('sales_id', $ids)
+            ->order('id', 'desc')
+            ->select();
+        foreach ($logList as $lk => $lv) {
+            $admin = Db::name('admin')->where('id', $lv['admin_id'])->value('username');
+            $logList[$lk]['admin_username'] = $admin ?: '';
+        }
+        $this->view->assign('logList', $logList);
 
         return $this->view->fetch();
     }
@@ -1121,6 +1207,8 @@ class GoodsSales extends Backend
                     $exchange_info = Db::name('kuerp_goods_sales_info')->where(['purchase_code'=>$v['purchase_code']])->column('id');
                     Db::name('kuerp_goods_sales_info')->where(['purchase_code'=>$v['purchase_code']])->delete();
                     Db::name('kuerp_goods_serial')->where(['sale_id'=>['in',$exchange_info]])->update(['status'=>'1']);
+                    // 写入操作日志
+                    $this->writeSalesLog($v['id'], '删除', '删除销货单');
                 }
                 Db::name('kuerp_goods_sales_summary')->where(['purchase_code'=>['in',$goods_purchase_code]])->delete();
                 if(!empty($goods_purchase_id)){//销货订单关联
@@ -1170,6 +1258,11 @@ class GoodsSales extends Backend
                 $this->error($e->getMessage());
             }
             if(isset($result) && $result !== false){
+                // 写入操作日志
+                $logIds = is_array($ids) ? $ids : explode(',', trim($ids, ','));
+                foreach ($logIds as $logId) {
+                    $this->writeSalesLog((int)$logId, '对单', '对单');
+                }
                 $this->success(sizeof($list).'条数据对单成功');
             }else{
                 $this->error('对单失败');
@@ -1195,6 +1288,11 @@ class GoodsSales extends Backend
                 $this->error($e->getMessage());
             }
             if(isset($result) && $result !== false){
+                // 写入操作日志
+                $logIds = is_array($ids) ? $ids : explode(',', trim($ids, ','));
+                foreach ($logIds as $logId) {
+                    $this->writeSalesLog((int)$logId, '反对单', '反对单');
+                }
                 $this->success(sizeof($list).'条数据反对单成功');
             }else{
                 $this->error('反对单失败');
@@ -1233,7 +1331,40 @@ class GoodsSales extends Backend
                 }
                 $this->error('请选择需要审核的数据');
             }
-            $account_list_obj = Db::name('kuerp_accounts')->field('id,account_coding,account_name,balance')->select();
+            // 审核仅设置审核状态，不做库存变动（库存变动由销货出库操作完成）
+            $admin = Session::get('admin');
+            $examine_ids = [];
+            foreach ($list as $list_v){
+                $examine_ids[] = $list_v['id'];
+            }
+            Db::startTrans();
+            try {
+                $this->model->where(['id'=>['in',$examine_ids],'examine_status'=>'0'])->update([
+                    'examine_status' => 1,
+                    'examine_id'     => $admin['id'],
+                    'examine_time'   => time(),
+                    'operation_id'   => $admin['id'],
+                ]);
+                Db::name('kuerp_goods_sales_info')->where(['purchase_code'=>['in',$purchase_code]])->update([
+                    'examine_status' => 1,
+                    'examine_id'     => $admin['id'],
+                    'examine_time'   => time(),
+                ]);
+                foreach ($list as $list_v){
+                    $this->writeSalesLog($list_v['id'], '审核', '审核通过，库存变动由出库操作完成');
+                }
+                Db::commit();
+            } catch (Exception $e) {
+                Db::rollback();
+                if($examine_set!=1){
+                    return ['status'=>0,'msg'=>$e->getMessage()];
+                }
+                $this->error($e->getMessage());
+            }
+            if($examine_set!=1){
+                return ['status'=>1,'msg'=>'审核成功'];
+            }
+            $this->success('审核成功（库存变动请通过销货出库操作完成）');
             $account_list = [];
             foreach ($account_list_obj as $account_list_obj_k=>$account_list_obj_v){
                 $account_list[$account_list_obj_v['id']] = $account_list_obj_v;
@@ -1764,6 +1895,14 @@ class GoodsSales extends Backend
                     $goodsSalesOrder = (new \app\admin\model\kuerp\GoodsSalesOrder());
                     foreach ($order_count as $order_count_k=>$order_count_v){
                         $goodsSalesOrder->where(['id'=>$order_count_v['id']])->inc('store_number',$order_count_v['store_number'])->update();
+                        // 在订单上记录"出库"日志
+                        Db::name('kuerp_goods_sales_order_log')->insert([
+                            'order_id'   => $order_count_v['id'],
+                            'action'     => '出库',
+                            'note'       => '销售出库，关联销货单：' . implode(',', $purchase_code),
+                            'admin_id'   => $admin['id'],
+                            'createtime' => time(),
+                        ]);
                         unset($order_count[$order_count_k]['store_number']);
                     }
                     $goodsSalesOrder->saveAll($order_count);
@@ -1792,6 +1931,9 @@ class GoodsSales extends Backend
                     if(isset($info_list_v['id'])){
                         unset($info_list[$info_list_k]['id']);
                     }
+                    if(isset($info_list_v['out_number'])){
+                        unset($info_list[$info_list_k]['out_number']);
+                    }
                 }
                 Db::name('kuerp_goods_sales_summary')->insertAll($info_list);
                 if(!empty($accountData)){
@@ -1805,6 +1947,11 @@ class GoodsSales extends Backend
                 $this->error($e->getMessage());
             }
             if(isset($result) && $result !== false){
+                // 写入操作日志
+                $logIds = is_array($ids) ? $ids : explode(',', trim($ids, ','));
+                foreach ($logIds as $logId) {
+                    $this->writeSalesLog((int)$logId, '审核', '审核通过');
+                }
                 if($examine_set!=1){
                     return ['status'=>1,'msg'=>'操作成功'];
                 }
@@ -2105,6 +2252,14 @@ class GoodsSales extends Backend
                     $goodsSalesOrder = (new \app\admin\model\kuerp\GoodsSalesOrder());
                     foreach ($order_count as $order_count_k=>$order_count_v){
                         $goodsSalesOrder->where(['id'=>$order_count_v['id']])->dec('store_number',$order_count_v['store_number'])->update();
+                        // 在订单上记录"取消出库"日志
+                        Db::name('kuerp_goods_sales_order_log')->insert([
+                            'order_id'   => $order_count_v['id'],
+                            'action'     => '取消出库',
+                            'note'       => '反审核销货单，取消出库',
+                            'admin_id'   => $admin['id'],
+                            'createtime' => time(),
+                        ]);
                         unset($order_count[$order_count_k]['store_number']);
                     }
                     $goodsSalesOrder->saveAll($order_count);
@@ -2139,6 +2294,11 @@ class GoodsSales extends Backend
                 if($examine_set!=1){
                     return ['status'=>1,'msg'=>'操作成功'];
                 }
+                // 写入操作日志
+                $logIds = is_array($ids) ? $ids : explode(',', trim($ids, ','));
+                foreach ($logIds as $logId) {
+                    $this->writeSalesLog((int)$logId, '反审核', '反审核');
+                }
                 $this->success(sizeof($list).'条数据反审核成功');
             }else{
                 if($examine_set!=1){
@@ -2149,7 +2309,85 @@ class GoodsSales extends Backend
         }
     }
 
+    /**
+     * 催收
+     */
+    public function dunning($ids = null)
+    {
+        $ids = $ids ? $ids : $this->request->param('ids');
+        if (!$ids) {
+            $this->error(__('参数错误'));
+        }
+
+        $row = $this->model->find($ids);
+        if (!$row) {
+            $this->error(__('销货单不存在'));
+        }
+
+        if ($this->request->isPost()) {
+            $params = $this->request->post('row/a');
+            $note = $params['note'] ?? '';
+            $admin = Session::get('admin');
+
+            Db::name('kuerp_goods_sales_dunning')->insert([
+                'sales_id'   => $ids,
+                'admin_id'   => $admin['id'],
+                'note'       => $note,
+                'createtime' => time(),
+                'updatetime' => time(),
+            ]);
+
+            // 写入操作日志
+            $this->writeSalesLog($ids, '催收', $note ?: '催收');
+
+            $this->success(__('催收记录已保存'));
+        }
+
+        $this->view->assign('row', $row);
+        return $this->view->fetch();
+    }
+
+    /**
+     * 删除催收记录
+     */
+    public function delDunning($ids = null)
+    {
+        $ids = $ids ? $ids : $this->request->param('ids');
+        if (!$ids) {
+            $this->error(__('参数错误'));
+        }
+        if (!is_array($ids)) {
+            $ids = explode(',', $ids);
+        }
+        // 查询关联的销货单ID用于写日志
+        $dunningInfo = Db::name('kuerp_goods_sales_dunning')->where('id', 'in', $ids)->field('sales_id,note')->select();
+        $count = Db::name('kuerp_goods_sales_dunning')->where('id', 'in', $ids)->delete();
+        if ($count) {
+            foreach ($dunningInfo as $dv) {
+                $this->writeSalesLog($dv['sales_id'], '删除催收', '删除催收记录：' . ($dv['note'] ?: '无备注'));
+            }
+            $this->success(__('删除成功'));
+        } else {
+            $this->error(__('删除失败'));
+        }
+    }
+
     //检测可生成退货单
+    /**
+     * 写入操作日志
+     */
+    private function writeSalesLog($sales_id, $action, $note = '')
+    {
+        $admin = Session::get('admin');
+        Db::name('kuerp_goods_sales_log')->insert([
+            'sales_id'   => $sales_id,
+            'action'     => $action,
+            'note'       => $note,
+            'admin_id'   => $admin['id'],
+            'createtime' => time(),
+        ]);
+    }
+
     public function checkPurchase(){
         $order_id = isset($_POST['exchange'])?trim($_POST['exchange']):0;
         if(empty($order_id)){
@@ -2788,6 +3026,11 @@ class GoodsSales extends Backend
             $this->error($e->getMessage());
         }
         if(isset($result) && $result !== false){
+            // 写入操作日志
+            $logIds = is_array($ids) ? $ids : explode(',', trim($ids, ','));
+            foreach ($logIds as $logId) {
+                $this->writeSalesLog((int)$logId, '二审', '董事长二次审核通过');
+            }
             $this->success(sizeof($list).'条数据二次审核成功');
         }else{
             $this->error('二次审核失败');

@@ -13,7 +13,8 @@
       </template>
       <!-- 已登录 -->
       <template v-else>
-        <u-avatar :text="avatarText" bg-color="#4A90D9" size="80" fontSize="36"></u-avatar>
+        <u-avatar v-if="avatarUrl" :src="$img(avatarUrl)" bg-color="#4A90D9" size="80" fontSize="36"></u-avatar>
+        <u-avatar v-else :text="avatarText" bg-color="#4A90D9" size="80" fontSize="36"></u-avatar>
         <view class="profile-info">
           <text class="profile-name">{{ nickname || '未设置昵称' }}</text>
           <text class="profile-mobile">{{ mobileText }}</text>
@@ -45,7 +46,7 @@ import { userApi } from '../../api'
 import { setToken } from '../../api/request'
 export default {
   data() {
-    return { nickname: '', mobile: '', isLogin: false }
+    return { nickname: '', mobile: '', isLogin: false, avatarUrl: '' }
   },
   computed: {
     avatarText() { return (this.nickname || '?').charAt(0).toUpperCase() },
@@ -64,6 +65,7 @@ export default {
           this.nickname = mu.nickname || ''
           this.mobile = mu.mobile || ''
           this.isLogin = true
+          this.avatarUrl = mu.avatar || ''
         } else {
           this.isLogin = false
         }
@@ -97,6 +99,7 @@ export default {
             this.isLogin = false
             this.nickname = ''
             this.mobile = ''
+            this.avatarUrl = ''
             const app = getApp()
             if (app && app.globalData) { app.globalData.userInfo = null }
             // #ifdef MP-WEIXIN

@@ -26,7 +26,6 @@
         @click="goDetail(item.id)"
         hover-class="card-hover"
       >
-        <!-- 顶部 -->
         <view class="card-header">
           <view class="header-left">
             <view class="header-top-row">
@@ -41,23 +40,27 @@
           </view>
         </view>
 
-        <!-- 商品摘要 -->
         <view class="card-goods" v-if="item.goods && item.goods.length > 0">
           <view class="goods-row" v-for="(oi, idx) in item.goods.slice(0, 3)" :key="oi.id">
-            <view class="goods-index">{{ idx + 1 }}</view>
+            <view class="goods-thumb">
+              <image v-if="oi.goods_image" :src="$img(oi.goods_image)" mode="aspectFill" />
+              <view v-else class="goods-thumb-place">{{ idx + 1 }}</view>
+            </view>
             <text class="goods-name u-line-1">{{ oi.goods_name }}</text>
             <text class="goods-qty">×{{ oi.quantity }}</text>
           </view>
           <view class="goods-more" v-if="item.goods.length > 3">
-            <text>等共 {{ item.goods.length }} 件商品</text>
+            <text>等 {{ item.goods.length }} 件商品</text>
           </view>
         </view>
 
-        <!-- 底部 -->
         <view class="card-footer">
-          <view class="amount-area">
-            <text class="amount-label">实付</text>
-            <text class="amount-value">¥{{ item.payable_amount || item.total_amount }}</text>
+          <view class="footer-left">
+            <text class="order-time">{{ formatTime(item.createdtime) }}</text>
+            <view class="amount-area">
+              <text class="amount-label">实付</text>
+              <text class="amount-value">¥{{ item.payable_amount || item.total_amount }}</text>
+            </view>
           </view>
           <view class="footer-actions">
             <u-button
@@ -89,7 +92,7 @@
     <view class="order-list" v-if="loading && list.length === 0">
       <view class="order-card" v-for="i in 3" :key="i">
         <view class="skeleton-header"><view class="skeleton-line" style="width:55%;"></view><view class="skeleton-line" style="width:18%;"></view></view>
-        <view class="skeleton-goods"><view class="skeleton-line" style="width:82%;"></view><view class="skeleton-line" style="width:58%;margin-top:12rpx;"></view></view>
+        <view class="skeleton-goods"><view class="skeleton-line"></view><view class="skeleton-line"></view></view>
         <view class="skeleton-footer"><view class="skeleton-line" style="width:30%;"></view></view>
       </view>
     </view>
@@ -124,9 +127,9 @@ export default {
       loaded: false,
       loading: false,
       hasMore: true,
-      activeTab: '',
+      activeTab: 'all',
       tabs: [
-        { key: '', label: '全部' },
+        { key: 'all', label: '全部' },
         { key: 'pending_confirm', label: '待确认' },
         { key: 'confirmed', label: '已确认' },
         { key: 'shipped', label: '已发货' },
@@ -189,14 +192,14 @@ export default {
 .tabs-scroll { padding: 20rpx 20rpx 0; white-space: nowrap; background: #f5f7fa; }
 .tabs-inner { display: flex; gap: 16rpx; padding-bottom: 12rpx; }
 .tab-item {
-  display: inline-flex; align-items: center; gap: 6rpx;
+  display: inline-flex; align-items: center; justify-content: center;
   padding: 14rpx 32rpx; font-size: 26rpx; color: #606266;
-  background: #fff; border-radius: 32rpx; transition: all 0.2s; flex-shrink: 0;
+  background: #fff; border-radius: 32rpx; flex-shrink: 0;
 }
-.tab-item.active { color: #fff; background: #4A90D9; font-weight: 500; box-shadow: 0 4rpx 12rpx rgba(74,144,217,0.3); }
+.tab-item.active { color: #fff; background: #4A90D9; font-weight: 500; }
 
 .order-list { padding: 20rpx; }
-.order-card { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 16rpx; box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04); transition: transform 0.15s; }
+.order-card { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 16rpx; }
 .card-hover { transform: scale(0.98); }
 
 .card-header { display: flex; justify-content: space-between; align-items: flex-start; }
@@ -226,20 +229,30 @@ export default {
 .card-goods { margin: 16rpx 0; padding: 12rpx 16rpx; background: #fafbfc; border-radius: 8rpx; }
 .goods-row { display: flex; align-items: center; padding: 6rpx 0; }
 .goods-row + .goods-row { border-top: 1rpx solid #f5f7fa; }
-.goods-index { width: 28rpx; height: 28rpx; display: flex; align-items: center; justify-content: center; font-size: 18rpx; color: #c0c4cc; flex-shrink: 0; margin-right: 8rpx; }
+.goods-thumb {
+  width: 48rpx; height: 48rpx; border-radius: 6rpx; overflow: hidden;
+  flex-shrink: 0; margin-right: 12rpx; background: #f0f0f0;
+}
+.goods-thumb image { width: 100%; height: 100%; display: block; }
+.goods-thumb-place {
+  width: 100%; height: 100%; display: flex; align-items: center;
+  justify-content: center; font-size: 20rpx; color: #c0c4cc;
+}
 .goods-name { font-size: 24rpx; color: #303133; flex: 1; margin-right: 16rpx; }
 .goods-qty { font-size: 22rpx; color: #909399; flex-shrink: 0; }
 .goods-more { padding: 8rpx 0 0; font-size: 20rpx; color: #c0c4cc; text-align: center; }
 
 .card-footer { display: flex; justify-content: space-between; align-items: center; }
+.footer-left { display: flex; flex-direction: column; gap: 4rpx; }
 .amount-area { display: flex; align-items: baseline; gap: 6rpx; }
 .amount-label { font-size: 22rpx; color: #909399; }
 .amount-value { font-size: 30rpx; color: #f56c6c; font-weight: 700; }
 .footer-actions { display: flex; gap: 12rpx; }
 
 .skeleton-header { display: flex; justify-content: space-between; margin-bottom: 20rpx; }
-.skeleton-goods { margin: 20rpx 0; }
+.skeleton-goods { display: flex; gap: 12rpx; margin: 20rpx 0; }
+.skeleton-goods .skeleton-line:first-child { width: 48rpx; height: 48rpx; border-radius: 6rpx; flex-shrink: 0; }
+.skeleton-goods .skeleton-line:last-child { flex: 1; height: 48rpx; }
 .skeleton-footer { margin-top: 16rpx; }
-.skeleton-line { height: 24rpx; background: linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 12rpx; }
-@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.skeleton-line { height: 24rpx; background: #f0f0f0; border-radius: 12rpx; }
 </style>

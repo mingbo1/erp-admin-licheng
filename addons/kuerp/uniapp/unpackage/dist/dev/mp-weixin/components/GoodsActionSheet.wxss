@@ -1,0 +1,62 @@
+
+.sheet-content.data-v-658a736e { padding: 24rpx 32rpx 48rpx;
+}
+.sheet-goods.data-v-658a736e { display: flex; align-items: flex-start; margin-bottom: 24rpx;
+}
+.sheet-goods-img.data-v-658a736e {
+  width: 140rpx; height: 140rpx;
+  background: #f5f7fa; border-radius: 12rpx;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-right: 20rpx; overflow: hidden;
+}
+.sheet-goods-info.data-v-658a736e { flex: 1;
+}
+.sheet-goods-name.data-v-658a736e { font-size: 28rpx; color: #303133; font-weight: 500; display: block;
+}
+.sheet-goods-price.data-v-658a736e { font-size: 36rpx; color: #f56c6c; font-weight: 700; margin-top: 8rpx; display: block;
+}
+.sheet-stock.data-v-658a736e { font-size: 22rpx; color: #909399; margin-top: 6rpx; display: block;
+}
+.sheet-stock.stock-zero.data-v-658a736e { color: #f56c6c;
+}
+.sheet-selected-spec.data-v-658a736e { font-size: 22rpx; color: #4A90D9; margin-top: 4rpx; display: block;
+}
+/* 规格选择 */
+.sheet-attr.data-v-658a736e { margin-bottom: 20rpx;
+}
+.attr-group.data-v-658a736e { margin-bottom: 16rpx;
+}
+.attr-group.data-v-658a736e:last-child { margin-bottom: 0;
+}
+.attr-label.data-v-658a736e { font-size: 24rpx; color: #606266; display: block; margin-bottom: 10rpx;
+}
+.attr-options.data-v-658a736e { display: flex; flex-wrap: wrap; gap: 12rpx;
+}
+.attr-tag.data-v-658a736e {
+  padding: 10rpx 24rpx; font-size: 24rpx; color: #606266;
+  background: #f5f7fa; border-radius: 8rpx; border: 2rpx solid #f5f7fa;
+}
+.attr-tag.selected.data-v-658a736e { color: #4A90D9; background: #ecf5ff; border-color: #4A90D9;
+}
+.attr-tag.disabled.data-v-658a736e { color: #c0c4cc; background: #f5f5f5; border-color: #f5f5f5; text-decoration: line-through;
+}
+/* 数量 */
+.sheet-qty.data-v-658a736e { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 0;
+}
+.sheet-qty-label.data-v-658a736e { font-size: 28rpx; color: #303133; font-weight: 500;
+}
+/* 底部双按钮 */
+.sheet-btns.data-v-658a736e { display: flex; gap: 20rpx; margin: 16rpx 0 10rpx;
+}
+.sheet-btn.data-v-658a736e {
+  flex: 1; height: 76rpx; line-height: 76rpx;
+  text-align: center; font-size: 28rpx; font-weight: 500; color: #fff;
+  border-radius: 38rpx;
+}
+.cart-btn.data-v-658a736e { background: #f5a623;
+}
+.buy-btn.data-v-658a736e  { background: #4A90D9;
+}
+.btn-disabled.data-v-658a736e { opacity: 0.5; pointer-events: none;
+}
+

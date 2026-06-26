@@ -45,8 +45,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'preparation_id', title: __('Preparation_id'),templet: function (d) {
                                 return d.preparation.username;
                             }},
+                        {field: 'delivery_time', title: __('Delivery_time'),templet: function (d) {
+                                return layui.util.toDateString(d.delivery_time*1000,"yyyy-MM-dd");
+                            },width:110},
                         {field: 'note', title: __('Note')},
-                        {field: 'print_num', title: __('Print_num')},
                         {fixed: 'right', title:__('Operate'), toolbar: '#barDemo', width:150}
                     ]]
                 });
@@ -86,6 +88,26 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 }
                             );
                         break;
+                        case 'examine':
+                            Fast.api.ajax("kuerp/goods_sales_schedule/examine?examine=1&ids="+ids, function () {
+                                $('.btn-refresh').click();
+                            },'',true);
+                            break;
+                        case 'examine_f':
+                            Fast.api.ajax("kuerp/goods_sales_schedule/examine?examine=2&ids="+ids, function () {
+                                $('.btn-refresh').click();
+                            },'',true);
+                            break;
+                        case 'counter':
+                            Fast.api.ajax("kuerp/goods_sales_schedule/counter?counter=1&ids="+ids, function () {
+                                $('.btn-refresh').click();
+                            },'',true);
+                            break;
+                        case 'counter_f':
+                            Fast.api.ajax("kuerp/goods_sales_schedule/counter?counter=2&ids="+ids, function () {
+                                $('.btn-refresh').click();
+                            },'',true);
+                            break;
                     }
                 });
                 //监听行工具事件

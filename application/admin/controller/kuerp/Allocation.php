@@ -432,6 +432,71 @@ class Allocation extends Backend
     }
 
     /**
+     * 打印
+     */
+    public function printpage($ids = null)
+    {
+        $row = $this->model->get($ids);
+        if (!$row) {
+            $this->error(__('No Results were found'));
+        }
+        // 制单人
+        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('username');
+        // 审核人
+        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('username');
+
+        // 获取调拨单详情
+        $info_list = Db::name('kuerp_allocation_info')
+            ->where(['allocation_id' => $ids])
+            ->select();
+
+        foreach ($info_list as $k => $v) {
+            $info_list[$k]['goods_name'] = Db::name('kuerp_goods')
+                ->where(['id' => $v['goods_id']])
+                ->value('goods_name');
+            $info_list[$k]['goods_code'] = Db::name('kuerp_goods')
+                ->where(['id' => $v['goods_id']])
+                ->value('goods_code');
+            $info_list[$k]['stores_out_name'] = Db::name('kuerp_stores')
+                ->where(['id' => $v['stores_out']])
+                ->value('name');
+            $info_list[$k]['stores_enter_name'] = Db::name('kuerp_stores')
+                ->where(['id' => $v['stores_enter']])
+                ->value('name');
+            $info_list[$k]['unit_name'] = Db::name('kuerp_unit')
+                ->where(['id' => $v['goods_unit']])
+                ->value('name');
+            // 属性名称
+            $info_list[$k]['attr_name'] = '';
+            if (!empty($v['goods_attr'])) {
+                $attribute_id = Db::name('kuerp_goods_attr')
+                    ->where(['id' => $v['goods_attr']])
+                    ->value('attribute_id');
+                if ($attribute_id) {
+                    $attribute_ids = Db::name('kuerp_aux_combination')
+                        ->where(['id' => $attribute_id])
+                        ->value('attr_ids');
+                    if ($attribute_ids) {
+                        $attr_ids_arr = explode('&', $attribute_ids);
+                        $attr_names = Db::name('kuerp_auxiliary')
+                            ->where(['id' => ['in', $attr_ids_arr]])
+                            ->column('name');
+                        $info_list[$k]['attr_name'] = implode('/', $attr_names);
+                    }
+                }
+            }
+        }
+
+        $this->view->assign("row", $row);
+        $this->view->assign("info_list", $info_list);
+
+        // 增加打印次数
+        $this->model->where(['id' => $ids])->setInc('print_num');
+
+        return $this->view->fetch();
+    }
+
+    /**
      * 删除
      */
     public function del($ids = "")

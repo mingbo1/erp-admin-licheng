@@ -73,7 +73,6 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 }
                             }},
                         {field: 'remark', title: __('Remark'), operate: 'LIKE'},
-                        {field: 'print_num', title: __('Print_num')},
                         {fixed: 'right', title:__('Operate'), toolbar: '#barDemo', width:150}
                     ]]
                 });

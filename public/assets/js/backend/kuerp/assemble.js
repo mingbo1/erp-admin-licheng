@@ -46,19 +46,26 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'pname', title: __('组合件'),merge:['purchase_code'],width:140},
                         {field: 'pnumber', title: __('组合件数量'),merge:['purchase_code']},
                         {field: 'unit_name', title: __('单位'),merge:['purchase_code']},
-                        {field: 'money', title: __('组装费用'),merge:['purchase_code']},
-                        {field: 'punit_cost', title: __('组合件单位成本'),merge:['purchase_code'],width:140},
-                        {field: 'pcost_money', title: __('组合件成本'),merge:['purchase_code']},
+                        // {field: 'money', title: __('组装费用'),merge:['purchase_code']},
+                        // {field: 'punit_cost', title: __('组合件单位成本'),merge:['purchase_code'],width:140},
+                        // {field: 'pcost_money', title: __('组合件成本'),merge:['purchase_code']},
                         {field: 'zname', title: __('子件'),width:140},
                         {field: 'znumber', title: __('子件数量')},
                         {field: 'zunit_name', title: __('子件单位')},
-                        {field: 'zunit_cost', title: __('子件单位成本'),width:140},
-                        {field: 'zcost_money', title: __('子件成本')},
+                        // {field: 'zunit_cost', title: __('子件单位成本'),width:140},
+                        // {field: 'zcost_money', title: __('子件成本')},
                         {field: 'preparation', title: __('制单人'),merge:['purchase_code']},
+                        {field: 'examine_status', title: __('Examine_status'),merge:['purchase_code'], templet: function(d){
+                            if(d.examine_status == 0) return '<span style="color:red">' + __('Examine_status 0') + '</span>';
+                            return '<span style="color:green">' + __('Examine_status 1') + '</span>';
+                        }},
+                        {field: 'inbound_status', title: __('Inbound_status'),merge:['purchase_code'], templet: function(d){
+                            if(d.inbound_status == 0) return '<span style="color:#999">' + __('Inbound_status 0') + '</span>';
+                            return '<span style="color:green">' + __('Inbound_status 1') + '</span>';
+                        }},
                         {field: 'examine', title: __('审核人'),merge:['purchase_code'],hide:hideStatus},
                         {field: 'examine_time', title: __('审核时间'),merge:['purchase_code'],hide:hideStatus,width:120},
                         {field: 'remark', title: __('备注'),merge:['purchase_code']},
-                        {field: 'print_num', title: __('打印次数'),merge:['purchase_code']},
                         {fixed: 'right', title:__('Operate'), toolbar: '#barDemo', width:150,merge:['purchase_code']}
                     ]],
                     done: function(){
@@ -84,6 +91,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     $(data).each(function (k,v) {
                         ids+=v.id+',';
                     });
+                    // 去掉末尾逗号
+                    if(ids.length > 0){
+                        ids = ids.substring(0, ids.length - 1);
+                    }
+                    console.log('toolbar event:', obj.event, 'ids:', ids);
                     switch(obj.event){
                         case 'refresh':
                             table.reload('table', []);
@@ -103,16 +115,61 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             break;
                         case 'examine':
                             if(data.length<=0){
-                                Toastr.error('请选择要审核的数据');return;
+                                Toastr.error('请选择要子件出库审核的数据');return;
                             }
                             Fast.api.ajax("kuerp/assemble/examine?examine=1&ids="+ids, function () {
                                 $('.btn-refresh').click();
                             },'',true);
                             break;
                         case 'examine_f':
+                            if(data.length<=0){
+                                Toastr.error('请选择要子件出库反审核的数据');return;
+                            }
                             Fast.api.ajax("kuerp/assemble/examine?examine=2&ids="+ids, function () {
                                 $('.btn-refresh').click();
                             },'',true);
+                            break;
+                        case 'examineInbound':
+                            if(data.length<=0){
+                                Toastr.error('请选择要组合件入库审核的数据');return;
+                            }
+                            Fast.api.ajax("kuerp/assemble/examineInbound?examine=1&ids="+ids, function () {
+                                $('.btn-refresh').click();
+                            },'',true);
+                            break;
+                        case 'examineInbound_f':
+                            if(data.length<=0){
+                                Toastr.error('请选择要组合件入库反审核的数据');return;
+                            }
+                            Fast.api.ajax("kuerp/assemble/examineInbound?examine=2&ids="+ids, function () {
+                                $('.btn-refresh').click();
+                            },'',true);
+                            break;
+                        case 'outboundEdit':
+                            if(data.length != 1){
+                                Toastr.error('请选择一条记录');return;
+                            }
+                            if(data[0].examine_status != 1){
+                                Toastr.error('请选择已审核的数据');return;
+                            }
+                            Fast.api.open("kuerp/assemble/outboundEdit?ids=" + data[0].id, "实际出库/入库", {
+                                callback: function () {
+                                    $('.btn-refresh').click();
+                                },
+                                area: ['95%', '80%'],
+                            });
+                            break;
+                        case 'print':
+                            if(data.length<=0){
+                                Toastr.error('请选择要打印的数据');return;
+                            }
+                            if(data.length > 1){
+                                Toastr.error('一次只能打印一条数据');return;
+                            }
+                            var printUrl = "kuerp/assemble/printpage?ids=" + data[0].id;
+                            parent.Fast.api.open(printUrl, "打印", {
+                                area: ['90%', '75%'],
+                            });
                             break;
                     }
                 });
@@ -192,6 +249,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     if(examine_status!=''){
                         search.examine_status = examine_status;
                     }
+                    var inbound_status = $('#inbound_status').val();
+                    if(inbound_status!=''){
+                        search.inbound_status = inbound_status;
+                    }
                     return search;
                 }
                 function getOp() {
@@ -209,6 +270,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
         },
         edit: function () {
             Controller.api.bindevent(false);
+        },
+        outboundedit: function () {
+            Controller.api.bindeventOutboundEdit();
         },
         api: {
             bindevent: function (reloadStatus=true) {
@@ -1489,6 +1553,28 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     }else{
                         $('.btn-refresh').click();
                     }
+                });
+            },
+
+            // 实际出库/入库页面事件绑定
+            bindeventOutboundEdit: function () {
+                // 数量格式化
+                $(document).on("change", ".number_decimal", function () {
+                    var set = Config.set;
+                    var number_decimal = parseInt(set.number_decimal.value);
+                    if (isNaN(number_decimal)) { number_decimal = 1; }
+                    var val = parseFloat($(this).val());
+                    if (!isNaN(val)) {
+                        $(this).val(val.toFixed(number_decimal));
+                    } else {
+                        $(this).val('');
+                    }
+                });
+
+                // 表单提交
+                Form.api.bindevent($("form[role=form]"), function (data, ret) {
+                    parent.Layer.closeAll();
+                    parent.$('.btn-refresh').click();
                 });
             }
         }

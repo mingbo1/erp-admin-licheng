@@ -1,1 +1,0 @@
-var fastUrl = 'http://www.fastask.com';

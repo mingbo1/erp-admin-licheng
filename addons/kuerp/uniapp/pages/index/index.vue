@@ -99,41 +99,31 @@
       v-if="list.length > 0"
     />
 
-    <!-- 底部弹窗 - 加入订货单 -->
-    <u-popup :show="showSheet" mode="bottom" round="20" @close="closeSheet" :safe-area-inset-bottom="true">
-      <view class="sheet-content" v-if="sheetItem">
-        <view class="sheet-goods">
-          <view class="sheet-goods-img">
-            <image v-if="sheetItem.goods_image" :src="$img(sheetItem.goods_image)" mode="aspectFill" style="width:100%;height:100%;border-radius:12rpx;" />
-            <u-icon v-else name="shopping-cart" size="48" color="#c0c4cc" />
-          </view>
-          <view class="sheet-goods-info">
-            <text class="sheet-goods-name u-line-2">{{ sheetItem.goods_name }}</text>
-            <text class="sheet-goods-price">¥{{ Number(sheetItem.show_price || 0).toFixed(2) }}</text>
-            <text class="sheet-stock" v-if="sheetItem.stock != null">库存 {{ sheetItem.stock }}</text>
-          </view>
-        </view>
-        <u-line />
-        <view class="sheet-qty">
-          <text class="sheet-qty-label">数量</text>
-          <u-number-box v-model="quantity" :min="1" :max="999" :step="1"></u-number-box>
-        </view>
-        <view class="sheet-btn-wrap">
-          <u-button type="primary" shape="circle" :throttle-time="1000" @click="confirmAdd">加入订货单</u-button>
-        </view>
-      </view>
-    </u-popup>
+    <!-- 底部弹窗 - 加入订货单（多规格组件） -->
+    <GoodsActionSheet
+      v-model="showSheet"
+      :goods="sheetItem"
+      :attrGroups="sheetAttrGroups"
+      :attrs="sheetAttrs"
+      :units="sheetUnits"
+      :showBuyNow="true"
+      @addToCart="onSheetAddToCart"
+      @input="closeSheet"
+      @buyNow="onSheetBuyNow"
+    />
 
   </view>
 </template>
 
 <script>
+import GoodsActionSheet from '../../components/GoodsActionSheet.vue'
 import { goodsApi, bannerApi, cartApi } from '../../api'
 import { getToken } from '../../api/request'
 
 let categoriesCache = null
 
 export default {
+  components: { GoodsActionSheet },
   data() {
     return {
       list: [],
@@ -146,9 +136,14 @@ export default {
       loaded: false,
       hasMore: true,
       showSheet: false,
-      sheetItem: null,
-      quantity: 1,
+      sheetItem: null,           // 列表商品
+      sheetDetail: null,         // 详情数据（attr_groups, attrs, units）
     }
+  },
+  computed: {
+    sheetAttrGroups() { return (this.sheetDetail && this.sheetDetail.attr_groups) || [] },
+    sheetAttrs()      { return (this.sheetDetail && this.sheetDetail.attrs) || [] },
+    sheetUnits()      { return (this.sheetDetail && this.sheetDetail.units) || [] },
   },
   onLoad() {
     this.loadBanner()
@@ -232,21 +227,36 @@ export default {
         return
       }
       this.sheetItem = item
-      this.quantity = 1
+      this.sheetDetail = null
       this.showSheet = true
+      // 异步加载商品详情（含多规格）
+      goodsApi.detail(item.id).then(res => {
+        this.sheetDetail = res
+      }).catch(() => {})
+    },
+    // 组件事件：加入订货单
+    async onSheetAddToCart(payload) {
+      try {
+        await cartApi.add(payload.goods_id, payload.quantity, payload.attr_ids, payload.goods_unit)
+        this.closeSheet()
+        uni.showToast({ title: '已加入订货单', icon: 'none' })
+      } catch (e) { uni.showToast({ title: e, icon: 'none' }) }
     },
     closeSheet() {
       this.showSheet = false
       this.sheetItem = null
-      this.quantity = 1
+      this.sheetDetail = null
     },
-    async confirmAdd() {
-      if (!this.sheetItem) return
-      try {
-        await cartApi.add(this.sheetItem.id, this.quantity, '', 0)
-        this.closeSheet()
-        uni.showToast({ title: '已加入订货单', icon: 'none' })
-      } catch (e) { uni.showToast({ title: e, icon: 'none' }) }
+     // 组件事件：立即购买
+    onSheetBuyNow(payload) {
+      this.closeSheet()
+      uni.navigateTo({
+        url: '/pages/order/checkout?goods_id=' + payload.goods_id +
+          '&quantity=' + payload.quantity +
+          '&attr_ids=' + encodeURIComponent(payload.attr_ids) +
+          '&goods_unit=' + payload.goods_unit +
+          '&attr_name=' + encodeURIComponent(payload.attr_name)
+      })
     },
   },
 }
@@ -350,20 +360,4 @@ export default {
   100% { background-position: -200% 0; }
 }
 
-/* 弹窗 */
-.sheet-content { padding: 24rpx 32rpx 48rpx; }
-.sheet-goods { display: flex; align-items: center; margin-bottom: 24rpx; }
-.sheet-goods-img {
-  width: 140rpx; height: 140rpx;
-  background: #f5f7fa; border-radius: 12rpx;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; margin-right: 20rpx; overflow: hidden;
-}
-.sheet-goods-info { flex: 1; }
-.sheet-goods-name { font-size: 28rpx; color: #303133; font-weight: 500; display: block; }
-.sheet-goods-price { font-size: 36rpx; color: #f56c6c; font-weight: 700; margin-top: 8rpx; display: block; }
-.sheet-stock { font-size: 22rpx; color: #909399; margin-top: 6rpx; display: block; }
-.sheet-qty { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 0; }
-.sheet-qty-label { font-size: 28rpx; color: #303133; font-weight: 500; }
-.sheet-btn-wrap { margin: 10rpx 0; }
 </style>

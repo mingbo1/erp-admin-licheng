@@ -24,7 +24,11 @@ class Assemble extends Model
         'purchase_time_text',
         'business_type_text',
         'examine_status_text',
-        'examine_time_text'
+        'inbound_status_text',
+        'examine_time_text',
+        'outbound_status_text',
+        'outbound_time_text',
+        'in_time_text'
     ];
     
 
@@ -37,6 +41,16 @@ class Assemble extends Model
     public function getExamineStatusList()
     {
         return ['0' => __('Examine_status 0'), '1' => __('Examine_status 1')];
+    }
+
+    public function getInboundStatusList()
+    {
+        return ['0' => __('Inbound_status 0'), '1' => __('Inbound_status 1')];
+    }
+
+    public function getOutboundStatusList()
+    {
+        return ['0' => __('Outbound_status 0'), '1' => __('Outbound_status 1'), '2' => __('Outbound_status 2')];
     }
 
     public function getStoresList(){
@@ -68,10 +82,36 @@ class Assemble extends Model
         return isset($list[$value]) ? $list[$value] : '';
     }
 
+    public function getInboundStatusTextAttr($value, $data)
+    {
+        $value = $value ? $value : (isset($data['inbound_status']) ? $data['inbound_status'] : '');
+        $list = $this->getInboundStatusList();
+        return isset($list[$value]) ? $list[$value] : '';
+    }
+
 
     public function getExamineTimeTextAttr($value, $data)
     {
         $value = $value ? $value : (isset($data['examine_time']) ? $data['examine_time'] : '');
+        return is_numeric($value) ? date("Y-m-d H:i:s", $value) : $value;
+    }
+
+    public function getOutboundStatusTextAttr($value, $data)
+    {
+        $value = $value ? $value : (isset($data['outbound_status']) ? $data['outbound_status'] : '');
+        $list = $this->getOutboundStatusList();
+        return isset($list[$value]) ? $list[$value] : '';
+    }
+
+    public function getOutboundTimeTextAttr($value, $data)
+    {
+        $value = $value ? $value : (isset($data['outbound_time']) ? $data['outbound_time'] : '');
+        return is_numeric($value) ? date("Y-m-d H:i:s", $value) : $value;
+    }
+
+    public function getInTimeTextAttr($value, $data)
+    {
+        $value = $value ? $value : (isset($data['in_time']) ? $data['in_time'] : '');
         return is_numeric($value) ? date("Y-m-d H:i:s", $value) : $value;
     }
 
@@ -81,6 +121,16 @@ class Assemble extends Model
     }
 
     protected function setExamineTimeAttr($value)
+    {
+        return $value === '' ? null : ($value && !is_numeric($value) ? strtotime($value) : $value);
+    }
+
+    protected function setOutboundTimeAttr($value)
+    {
+        return $value === '' ? null : ($value && !is_numeric($value) ? strtotime($value) : $value);
+    }
+
+    protected function setInTimeAttr($value)
     {
         return $value === '' ? null : ($value && !is_numeric($value) ? strtotime($value) : $value);
     }

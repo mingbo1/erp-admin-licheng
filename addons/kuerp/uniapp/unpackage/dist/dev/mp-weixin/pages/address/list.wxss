@@ -38,6 +38,5 @@
   bottom: env(safe-area-inset-bottom);
   left: 0; right: 0;
   padding: 20rpx 20rpx 40rpx;
-  background: #f5f7fa;
 }
 

@@ -66,8 +66,6 @@
                         <th>计划数</th>
                         <th>已入库</th>
                         <th>本次入库</th>
-                        <th>单位成本</th>
-                        <th>成本金额</th>
                         <th class="goods_batch_sd">批次</th>
                         <th class="goods_batch_sd">生产日期</th>
                         <th class="goods_batch_sd">保质期(天)</th>
@@ -78,58 +76,12 @@
 
             <hr>
 
-            <!-- 加工费 -->
-            <div class="row">
-                <div class="col-xs-12 col-sm-3">
-                    <div class="form-group">
-                        <label class="control-label col-xs-5">{:__('Process_fee')}:</label>
-                        <div class="col-xs-7">
-                            <input type="number" id="total_process_fee" name="total_process_fee" class="form-control price_decimal" value="0" placeholder="加工费合计">
-                        </div>
-                    </div>
-                </div>
-                <div class="col-xs-12 col-sm-3">
-                    <div class="form-group">
-                        <label class="control-label col-xs-5">{:__('Account_id')}:</label>
-                        <div class="col-xs-7">
-                            <select name="account_id" id="account_id" class="form-control">
-                                <option value="">请选择</option>
-                                {foreach name="accountsList" item="vo"}
-                                <option value="{$vo.id}">{$vo.account_name}</option>
-                                {/foreach}
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-xs-12 col-sm-3">
-                    <div class="form-group">
-                        <label class="control-label col-xs-5">{:__('Expend_type_id')}:</label>
-                        <div class="col-xs-7">
-                            <select name="expend_type_id" id="expend_type_id" class="form-control">
-                                <option value="">请选择</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-xs-12 col-sm-3">
-                    <div class="form-group">
-                        <label class="control-label col-xs-5">{:__('Fee_time')}:</label>
-                        <div class="col-xs-7">
-                            <input id="c-fee_time" class="form-control" data-use-current="true" name="fee_time" type="text" value="{:date('Y-m-d')}" placeholder="{:__('Fee_time')}">
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-xs-12 col-sm-6">
-                    <div class="form-group">
-                        <label class="control-label col-xs-2">{:__('Remark')}:</label>
-                        <div class="col-xs-10">
-                            <input type="text" name="remark" class="form-control" placeholder="备注">
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <!-- 加工费 (仓库人员不可见，通过隐藏域传递) -->
+            <input type="hidden" id="total_process_fee" name="total_process_fee" value="0">
+            <input type="hidden" name="account_id" value="">
+            <input type="hidden" name="expend_type_id" value="">
+            <input type="hidden" name="fee_time" value="{:date('Y-m-d')}">
+            <input type="hidden" name="remark" value="">
         </div>
     </div>
 

@@ -57,6 +57,16 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             return d.createdtime ? new Date(d.createdtime * 1000).toLocaleString() : '-';
                         }},
                         { field: 'sales_code', title: '销货单号', width: 140, merge: ['order_no'] },
+                        { title: '审核', width: 75, align: 'center', merge: ['order_no'], templet: function (d) {
+                            if (!d.sales_code) return '<span class="label label-default">-</span>';
+                            if (d.sales_examine_status == '1') return '<span class="label label-success">已审核</span>';
+                            return '<span class="label label-warning">未审核</span>';
+                        }},
+                        { title: '对单', width: 75, align: 'center', merge: ['order_no'], templet: function (d) {
+                            if (!d.sales_code) return '<span class="label label-default">-</span>';
+                            if (d.sales_check_status == '1') return '<span class="label label-success">已对单</span>';
+                            return '<span class="label label-warning">未对单</span>';
+                        }},
                         { fixed: 'right', title:__('Operate'), width:210,  merge: ['order_no'], templet: function (d) {
                             var html = '<a class="layui-btn layui-btn-xs" lay-event="detail">详情</a>';
                             if (d.status == 'pending_confirm') {

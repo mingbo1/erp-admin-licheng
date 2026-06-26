@@ -1,0 +1,120 @@
+{include file="kuerp/common/menu" /}
+<form id="ship-form" class="form-horizontal" role="form" data-toggle="validator" method="POST" action="">
+
+    <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2">{:__('Purchase_code')}:</label>
+        <div class="col-xs-12 col-sm-8" style="padding-top:7px;">
+            <strong>{$order.purchase_code}</strong>
+        </div>
+    </div>
+    <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2">{:__('配送方式')}:</label>
+        <div class="col-xs-12 col-sm-8">
+            <div class="radio">
+                <label><input type="radio" name="row[delivery_type]" value="logistics" checked> {:__('物流配送')}</label>
+                <label><input type="radio" name="row[delivery_type]" value="professional"> {:__('专业配送')}</label>
+            </div>
+        </div>
+    </div>
+
+    <div data-favisible="delivery_type=logistics">
+        <div class="form-group">
+            <label class="control-label col-xs-12 col-sm-2">{:__('快递信息')}:</label>
+            <div class="col-xs-12 col-sm-8">
+                <table class="table table-striped fieldlist" data-template="expresstpl" data-name="row[express]">
+                    <tr>
+                        <td>{:__('快递公司')}</td>
+                        <td>{:__('快递单号')}</td>
+                        <td width="80"></td>
+                    </tr>
+                    <tr>
+                        <td colspan="3">
+                            <a href="javascript:;" class="btn btn-sm btn-success btn-append"><i class="fa fa-plus"></i> {:__('添加快递')}</a>
+                        </td>
+                    </tr>
+                </table>
+                <textarea name="row[express]" class="form-control hidden" cols="30" rows="5">[]</textarea>
+                <script id="expresstpl" type="text/html">
+                    <tr class="form-inline">
+                        <td>
+                            <select name="<%=name%>[<%=index%>][code]" class="form-control">
+                                <option value="">{:__('请选择')}</option>
+                                {foreach name="expressList" item="vo"}
+                                <option value="{$vo.code}">{$vo.name}</option>
+                                {/foreach}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="text" name="<%=name%>[<%=index%>][no]" class="form-control" placeholder="{:__('快递单号')}" value="<%=row.no%>">
+                        </td>
+                        <td>
+                            <span class="btn btn-sm btn-danger btn-remove"><i class="fa fa-times"></i></span>
+                        </td>
+                    </tr>
+                </script>
+            </div>
+        </div>
+    </div>
+
+    <div data-favisible="delivery_type=professional">
+        <div class="form-group">
+            <label class="control-label col-xs-12 col-sm-2"></label>
+            <div class="col-xs-12 col-sm-8" style="padding-top:7px;color:#999;">
+                {:__('专业配送无需填写物流信息')}
+            </div>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2">{:__('Remark')}:</label>
+        <div class="col-xs-12 col-sm-8">
+            <textarea class="form-control" name="row[remark]" rows="2"></textarea>
+        </div>
+    </div>
+
+    {if !empty($deliveryList)}
+    <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2">{:__('发货记录')}:</label>
+        <div class="col-xs-12 col-sm-8">
+            <table class="table table-bordered table-striped" style="margin-bottom:0;">
+                <thead>
+                    <tr>
+                        <th>{:__('发货单号')}</th>
+                        <th>{:__('配送方式')}</th>
+                        <th>{:__('快递信息')}</th>
+                        <th>{:__('发货时间')}</th>
+                        <th>{:__('Operate')}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {volist name="deliveryList" id="vo"}
+                    <tr id="delivery-row-{$vo.id}">
+                        <td>{$vo.delivery_no}</td>
+                        <td>{$vo.delivery_type == 'logistics' ? '物流配送' : '专业配送'}</td>
+                        <td>
+                            {if $vo.delivery_type == 'logistics'}
+                                {$vo.express_company} {$vo.express_no}
+                            {else}
+                                {$vo.carrier_name ?? ''} {$vo.carrier_mobile ?? ''}
+                            {/if}
+                        </td>
+                        <td>{$vo.shipped_time|date="Y-m-d H:i:s",###}</td>
+                        <td nowrap>
+                            <a href="javascript:;" class="btn btn-xs btn-danger btn-del-delivery" data-id="{$vo.id}">{:__('Delete')}</a>
+                        </td>
+                    </tr>
+                {/volist}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {/if}
+
+    <div class="form-group layer-footer">
+        <label class="control-label col-xs-12 col-sm-2"></label>
+        <div class="col-xs-12 col-sm-8">
+            <button type="submit" class="btn btn-success btn-embossed">{:__('确认发货')}</button>
+            <button type="reset" class="btn btn-default btn-embossed">{:__('Reset')}</button>
+        </div>
+    </div>
+</form>

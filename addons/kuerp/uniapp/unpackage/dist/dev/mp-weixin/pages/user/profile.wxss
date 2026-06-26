@@ -1,6 +1,54 @@
 
 .page.data-v-64c291de { min-height: 100vh; background: #f5f7fa; padding-top: 20rpx;
 }
+
+/* 头像区域 */
+.avatar-section.data-v-64c291de {
+  display: flex;
+  justify-content: center;
+  padding: 48rpx 0 32rpx;
+}
+.avatar-wrap.data-v-64c291de {
+  position: relative;
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.12);
+}
+.avatar-img.data-v-64c291de {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+.avatar-placeholder.data-v-64c291de {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f0f0;
+  border-radius: 50%;
+}
+.avatar-mask.data-v-64c291de {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60rpx;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.mask-text.data-v-64c291de {
+  font-size: 20rpx;
+  color: #fff;
+  line-height: 1.2;
+}
+
+/* 表单 */
 .form-card.data-v-64c291de {
   background: #fff;
   margin: 0 20rpx;

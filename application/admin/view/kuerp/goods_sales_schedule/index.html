@@ -10,6 +10,12 @@
                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-cyan btn-refresh" lay-event="refresh"><i class="layui-icon">&#xe669;</i> {:__('Refresh')}</button>
                             <button class="layui-btn layui-icon-btn layui-btn-sm" lay-event="add"><i class="layui-icon">&#xe654;</i> {:__('Add')}</button>
                             <button class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger" lay-event="delAll"><i class="layui-icon">&#xe640;</i> {:__('Delete')}</button>
+                            {if condition="isset($set['examine']['is_checked']) && $set['examine']['is_checked']==1"}
+                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger fright" lay-event="counter_f"><i class="layui-icon">&#xe6c9;</i> 反对单</button>
+                            <button class="layui-btn layui-icon-btn layui-btn-sm fright" lay-event="counter"><i class="layui-icon">&#xe6c9;</i> 对单</button>
+                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger fright" lay-event="examine_f"><i class="layui-icon">&#xe674;</i> 反审核</button>
+                            <button class="layui-btn layui-icon-btn layui-btn-sm fright" lay-event="examine"><i class="layui-icon">&#xe674;</i> 审核</button>
+                            {/if}
                         </div>
                     </script>
 

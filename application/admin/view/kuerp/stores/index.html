@@ -23,6 +23,14 @@
                             <input type="text" name="name" id="name" autocomplete="off" placeholder="{:__('Name')}" class="layui-input">
                         </div>
                         <div class="layui-input-inline">
+                            <select name="store_type" id="store_type" placeholder="{:__('Store_type')}" class="layui-input">
+                                <option value="">请选择{:__('Store_type')}</option>
+                                {foreach name="storeTypeList" item="vo"}
+                                <option value="{$key}">{$vo}</option>
+                                {/foreach}
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
                             <select name="status" id="status" placeholder="{:__('Status')}" class="layui-input">
                                 <option value="">请选择{:__('Status')}</option>
                                 <option value="0">{:__('Status 0')}</option>

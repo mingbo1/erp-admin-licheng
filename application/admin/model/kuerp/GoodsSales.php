@@ -30,7 +30,8 @@ class GoodsSales extends Model
         'examine_status_text',
         'examine_time_text',
         'second_examine_status_text',
-        'second_examine_time_text'
+        'second_examine_time_text',
+        'dunning_count',
     ];
     
 
@@ -195,8 +196,27 @@ class GoodsSales extends Model
         return $value === '' ? null : ($value && !is_numeric($value) ? strtotime($value) : $value);
     }
 
+    public function getDunningCountAttr($value, $data)
+    {
+        if (isset($value)) {
+            return (int)$value;
+        }
+        $dunning = $this->getRelation('dunning');
+        return $dunning ? count($dunning) : 0;
+    }
+
     public function staffmember()
     {
         return $this->belongsTo('StaffMember', 'sale_user', 'id', [], 'LEFT')->setEagerlyType(0);
+    }
+
+    public function dunning()
+    {
+        return $this->hasMany(\app\admin\model\kuerp\GoodsSalesDunning::class, 'sales_id', 'id');
+    }
+
+    public function logs()
+    {
+        return $this->hasMany(\app\admin\model\kuerp\GoodsSalesLog::class, 'sales_id', 'id')->order('id', 'desc');
     }
 }

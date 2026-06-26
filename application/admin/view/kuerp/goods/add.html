@@ -195,7 +195,8 @@
         <table>
             <tr>
                 <th></th><th>{:__('Unit')}</th><th>{:__('Market_sell_price')}</th><th>{:__('Wholesale_price')}</th>
-                <th>{:__('Vip_price')}</th><th>{:__('Discount')}</th><th>{:__('Discount2')}</th><th>{:__('Purchase')}</th>
+                <th>{:__('Vip_price')}</th><th>{:__('Discount')}</th><th>{:__('Discount2')}</th>
+                <th>{:__('Purchase')}</th>
             </tr>
             {if condition="!empty($unit_conversion)"}
             {if condition="isset($unit_conversion[0])"}
@@ -495,7 +496,8 @@
                         <th class="aux_tab aux_tab{$vo.id}" style="display: none">{$vo.name}</th>
                         {/foreach}
                         <th><span class="must">*</span>属性编号</th><th>属性条码</th><th>零售价</th><th>批发价</th>
-                        <th>VIP会员价</th><th>折扣率一</th><th>折扣率二</th><th>预计采购价</th>
+                        <!-- <th>VIP会员价</th><th>折扣率一</th><th>折扣率二</th> -->
+                        <th>预计采购价</th>
                     </tr>
                     <tbody id="auxiliary_table_tbody">
                     <tr id="example" class="auxiliary_example">
@@ -523,9 +525,9 @@
                         <td><div><input type="text" class="ipts" name="auxiliary[barcode][]"></div></td>
                         <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[market_sell_price][]"></div></td>
                         <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[wholesale_price][]"></div></td>
-                        <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[vip_price][]"></div></td>
+                        <!-- <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[vip_price][]"></div></td>
                         <td><div><input type="number" class="ipts aux_price_set" name="auxiliary[discount][]"></div></td>
-                        <td><div><input type="number" class="ipts aux_price_set" name="auxiliary[discount2][]"></div></td>
+                        <td><div><input type="number" class="ipts aux_price_set" name="auxiliary[discount2][]"></div></td> -->
                         <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[purchase][]"></div></td>
                     </tr>
                     </tbody>

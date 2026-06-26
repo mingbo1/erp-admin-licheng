@@ -387,11 +387,11 @@ class GoodsPurchase extends Backend
                 if (isset($result) && $result !== false) {
                     if($examine!=1){
                         try {
-                            $exa = $this->examine($result,1);
+                            $exa = $this->_examine($result,1);
                         } catch (Exception $e) {
                         }
                         if(!isset($exa) || $exa['status']!=1){
-                            $exa = $this->examine($result,1);
+                            $exa = $this->_examine($result,1);
                             try {
                                 $this->del($result);
                             } catch (Exception $e) {
@@ -714,7 +714,7 @@ class GoodsPurchase extends Backend
                 Db::startTrans();
                 try {
                     if($examine!=1 && $row['examine_status']==1){
-                        $this->examine($ids,2);
+                        $this->_examine($ids,2);
                     }
 
                     //添加附件记录
@@ -756,7 +756,7 @@ class GoodsPurchase extends Backend
                 if ($result !== false) {
                     if($examine!=1){
                         try {
-                            $exa = $this->examine($ids,1);
+                            $exa = $this->_examine($ids,1);
                         } catch (Exception $e) {
                         }
                         if(!isset($exa) || $exa['status']!=1){
@@ -843,7 +843,7 @@ class GoodsPurchase extends Backend
                     $this->error('不能删除已审核的数据');
                 }elseif ($list_v['examine_status']==1 && $examine!=1){
                     try {
-                        $this->examine($list_v['id'],2);
+                        $this->_examine($list_v['id'],2);
                     } catch (Exception $e) {
                     }
                 }
@@ -886,8 +886,17 @@ class GoodsPurchase extends Backend
         $this->error(__('Parameter %s can not be empty', 'ids'));
     }
 
-    //审核/反审核
+    //审核/反审核 (直接访问请使用"采购单入库"模块)
     public function examine($ids = null,$examine=1){
+        // 阻塞直接外部访问，内部调用请用 _examine()
+        if ($this->request->action() === 'examine') {
+            $this->error('请使用"采购单入库"模块进行审核操作');
+        }
+        return $this->_examine($ids, $examine);
+    }
+
+    //审核/反审核 (内部逻辑)
+    protected function _examine($ids = null,$examine=1){
         $examine_set= Db::name('kuerp_sets')->where(['name'=>'examine'])->value('is_checked');
         if(empty($ids)){
             if($examine_set!=1){
@@ -1841,8 +1850,17 @@ class GoodsPurchase extends Backend
         }
     }
 
-    //对单/反对单
+    //对单/反对单 (直接访问请使用"采购单入库"模块)
     public function counter($ids = null,$counter=1){
+        // 阻塞直接外部访问
+        if ($this->request->action() === 'counter') {
+            $this->error('请使用"采购单入库"模块进行对单操作');
+        }
+        return $this->_counter($ids, $counter);
+    }
+
+    //对单/反对单 (内部逻辑)
+    protected function _counter($ids = null,$counter=1){
         if($counter==1){
             $list = $this->model->where(['id'=>['in',$ids],'check_status'=>'0'])->select();
             foreach ($list as $list_k=>$list_v){

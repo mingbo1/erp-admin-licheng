@@ -43,6 +43,13 @@ return [
     'Out_material'      => '出库原材料',
     'In_product'        => '入库成品',
     'Process_detail'    => '外协加工单详情',
+    'Outbound'          => '出库',
+    'Cancel_outbound'   => '取消出库',
+    'Outbound_status'   => '出库状态',
+    'Outbound_status 0' => '未出库',
+    'Outbound_status 1' => '已出库',
+    'Outbound_time'     => '出库时间',
+
     'Print'             => '打印',
     'Goods_note'        => '规格型号',
     'Unit_name'         => '单位名称',

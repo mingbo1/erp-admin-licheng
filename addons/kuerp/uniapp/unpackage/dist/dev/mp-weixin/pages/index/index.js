@@ -115,18 +115,6 @@ try {
     uLoadmore: function () {
       return Promise.all(/*! import() | node-modules/uview-ui/components/u-loadmore/u-loadmore */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-loadmore/u-loadmore")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-loadmore/u-loadmore.vue */ 307))
     },
-    uPopup: function () {
-      return Promise.all(/*! import() | node-modules/uview-ui/components/u-popup/u-popup */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-popup/u-popup")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-popup/u-popup.vue */ 315))
-    },
-    uLine: function () {
-      return Promise.all(/*! import() | node-modules/uview-ui/components/u-line/u-line */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-line/u-line")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-line/u-line.vue */ 323))
-    },
-    uNumberBox: function () {
-      return Promise.all(/*! import() | node-modules/uview-ui/components/u-number-box/u-number-box */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-number-box/u-number-box")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-number-box/u-number-box.vue */ 331))
-    },
-    uButton: function () {
-      return Promise.all(/*! import() | node-modules/uview-ui/components/u-button/u-button */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-button/u-button")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-button/u-button.vue */ 339))
-    },
   }
 } catch (e) {
   if (
@@ -165,13 +153,6 @@ var render = function () {
   var g2 = _vm.loading && _vm.list.length === 0
   var g3 = _vm.loaded && _vm.list.length === 0 && !_vm.loading
   var g4 = _vm.list.length
-  var m1 =
-    _vm.sheetItem && _vm.sheetItem.goods_image
-      ? _vm.$img(_vm.sheetItem.goods_image)
-      : null
-  var g5 = _vm.sheetItem
-    ? Number(_vm.sheetItem.show_price || 0).toFixed(2)
-    : null
   _vm.$mp.data = Object.assign(
     {},
     {
@@ -182,8 +163,6 @@ var render = function () {
         g2: g2,
         g3: g3,
         g4: g4,
-        m1: m1,
-        g5: g5,
       },
     }
   )
@@ -234,8 +213,16 @@ var _api = __webpack_require__(/*! ../../api */ 33);
 var _request = __webpack_require__(/*! ../../api/request */ 34);
 function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); enumerableOnly && (symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; })), keys.push.apply(keys, symbols); } return keys; }
 function _objectSpread(target) { for (var i = 1; i < arguments.length; i++) { var source = null != arguments[i] ? arguments[i] : {}; i % 2 ? ownKeys(Object(source), !0).forEach(function (key) { (0, _defineProperty2.default)(target, key, source[key]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) : ownKeys(Object(source)).forEach(function (key) { Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key)); }); } return target; }
+var GoodsActionSheet = function GoodsActionSheet() {
+  __webpack_require__.e(/*! require.ensure | components/GoodsActionSheet */ "components/GoodsActionSheet").then((function () {
+    return resolve(__webpack_require__(/*! ../../components/GoodsActionSheet.vue */ 315));
+  }).bind(null, __webpack_require__)).catch(__webpack_require__.oe);
+};
 var categoriesCache = null;
 var _default = {
+  components: {
+    GoodsActionSheet: GoodsActionSheet
+  },
   data: function data() {
     return {
       list: [],
@@ -249,8 +236,21 @@ var _default = {
       hasMore: true,
       showSheet: false,
       sheetItem: null,
-      quantity: 1
+      // 列表商品
+      sheetDetail: null // 详情数据（attr_groups, attrs, units）
     };
+  },
+
+  computed: {
+    sheetAttrGroups: function sheetAttrGroups() {
+      return this.sheetDetail && this.sheetDetail.attr_groups || [];
+    },
+    sheetAttrs: function sheetAttrs() {
+      return this.sheetDetail && this.sheetDetail.attrs || [];
+    },
+    sheetUnits: function sheetUnits() {
+      return this.sheetDetail && this.sheetDetail.units || [];
+    }
   },
   onLoad: function onLoad() {
     this.loadBanner();
@@ -413,6 +413,7 @@ var _default = {
       });
     },
     addToCart: function addToCart(item) {
+      var _this4 = this;
       if (!(0, _request.getToken)()) {
         uni.navigateTo({
           url: '/pages/user/wxlogin'
@@ -420,52 +421,58 @@ var _default = {
         return;
       }
       this.sheetItem = item;
-      this.quantity = 1;
+      this.sheetDetail = null;
       this.showSheet = true;
+      // 异步加载商品详情（含多规格）
+      _api.goodsApi.detail(item.id).then(function (res) {
+        _this4.sheetDetail = res;
+      }).catch(function () {});
     },
-    closeSheet: function closeSheet() {
-      this.showSheet = false;
-      this.sheetItem = null;
-      this.quantity = 1;
-    },
-    confirmAdd: function confirmAdd() {
-      var _this4 = this;
+    // 组件事件：加入订货单
+    onSheetAddToCart: function onSheetAddToCart(payload) {
+      var _this5 = this;
       return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee4() {
         return _regenerator.default.wrap(function _callee4$(_context4) {
           while (1) {
             switch (_context4.prev = _context4.next) {
               case 0:
-                if (_this4.sheetItem) {
-                  _context4.next = 2;
-                  break;
-                }
-                return _context4.abrupt("return");
-              case 2:
-                _context4.prev = 2;
-                _context4.next = 5;
-                return _api.cartApi.add(_this4.sheetItem.id, _this4.quantity, '', 0);
-              case 5:
-                _this4.closeSheet();
+                _context4.prev = 0;
+                _context4.next = 3;
+                return _api.cartApi.add(payload.goods_id, payload.quantity, payload.attr_ids, payload.goods_unit);
+              case 3:
+                _this5.closeSheet();
                 uni.showToast({
                   title: '已加入订货单',
                   icon: 'none'
                 });
-                _context4.next = 12;
+                _context4.next = 10;
                 break;
-              case 9:
-                _context4.prev = 9;
-                _context4.t0 = _context4["catch"](2);
+              case 7:
+                _context4.prev = 7;
+                _context4.t0 = _context4["catch"](0);
                 uni.showToast({
                   title: _context4.t0,
                   icon: 'none'
                 });
-              case 12:
+              case 10:
               case "end":
                 return _context4.stop();
             }
           }
-        }, _callee4, null, [[2, 9]]);
+        }, _callee4, null, [[0, 7]]);
       }))();
+    },
+    closeSheet: function closeSheet() {
+      this.showSheet = false;
+      this.sheetItem = null;
+      this.sheetDetail = null;
+    },
+    // 组件事件：立即购买
+    onSheetBuyNow: function onSheetBuyNow(payload) {
+      this.closeSheet();
+      uni.navigateTo({
+        url: '/pages/order/checkout?goods_id=' + payload.goods_id + '&quantity=' + payload.quantity + '&attr_ids=' + encodeURIComponent(payload.attr_ids) + '&goods_unit=' + payload.goods_unit + '&attr_name=' + encodeURIComponent(payload.attr_name)
+      });
     }
   }
 };

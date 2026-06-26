@@ -22,5 +22,10 @@ return [
     'Number'           => '数量',
     'Stores_out'       => '调出仓库',
     'Stores_enter'     => '调入仓库',
-    'Remark'           => '备注',
+    'Remark'            => '备注',
+    'Print'             => '打印',
+    'Allocation_detail' => '调拨单详情',
+    'Goods_code'        => '商品编号',
+    'Goods_name'        => '商品名称',
+    'Stores_name'       => '仓库名称',
 ];

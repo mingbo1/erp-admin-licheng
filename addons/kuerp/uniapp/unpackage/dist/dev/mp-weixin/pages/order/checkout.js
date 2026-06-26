@@ -101,19 +101,19 @@ var components
 try {
   components = {
     uTag: function () {
-      return Promise.all(/*! import() | node-modules/uview-ui/components/u-tag/u-tag */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-tag/u-tag")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-tag/u-tag.vue */ 349))
+      return Promise.all(/*! import() | node-modules/uview-ui/components/u-tag/u-tag */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-tag/u-tag")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-tag/u-tag.vue */ 322))
     },
     uIcon: function () {
       return Promise.all(/*! import() | node-modules/uview-ui/components/u-icon/u-icon */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-icon/u-icon")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-icon/u-icon.vue */ 290))
     },
     uDivider: function () {
-      return Promise.all(/*! import() | node-modules/uview-ui/components/u-divider/u-divider */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-divider/u-divider")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-divider/u-divider.vue */ 357))
+      return Promise.all(/*! import() | node-modules/uview-ui/components/u-divider/u-divider */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-divider/u-divider")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-divider/u-divider.vue */ 330))
     },
     "u-Textarea": function () {
-      return Promise.all(/*! import() | node-modules/uview-ui/components/u--textarea/u--textarea */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u--textarea/u--textarea")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u--textarea/u--textarea.vue */ 398))
+      return Promise.all(/*! import() | node-modules/uview-ui/components/u--textarea/u--textarea */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u--textarea/u--textarea")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u--textarea/u--textarea.vue */ 389))
     },
     uButton: function () {
-      return Promise.all(/*! import() | node-modules/uview-ui/components/u-button/u-button */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-button/u-button")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-button/u-button.vue */ 339))
+      return Promise.all(/*! import() | node-modules/uview-ui/components/u-button/u-button */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-button/u-button")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-button/u-button.vue */ 371))
     },
   }
 } catch (e) {
@@ -197,6 +197,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = void 0;
 var _regenerator = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/regenerator */ 30));
+var _toConsumableArray2 = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/helpers/toConsumableArray */ 18));
 var _defineProperty2 = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/helpers/defineProperty */ 11));
 var _asyncToGenerator2 = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/helpers/asyncToGenerator */ 32));
 var _api = __webpack_require__(/*! ../../api */ 33);
@@ -212,7 +213,8 @@ var _default = {
       remark: '',
       submitting: false,
       // buyNow 模式
-      directGoods: null
+      directGoods: null,
+      cartIds: ''
     };
   },
   computed: {
@@ -233,9 +235,13 @@ var _default = {
       this.directGoods = {
         goods_id: Number(options.goods_id),
         quantity: Number(options.quantity) || 1,
-        attr_ids: options.attr_ids || '',
-        goods_unit: Number(options.goods_unit) || 0
+        attr_ids: decodeURIComponent(options.attr_ids || ''),
+        goods_unit: Number(options.goods_unit) || 0,
+        attr_name: decodeURIComponent(options.attr_name || '')
       };
+    }
+    if (options.ids) {
+      this.cartIds = options.ids;
     }
   },
   onShow: function onShow() {
@@ -296,7 +302,9 @@ var _default = {
               case 0:
                 _context2.prev = 0;
                 _context2.next = 3;
-                return _api.cartApi.index();
+                return _api.cartApi.index({
+                  ids: _this3.cartIds
+                });
               case 3:
                 res = _context2.sent;
                 list = (res.list || []).filter(function (i) {
@@ -347,7 +355,7 @@ var _default = {
     loadDirectGoods: function loadDirectGoods() {
       var _this4 = this;
       return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee3() {
-        var _yield$import, goodsApi, goods;
+        var _yield$import, goodsApi, res, goods, unitName, unitId, unit, attrName, attrIds, ids, names, source, skuPrice, skuStock, sortedIds, matched;
         return _regenerator.default.wrap(function _callee3$(_context3) {
           while (1) {
             switch (_context3.prev = _context3.next) {
@@ -363,9 +371,11 @@ var _default = {
                 _context3.next = 7;
                 return goodsApi.detail(_this4.directGoods.goods_id);
               case 7:
-                goods = _context3.sent;
-                if (goods) {
-                  _context3.next = 12;
+                res = _context3.sent;
+                // 后端返回 { goods, units, attrs }，需要解包
+                goods = res && res.goods ? res.goods : res;
+                if (!(!goods || !goods.id)) {
+                  _context3.next = 13;
                   break;
                 }
                 uni.showToast({
@@ -376,33 +386,77 @@ var _default = {
                   return uni.navigateBack();
                 }, 500);
                 return _context3.abrupt("return");
-              case 12:
+              case 13:
+                // 解析单位名称
+                unitName = '';
+                unitId = _this4.directGoods.goods_unit;
+                if (unitId && res.units) {
+                  unit = res.units.find(function (u) {
+                    return u.id == unitId;
+                  });
+                  if (unit) unitName = unit.name;
+                }
+                // 解析属性名称：优先用传入的，其次从 API 解析
+                attrName = _this4.directGoods.attr_name || '';
+                attrIds = _this4.directGoods.attr_ids;
+                if (!attrName && attrIds) {
+                  ids = ('' + attrIds).split('&').map(Number);
+                  names = [];
+                  source = res.attr_groups || res.attrs || [];
+                  source.forEach(function (group) {
+                    (group.values || []).forEach(function (v) {
+                      var vid = v.attribute_id || v.id;
+                      if (ids.includes(vid)) names.push(v.value_name || v.name || v);
+                    });
+                  });
+                  attrName = names.join(' / ');
+                }
+                // 根据 attr_ids 匹配 SKU，获取规格价格（而非商品级最低价）
+                skuPrice = goods.show_price || goods.market_sell_price || 0;
+                skuStock = goods.stock || 0;
+                if (attrIds && res.attrs && res.attrs.length > 0) {
+                  sortedIds = ('' + attrIds).split('&').map(Number).sort(function (a, b) {
+                    return a - b;
+                  }).join('&');
+                  matched = res.attrs.find(function (a) {
+                    if (!a.aux_value_ids || a.aux_value_ids.length === 0) return false;
+                    var aSorted = (0, _toConsumableArray2.default)(a.aux_value_ids).sort(function (a, b) {
+                      return a - b;
+                    }).join('&');
+                    return aSorted === sortedIds;
+                  });
+                  if (matched) {
+                    skuPrice = matched.show_price || skuPrice;
+                    skuStock = matched.stock || 0;
+                  }
+                }
                 _this4.goodsList = [{
                   goods_id: goods.id,
                   goods_name: goods.goods_name,
                   goods_image: goods.goods_image,
                   quantity: _this4.directGoods.quantity,
-                  unit_price: goods.price || goods.sale_price || 0,
-                  goods_unit: _this4.directGoods.goods_unit,
-                  attr_ids: _this4.directGoods.attr_ids,
-                  attr_name: _this4.directGoods.attr_ids ? '已选规格' : '',
-                  unit_name: ''
+                  unit_price: skuPrice,
+                  goods_unit: unitId,
+                  attr_ids: attrIds,
+                  attr_name: attrName,
+                  unit_name: unitName,
+                  stock: skuStock
                 }];
-                _context3.next = 18;
+                _context3.next = 28;
                 break;
-              case 15:
-                _context3.prev = 15;
+              case 25:
+                _context3.prev = 25;
                 _context3.t0 = _context3["catch"](0);
                 uni.showToast({
                   title: _context3.t0,
                   icon: 'none'
                 });
-              case 18:
+              case 28:
               case "end":
                 return _context3.stop();
             }
           }
-        }, _callee3, null, [[0, 15]]);
+        }, _callee3, null, [[0, 25]]);
       }))();
     },
     selectAddress: function selectAddress() {

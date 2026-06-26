@@ -14,7 +14,7 @@ use think\Session;
  */
 class GoodsSalesSchedule extends Backend
 {
-    protected $noNeedRight = ['getunit','formatinfo','getbranch','gettime','printpage','getschedulegoods'];
+    protected $noNeedRight = ['getunit','formatinfo','getbranch','gettime','printpage','getschedulegoods','counter','examine'];
     /**
      * GoodsSalesSchedule模型对象
      * @var \app\admin\model\kuerp\GoodsSalesSchedule
@@ -45,6 +45,10 @@ class GoodsSalesSchedule extends Backend
         $this->view->assign("saleList", $this->model->getSaleList());
     }
 
+    /**
+     * 查看销货排期列表（与销货单共用同一张表，仅隐藏金额字段）
+     * 供采购计划部门使用
+     */
     public function index()
     {
         $this->relationSearch = true;
@@ -62,6 +66,9 @@ class GoodsSalesSchedule extends Backend
                 ->order('purchase_code', 'DESC')
                 ->paginate($limit);
 
+            // 金额字段列表（采购计划部门不可见）
+            $hiddenFields = ['all_money','preferential_rate','preferential_money','real_money','tax_money','money_tax_price','purchase_money','customers_money','pay_money','arrears','all_arrears','cost_data'];
+
             foreach ($list as $row) {
                 $row->getRelation('customers')->visible(['customer_name']);
                 $row->getRelation('preparation')->visible(['username']);
@@ -69,10 +76,29 @@ class GoodsSalesSchedule extends Backend
                 if ($row->getRelation('staffmember')) {
                     $row->getRelation('staffmember')->visible(['name']);
                 }
+                // 隐藏所有金额字段
+                $row->hidden($hiddenFields);
+            }
+            // 收集交货时间为空的销货订单号，批量查询订单的交货时间
+            $emptyDeliveryCodes = [];
+            foreach ($list as $list_v) {
+                if (empty($list_v['delivery_time']) && !empty($list_v['purchase_order_id'])) {
+                    $emptyDeliveryCodes[] = $list_v['purchase_order_id'];
+                }
+            }
+            $orderDeliveryMap = [];
+            if (!empty($emptyDeliveryCodes)) {
+                $orderDeliveryMap = Db::name('kuerp_goods_sales_order')
+                    ->where('purchase_code', 'in', array_unique($emptyDeliveryCodes))
+                    ->column('delivery_time', 'purchase_code');
             }
             foreach ($list as $list_k=>$list_v){
                 if(isset($list_v['print_num']) && empty($list_v['print_num'])){
                     $list[$list_k]['print_num'] = 0;
+                }
+                // 如果交货时间为空，从关联的销货订单获取
+                if (empty($list_v['delivery_time']) && !empty($list_v['purchase_order_id']) && isset($orderDeliveryMap[$list_v['purchase_order_id']])) {
+                    $list_v['delivery_time'] = $orderDeliveryMap[$list_v['purchase_order_id']];
                 }
             }
             $result = array("total" => $list->total(), "rows" => $list->items());
@@ -215,7 +241,7 @@ class GoodsSalesSchedule extends Backend
                         $result = $this->model->insertGetId($row);
                     }
                     foreach ($data as $data_k=>$data_v){
-                        Db::name('kuerp_goods_sales_schedule_info')->insertGetId($data_v);
+                        Db::name('kuerp_goods_sales_info')->insertGetId($data_v);
                     }
                     Db::commit();
                 } catch (Exception $e) {
@@ -262,7 +288,7 @@ class GoodsSalesSchedule extends Backend
             if ($params) {
                 $params = $this->preExcludeFields($params);
                 $old_purchase_code = $params['old_purchase_code'];unset($params['old_purchase_code']);
-                $info_id = Db::name('kuerp_goods_sales_schedule_info')->where(['purchase_code'=>$old_purchase_code])->column('id');
+                $info_id = Db::name('kuerp_goods_sales_info')->where(['purchase_code'=>$old_purchase_code])->column('id');
 
                 if(empty($params['purchase_code'])){
                     $this->error('请填写单据编号');
@@ -377,9 +403,9 @@ class GoodsSalesSchedule extends Backend
                 Db::startTrans();
                 try {
                     $result = $this->model->where(['id'=>$ids])->update($rowdata);
-                    Db::name('kuerp_goods_sales_schedule_info')->where(['id'=>['in',$info_id]])->delete();
+                    Db::name('kuerp_goods_sales_info')->where(['id'=>['in',$info_id]])->delete();
                     foreach ($data as $data_k=>$data_v){
-                        Db::name('kuerp_goods_sales_schedule_info')->insertGetId($data_v);
+                        Db::name('kuerp_goods_sales_info')->insertGetId($data_v);
                     }
                     Db::commit();
                 } catch (Exception $e) {
@@ -396,7 +422,7 @@ class GoodsSalesSchedule extends Backend
         }
         $this->view->assign("row", $row);
 
-        $purchase_info = Db::name('kuerp_goods_sales_schedule_info')->where(['purchase_code'=>$row['purchase_code']])->select();
+        $purchase_info = Db::name('kuerp_goods_sales_info')->where(['purchase_code'=>$row['purchase_code']])->select();
         foreach ($purchase_info as $purchase_info_k=>$purchase_info_v){
             $purchase_info[$purchase_info_k]['unit'] = json_decode($this->getUnit($purchase_info_v['goods_code']),true);
             $purchase_info[$purchase_info_k]['serial'] = $purchase_info_v['period'];
@@ -428,7 +454,7 @@ class GoodsSalesSchedule extends Backend
             try {
                 foreach ($list as $k => $v) {
                     $count += $v->delete();
-                    Db::name('kuerp_goods_sales_schedule_info')->where(['purchase_code'=>$v['purchase_code']])->delete();
+                    Db::name('kuerp_goods_sales_info')->where(['purchase_code'=>$v['purchase_code']])->delete();
                 }
                 Db::commit();
             }catch (Exception $e) {
@@ -444,14 +470,16 @@ class GoodsSalesSchedule extends Backend
         $this->error(__('Parameter %s can not be empty', 'ids'));
     }
 
-    //获取单位价格信息
+    /**
+     * 获取商品单位/库存/属性（不含金额，供采购计划部门使用）
+     */
     public function getUnit($goods_code='',$store='',$attr=''){
         if($goods_code){
-            $row = Db::name('kuerp_goods')->where(['goods_code'=>$goods_code])->field('batch,serial,id,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,warehousing,warehouse')->find();
+            $row = Db::name('kuerp_goods')->where(['goods_code'=>$goods_code])->field('batch,serial,id,auxiliary,unit_id,more_unit,more_unit_id,goods_code,manager_warehouse_id,shelf_life,warehousing,warehouse')->find();
             $goods_id = isset($row['id'])?$row['id']:0;
         }else{
             $goods_id = isset($_POST['goods_id'])?$_POST['goods_id']:0;
-            $row = Db::name('kuerp_goods')->where(['id'=>$goods_id])->field('batch,serial,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,warehousing,warehouse')->find();
+            $row = Db::name('kuerp_goods')->where(['id'=>$goods_id])->field('batch,serial,auxiliary,unit_id,more_unit,more_unit_id,goods_code,manager_warehouse_id,shelf_life,warehousing,warehouse')->find();
         }
         if(empty($row)){
             return [];
@@ -486,72 +514,46 @@ class GoodsSalesSchedule extends Backend
             $where['attribute_id'] = $attr;
         }
         $stock = Db::name('kuerp_goods_stock')->where($where)->value('stock');
+
+        // 收集所有单位ID和换算率（不查询价格表，采购计划部门无需看到金额）
+        $unit_ids = [$row['unit_id']];
+        $rateMap = []; // vice_unit_id => advance_rate
+
         if($row['more_unit']==1){
-            $unit = Db::name('kuerp_unit_conversion')->alias('uc')
+            $unitConversions = Db::name('kuerp_unit_conversion')->alias('uc')
                 ->join('kuerp_unit u','u.id=uc.vice_unit')
                 ->where(['uc.main_unit'=>$row['unit_id']])
                 ->order('uc.advance_rate','ASC')
                 ->field('uc.vice_unit,u.name,u.id,uc.advance_rate')
                 ->select();
-            $unit_ids = [$row['unit_id']];
-            foreach ($unit as $unit_k=>$unit_v){
-                $unit_ids[] = $unit_v['id'];
-            }
-            $goods_price = Db::name('kuerp_goods_price')->where(['unit'=>['in',$unit_ids],'goods_id'=>$goods_id])->select();
-            foreach ($goods_price as $goods_price_k=>$goods_price_v){
-                foreach ($unit as $unit_k=>$unit_v){
-                    if($goods_price_v['unit']==$row['unit_id']){
-                        $goods_price[$goods_price_k]['advance_rate'] = 1;
-                    }else if($goods_price_v['unit']==$unit_v['id']){
-                        $goods_price[$goods_price_k]['advance_rate'] = $unit_v['advance_rate'];
-                    }
-                }
-            }
-        }else{
-            $unit_ids = [$row['unit_id']];
-        }
-        $unit = Db::name('kuerp_unit')->where(['id'=>['in',$unit_ids]])->field('id,name')->select();
-        foreach ($unit as $unit_k=>$unit_v){
-            if(isset($goods_price)){
-                foreach ($goods_price as $goods_price_k=>$goods_price_v){
-                    if($unit_v['id']==$goods_price_v['unit']){
-                        $unit[$unit_k]['is_default'] = $goods_price_v['is_default'];
-                        $unit[$unit_k]['purchase'] = $goods_price_v['purchase'];
-                        if($goods_price_v['is_default']!=1){
-                            $unit[$unit_k]['basic_nmber'] = $goods_price_v['advance_rate'];
-                        }else{
-                            $unit[$unit_k]['basic_nmber'] = 1;
-                        }
-                    }
-                }
-            }else{
-                if($unit_v['id']==$row['unit_id']){
-                    $unit[$unit_k]['is_default'] = 1;
-                    $unit[$unit_k]['basic_nmber'] = 1;
-                    $unit[$unit_k]['purchase'] = 0;
-                }
+            foreach ($unitConversions as $v){
+                $unit_ids[] = $v['id'];
+                $rateMap[$v['id']] = $v['advance_rate'];
             }
         }
-        foreach ($unit as $unit_k=>$unit_v){
-            $unit[$unit_k]['tax'] = 0;
-            $unit[$unit_k]['tax_rate'] = 0;
-            $unit[$unit_k]['purchase'] = 0;
-            $unit[$unit_k]['tax_included'] = 0;
-        }
+
+        $units = Db::name('kuerp_unit')->where(['id'=>['in',$unit_ids]])->field('id,name')->select();
+
+        // 构建返回数据（只有单位、换算率、库存，不含任何金额字段）
         $data = [];
-        foreach ($unit_ids as $unit_ids_k=>$unit_ids_v){
-            foreach ($unit as $unit_k=>$unit_v){
-                if($unit_ids_v==$unit_v['id']){
-                    if($unit_v['is_default']==1){
-                        $unit_v['stock'] = is_null($stock)?0:$stock;
-                    }else{
-                        $unit_v['stock'] = round($stock/$unit_v['basic_nmber'],2);
-                    }
-                    $unit_v['tax_money'] = 0;
-                    $data[] = $unit_v;
+        foreach ($unit_ids as $uid){
+            foreach ($units as $u){
+                if($uid == $u['id']){
+                    $isDefault = ($u['id'] == $row['unit_id']) ? 1 : 0;
+                    $basicNmber = $isDefault ? 1 : (isset($rateMap[$u['id']]) ? $rateMap[$u['id']] : 1);
+                    $stockVal = $isDefault ? (is_null($stock)?0:$stock) : round($stock/$basicNmber, 2);
+                    $data[] = [
+                        'id'           => $u['id'],
+                        'name'         => $u['name'],
+                        'is_default'   => $isDefault,
+                        'basic_nmber'  => $basicNmber,
+                        'stock'        => $stockVal,
+                    ];
+                    break;
                 }
             }
         }
+
         return json_encode(['unit'=>$data,'attr'=>$goods_attr,'goods'=>$row]);
     }
 
@@ -668,7 +670,7 @@ class GoodsSalesSchedule extends Backend
             return json(['code' => 0, 'msg' => '排期不存在']);
         }
 
-        $info_list = Db::name('kuerp_goods_sales_schedule_info')
+        $info_list = Db::name('kuerp_goods_sales_info')
             ->where(['purchase_code' => $row['purchase_code']])
             ->select();
 
@@ -711,7 +713,7 @@ class GoodsSalesSchedule extends Backend
         $row = $this->model->where(['id' => $schedule_id])->find();
         if (!$row) return [];
 
-        $info_list = Db::name('kuerp_goods_sales_schedule_info')
+        $info_list = Db::name('kuerp_goods_sales_info')
             ->where(['purchase_code' => $row['purchase_code']])
             ->select();
 
@@ -746,7 +748,7 @@ class GoodsSalesSchedule extends Backend
         $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('username');
         $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('username');
 
-        $purchase_info = Db::name('kuerp_goods_sales_schedule_info')->where(['purchase_code' => $row['purchase_code']])->select();
+        $purchase_info = Db::name('kuerp_goods_sales_info')->where(['purchase_code' => $row['purchase_code']])->select();
         foreach ($purchase_info as $k => $v) {
             $purchase_info[$k]['goods_name'] = Db::name('kuerp_goods')->where(['goods_code' => $v['goods_code']])->value('goods_name');
             $purchase_info[$k]['goods_note'] = Db::name('kuerp_goods')->where(['goods_code' => $v['goods_code']])->value('note');
@@ -757,5 +759,162 @@ class GoodsSalesSchedule extends Backend
         $this->view->assign("purchase_info", $purchase_info);
         $this->model->where(['id' => $ids])->setInc('print_num');
         return $this->view->fetch();
+    }
+
+    /**
+     * 对单/反对单
+     */
+    public function counter($ids = null, $counter = 1)
+    {
+        if (empty($ids)) {
+            $this->error('请选择要操作的数据');
+        }
+        if ($counter == 1) {
+            $list = $this->model->where(['id' => ['in', $ids], 'check_status' => '0'])->select();
+            foreach ($list as $list_v) {
+                $checkout = (new \addons\kuerp\library\Checkout())->checkOutTime($list_v['purchase_time']);
+                if ($checkout !== true) {
+                    $this->error($checkout);
+                }
+            }
+            if (empty($list)) {
+                $this->error('请选择需要对单的数据');
+            }
+            $admin = Session::get('admin');
+            $result = $this->model->where(['id' => ['in', $ids], 'check_status' => '0'])->update(['check_status' => 1, 'operation_id' => $admin['id']]);
+            if ($result !== false) {
+                $this->success(sizeof($list) . '条数据对单成功');
+            } else {
+                $this->error('对单失败');
+            }
+        } else {
+            $list = $this->model->where(['id' => ['in', $ids], 'check_status' => '1'])->select();
+            foreach ($list as $list_v) {
+                $checkout = (new \addons\kuerp\library\Checkout())->checkOutTime($list_v['purchase_time']);
+                if ($checkout !== true) {
+                    $this->error($checkout);
+                }
+            }
+            if (empty($list)) {
+                $this->error('请选择需要反对单的数据');
+            }
+            $admin = Session::get('admin');
+            $result = $this->model->where(['id' => ['in', $ids], 'check_status' => '1'])->update(['check_status' => 0, 'operation_id' => $admin['id']]);
+            if ($result !== false) {
+                $this->success(sizeof($list) . '条数据反对单成功');
+            } else {
+                $this->error('反对单失败');
+            }
+        }
+    }
+
+    /**
+     * 审核/反审核
+     */
+    public function examine($ids = null, $examine = 1)
+    {
+        if (empty($ids)) {
+            return ['status' => 0, 'msg' => '请选择要操作的数据'];
+        }
+        if ($examine == 1) {
+            $list = $this->model->where(['id' => ['in', $ids], 'examine_status' => '0'])->select();
+            foreach ($list as $list_v) {
+                $checkout = (new \addons\kuerp\library\Checkout())->checkOutTime($list_v['purchase_time']);
+                if ($checkout !== true) {
+                    return ['status' => 0, 'msg' => $checkout];
+                }
+            }
+            if (empty($list)) {
+                return ['status' => 0, 'msg' => '请选择需要审核的数据'];
+            }
+            $admin = Session::get('admin');
+            $time = time();
+            $examine_ids = [];
+            $arrears = [];
+            foreach ($list as $list_v) {
+                $examine_ids[] = $list_v['id'];
+                if ($list_v['arrears'] > 0) {
+                    $suppliers = Db::name('kuerp_customers')->where(['id' => $list_v['customers_id']])->field('id,need_receive_account')->find();
+                    if ($suppliers) {
+                        $status = false;
+                        foreach ($arrears as $arrears_k => $arrears_v) {
+                            if ($arrears_v['id'] == $suppliers['id']) {
+                                $arrears[$arrears_k]['need_receive_account'] = $list_v['arrears'] + $arrears_v['need_receive_account'];
+                                $status = true;
+                            }
+                        }
+                        if (!$status) {
+                            $arrears[] = [
+                                'id' => $suppliers['id'],
+                                'need_receive_account' => $list_v['arrears'] + $suppliers['need_receive_account'],
+                            ];
+                        }
+                    }
+                }
+            }
+            Db::startTrans();
+            try {
+                $result = $this->model->where(['id' => ['in', $examine_ids], 'examine_status' => '0'])->update([
+                    'examine_status' => 1,
+                    'examine_id' => $admin['id'],
+                    'examine_time' => $time,
+                    'operation_id' => $admin['id'],
+                    'updatetime' => $time,
+                ]);
+                if (!empty($arrears)) {
+                    foreach ($arrears as $v) {
+                        Db::name('kuerp_customers')->where(['id' => $v['id']])->update(['need_receive_account' => $v['need_receive_account']]);
+                    }
+                }
+                Db::commit();
+            } catch (Exception $e) {
+                Db::rollback();
+                return ['status' => 0, 'msg' => $e->getMessage()];
+            }
+            if ($result !== false) {
+                $this->success(sizeof($list) . '条数据审核成功');
+            } else {
+                return ['status' => 0, 'msg' => '审核失败'];
+            }
+        } else {
+            $list = $this->model->where(['id' => ['in', $ids], 'examine_status' => '1'])->select();
+            foreach ($list as $list_v) {
+                $checkout = (new \addons\kuerp\library\Checkout())->checkOutTime($list_v['purchase_time']);
+                if ($checkout !== true) {
+                    return ['status' => 0, 'msg' => $checkout];
+                }
+            }
+            if (empty($list)) {
+                return ['status' => 0, 'msg' => '请选择需要反审核的数据'];
+            }
+            $admin = Session::get('admin');
+            $time = time();
+            $examine_ids = [];
+            foreach ($list as $list_v) {
+                if ($list_v['check_status'] == 1) {
+                    return ['status' => 0, 'msg' => '不能反审核已对单的数据'];
+                }
+                $examine_ids[] = $list_v['id'];
+            }
+            Db::startTrans();
+            try {
+                $result = $this->model->where(['id' => ['in', $examine_ids], 'examine_status' => '1'])->update([
+                    'examine_status' => 0,
+                    'examine_id' => 0,
+                    'examine_time' => 0,
+                    'operation_id' => $admin['id'],
+                    'updatetime' => $time,
+                ]);
+                Db::commit();
+            } catch (Exception $e) {
+                Db::rollback();
+                return ['status' => 0, 'msg' => $e->getMessage()];
+            }
+            if ($result !== false) {
+                $this->success(sizeof($list) . '条数据反审核成功');
+            } else {
+                return ['status' => 0, 'msg' => '反审核失败'];
+            }
+        }
     }
 }

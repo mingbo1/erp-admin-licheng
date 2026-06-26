@@ -122,9 +122,9 @@ class Split extends Backend
                     $row['pnumber'] = $p_info['number'];
                     $row['pname'] = $p_info['goods_name'].' '.$p_info['attr_name'];
                     $row['unit_name'] = $p_info['unit_name'];
-                    $row['money'] = $list_v['money'];
-                    $row['punit_cost'] = $p_info['unit_cost'];
-                    $row['pcost_money'] = $p_info['cost_money'];
+                    // $row['money'] = $list_v['money'];
+                    // $row['punit_cost'] = $p_info['unit_cost'];
+                    // $row['pcost_money'] = $p_info['cost_money'];
 
                     $info_v['attr_name'] = '';
                     if(!empty($info_v['goods_attr'])){
@@ -140,8 +140,8 @@ class Split extends Backend
 
                     $row['znumber'] = $info_v['number'];
                     $row['zname'] = $info_v['goods_name'].' '.$info_v['attr_name'];
-                    $row['zunit_cost'] = $info_v['unit_cost'];
-                    $row['zcost_money'] = $info_v['cost_money'];
+                    // $row['zunit_cost'] = $info_v['unit_cost'];
+                    // $row['zcost_money'] = $info_v['cost_money'];
                     $row['zunit_name'] = $info_v['unit_name'];
 
                     $lists[] = $row;
@@ -307,8 +307,8 @@ class Split extends Backend
                                 'number'            =>  $params['number'][$k]===''?null:(float)$params['number'][$k],
                                 'period'            =>  $goods_serial,
                                 'basic_number'      =>  $basic_number,
-                                'unit_cost'         =>  $params['unit_cost'][$k]===''?null:(float)$params['unit_cost'][$k],
-                                'cost_money'        =>  $params['cost_money'][$k]===''?null:(float)$params['cost_money'][$k],
+                                // 'unit_cost'         =>  $params['unit_cost'][$k]===''?null:(float)$params['unit_cost'][$k],
+                                // 'cost_money'        =>  $params['cost_money'][$k]===''?null:(float)$params['cost_money'][$k],
                                 'remark'            =>  $params['remark'][$k]===''?null:$params['remark'][$k],
 
                                 'batch'             =>  $params['batch'][$k]===''?null:$params['batch'][$k],
@@ -414,8 +414,8 @@ class Split extends Backend
                                 'number'            =>  $params['number'][$k]===''?null:(float)$params['number'][$k],
                                 'period'            =>  $goods_serial,
                                 'basic_number'      =>  $basic_number,
-                                'unit_cost'         =>  $params['unit_cost'][$k]===''?null:(float)$params['unit_cost'][$k],
-                                'cost_money'        =>  $params['cost_money'][$k]===''?null:(float)$params['cost_money'][$k],
+                                // 'unit_cost'         =>  $params['unit_cost'][$k]===''?null:(float)$params['unit_cost'][$k],
+                                // 'cost_money'        =>  $params['cost_money'][$k]===''?null:(float)$params['cost_money'][$k],
                                 'remark'            =>  $params['remark'][$k]===''?null:$params['remark'][$k],
 
                                 'batch'             =>  $params['batch'][$k]===''?null:$params['batch'][$k],
@@ -686,8 +686,8 @@ class Split extends Backend
                                 'number'            =>  $params['number'][$k]===''?null:(float)$params['number'][$k],
                                 'period'            =>  $goods_serial,
                                 'basic_number'      =>  $basic_number,
-                                'unit_cost'         =>  $params['unit_cost'][$k]===''?null:(float)$params['unit_cost'][$k],
-                                'cost_money'        =>  $params['cost_money'][$k]===''?null:(float)$params['cost_money'][$k],
+                                // 'unit_cost'         =>  $params['unit_cost'][$k]===''?null:(float)$params['unit_cost'][$k],
+                                // 'cost_money'        =>  $params['cost_money'][$k]===''?null:(float)$params['cost_money'][$k],
                                 'remark'            =>  $params['remark'][$k]===''?null:$params['remark'][$k],
 
                                 'batch'             =>  $params['batch'][$k]===''?null:$params['batch'][$k],
@@ -793,8 +793,8 @@ class Split extends Backend
                                 'number'            =>  $params['number'][$k]===''?null:(float)$params['number'][$k],
                                 'period'            =>  $goods_serial,
                                 'basic_number'      =>  $basic_number,
-                                'unit_cost'         =>  $params['unit_cost'][$k]===''?null:(float)$params['unit_cost'][$k],
-                                'cost_money'        =>  $params['cost_money'][$k]===''?null:(float)$params['cost_money'][$k],
+                                // 'unit_cost'         =>  $params['unit_cost'][$k]===''?null:(float)$params['unit_cost'][$k],
+                                // 'cost_money'        =>  $params['cost_money'][$k]===''?null:(float)$params['cost_money'][$k],
                                 'remark'            =>  $params['remark'][$k]===''?null:$params['remark'][$k],
 
                                 'batch'             =>  $params['batch'][$k]===''?null:$params['batch'][$k],
@@ -1100,8 +1100,8 @@ class Split extends Backend
                         'remark'        => $info_list_v['remark'],
                         'enter_number'  => (float)$info_list_v['number'],
                         'enter_basics'  => (float)$stock_number,
-                        'enter_unit'    => round($info_list_v['unit_cost'],4),
-                        'enter_cost'    => (float)$info_list_v['cost_money'],
+                        // 'enter_unit'    => round($info_list_v['unit_cost'],4),
+                        // 'enter_cost'    => (float)$info_list_v['cost_money'],
                         'out_number'  => null,
                         'out_basics'  => null,
                         'out_unit'    => null,
@@ -1176,8 +1176,8 @@ class Split extends Backend
                             'business_type' => 13,
                             'remarks'       => $info_list_v['remark'],
                             'order_id'      => $info_list_v['id'],
-                            'unit_price'    => $info_list_v['unit_cost'],
-                            'tax_included'  => $info_list_v['unit_cost'],
+                            // 'unit_price'    => $info_list_v['unit_cost'],
+                            // 'tax_included'  => $info_list_v['unit_cost'],
                             'all_money'     => $info_list_v['cost_money'],
                             'tax_money'     => 0,
                             'money_tax_price' => $info_list_v['cost_money'],
@@ -1320,8 +1320,8 @@ class Split extends Backend
                         'enter_cost'    => null,
                         'out_number'  => (float)$info_list_v['number'],
                         'out_basics'  => (float)$stock_number,
-                        'out_unit'    => round($info_list_v['unit_cost'],4),
-                        'out_cost'    => (float)$info_list_v['cost_money'],
+                        // 'out_unit'    => round($info_list_v['unit_cost'],4),
+                        // 'out_cost'    => (float)$info_list_v['cost_money'],
                         'createtime'    => time(),
                         'updatetime'    => time(),
                     ]);
@@ -1369,9 +1369,9 @@ class Split extends Backend
                             'business_type' => '14',
                             'remarks'       => $info_list_v['remark'],
                             'order_id'      => $info_list_v['id'],
-                            'unit_price'    => $info_list_v['unit_cost'],
-                            'tax_included'  => $info_list_v['unit_cost'],
-                            'all_money'     => $info_list_v['cost_money'],
+                            // 'unit_price'    => $info_list_v['unit_cost'],
+                            // 'tax_included'  => $info_list_v['unit_cost'],
+                            // 'all_money'     => $info_list_v['cost_money'],
                             'tax_money'     => '0',
                             'money_tax_price' => $info_list_v['cost_money'],
                             'createtime'    => time(),
@@ -1906,8 +1906,8 @@ class Split extends Backend
                                 'number'            =>  $params['number'][$k]===''?null:(float)$params['number'][$k],
                                 'period'            =>  $goods_serial,
                                 'basic_number'      =>  $basic_number,
-                                'unit_cost'         =>  $params['unit_cost'][$k]===''?null:(float)$params['unit_cost'][$k],
-                                'cost_money'        =>  $params['cost_money'][$k]===''?null:(float)$params['cost_money'][$k],
+                                // 'unit_cost'         =>  $params['unit_cost'][$k]===''?null:(float)$params['unit_cost'][$k],
+                                // 'cost_money'        =>  $params['cost_money'][$k]===''?null:(float)$params['cost_money'][$k],
                                 'remark'            =>  $params['remark'][$k]===''?null:$params['remark'][$k],
 
                                 'batch'             =>  $params['batch'][$k]===''?null:$params['batch'][$k],
@@ -1988,8 +1988,8 @@ class Split extends Backend
                                 'number'            =>  $params['number'][$k]===''?null:(float)$params['number'][$k],
                                 'period'            =>  $goods_serial,
                                 'basic_number'      =>  $basic_number,
-                                'unit_cost'         =>  $params['unit_cost'][$k]===''?null:(float)$params['unit_cost'][$k],
-                                'cost_money'        =>  $params['cost_money'][$k]===''?null:(float)$params['cost_money'][$k],
+                                // 'unit_cost'         =>  $params['unit_cost'][$k]===''?null:(float)$params['unit_cost'][$k],
+                                // 'cost_money'        =>  $params['cost_money'][$k]===''?null:(float)$params['cost_money'][$k],
                                 'remark'            =>  $params['remark'][$k]===''?null:$params['remark'][$k],
 
                                 'batch'             =>  $params['batch'][$k]===''?null:$params['batch'][$k],

@@ -105,7 +105,6 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 return (d.pay_money).toFixed(price_decimal);
                             }},
                         {field: 'note', title: __('Note')},
-                        {field: 'print_num', title: __('Print_num')},
                         {fixed: 'right', title:__('Operate'), toolbar: '#barDemo', width:150}
                     ]]
                 });

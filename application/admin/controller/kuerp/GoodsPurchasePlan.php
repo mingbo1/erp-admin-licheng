@@ -280,9 +280,9 @@ class GoodsPurchasePlan extends Backend
         $schedule_id = $this->request->param('schedule_id');
         $schedule_goods = [];
         if ($schedule_id) {
-            $schedule = Db::name('kuerp_goods_sales_schedule')->where(['id' => $schedule_id])->find();
+            $schedule = Db::name('kuerp_goods_sales')->where(['id' => $schedule_id])->find();
             if ($schedule) {
-                $info_list = Db::name('kuerp_goods_sales_schedule_info')
+                $info_list = Db::name('kuerp_goods_sales_info')
                     ->where(['purchase_code' => $schedule['purchase_code']])
                     ->select();
                 foreach ($info_list as &$v) {

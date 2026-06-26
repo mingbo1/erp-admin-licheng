@@ -533,7 +533,8 @@
                     <th class="aux_tab aux_tab{$vo.id}" {if condition="in_array($vo['id'],$row['auxiliary_type'])"}{else/}style="display: none"{/if}>{$vo.name}</th>
                     {/foreach}
                     <th><span class="must">*</span>属性编号</th><th>属性条码</th><th>零售价</th><th>批发价</th>
-                    <th>VIP会员价</th><th>折扣率一</th><th>折扣率二</th><th>预计采购价</th>
+                    <!-- <th>VIP会员价</th><th>折扣率一</th><th>折扣率二</th> -->
+                    <th>预计采购价</th>
                 </tr>
                 <tbody id="auxiliary_table_tbody">
                 {if condition="empty($goods_attr)"}
@@ -562,9 +563,9 @@
                     <td><div><input type="text" class="ipts" name="auxiliary[barcode][]"></div></td>
                     <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[market_sell_price][]" {if condition="$row.more_unit==1"}readonly{/if}></div></td>
                     <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[wholesale_price][]" {if condition="$row.more_unit==1"}readonly{/if}></div></td>
-                    <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[vip_price][]" {if condition="$row.more_unit==1"}readonly{/if}></div></td>
+                    <!-- <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[vip_price][]" {if condition="$row.more_unit==1"}readonly{/if}></div></td>
                     <td><div><input type="number" class="ipts aux_price_set" name="auxiliary[discount][]" {if condition="$row.more_unit==1"}readonly{/if}></div></td>
-                    <td><div><input type="number" class="ipts aux_price_set" name="auxiliary[discount2][]" {if condition="$row.more_unit==1"}readonly{/if}></div></td>
+                    <td><div><input type="number" class="ipts aux_price_set" name="auxiliary[discount2][]" {if condition="$row.more_unit==1"}readonly{/if}></div></td> -->
                     <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[purchase][]" {if condition="$row.more_unit==1"}readonly{/if}></div></td>
                 </tr>
                 {/if}
@@ -594,9 +595,9 @@
                     <td><div><input type="text" class="ipts" name="auxiliary[barcode][]" value="{$attr.barcode|default=''}"></div></td>
                     <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[market_sell_price][]" value="{$attr.market_sell_price|default=''}" {if condition="$row.more_unit==1"}readonly{/if}></div></td>
                     <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[wholesale_price][]" value="{$attr.wholesale_price|default=''}" {if condition="$row.more_unit==1"}readonly{/if}></div></td>
-                    <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[vip_price][]" value="{$attr.vip_price|default=''}" {if condition="$row.more_unit==1"}readonly{/if}></div></td>
+                    <!-- <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[vip_price][]" value="{$attr.vip_price|default=''}" {if condition="$row.more_unit==1"}readonly{/if}></div></td>
                     <td><div><input type="number" class="ipts aux_price_set" name="auxiliary[discount][]" value="{$attr.discount|default=''}" {if condition="$row.more_unit==1"}readonly{/if}></div></td>
-                    <td><div><input type="number" class="ipts aux_price_set" name="auxiliary[discount2][]" value="{$attr.discount2|default=''}" {if condition="$row.more_unit==1"}readonly{/if}></div></td>
+                    <td><div><input type="number" class="ipts aux_price_set" name="auxiliary[discount2][]" value="{$attr.discount2|default=''}" {if condition="$row.more_unit==1"}readonly{/if}></div></td> -->
                     <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[purchase][]" value="{$attr.purchase|default=''}" {if condition="$row.more_unit==1"}readonly{/if}></div></td>
                 </tr>
                 {/foreach}
@@ -625,9 +626,9 @@
                     <td><div><input type="text" class="ipts" name="auxiliary[barcode][]" value=""></div></td>
                     <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[market_sell_price][]" value="" {if condition="$row.more_unit==1"}readonly{/if}></div></td>
                     <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[wholesale_price][]" value="" {if condition="$row.more_unit==1"}readonly{/if}></div></td>
-                    <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[vip_price][]" value="" {if condition="$row.more_unit==1"}readonly{/if}></div></td>
+                    <!-- <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[vip_price][]" value="" {if condition="$row.more_unit==1"}readonly{/if}></div></td>
                     <td><div><input type="number" class="ipts aux_price_set" name="auxiliary[discount][]" value="" {if condition="$row.more_unit==1"}readonly{/if}></div></td>
-                    <td><div><input type="number" class="ipts aux_price_set" name="auxiliary[discount2][]" value="" {if condition="$row.more_unit==1"}readonly{/if}></div></td>
+                    <td><div><input type="number" class="ipts aux_price_set" name="auxiliary[discount2][]" value="" {if condition="$row.more_unit==1"}readonly{/if}></div></td> -->
                     <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[purchase][]" value="" {if condition="$row.more_unit==1"}readonly{/if}></div></td>
                 </tr>
                 </tbody>

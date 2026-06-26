@@ -954,15 +954,15 @@ class Goods extends Backend
                             if($auxiliary['wholesale_price'][$k]!==''){
                                 $row['wholesale_price'] = $auxiliary['wholesale_price'][$k];
                             }
-                            if($auxiliary['vip_price'][$k]!==''){
-                                $row['vip_price'] = $auxiliary['vip_price'][$k];
-                            }
-                            if($auxiliary['discount'][$k]!==''){
-                                $row['discount'] = $auxiliary['discount'][$k];
-                            }
-                            if($auxiliary['discount2'][$k]!==''){
-                                $row['discount2'] = $auxiliary['discount2'][$k];
-                            }
+                            // if($auxiliary['vip_price'][$k]!==''){
+                            //     $row['vip_price'] = $auxiliary['vip_price'][$k];
+                            // }
+                            // if($auxiliary['discount'][$k]!==''){
+                            //     $row['discount'] = $auxiliary['discount'][$k];
+                            // }
+                            // if($auxiliary['discount2'][$k]!==''){
+                            //     $row['discount2'] = $auxiliary['discount2'][$k];
+                            // }
                             if($auxiliary['purchase'][$k]!==''){
                                 $row['purchase'] = $auxiliary['purchase'][$k];
                             }
@@ -1227,6 +1227,7 @@ class Goods extends Backend
                     if(!empty($goods_attr)){
                         foreach ($goods_attr as $k=>$v){
                             $goods_attr[$k]['goods_id'] = $result;
+                            unset($goods_attr[$k]['content']);
                             $goods_attr_id = Db::name('kuerp_goods_attr')->insertGetId($goods_attr[$k]);
                             //序列号跟踪
                             if(!empty($serial_log)){
@@ -1501,15 +1502,15 @@ class Goods extends Backend
                             if($auxiliary['wholesale_price'][$k]!==''){
                                 $auxiliary_row['wholesale_price'] = $auxiliary['wholesale_price'][$k];
                             }
-                            if($auxiliary['vip_price'][$k]!==''){
-                                $auxiliary_row['vip_price'] = $auxiliary['vip_price'][$k];
-                            }
-                            if($auxiliary['discount'][$k]!==''){
-                                $auxiliary_row['discount'] = $auxiliary['discount'][$k];
-                            }
-                            if($auxiliary['discount2'][$k]!==''){
-                                $auxiliary_row['discount2'] = $auxiliary['discount2'][$k];
-                            }
+                            // if($auxiliary['vip_price'][$k]!==''){
+                            //     $auxiliary_row['vip_price'] = $auxiliary['vip_price'][$k];
+                            // }
+                            // if($auxiliary['discount'][$k]!==''){
+                            //     $auxiliary_row['discount'] = $auxiliary['discount'][$k];
+                            // }
+                            // if($auxiliary['discount2'][$k]!==''){
+                            //     $auxiliary_row['discount2'] = $auxiliary['discount2'][$k];
+                            // }
                             if($auxiliary['purchase'][$k]!==''){
                                 $auxiliary_row['purchase'] = $auxiliary['purchase'][$k];
                             }
@@ -2224,6 +2225,8 @@ class Goods extends Backend
                 $goods_attr[$goods_attr_k]['attr_name'] = $aux_combination;
             }
         }
+        
+                    // dump($goods_attr);die;
         $this->view->assign("goods_attr", $goods_attr);
 
         $goods_batch = Db::name('kuerp_goods_batch')->where(['goods_id'=>$row['id']])->select();

@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "商品列表",
+  "navigationBarTitleText": "首页",
   "enablePullDownRefresh": true,
   "backgroundColor": "#f5f7fa",
   "usingComponents": {
@@ -8,9 +8,6 @@
     "u-icon": "/node-modules/uview-ui/components/u-icon/u-icon",
     "u-empty": "/node-modules/uview-ui/components/u-empty/u-empty",
     "u-loadmore": "/node-modules/uview-ui/components/u-loadmore/u-loadmore",
-    "u-popup": "/node-modules/uview-ui/components/u-popup/u-popup",
-    "u-line": "/node-modules/uview-ui/components/u-line/u-line",
-    "u-number-box": "/node-modules/uview-ui/components/u-number-box/u-number-box",
-    "u-button": "/node-modules/uview-ui/components/u-button/u-button"
+    "goods-action-sheet": "/components/GoodsActionSheet"
   }
 }

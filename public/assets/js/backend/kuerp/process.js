@@ -47,6 +47,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 if (d.examine_status == 0) return '<span style="color:red">' + __('Examine_status 0') + '</span>';
                                 return '<span style="color:green">' + __('Examine_status 1') + '</span>';
                             }, hide: hideStatus },
+                        
+                        { field: 'outbound_status', title: __('Outbound_status'), templet: function (d) {
+                                if (d.outbound_status == 0) return '<span style="color:red">' + __('Outbound_status 0') + '</span>';
+                                return '<span style="color:green">' + __('Outbound_status 1') + '</span>';
+                            }},
                         { field: 'in_status', title: __('In_status'), templet: function (d) {
                                 if (d.in_status == 0) return '<span style="color:#999">' + __('In_status 0') + '</span>';
                                 if (d.in_status == 1) return '<span style="color:orange">' + __('In_status 1') + '</span>';
@@ -60,7 +65,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 return '';
                             }, hide: hideStatus },
                         { field: 'remark', title: __('Remark') },
-                        { fixed: 'right', title: __('Operate'), toolbar: '#barDemo', width: 180 }
+                        { fixed: 'right', title: __('Operate'), toolbar: '#barDemoProcess', width: 180 }
                     ]]
                 });
 
@@ -71,6 +76,12 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     $(data).each(function (k, v) { ids += v.id + ','; });
                     switch (obj.event) {
                         case 'refresh': table.reload('table', []); break;
+                        case 'outbound':
+                            if (data.length <= 0) { Toastr.error('请选择要出库的数据'); return; }
+                            Fast.api.ajax("kuerp/process/outbound?ids=" + ids, function () { $('.btn-refresh').click(); }, '', true); break;
+                        case 'cancelOutbound':
+                            if (data.length <= 0) { Toastr.error('请选择要取消出库的数据'); return; }
+                            Fast.api.ajax("kuerp/process/cancelOutbound?ids=" + ids, function () { $('.btn-refresh').click(); }, '', true); break;
                         case 'add':
                             Fast.api.open("kuerp/process/add", "添加外协加工单", {
                                 callback: function () { Controller.api.bindevent(); },
@@ -96,6 +107,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 callback: function () { $('.btn-refresh').click(); },
                                 area: ['90%', '75%'],
                             }); break;
+                        case 'print':
+                            if (data.length <= 0) { Toastr.error('请选择要打印的数据'); return; }
+                            if (data.length > 1) { Toastr.error('一次只能打印一条数据'); return; }
+                            parent.Fast.api.open("kuerp/process/printpage?ids=" + data[0].id, "打印", { area: ['90%', '75%'] });
+                            break;
                         case 'detail':
                             if (data.length != 1) { Toastr.error('请选择一条记录'); return; }
                             Fast.api.open("kuerp/process/detail?ids=" + data[0].id, "加工单详情", {
@@ -371,7 +387,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         var obj = $(this).parents('tr');
                         var lawtable = document.getElementById("in_table");
                         var rows = lawtable.rows;
-                        var htmlp = rows[2].innerHTML;
+                        var htmlp = rows[1].innerHTML;
                         var html = '';
                         parent.Fast.api.open("kuerp/Goods/chosegoods", "选择商品", {
                             area: ['90%', '75%'],
@@ -822,9 +838,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             '<td>' + parseFloat(v.in_number).toFixed(number_decimal) + '</td>' +
                             '<td><input type="number" name="in_goods[' + k + '][in_number]" class="in_number number_decimal" ' +
                             'value="0" min="0" max="' + maxIn + '" data-info-id="' + v.id + '" ' + disabled + '></td>' +
-                            '<td><input type="number" name="in_goods[' + k + '][unit_cost]" class="unit_cost price_decimal" ' +
-                            'value="" placeholder="单价" ' + disabled + '></td>' +
-                            '<td><input type="number" class="cost_money price_decimal" value="" readonly></td>' +
+                            '<input type="hidden" name="in_goods[' + k + '][unit_cost]" class="unit_cost price_decimal" value="">' +
+                            '<input type="hidden" class="cost_money price_decimal" value="">' +
                             '<td class="goods_batch_sd"><input name="batch_data[' + k + '][batch]" class="batch_sec" placeholder="批次"></td>' +
                             '<td class="goods_batch_sd"><input name="batch_data[' + k + '][manufacture]" class="ipt manufacture" placeholder="生产日期"></td>' +
                             '<td class="goods_batch_sd"><input name="batch_data[' + k + '][guarantee]" class="ipt guarantee" placeholder="天数"></td>' +

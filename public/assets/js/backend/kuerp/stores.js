@@ -25,6 +25,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                         {checkbox: true},
                         {field: 'store_code', title: __('Store_code'), operate: 'LIKE'},
                         {field: 'name', title: __('Name'), operate: 'LIKE'},
+                        {field: 'store_type', title: __('Store_type'), templet: function (d) {
+                            if (d.store_type == 'part') return '<span style="color:#18bc9c">' + __('Store_type part') + '</span>';
+                            return '<span style="color:#666">' + __('Store_type general') + '</span>';
+                        }},
                         {field: 'status', title: __('Status'),templet: function (d) {
                             if(d.status==1){
                                     return '<input type="checkbox" data-id="'+d.id+'" checked="" name="open" lay-skin="switch" lay-filter="switchList" lay-text="开启|关闭">'
@@ -190,6 +194,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                     var name = $('#name').val();
                     if(name!=''){
                         search.name = name;
+                    }
+                    var store_type = $('#store_type').val();
+                    if(store_type!=''){
+                        search.store_type = store_type;
                     }
                     var status = $('#status').val();
                     if(status!=''){

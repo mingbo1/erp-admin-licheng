@@ -14,6 +14,16 @@
         </div>
     </div>
     <div class="form-group">
+        <label class="control-label col-xs-12 col-sm-2">{:__('Store_type')}:</label>
+        <div class="col-xs-12 col-sm-8">
+            <div class="radio">
+            {foreach name="storeTypeList" item="vo"}
+            <label for="row[store_type]-{$key}"><input id="row[store_type]-{$key}" name="row[store_type]" type="radio" value="{$key}" {in name="key" value="$row.store_type"}checked{/in} /> {$vo}</label>
+            {/foreach}
+            </div>
+        </div>
+    </div>
+    <div class="form-group">
         <label class="control-label col-xs-12 col-sm-2">{:__('Status')}:</label>
         <div class="col-xs-12 col-sm-8">
             

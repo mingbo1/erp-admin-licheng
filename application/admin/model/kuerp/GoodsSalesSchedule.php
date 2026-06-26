@@ -9,8 +9,8 @@ use think\Model;
 class GoodsSalesSchedule extends Model
 {
 
-    // 表名 — 销货排期独立表（无金额字段）
-    protected $name = 'kuerp_goods_sales_schedule';
+    // 表名 — 与销货单共用同一张表，销货排期仅不显示金额字段
+    protected $name = 'kuerp_goods_sales';
 
     // 自动写入时间戳字段
     protected $autoWriteTimestamp = 'int';

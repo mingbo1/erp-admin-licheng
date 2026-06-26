@@ -40,8 +40,8 @@ class GoodsCalculator extends Backend
             ->select();
         $this->view->assign("bomList", $bomList);
 
-        // 获取仓库列表（分仓模式使用）
-        $stores = Db::name('kuerp_stores')->where(['status' => 1])->field('id,name')->select();
+        // 获取仓库列表（分仓模式使用，只显示零件仓）
+        $stores = Db::name('kuerp_stores')->where(['status' => 1, 'store_type' => 'part'])->field('id,name')->select();
         $this->view->assign("stores", $stores);
 
         $setList = \addons\kuerp\library\Goods::getSetData();
@@ -91,16 +91,17 @@ class GoodsCalculator extends Backend
         $maxProducibleList = [];
 
         foreach ($children as $child) {
-            // 查询库存：按goods_code汇总所有仓库的库存
-            $stockQuery = Db::name('kuerp_goods_stock')
-                ->where(['goods_code' => $child['goods_code']]);
+            // 查询库存：只统计零件仓的库存数量
+            $stockQuery = Db::name('kuerp_goods_stock')->alias('gs')
+                ->join('kuerp_stores s', 's.id=gs.stores_id')
+                ->where(['gs.goods_code' => $child['goods_code'], 's.store_type' => 'part']);
 
-            // 如果选择了指定仓库
+            // 如果选择了指定仓库（进一步限定在零件仓范围内）
             if (!empty($storesId)) {
-                $stockQuery->where(['stores_id' => $storesId]);
+                $stockQuery->where(['gs.stores_id' => $storesId]);
             }
 
-            $totalStock = $stockQuery->sum('stock');
+            $totalStock = $stockQuery->sum('gs.stock');
             $totalStock = $totalStock ? floatval($totalStock) : 0;
 
             // 单耗数量

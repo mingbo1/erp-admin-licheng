@@ -84,7 +84,7 @@ class Order extends Base
             foreach ($goodsList as $item) {
                 $goodsId   = $item['goods_id'] ?? $item['id'];
                 $quantity  = $item['quantity'] ?? 1;
-                $attrIds   = $item['attr_ids'] ?? '';
+                $attrIds   = htmlspecialchars_decode($item['attr_ids'] ?? '');
                 $goodsUnit = $item['goods_unit'] ?? 0;
 
                 $goods = Db::name('kuerp_goods')->where('id', $goodsId)->where('status', '1')->find();
@@ -93,16 +93,39 @@ class Order extends Base
                     return json(['code' => 1, 'msg' => '商品已下架：' . ($goods['goods_name'] ?? '')]);
                 }
 
-                // 查库存
-                $stock = Db::name('kuerp_goods_stock')
-                    ->where('goods_code', $goods['goods_code'])
-                    ->value('SUM(stock) as total_stock');
+                // 查库存 & 计算价格
+                $skuStockChecked = false;
+                $unitPrice = (float)$goods[$priceField];
+                if ($attrIds) {
+                    // 多规格：attr_ids → aux_combination → goods_attr 获取 SKU 价格
+                    $combinationId = Db::name('kuerp_aux_combination')
+                        ->where('attr_ids', $attrIds)
+                        ->value('id');
+                    if ($combinationId) {
+                        $goodsAttr = Db::name('kuerp_goods_attr')
+                            ->where('goods_id', $goodsId)
+                            ->where('attribute_id', $combinationId)
+                            ->find();
+                        if ($goodsAttr) {
+                            $unitPrice = (float)$goodsAttr[$priceField];
+                            // 查该 SKU 库存
+                            $stock = Db::name('kuerp_goods_stock')
+                                ->where('goods_id', $goodsId)
+                                ->where('attribute_id', $goodsAttr['id'])
+                                ->value('SUM(stock) as total_stock');
+                            $skuStockChecked = true;
+                        }
+                    }
+                }
+                if (!$skuStockChecked) {
+                    $stock = Db::name('kuerp_goods_stock')
+                        ->where('goods_code', $goods['goods_code'])
+                        ->value('SUM(stock) as total_stock');
+                }
                 if ((float)$stock <= 0) {
                     Db::rollback();
                     return json(['code' => 1, 'msg' => '商品已售罄：' . $goods['goods_name']]);
                 }
-
-                $unitPrice = (float)$goods[$priceField];
                 $allMoney  = round($unitPrice * $quantity, 2);
                 $totalAmount += $allMoney;
 
@@ -199,7 +222,7 @@ class Order extends Base
 
         $where = [];
         $where['user_id'] = $this->auth->id;
-        if ($status) {
+        if ($status !== 'all') {
             $where['status'] = $status;
         }
 

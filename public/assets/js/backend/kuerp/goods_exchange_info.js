@@ -95,7 +95,6 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             }},
                         {field: 'pay_money', title: __('Pay_money'), operate:'BETWEEN'},
                         {field: 'account', title: __('Account')},
-                        {field: 'print_num', title: __('Print_num')},
                         {field: 'createtime', title: __('Createtime'),templet: function (d) {
                                 return layui.util.toDateString(d.createtime*1000);
                             }},

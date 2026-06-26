@@ -5,8 +5,11 @@
 const isMpWeixin = process.env.UNI_PLATFORM === 'mp-weixin'
 
 export default {
-  baseUrl: isMpWeixin ? 'http://erp.licheng.test' : '',
-
+  // baseUrl: isMpWeixin ? 'http://erp.licheng.test' : '',
   // 图片域名前缀（本地图片存储路径为相对路径，需拼接完整域名）
-  imgBaseUrl: 'http://erp.licheng.test',
+  // imgBaseUrl: 'http://erp.licheng.test',
+  
+  baseUrl: isMpWeixin ? 'https://dyerp.shengbokj.com/' : '',
+  // 图片域名前缀（本地图片存储路径为相对路径，需拼接完整域名）
+  imgBaseUrl: 'https://dyerp.shengbokj.com/',
 }

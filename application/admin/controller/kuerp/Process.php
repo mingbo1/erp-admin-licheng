@@ -14,7 +14,7 @@ use think\Session;
  */
 class Process extends Backend
 {
-    protected $noNeedRight = ['getunit', 'getinfo', 'printpage'];
+    protected $noNeedRight = ['getunit', 'getinfo', 'printpage', 'outbound', 'canceloutbound'];
 
     /**
      * Process模型对象
@@ -1249,6 +1249,404 @@ class Process extends Backend
                 $this->error('反审核失败');
             }
         }
+    }
+
+    /**
+     * 出库: 扣减原材料库存
+     * (原审核时的库存扣减逻辑移至此处, 审核仅变更状态)
+     */
+    public function outbound($ids = null)
+    {
+        $ids = $ids ? $ids : $this->request->post("ids");
+        if (empty($ids)) {
+            $this->error('请选择要操作的数据');
+        }
+
+        $serial_set = Db::name('kuerp_sets')->where(['name' => 'serial'])->value('is_checked');
+        $batch_set = Db::name('kuerp_sets')->where(['name' => 'batch'])->value('is_checked');
+
+        $list = $this->model->where(['id' => ['in', $ids], 'examine_status' => '1', 'outbound_status' => '0'])->select();
+        foreach ($list as $list_k => $list_v) {
+            $checkout = (new \addons\kuerp\library\Checkout())->checkOutTime($list_v['process_time']);
+            if ($checkout !== true) {
+                $this->error($checkout);
+            }
+        }
+        if (empty($list)) {
+            $this->error('请选择已审核且未出库的数据');
+        }
+
+        $process_code = $this->model->where(['id' => ['in', $ids]])->column('process_code');
+
+        $editstock = [];
+        $addstock = [];
+        $goods_stock = [];
+        $goods_stock_log = [];
+        $goods_batch_edit = [];
+        $goods_batch_log = [];
+        $per_code = [];
+        $edit_serial = [];
+        $serial_log = [];
+
+        $info_list = Db::name('kuerp_process_info')->where(['process_code' => ['in', $process_code], 'type' => '1'])->select();
+        foreach ($info_list as $info_list_k => $info_list_v) {
+            $goods = Db::name('kuerp_goods')->where(['id' => $info_list_v['goods_id']])->field('id,goods_code,goods_name,inventory,batch,serial')->find();
+            $stock_number = $info_list_v['basic_number'];
+
+            // 商品表总库存扣减
+            $status = false;
+            foreach ($goods_stock as $goods_stock_k => $goods_stock_v) {
+                if ($goods_stock_v['id'] == $goods['id']) {
+                    $goods_stock[$goods_stock_k]['inventory'] = $goods_stock_v['inventory'] - $stock_number;
+                    $status = true;
+                }
+            }
+            if (!$status) {
+                $goods_stock[] = [
+                    'id'        => $goods['id'],
+                    'inventory' => $goods['inventory'] - $stock_number,
+                ];
+            }
+
+            // 仓库库存扣减
+            $where = [];
+            $where['goods_code'] = $info_list_v['goods_code'];
+            $where['stores_id'] = $info_list_v['stores_id'];
+            $goods_attr = 0;
+            if ($info_list_v['goods_attr'] > 0) {
+                $goods_attr = $info_list_v['goods_attr'];
+                $where['attribute_id'] = $goods_attr;
+            }
+            $stock = Db::name('kuerp_goods_stock')->where($where)->field('stock,id,cost_money')->find();
+            if ($stock) {
+                // 检查库存充足
+                if ($stock['stock'] < $stock_number) {
+                    $this->error($goods['goods_name'] . '在' . Db::name('kuerp_stores')->where(['id' => $info_list_v['stores_id']])->value('name') . '库存不足');
+                }
+                $status = false;
+                foreach ($editstock as $editstock_k => $editstock_v) {
+                    if ($editstock_v['id'] == $stock['id']) {
+                        $editstock[$editstock_k]['stock'] -= $stock_number;
+                        $editstock[$editstock_k]['cost_money'] = round($editstock_v['cost_money'] - $info_list_v['cost_money'], 4);
+                        $status = true;
+                    }
+                }
+                if (!$status) {
+                    $editstock[] = [
+                        'id'         => $stock['id'],
+                        'stock'      => round($stock['stock'] - $stock_number, 4),
+                        'cost_money' => round($stock['cost_money'] - $info_list_v['cost_money'], 4)
+                    ];
+                }
+            } else {
+                $this->error($goods['goods_name'] . '库存不足');
+            }
+
+            // 收发明细
+            $goods_stock_log[] = \addons\kuerp\library\Goods::setDataInfo([
+                'purchase_code' => $info_list_v['process_code'],
+                'purchase_id'   => $info_list_v['id'],
+                'purchase_time' => $info_list_v['process_time'],
+                'business_type' => '16',
+                'goods_id'      => $goods['id'],
+                'goods_code'    => $goods['goods_code'],
+                'attribute_id'  => (float)$info_list_v['goods_attr'],
+                'goods_unit'    => (float)$info_list_v['goods_unit'],
+                'stores_id'     => (float)$info_list_v['stores_id'],
+                'remark'        => $info_list_v['remark'],
+                'out_number'    => (float)$info_list_v['number'],
+                'out_basics'    => (float)$stock_number,
+                'out_unit'      => round($info_list_v['unit_cost'], 4),
+                'out_cost'      => (float)$info_list_v['cost_money'],
+                'createtime'    => time(),
+                'updatetime'    => time(),
+            ]);
+
+            // 批次跟踪
+            if ($batch_set == 1 && $goods['batch'] == 1) {
+                $where = [];
+                $where['goods_id'] = $goods['id'];
+                if ($goods_attr > 0) {
+                    $where['attribute_id'] = $goods_attr;
+                }
+                $where['stores_id'] = $info_list_v['stores_id'];
+                $where['batch_id'] = $info_list_v['batch_id'];
+                $goods_batch_stock = Db::name('kuerp_goods_batch_stock')->where($where)->find();
+                if (empty($goods_batch_stock)) {
+                    $this->error($goods['goods_name'] . $info_list_v['batch'] . '批次库存不足');
+                } else {
+                    if (isset($goods_batch_edit[$goods_batch_stock['id']])) {
+                        $goods_batch_edit[$goods_batch_stock['id']] -= $stock_number;
+                    } else {
+                        $goods_batch_edit[$goods_batch_stock['id']] = $goods_batch_stock['stock'] - $stock_number;
+                    }
+                    foreach ($goods_batch_edit as $goods_batch_edit_k => $goods_batch_edit_v) {
+                        if ($goods_batch_edit_v < 0) {
+                            $this->error($goods['goods_name'] . $info_list_v['batch'] . '批次库存不足');
+                        }
+                    }
+                }
+
+                $goods_batch_log[] = \addons\kuerp\library\Goods::setDataInfo([
+                    'goods_id'        => $goods['id'],
+                    'goods_unit'      => $info_list_v['goods_unit'],
+                    'stores_id'       => $info_list_v['stores_id'],
+                    'batch_id'        => (float)$info_list_v['batch_id'],
+                    'number'          => (float)$stock_number,
+                    'purchase_code'   => $info_list_v['process_code'],
+                    'purchase_time'   => $info_list_v['process_time'],
+                    'business_type'   => '16',
+                    'remarks'         => $info_list_v['remark'],
+                    'order_id'        => $info_list_v['id'],
+                    'unit_price'      => $info_list_v['unit_cost'],
+                    'tax_included'    => $info_list_v['unit_cost'],
+                    'all_money'       => $info_list_v['cost_money'],
+                    'tax_money'       => 0,
+                    'money_tax_price' => $info_list_v['cost_money'],
+                    'customer_id'     => null,
+                    'createtime'      => time(),
+                    'updatetime'      => time(),
+                ]);
+            }
+
+            // 序列号跟踪
+            if ($goods && $goods['serial'] == 1 && $serial_set == 1 && !empty($info_list_v['period'])) {
+                $period = unserialize($info_list_v['period']);
+                foreach ($period as $period_k => $period_v) {
+                    $per_s = Db::name('kuerp_goods_serial')->where(['serial' => $period_v['serial']])->field('serial,status,store_status')->find();
+                    if ($per_s) {
+                        if ($per_s['store_status'] != 1) {
+                            $this->error('序列号' . $period_v['serial'] . '不在库，不可出库');
+                        }
+                        $edit_serial[] = [
+                            'serial'     => $per_s['serial'],
+                            'process_id' => $info_list_v['id'],
+                            'type'       => 14,
+                            'store_status' => '2',
+                            'old_status' => $per_s['status'],
+                            'old_store'  => $per_s['store_status']
+                        ];
+                    } else {
+                        $this->error('序列号' . $period_v['serial'] . '不存在');
+                    }
+                    $serial_log[] = \addons\kuerp\library\Goods::setDataInfo([
+                        'goods_id'      => $info_list_v['goods_id'],
+                        'stores_id'     => $info_list_v['stores_id'],
+                        'attribute_id'  => isset($goods_attr) ? $goods_attr : 0,
+                        'serial'        => $period_v['serial'],
+                        'business_type' => '16',
+                        'store_status'  => '2',
+                        'remarks'       => $period_v['remark'],
+                        'purchase_id'   => $info_list_v['id'],
+                        'purchase_code' => $info_list_v['process_code'],
+                        'purchase_time' => $info_list_v['process_time'],
+                        'order_id'      => $info_list_v['id'],
+                        'createtime'    => time(),
+                        'updatetime'    => time(),
+                    ]);
+                }
+            }
+        }
+
+        $admin = Session::get('admin');
+        Db::startTrans();
+        try {
+            // 库存更新
+            if (!empty($editstock)) {
+                (new \app\admin\model\kuerp\GoodsStock())->saveAll($editstock);
+            }
+            if (!empty($addstock)) {
+                foreach ($addstock as $addstock_k => $addstock_v) {
+                    $where = [];
+                    $where['goods_code'] = $addstock_v['goods_code'];
+                    $where['stores_id'] = $addstock_v['stores_id'];
+                    if ($addstock_v['attribute_id'] > 0) {
+                        $where['attribute_id'] = $addstock_v['attribute_id'];
+                    }
+                    $stock = Db::name('kuerp_goods_stock')->where($where)->find();
+                    if ($stock) {
+                        Db::name('kuerp_goods_stock')->where(['id' => $stock['id']])->inc('stock', $addstock_v['stock'])->update();
+                    } else {
+                        Db::name('kuerp_goods_stock')->insert($addstock_v);
+                    }
+                }
+            }
+            // 商品总库存
+            if (!empty($goods_stock)) {
+                (new \app\admin\model\kuerp\Goods())->saveAll($goods_stock);
+            }
+            // 收发明细
+            if (!empty($goods_stock_log)) {
+                Db::name('kuerp_goods_log')->insertAll($goods_stock_log);
+            }
+            // 批次
+            if (!empty($goods_batch_edit)) {
+                foreach ($goods_batch_edit as $k => $v) {
+                    Db::name('kuerp_goods_batch_stock')->where(['id' => $k])->update(['stock' => $v]);
+                }
+            }
+            if (!empty($goods_batch_log)) {
+                Db::name('kuerp_goods_batch_log')->insertAll($goods_batch_log);
+            }
+            // 序列号
+            if (!empty($edit_serial)) {
+                foreach ($edit_serial as $edit_serial_k => $edit_serial_v) {
+                    Db::name('kuerp_goods_serial')->where(['serial' => $edit_serial_v['serial']])->update([
+                        'process_id'   => $edit_serial_v['process_id'],
+                        'status'       => $edit_serial_v['type'],
+                        'store_status' => $edit_serial_v['store_status'],
+                        'old_status'   => $edit_serial_v['old_status'],
+                        'old_store'    => $edit_serial_v['old_store']
+                    ]);
+                }
+            }
+            if (!empty($serial_log)) {
+                Db::name('kuerp_goods_serial_log')->insertAll($serial_log);
+            }
+
+            $result = $this->model->where(['id' => ['in', $ids]])->update([
+                'outbound_status' => 1,
+                'outbound_time'   => time(),
+            ]);
+            Db::commit();
+        } catch (Exception $e) {
+            Db::rollback();
+            $this->error($e->getMessage());
+        }
+        $this->success(sizeof($list) . '条数据出库成功');
+    }
+
+    /**
+     * 取消出库: 恢复原材料库存
+     */
+    public function cancelOutbound($ids = null)
+    {
+        $ids = $ids ? $ids : $this->request->post("ids");
+        if (empty($ids)) {
+            $this->error('请选择要操作的数据');
+        }
+
+        $batch_set = Db::name('kuerp_sets')->where(['name' => 'batch'])->value('is_checked');
+
+        $list = $this->model->where(['id' => ['in', $ids], 'examine_status' => '1', 'outbound_status' => '1', 'in_status' => '0'])->select();
+        if (empty($list)) {
+            $this->error('请选择已审核已出库且未入库的数据');
+        }
+
+        $process_code = $this->model->where(['id' => ['in', $ids]])->column('process_code');
+
+        $editstock = [];
+        $goods_stock = [];
+        $goods_batch_edit = [];
+        $info_list = Db::name('kuerp_process_info')->where(['process_code' => ['in', $process_code], 'type' => '1'])->select();
+
+        foreach ($info_list as $info_list_k => $info_list_v) {
+            $goods = Db::name('kuerp_goods')->where(['id' => $info_list_v['goods_id']])->field('id,goods_code,goods_name,inventory,batch,serial')->find();
+            $stock_number = $info_list_v['basic_number'];
+
+            // 商品总库存恢复
+            $status = false;
+            foreach ($goods_stock as $goods_stock_k => $goods_stock_v) {
+                if ($goods_stock_v['id'] == $goods['id']) {
+                    $goods_stock[$goods_stock_k]['inventory'] = $goods_stock_v['inventory'] + $stock_number;
+                    $status = true;
+                }
+            }
+            if (!$status) {
+                $goods_stock[] = [
+                    'id'        => $goods['id'],
+                    'inventory' => $goods['inventory'] + $stock_number,
+                ];
+            }
+
+            // 仓库库存恢复
+            $where = [];
+            $where['goods_code'] = $info_list_v['goods_code'];
+            $where['stores_id'] = $info_list_v['stores_id'];
+            $goods_attr = 0;
+            if ($info_list_v['goods_attr'] > 0) {
+                $goods_attr = $info_list_v['goods_attr'];
+                $where['attribute_id'] = $goods_attr;
+            }
+            $stock = Db::name('kuerp_goods_stock')->where($where)->field('stock,id,cost_money')->find();
+            if ($stock) {
+                $status = false;
+                foreach ($editstock as $editstock_k => $editstock_v) {
+                    if ($editstock_v['id'] == $stock['id']) {
+                        $editstock[$editstock_k]['stock'] += $stock_number;
+                        $editstock[$editstock_k]['cost_money'] = round($editstock_v['cost_money'] + $info_list_v['cost_money'], 4);
+                        $status = true;
+                    }
+                }
+                if (!$status) {
+                    $editstock[] = [
+                        'id'         => $stock['id'],
+                        'stock'      => round($stock['stock'] + $stock_number, 4),
+                        'cost_money' => round($stock['cost_money'] + $info_list_v['cost_money'], 4)
+                    ];
+                }
+            }
+
+            // 批次恢复
+            if ($batch_set == 1 && $goods['batch'] == 1) {
+                $where = [];
+                $where['goods_id'] = $goods['id'];
+                if ($goods_attr > 0) {
+                    $where['attribute_id'] = $goods_attr;
+                }
+                $where['stores_id'] = $info_list_v['stores_id'];
+                $where['batch_id'] = $info_list_v['batch_id'];
+                $goods_batch_stock = Db::name('kuerp_goods_batch_stock')->where($where)->find();
+                if (!empty($goods_batch_stock)) {
+                    if (isset($goods_batch_edit[$goods_batch_stock['id']])) {
+                        $goods_batch_edit[$goods_batch_stock['id']] += $stock_number;
+                    } else {
+                        $goods_batch_edit[$goods_batch_stock['id']] = $goods_batch_stock['stock'] + $stock_number;
+                    }
+                }
+            }
+        }
+
+        $info_ids = Db::name('kuerp_process_info')->where(['process_code' => ['in', $process_code], 'type' => '1'])->column('id');
+
+        Db::startTrans();
+        try {
+            if (!empty($editstock)) {
+                (new \app\admin\model\kuerp\GoodsStock())->saveAll($editstock);
+            }
+            if (!empty($goods_stock)) {
+                (new \app\admin\model\kuerp\Goods())->saveAll($goods_stock);
+            }
+            if (!empty($goods_batch_edit)) {
+                foreach ($goods_batch_edit as $k => $v) {
+                    Db::name('kuerp_goods_batch_stock')->where(['id' => $k])->update(['stock' => $v]);
+                }
+            }
+
+            // 删除出库日志
+            Db::name('kuerp_goods_log')->where(['business_type' => '16', 'purchase_id' => ['in', $info_ids]])->delete();
+            Db::name('kuerp_goods_batch_log')->where(['business_type' => '16', 'order_id' => ['in', $info_ids]])->delete();
+
+            // 恢复序列号
+            $serial = Db::name('kuerp_goods_serial')->where(['status' => '14', 'process_id' => ['in', $info_ids]])->select();
+            foreach ($serial as $serial_k => $serial_v) {
+                Db::name('kuerp_goods_serial')->where(['id' => $serial_v['id']])->update([
+                    'status'       => $serial_v['old_status'],
+                    'store_status' => $serial_v['old_store']
+                ]);
+            }
+            Db::name('kuerp_goods_serial_log')->where(['business_type' => '16', 'order_id' => ['in', $info_ids]])->delete();
+
+            $result = $this->model->where(['id' => ['in', $ids]])->update([
+                'outbound_status' => 0,
+                'outbound_time'   => null,
+            ]);
+            Db::commit();
+        } catch (Exception $e) {
+            Db::rollback();
+            $this->error($e->getMessage());
+        }
+        $this->success(sizeof($list) . '条数据取消出库成功');
     }
 
     /**

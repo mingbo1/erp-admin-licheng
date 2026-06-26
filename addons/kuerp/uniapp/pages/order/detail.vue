@@ -131,7 +131,7 @@
 import { orderApi } from '../../api'
 
 const STATUS_MAP = {
-  pending_confirm: { text: '待确认', desc: '等待后台管理员确认订单', bg: 'linear-gradient(135deg, #E6A23C, #d4891c)', icon: 'clock' },
+  pending_confirm: { text: '待确认', desc: '等待后台管理员确认订单', bg: '#F5A623', icon: 'clock' },
   confirmed: { text: '已确认', desc: '订单已确认，等待发货', bg: 'linear-gradient(135deg, #4A90D9, #357ABD)', icon: 'checkmark-circle' },
   shipped: { text: '已发货', desc: '商品已发出，请注意查收', bg: 'linear-gradient(135deg, #2c8cff, #1a6dcc)', icon: 'car' },
   received: { text: '已收货', desc: '商品已签收', bg: 'linear-gradient(135deg, #67C23A, #529b2e)', icon: 'checkmark-circle-fill' },

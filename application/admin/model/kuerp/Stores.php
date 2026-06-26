@@ -19,14 +19,20 @@ class Stores extends Model
 
     // 追加属性
     protected $append = [
-        'status_text'
+        'status_text',
+        'store_type_text'
     ];
-    
 
-    
+
+
     public function getStatusList()
     {
         return ['0' => __('Status 0'), '1' => __('Status 1')];
+    }
+
+    public function getStoreTypeList()
+    {
+        return ['part' => __('Store_type part'), 'general' => __('Store_type general')];
     }
 
 
@@ -34,6 +40,13 @@ class Stores extends Model
     {
         $value = $value ? $value : (isset($data['status']) ? $data['status'] : '');
         $list = $this->getStatusList();
+        return isset($list[$value]) ? $list[$value] : '';
+    }
+
+    public function getStoreTypeTextAttr($value, $data)
+    {
+        $value = $value ? $value : (isset($data['store_type']) ? $data['store_type'] : '');
+        $list = $this->getStoreTypeList();
         return isset($list[$value]) ? $list[$value] : '';
     }
 

@@ -55,7 +55,9 @@
                     </th>
                     <th class="goods_attr_sd">{:__('Goods_attr')}</th><th>{:__('Goods_unit')}</th><th>{:__('Stores_id')}</th><th>{:__('Allow_stock')}</th>
                     <th>批次</th><th>生产日期</th><th>保质期(天)</th><th>有效期至</th>
-                    <th>{:__('Number')}</th><th>{:__('出库单位成本')}</th><th>{:__('出库成本')}</th><th>{:__('Remark')}</th>
+                    <th>{:__('Number')}</th>
+                    <!-- <th>{:__('出库单位成本')}</th><th>{:__('出库成本')}</th> -->
+                    <th>{:__('Remark')}</th>
                 </tr>
                 {foreach name="info_list" item="info" key="k"}
                 {if condition="$info.type==1"}
@@ -121,8 +123,8 @@
                             <input type="hidden" class="period_period" name="row[period_period][]" value='{$info.period}'>
                         </div>
                     </td>
-                    <td><div><input type="number" name="row[unit_cost][]" class="unit_price price_decimal" value="{$info.unit_cost}"></div></td>
-                    <td><div><input type="number" name="row[cost_money][]" class="all_money" value="{$info.cost_money}"></div></td>
+                    <!-- <td><div><input type="number" name="row[unit_cost][]" class="unit_price price_decimal" value="{$info.unit_cost}"></div></td>
+                    <td><div><input type="number" name="row[cost_money][]" class="all_money" value="{$info.cost_money}"></div></td> -->
                     <td><div><input type="text" name="row[remark][]" class="remark" value="{$info.remark}"></div></td>
                 </tr>
                 {/if}
@@ -160,7 +162,9 @@
                         </th>
                         <th class="goods_attr_sd">{:__('Goods_attr')}</th><th>{:__('Goods_unit')}</th><th>{:__('Stores_id')}</th><th>{:__('Allow_stock')}</th>
                         <th>批次</th><th>生产日期</th><th>保质期(天)</th><th>有效期至</th>
-                        <th>{:__('Number')}</th><th>{:__('入库单位成本')}</th><th>{:__('入库成本')}</th><th>{:__('Remark')}</th>
+                        <th>{:__('Number')}</th>
+                        <!-- <th>{:__('入库单位成本')}</th><th>{:__('入库成本')}</th> -->
+                        <th>{:__('Remark')}</th>
                     </tr>
                     <tr style="display: none">
                         <td><div class="btn"><span class="add"><i class="fa fa-plus"></i></span><span class="del"><i class="fa fa-trash"></i></span></div></td>
@@ -215,8 +219,8 @@
                                 <input type="hidden" class="period_period" name="row[period_period][]">
                             </div>
                         </td>
-                        <td><div><input type="number" name="row[unit_cost][]" class="unit_price price_decimal"></div></td>
-                        <td><div><input type="number" name="row[cost_money][]" class="all_money"></div></td>
+                        <!-- <td><div><input type="number" name="row[unit_cost][]" class="unit_price price_decimal"></div></td>
+                        <td><div><input type="number" name="row[cost_money][]" class="all_money"></div></td> -->
                         <td><div><input type="text" name="row[remark][]" class="remark"></div></td>
                     </tr>
                     {foreach name="info_list" item="info" key="k"}
@@ -284,8 +288,8 @@
                                 <input type="hidden" class="period_period" name="row[period_period][]" value='{$info.period}'>
                             </div>
                         </td>
-                        <td><div><input type="number" name="row[unit_cost][]" class="unit_price price_decimal" value="{$info.unit_cost}"></div></td>
-                        <td><div><input type="number" name="row[cost_money][]" class="all_money" value="{$info.cost_money}"></div></td>
+                        <!-- <td><div><input type="number" name="row[unit_cost][]" class="unit_price price_decimal" value="{$info.unit_cost}"></div></td>
+                        <td><div><input type="number" name="row[cost_money][]" class="all_money" value="{$info.cost_money}"></div></td> -->
                         <td><div><input type="text" name="row[remark][]" class="remark" value="{$info.remark}"></div></td>
                     </tr>
                     {/if}

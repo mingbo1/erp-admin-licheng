@@ -100,17 +100,20 @@ __webpack_require__.r(__webpack_exports__);
 var components
 try {
   components = {
+    uIcon: function () {
+      return Promise.all(/*! import() | node-modules/uview-ui/components/u-icon/u-icon */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-icon/u-icon")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-icon/u-icon.vue */ 290))
+    },
     "u-Form": function () {
-      return Promise.all(/*! import() | node-modules/uview-ui/components/u--form/u--form */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u--form/u--form")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u--form/u--form.vue */ 436))
+      return Promise.all(/*! import() | node-modules/uview-ui/components/u--form/u--form */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u--form/u--form")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u--form/u--form.vue */ 427))
     },
     uFormItem: function () {
-      return Promise.all(/*! import() | node-modules/uview-ui/components/u-form-item/u-form-item */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-form-item/u-form-item")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-form-item/u-form-item.vue */ 442))
+      return Promise.all(/*! import() | node-modules/uview-ui/components/u-form-item/u-form-item */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-form-item/u-form-item")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-form-item/u-form-item.vue */ 433))
     },
     "u-Input": function () {
-      return Promise.all(/*! import() | node-modules/uview-ui/components/u--input/u--input */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u--input/u--input")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u--input/u--input.vue */ 450))
+      return Promise.all(/*! import() | node-modules/uview-ui/components/u--input/u--input */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u--input/u--input")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u--input/u--input.vue */ 441))
     },
     uButton: function () {
-      return Promise.all(/*! import() | node-modules/uview-ui/components/u-button/u-button */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-button/u-button")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-button/u-button.vue */ 339))
+      return Promise.all(/*! import() | node-modules/uview-ui/components/u-button/u-button */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-button/u-button")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-button/u-button.vue */ 371))
     },
   }
 } catch (e) {
@@ -134,6 +137,15 @@ var render = function () {
   var _vm = this
   var _h = _vm.$createElement
   var _c = _vm._self._c || _h
+  var m0 = _vm.avatarUrl ? _vm.$img(_vm.avatarUrl) : null
+  _vm.$mp.data = Object.assign(
+    {},
+    {
+      $root: {
+        m0: m0,
+      },
+    }
+  )
 }
 var recyclableRender = false
 var staticRenderFns = []
@@ -197,15 +209,35 @@ var _api = __webpack_require__(/*! ../../api */ 33);
 //
 //
 //
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
 var _default = {
   data: function data() {
     return {
+      avatarUrl: '',
+      // 当前显示的头像URL
+      originalAvatar: '',
+      // 加载时的原始头像URL（用于判断是否修改）
       nickname: '',
       mobile: '',
       form: {
         nickname: '',
         mobile: ''
-      }
+      },
+      saving: false
     };
   },
   onShow: function onShow() {
@@ -225,82 +257,176 @@ var _default = {
                 return _api.userApi.info();
               case 3:
                 res = _context.sent;
-                mu = res.mini_user || {};
+                mu = res.mini_user || res || {};
                 _this.nickname = mu.nickname || '';
                 _this.mobile = mu.mobile || '';
+                _this.avatarUrl = mu.avatar || '';
+                _this.originalAvatar = _this.avatarUrl;
                 _this.form.nickname = _this.nickname;
                 _this.form.mobile = _this.mobile;
-                _context.next = 14;
+                _context.next = 16;
                 break;
-              case 11:
-                _context.prev = 11;
+              case 13:
+                _context.prev = 13;
                 _context.t0 = _context["catch"](0);
                 uni.showToast({
                   title: _context.t0,
                   icon: 'none'
                 });
-              case 14:
+              case 16:
               case "end":
                 return _context.stop();
             }
           }
-        }, _callee, null, [[0, 11]]);
+        }, _callee, null, [[0, 13]]);
       }))();
     },
-    saveProfile: function saveProfile() {
+    // 更换头像
+    changeAvatar: function changeAvatar() {
       var _this2 = this;
-      return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee2() {
+      uni.chooseImage({
+        count: 1,
+        sizeType: ['compressed'],
+        sourceType: ['album', 'camera'],
+        success: function () {
+          var _success = (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee2(res) {
+            var tempFilePath, uploadRes, url;
+            return _regenerator.default.wrap(function _callee2$(_context2) {
+              while (1) {
+                switch (_context2.prev = _context2.next) {
+                  case 0:
+                    tempFilePath = res.tempFilePaths[0];
+                    if (tempFilePath) {
+                      _context2.next = 3;
+                      break;
+                    }
+                    return _context2.abrupt("return");
+                  case 3:
+                    // 先展示本地图片
+                    _this2.avatarUrl = tempFilePath;
+                    uni.showLoading({
+                      title: '上传中...'
+                    });
+                    _context2.prev = 5;
+                    _context2.next = 8;
+                    return _api.userApi.updateImage(tempFilePath);
+                  case 8:
+                    uploadRes = _context2.sent;
+                    console.log(uploadRes, '上传成功');
+                    url = uploadRes.url;
+                    if (!url) {
+                      _context2.next = 18;
+                      break;
+                    }
+                    console.log(url, '上传成功');
+                    _this2.avatarUrl = url;
+                    uni.hideLoading();
+                    uni.showToast({
+                      title: '头像已更新',
+                      icon: 'success'
+                    });
+                    _context2.next = 19;
+                    break;
+                  case 18:
+                    throw new Error('上传返回异常');
+                  case 19:
+                    _context2.next = 26;
+                    break;
+                  case 21:
+                    _context2.prev = 21;
+                    _context2.t0 = _context2["catch"](5);
+                    uni.hideLoading();
+                    // 上传失败，回退到原始头像
+                    _this2.avatarUrl = _this2.originalAvatar;
+                    uni.showToast({
+                      title: '头像上传失败，请重试',
+                      icon: 'none'
+                    });
+                  case 26:
+                  case "end":
+                    return _context2.stop();
+                }
+              }
+            }, _callee2, null, [[5, 21]]);
+          }));
+          function success(_x) {
+            return _success.apply(this, arguments);
+          }
+          return success;
+        }()
+      });
+    },
+    saveProfile: function saveProfile() {
+      var _this3 = this;
+      return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee3() {
         var data;
-        return _regenerator.default.wrap(function _callee2$(_context2) {
+        return _regenerator.default.wrap(function _callee3$(_context3) {
           while (1) {
-            switch (_context2.prev = _context2.next) {
+            switch (_context3.prev = _context3.next) {
               case 0:
-                if (_this2.form.nickname) {
-                  _context2.next = 3;
+                if (_this3.form.nickname) {
+                  _context3.next = 3;
                   break;
                 }
                 uni.showToast({
                   title: '请输入昵称',
                   icon: 'none'
                 });
-                return _context2.abrupt("return");
+                return _context3.abrupt("return");
               case 3:
-                _context2.prev = 3;
+                if (!_this3.saving) {
+                  _context3.next = 5;
+                  break;
+                }
+                return _context3.abrupt("return");
+              case 5:
+                _this3.saving = true;
+                _context3.prev = 6;
                 data = {};
-                if (_this2.form.nickname !== _this2.nickname) data.nickname = _this2.form.nickname;
-                if (_this2.form.mobile !== _this2.mobile) data.mobile = _this2.form.mobile;
+                if (_this3.form.nickname !== _this3.nickname) data.nickname = _this3.form.nickname;
+                if (_this3.form.mobile !== _this3.mobile) data.mobile = _this3.form.mobile;
+                // 头像：上传成功且与原始不同时传给后端
+                if (_this3.avatarUrl && _this3.avatarUrl !== _this3.originalAvatar) {
+                  data.avatar = _this3.avatarUrl;
+                }
                 if (!(Object.keys(data).length === 0)) {
-                  _context2.next = 10;
+                  _context3.next = 14;
                   break;
                 }
                 uni.showToast({
                   title: '未修改',
                   icon: 'none'
                 });
-                return _context2.abrupt("return");
-              case 10:
-                _context2.next = 12;
+                return _context3.abrupt("return");
+              case 14:
+                _context3.next = 16;
                 return _api.userApi.update(data);
-              case 12:
+              case 16:
                 uni.showToast({
                   title: '保存成功'
                 });
-                uni.navigateBack();
-                _context2.next = 19;
+                setTimeout(function () {
+                  return uni.navigateBack();
+                }, 800);
+                _context3.next = 23;
                 break;
-              case 16:
-                _context2.prev = 16;
-                _context2.t0 = _context2["catch"](3);
+              case 20:
+                _context3.prev = 20;
+                _context3.t0 = _context3["catch"](6);
                 uni.showToast({
-                  title: _context2.t0,
+                  title: _context3.t0,
                   icon: 'none'
                 });
-              case 19:
+              case 23:
+                _context3.prev = 23;
+                _this3.saving = false;
+                return _context3.finish(23);
+              case 26:
               case "end":
-                return _context2.stop();
+                return _context3.stop();
             }
           }
-        }, _callee2, null, [[3, 16]]);
+        }, _callee3, null, [[6, 20, 23, 26]]);
       }))();
     }
   }

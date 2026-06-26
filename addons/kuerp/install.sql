@@ -6807,6 +6807,7 @@ ALTER TABLE `__PREFIX__kuerp_goods_sales_info` MODIFY COLUMN `purchase_time` big
 ALTER TABLE `__PREFIX__kuerp_goods_sales_info` MODIFY COLUMN `examine_time` bigint(16) NULL DEFAULT NULL AFTER `examine_status`;
 ALTER TABLE `__PREFIX__kuerp_goods_sales_info` MODIFY COLUMN `createtime` bigint(16) NULL DEFAULT NULL AFTER `period`;
 ALTER TABLE `__PREFIX__kuerp_goods_sales_info` MODIFY COLUMN `updatetime` bigint(16) NULL DEFAULT NULL AFTER `createtime`;
+ALTER TABLE `__PREFIX__kuerp_goods_sales_info` ADD COLUMN `out_number` double(15,4) DEFAULT '0.0000' COMMENT '实际出库数量' AFTER `number`;
 ALTER TABLE `__PREFIX__kuerp_goods_sales_order` MODIFY COLUMN `purchase_time` bigint(16) NULL DEFAULT NULL AFTER `purchase_type`;
 ALTER TABLE `__PREFIX__kuerp_goods_sales_order` MODIFY COLUMN `examine_time` bigint(16) NULL DEFAULT NULL AFTER `examine_status`;
 ALTER TABLE `__PREFIX__kuerp_goods_sales_order` MODIFY COLUMN `createtime` bigint(16) NULL DEFAULT NULL AFTER `print_num`;

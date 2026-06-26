@@ -101,10 +101,10 @@ var components
 try {
   components = {
     uSticky: function () {
-      return Promise.all(/*! import() | node-modules/uview-ui/components/u-sticky/u-sticky */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-sticky/u-sticky")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-sticky/u-sticky.vue */ 404))
+      return Promise.all(/*! import() | node-modules/uview-ui/components/u-sticky/u-sticky */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-sticky/u-sticky")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-sticky/u-sticky.vue */ 395))
     },
     uButton: function () {
-      return Promise.all(/*! import() | node-modules/uview-ui/components/u-button/u-button */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-button/u-button")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-button/u-button.vue */ 339))
+      return Promise.all(/*! import() | node-modules/uview-ui/components/u-button/u-button */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-button/u-button")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-button/u-button.vue */ 371))
     },
     uEmpty: function () {
       return Promise.all(/*! import() | node-modules/uview-ui/components/u-empty/u-empty */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-empty/u-empty")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-empty/u-empty.vue */ 299))
@@ -143,9 +143,19 @@ var render = function () {
           var m0 = _vm.formatTime(item.createdtime)
           var m1 = _vm.statusText(item.status)
           var g2 = item.goods && item.goods.length > 0
-          var l0 = g2 ? item.goods.slice(0, 3) : null
+          var l0 = g2
+            ? _vm.__map(item.goods.slice(0, 3), function (oi, idx) {
+                var $orig = _vm.__get_orig(oi)
+                var m2 = oi.goods_image ? _vm.$img(oi.goods_image) : null
+                return {
+                  $orig: $orig,
+                  m2: m2,
+                }
+              })
+            : null
           var g3 = g2 ? item.goods.length : null
           var g4 = g2 && g3 > 3 ? item.goods.length : null
+          var m3 = _vm.formatTime(item.createdtime)
           return {
             $orig: $orig,
             g1: g1,
@@ -155,6 +165,7 @@ var render = function () {
             l0: l0,
             g3: g3,
             g4: g4,
+            m3: m3,
           }
         })
       : null
@@ -321,6 +332,9 @@ var _api = __webpack_require__(/*! ../../api */ 33);
 //
 //
 //
+//
+//
+//
 
 var STATUS_MAP = {
   pending_confirm: {
@@ -353,9 +367,9 @@ var _default = {
       loaded: false,
       loading: false,
       hasMore: true,
-      activeTab: '',
+      activeTab: 'all',
       tabs: [{
-        key: '',
+        key: 'all',
         label: '全部'
       }, {
         key: 'pending_confirm',

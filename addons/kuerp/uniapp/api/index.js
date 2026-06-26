@@ -10,17 +10,44 @@ export const userApi = {
   sendSmsCode: (mobile) => post('/addons/kuerp/api.user/sendSmsCode', { mobile }),
   info: () => get('/addons/kuerp/api.user/info'),
   update: (data) => post('/addons/kuerp/api.user/update', data),
+  
+  updateImage: (filePath) => {
+    return new Promise((resolve, reject) => {
+      uni.uploadFile({
+        url: config.baseUrl + '/api/common/upload',
+        filePath: filePath,
+        name: 'file',
+        header: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Token': uni.getStorageSync('token') || '',
+        },
+        success: (res) => {
+          try {
+            const data = JSON.parse(res.data)
+            if (data.code === 1) {
+              resolve(data.data)
+            } else {
+              reject(data.msg || '上传失败')
+            }
+          } catch (e) {
+            reject('上传失败')
+          }
+        },
+        fail: () => reject('网络异常')
+      })
+    })
+  },
   // 上传头像
   uploadAvatar: (filePath) => {
     return new Promise((resolve, reject) => {
       uni.uploadFile({
-        url: config.baseUrl + '/app/api.common/wx_avatar_upload',
+        url: config.baseUrl + '/api/common/wx_avatar_upload',
         filePath: filePath,
         name: 'file',
         success: (res) => {
           try {
             const data = JSON.parse(res.data)
-            if (data.code === 0) {
+            if (data.code === 1) {
               resolve(data.data)
             } else {
               reject(data.msg || '上传失败')
@@ -49,7 +76,7 @@ export const goodsApi = {
 
 // 购物车
 export const cartApi = {
-  index: () => get('/addons/kuerp/api.cart/index'),
+  index: (params) => get('/addons/kuerp/api.cart/index', params),
   add: (goods_id, quantity, attr_ids, goods_unit) => post('/addons/kuerp/api.cart/add', { goods_id, quantity, attr_ids, goods_unit }),
   edit: (id, quantity) => post('/addons/kuerp/api.cart/edit', { id, quantity }),
   delete: (id) => post('/addons/kuerp/api.cart/delete', { id }),

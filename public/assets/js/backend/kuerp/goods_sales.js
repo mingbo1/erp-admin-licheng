@@ -66,6 +66,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'all_money', title: __('All_money'),templet: function (d) {
                                 return (d.money_tax_price).toFixed(price_decimal);
                             }},
+                        {field: 'delivery_time', title: __('Delivery_time'),templet: function (d) {
+                                return layui.util.toDateString(d.delivery_time*1000,"yyyy-MM-dd");
+                            },width:110},
                         {field: 'real_money', title: __('Real_money'),templet: function (d) {
                                 return (d.real_money).toFixed(price_decimal);
                             }},
@@ -80,14 +83,15 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 }
                             },hide:hideStatus},
                         {field: 'pay_status', title: __('Pay_status'),templet: function (d) {
+                                var dunningStyle = (d.dunning_count > 0) ? ' style="color:red;"' : '';
                                 if(d.pay_status==0){
-                                    return __('Pay_status 0');
+                                    return '<span' + dunningStyle + '>' + __('Pay_status 0') + '</span>';
                                 }
                                 if(d.pay_status==1){
-                                    return __('Pay_status 1');
+                                    return '<span' + dunningStyle + '>' + __('Pay_status 1') + '</span>';
                                 }
                                 if(d.pay_status==2){
-                                    return __('Pay_status 2');
+                                    return '<span' + dunningStyle + '>' + __('Pay_status 2') + '</span>';
                                 }
                             }},
                         {field: 'check_status', title: __('Check_status'),templet: function (d) {
@@ -102,8 +106,17 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 return (d.pay_money).toFixed(price_decimal);
                             }},
                         {field: 'note', title: __('Note')},
-                        {field: 'print_num', title: __('Print_num')},
-                        {fixed: 'right', title:__('Operate'), toolbar: '#barDemo', width:150}
+                        {fixed: 'right', title:__('Operate'), templet: function(d){
+                                var html = '';
+                                // 审核通过且未全部收款才显示催收按钮
+                                if(d.examine_status == 1 && d.pay_status != 1){
+                                    var btnClass = (d.dunning_count > 0) ? 'layui-btn-danger' : 'layui-btn-warm';
+                                    html += '<a class="layui-btn layui-btn-xs ' + btnClass + '" lay-event="dunning">催收</a>';
+                                }
+                                html += '<a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>';
+                                html += '<a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="del">删除</a>';
+                                return html;
+                            }, width:210}
                     ]]
                 });
 
@@ -224,6 +237,14 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 Layer.close(index);
                             }
                         );
+                    } else if(obj.event === 'dunning'){
+                        Fast.api.open("kuerp/goods_sales/dunning/ids/"+data.id, "催收", {
+                            type:2,
+                            area:['500px','300px'],
+                            callback:function(value){
+                                $('.btn-refresh').click();
+                            }
+                        });
                     } else if(obj.event === 'edit'){
                         Fast.api.open("kuerp/goods_sales/edit?ids="+data.id, "编辑",{ area:['90%','75%'],});
                     }
@@ -284,6 +305,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
         edit: function () {
             Controller.api.bindevent(false);
         },
+        dunning: function () {
+            Controller.api.bindevent();
+        },
         api: {
             bindevent: function (reloadStatus=true) {
                 layui.use('laydate', function(){
@@ -336,6 +360,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         range: true
                     });
                 });
+
+                //编辑模式下交货时间不可修改
+                if (!reloadStatus) {
+                    $('#c-delivery_time').attr('readonly', 'true');
+                }
 
                 //选择原始单据
                 $(document).on("click", "#choseEnclosure", function(){

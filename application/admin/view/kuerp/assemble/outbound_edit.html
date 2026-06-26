@@ -1,0 +1,170 @@
+{include file="kuerp/common/menu" /}
+<form id="outbound-form" class="form-horizontal" role="form" data-toggle="validator" method="POST" action="{:url('kuerp/assemble/saveOutbound')}">
+
+    <input type="hidden" id="assemble_id" name="ids" value="{$row.id}">
+
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <b>实际出库/入库</b>
+        </div>
+        <div class="panel-body">
+            <!-- 组装单基本信息 -->
+            <div class="row">
+                <div class="col-xs-12 col-sm-4">
+                    <div class="form-group">
+                        <label class="control-label col-xs-4">{:__('Purchase_code')}:</label>
+                        <div class="col-xs-8">
+                            <p class="form-control-static"><b>{$row.purchase_code}</b></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xs-12 col-sm-4">
+                    <div class="form-group">
+                        <label class="control-label col-xs-4">{:__('Purchase_time')}:</label>
+                        <div class="col-xs-8">
+                            <p class="form-control-static">{$row.purchase_time|date='Y-m-d',###}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xs-12 col-sm-4">
+                    <div class="form-group">
+                        <label class="control-label col-xs-4">出库状态:</label>
+                        <div class="col-xs-8">
+                            <p class="form-control-static">
+                                {if condition="$row.outbound_status==0"}<span style="color:#999">未出库</span>{/if}
+                                {if condition="$row.outbound_status==1"}<span style="color:orange">部分出库</span>{/if}
+                                {if condition="$row.outbound_status==2"}<span style="color:green">全部出库</span>{/if}
+                                &nbsp;|&nbsp;
+                                入库状态:
+                                {if condition="$row.inbound_status==0"}<span style="color:#999">未入库</span>{/if}
+                                {if condition="$row.inbound_status==1"}<span style="color:green">已入库</span>{/if}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr>
+
+            <!-- 子件出库（type=2） -->
+            <div class="row">
+                <div class="col-xs-12">
+                    <div class="form-group">
+                        <label class="control-label" style="font-weight: bold;">子件出库 (实际出库数量)：</label>
+                        {if condition="$row.examine_status==0"}
+                        <span style="color:red;margin-left:10px;">⚠ 请先进行"子件出库审核"后，才可填写实际出库数量</span>
+                        {/if}
+                    </div>
+                </div>
+            </div>
+            <div class="list" style="overflow-x: auto">
+                <table id="out_table" class="table table-bordered">
+                    <tr>
+                        <th>商品编号</th>
+                        <th>商品名称</th>
+                        <th class="goods_attr_sd">属性</th>
+                        <th>单位</th>
+                        <th>仓库</th>
+                        <th>计划数量</th>
+                        <th>已出库数量</th>
+                        <th>本次出库数量</th>
+                        <th class="goods_batch_sd">批次</th>
+                    </tr>
+                    {foreach name="out_items" item="item"}
+                    <tr>
+                        <td>{$item.goods_code}</td>
+                        <td>{$item.goods_name} {$item.attr_name}</td>
+                        <td class="goods_attr_sd">{$item.attr_name}</td>
+                        <td>{$item.unit_name}</td>
+                        <td>{$item.stores_name}</td>
+                        <td>{$item.number|htmlentities}</td>
+                        <td>{$item.out_number|default=0|htmlentities}</td>
+                        <td>
+                            {if condition="$row.examine_status==1"}
+                                {if condition="$item.out_number < $item.number"}
+                                <input type="number" name="out_data[{$item.id}]" class="form-control out_number_ipt number_decimal" value="{$item.number - $item.out_number}" min="0" max="{$item.number - $item.out_number}" step="0.0001" placeholder="实际出库数量">
+                                {else}
+                                <span style="color:green">已全部出库</span>
+                                {/if}
+                            {else}
+                            <span style="color:#999">等待子件出库审核</span>
+                            {/if}
+                        </td>
+                        <td class="goods_batch_sd">{$item.batch}</td>
+                    </tr>
+                    {/foreach}
+                    {if condition="empty($out_items)"}
+                    <tr><td colspan="9" style="text-align:center;color:#999;">暂无子件数据</td></tr>
+                    {/if}
+                </table>
+            </div>
+
+            <hr>
+
+            <!-- 组合件入库（type=1） -->
+            <div class="row">
+                <div class="col-xs-12">
+                    <div class="form-group">
+                        <label class="control-label" style="font-weight: bold;">组合件入库 (实际入库数量)：</label>
+                        {if condition="$row.inbound_status==0"}
+                        <span style="color:red;margin-left:10px;">⚠ 请先进行"组合件入库审核"后，才可填写实际入库数量（操作顺序：先子件出库审核 → 再组合件入库审核）</span>
+                        {/if}
+                    </div>
+                </div>
+            </div>
+            <div class="list" style="overflow-x: auto">
+                <table id="in_table" class="table table-bordered">
+                    <tr>
+                        <th>商品编号</th>
+                        <th>商品名称</th>
+                        <th class="goods_attr_sd">属性</th>
+                        <th>单位</th>
+                        <th>仓库</th>
+                        <th>计划数量</th>
+                        <th>已入库数量</th>
+                        <th>本次入库数量</th>
+                        <th class="goods_batch_sd">批次</th>
+                    </tr>
+                    {foreach name="in_items" item="item"}
+                    <tr>
+                        <td>{$item.goods_code}</td>
+                        <td>{$item.goods_name} {$item.attr_name}</td>
+                        <td class="goods_attr_sd">{$item.attr_name}</td>
+                        <td>{$item.unit_name}</td>
+                        <td>{$item.stores_name}</td>
+                        <td>{$item.number|htmlentities}</td>
+                        <td>{$item.in_number|default=0|htmlentities}</td>
+                        <td>
+                            {if condition="$row.inbound_status==1"}
+                                {if condition="$item.in_number < $item.number"}
+                                <input type="number" name="in_data[{$item.id}]" class="form-control in_number_ipt number_decimal" value="{$item.number - $item.in_number}" min="0" max="{$item.number - $item.in_number}" step="0.0001" placeholder="实际入库数量">
+                                {else}
+                                <span style="color:green">已全部入库</span>
+                                {/if}
+                            {else}
+                            <span style="color:#999">等待组合件入库审核</span>
+                            {/if}
+                        </td>
+                        <td class="goods_batch_sd">{$item.batch}</td>
+                    </tr>
+                    {/foreach}
+                    {if condition="empty($in_items)"}
+                    <tr><td colspan="9" style="text-align:center;color:#999;">暂无组合件数据</td></tr>
+                    {/if}
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="row" style="margin-top: 15px">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-2"></label>
+                <div class="col-xs-12 col-sm-8">
+                    <button type="submit" class="btn btn-success btn-embossed"><i class="fa fa-check"></i> 确认出库/入库</button>
+                    <button type="button" class="btn btn-default btn-embossed" onclick="parent.Layer.closeAll();"><i class="fa fa-close"></i> 取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>

@@ -50,7 +50,6 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'preparation', title: __('制单人'),merge:['purchase_code']},
                         {field: 'examine', title: __('审核人'),merge:['purchase_code'],hide:hideStatus},
                         {field: 'remark', title: __('Remark'),merge:['purchase_code']},
-                        {field: 'print_num', title: __('Print_num'),merge:['purchase_code']},
                         {fixed: 'right', title:__('Operate'), toolbar: '#barDemo', width:150,merge:['purchase_code']}
                     ]],
                     done: function(){

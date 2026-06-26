@@ -346,3 +346,92 @@
         </div>
     </div>
 </form>
+
+<div class="row" style="margin-top:20px;">
+    <div class="col-md-12">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h4 class="panel-title">{:__('发货记录')}</h4>
+            </div>
+            <div class="panel-body">
+                {if !empty($deliveryList)}
+                <table class="table table-bordered table-striped">
+                    <thead>
+                        <tr>
+                            <th>{:__('发货单号')}</th>
+                            <th>{:__('配送方式')}</th>
+                            <th>{:__('快递公司')}</th>
+                            <th>{:__('快递单号')}</th>
+                            <th>{:__('发货时间')}</th>
+                            <th>{:__('Remark')}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {volist name="deliveryList" id="vo"}
+                        <tr>
+                            <td>{$vo.delivery_no}</td>
+                            <td>{$vo.delivery_type == 'logistics' ? '物流配送' : '专业配送'}</td>
+                            <td>
+                                {if $vo.delivery_type == 'logistics'}
+                                    {$vo.express_company}
+                                {else}
+                                    {$vo.carrier_name ?? '-'}
+                                {/if}
+                            </td>
+                            <td>
+                                {if $vo.delivery_type == 'logistics'}
+                                    {$vo.express_no}
+                                {else}
+                                    {$vo.carrier_mobile ?? '-'}
+                                {/if}
+                            </td>
+                            <td>{$vo.shipped_time|date="Y-m-d H:i:s",###}</td>
+                            <td>{$vo.remark ?? '-'}</td>
+                        </tr>
+                    {/volist}
+                    </tbody>
+                </table>
+                {else}
+                <p style="color:#999;">暂无发货记录</p>
+                {/if}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row" style="margin-top:20px;">
+    <div class="col-md-12">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h4 class="panel-title">操作日志</h4>
+            </div>
+            <div class="panel-body">
+                {if !empty($logList)}
+                <table class="table table-bordered table-striped">
+                    <thead>
+                        <tr>
+                            <th style="width:160px; text-align:center;">时间</th>
+                            <th style="width:100px; text-align:center;">操作类型</th>
+                            <th style="text-align:center;">备注</th>
+                            <th style="width:100px; text-align:center;">操作人</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {volist name="logList" id="vo"}
+                        <tr>
+                            <td>{$vo.createtime|date="Y-m-d H:i:s",###}</td>
+                            <td>{$vo.action}</td>
+                            <td>{$vo.note}</td>
+                            <td>{$vo.admin_username ?? '-'}</td>
+                        </tr>
+                    {/volist}
+                    </tbody>
+                </table>
+                {else}
+                <p style="color:#999;">暂无操作日志</p>
+                {/if}
+            </div>
+        </div>
+    </div>
+</div>
+

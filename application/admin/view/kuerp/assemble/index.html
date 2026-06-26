@@ -10,10 +10,14 @@
                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-cyan btn-refresh" lay-event="refresh"><i class="layui-icon">&#xe669;</i> {:__('Refresh')}</button>
                             <button class="layui-btn layui-icon-btn layui-btn-sm {if condition="$auth->check($nowmenu.'/add')!=1"}hiddens{/if}" lay-event="add"><i class="layui-icon">&#xe654;</i> {:__('Add')}</button>
                             <button class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger {if condition="$auth->check($nowmenu.'/del')!=1"}hiddens{/if}" lay-event="delAll"><i class="layui-icon">&#xe640;</i> {:__('Delete')}</button>
+                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-green {if condition="$auth->check($nowmenu.'/printpage')!=1"}hiddens{/if}" lay-event="print"><i class="layui-icon">&#xe60b;</i> {:__('Print')}</button>
+                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-orange {if condition="$auth->check($nowmenu.'/outboundedit')!=1"}hiddens{/if}" lay-event="outboundEdit"><i class="layui-icon">&#xe672;</i> 实际出库/入库</button>
 
                             {if condition="isset($set['examine']['is_checked']) && $set['examine']['is_checked']==1"}
-                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger fright {if condition="$auth->check($nowmenu.'/examine')!=1"}hiddens{/if}" lay-event="examine_f"><i class="layui-icon">&#xe674;</i> 反审核</button>
-                            <button class="layui-btn layui-icon-btn layui-btn-sm fright {if condition="$auth->check($nowmenu.'/examine')!=1"}hiddens{/if}" lay-event="examine"><i class="layui-icon">&#xe674;</i> 审核</button>
+                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger fright {if condition="$auth->check($nowmenu.'/examineinbound')!=1"}hiddens{/if}" lay-event="examineInbound_f"><i class="layui-icon">&#xe6c9;</i> 组合件入库反审核</button>
+                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-btn-normal fright {if condition="$auth->check($nowmenu.'/examineinbound')!=1"}hiddens{/if}" lay-event="examineInbound"><i class="layui-icon">&#xe6c9;</i> 组合件入库审核</button>
+                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger fright {if condition="$auth->check($nowmenu.'/examine')!=1"}hiddens{/if}" lay-event="examine_f"><i class="layui-icon">&#xe674;</i> 子件出库反审核</button>
+                            <button class="layui-btn layui-icon-btn layui-btn-sm fright {if condition="$auth->check($nowmenu.'/examine')!=1"}hiddens{/if}" lay-event="examine"><i class="layui-icon">&#xe674;</i> 子件出库审核</button>
                             {/if}
                         </div>
                     </script>
@@ -31,6 +35,13 @@
                                 <option value="">请选择{:__('Examine_status')}</option>
                                 <option value="0">{:__('Examine_status 0')}</option>
                                 <option value="1">{:__('Examine_status 1')}</option>
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="inbound_status" id="inbound_status" placeholder="{:__('Inbound_status')}" class="layui-input">
+                                <option value="">请选择{:__('Inbound_status')}</option>
+                                <option value="0">{:__('Inbound_status 0')}</option>
+                                <option value="1">{:__('Inbound_status 1')}</option>
                             </select>
                         </div>
                         <div class="layui-input-inline " style="width: 90px">

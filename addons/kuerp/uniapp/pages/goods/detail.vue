@@ -17,29 +17,30 @@
     <view class="info-section">
       <view class="price-row">
         <text class="price-symbol">¥</text>
-        <text class="price-value">{{ formatPrice(goods.show_price) }}</text>
-        <text class="cost-price" v-if="goods.market_sell_price && goods.market_sell_price != goods.show_price">¥{{ goods.market_sell_price }}</text>
+        <text class="price-value">{{ formatPrice(currentPrice) }}</text>
+        <text class="cost-price" v-if="currentSku && currentPrice != goods.show_price">¥{{ formatPrice(goods.show_price) }}</text>
       </view>
       <text class="goods-name">{{ goods.goods_name }}</text>
       <view class="tags-row">
         <u-tag v-if="goods.goods_code" :text="'#' + goods.goods_code" type="info" size="mini" plain />
-        <u-tag v-if="goods.stock != null" :text="'库存: ' + goods.stock" type="warning" size="mini" plain />
+        <u-tag v-if="currentStock != null" :text="'库存: ' + currentStock" :type="sellOut ? 'error' : 'warning'" size="mini" plain />
+        <u-tag v-if="currentSku" :text="currentSku.attr_name" type="primary" size="mini" plain />
       </view>
     </view>
 
-    <!-- 属性选择 -->
-    <view class="section-card" v-if="attrs && attrs.length > 0">
+    <!-- 多规格选择（页面展示） -->
+    <view class="section-card" v-if="attrGroups.length > 0">
       <view class="section-title">选择规格</view>
       <u-divider half-width="20" :hairline="true"></u-divider>
       <view class="attr-group" v-for="(group, gi) in attrGroups" :key="gi">
-        <text class="attr-label">{{ group.name }}</text>
+        <text class="attr-label">{{ group.group_name }}</text>
         <view class="attr-options">
           <text
             v-for="(opt, oi) in group.values"
             :key="oi"
             class="attr-tag"
-            :class="{ selected: selectedAttrs[gi] === oi }"
-            @click="selectAttr(gi, oi)"
+            :class="{ selected: isAuxSelected(opt.id), disabled: isAuxDisabled(group, opt.id) }"
+            @click="selectAux(group, opt)"
           >{{ opt.name }}</text>
         </view>
       </view>
@@ -54,8 +55,8 @@
           v-for="(u, ui) in units"
           :key="ui"
           class="attr-tag"
-          :class="{ selected: selectedUnit === ui }"
-          @click="selectedUnit = ui"
+          :class="{ selected: selectedUnitIndex === ui }"
+          @click="selectedUnitIndex = ui"
         >{{ u.name }}</text>
       </view>
     </view>
@@ -87,70 +88,32 @@
         <u-icon name="chat" size="40" color="#606266" />
         <text class="action-label">客服</text>
       </view>
-      <view class="cart-btn" @click="showSheet = true" v-if="!goods.sell_out">
+      <view class="cart-btn" @click="openSheet('cart')" v-if="canBuy">
         <text>加入订货单</text>
       </view>
-      <view class="buy-btn" @click="buyNow" v-if="!goods.sell_out">
+      <view class="buy-btn" @click="openSheet('buyNow')" v-if="canBuy">
         <text>立即购买</text>
       </view>
-      <view class="sold-out-btn" v-else>
+      <view class="sold-out-btn" v-if="sellOut">
         <text>已售罄</text>
+      </view>
+      <view class="need-spec-btn" v-if="needSelectSpec" @click="openSheet('cart')">
+        <text>请先选择规格</text>
       </view>
     </view>
 
-    <!-- 遮罩 + 底部弹窗 -->
-    <u-popup :show="showSheet" mode="bottom" round="20" @close="closeSheet" :safe-area-inset-bottom="true">
-      <view class="sheet-content">
-        <view class="sheet-goods">
-          <view class="sheet-goods-img">
-            <image v-if="goods.goods_image" :src="$img(goods.goods_image)" mode="aspectFill" style="width:100%;height:100%;border-radius:12rpx;" />
-            <u-icon v-else name="shopping-cart" size="48" color="#c0c4cc" />
-          </view>
-          <view class="sheet-goods-info">
-            <text class="sheet-goods-name">{{ goods.goods_name }}</text>
-            <text class="sheet-goods-price">¥{{ formatPrice(goods.show_price) }}</text>
-            <text class="sheet-stock" v-if="goods.stock != null">库存 {{ goods.stock }}</text>
-          </view>
-        </view>
-
-        <!-- 弹窗内属性 -->
-        <view class="attr-group" v-for="(group, gi) in attrGroups" :key="'s' + gi">
-          <text class="attr-label">{{ group.name }}</text>
-          <view class="attr-options">
-            <text
-              v-for="(opt, oi) in group.values"
-              :key="oi"
-              class="attr-tag"
-              :class="{ selected: selectedAttrs[gi] === oi }"
-              @click="selectAttr(gi, oi)"
-            >{{ opt.name }}</text>
-          </view>
-        </view>
-
-        <!-- 弹窗内单位 -->
-        <view class="attr-group" v-if="units && units.length > 1">
-          <text class="attr-label">单位</text>
-          <view class="attr-options">
-            <text
-              v-for="(u, ui) in units"
-              :key="ui"
-              class="attr-tag"
-              :class="{ selected: selectedUnit === ui }"
-              @click="selectedUnit = ui"
-            >{{ u.name }}</text>
-          </view>
-        </view>
-
-        <u-line />
-        <view class="sheet-qty">
-          <text class="sheet-qty-label">数量</text>
-          <u-number-box v-model="quantity" :min="1" :max="999" :step="1"></u-number-box>
-        </view>
-        <view class="sheet-btn-wrap">
-          <u-button type="primary" shape="circle" :throttle-time="1000" @click="addCart">加入订货单</u-button>
-        </view>
-      </view>
-    </u-popup>
+    <!-- 底部弹窗（多规格组件：加入订货单 + 立即购买） -->
+    <GoodsActionSheet
+      v-model="showSheet"
+      :goods="goods"
+      :attrGroups="attrGroups"
+      :attrs="attrs"
+      :units="units"
+      :showBuyNow="true"
+      @specChange="onSheetSpecChange"
+      @addToCart="onSheetAddToCart"
+      @buyNow="onSheetBuyNow"
+    />
   </view>
 
   <!-- 加载中 -->
@@ -160,25 +123,87 @@
 </template>
 
 <script>
+import GoodsActionSheet from '../../components/GoodsActionSheet.vue'
 import { goodsApi, cartApi } from '../../api'
 import { getToken } from '../../api/request'
 
 export default {
+  components: { GoodsActionSheet },
   data() {
     return {
       goods: null,
       units: [],
-      attrs: [],
+      attrGroups: [],       // 属性组 [{group_id, group_name, values: [{id, name}]}]
+      attrs: [],             // 规格列表 [{id, attr_name, attr_ids, aux_value_ids, show_price, stock, ...}]
+      selectedAuxIds: [],   // 选中的辅助属性值 ID（auxiliary.id）
+      selectedUnitIndex: 0,
       content: '',
       goodsImages: [],
-      quantity: 1,
       goodsId: 0,
       showSheet: false,
-      attrGroups: [],
-      selectedAttrs: [],
-      selectedUnit: 0,
       cartCount: 0,
     }
+  },
+  computed: {
+    // 当前匹配的 SKU（根据选中的 aux_id 列表匹配 attrs）
+    currentSku() {
+      if (this.attrs.length === 0) return null
+      if (this.selectedAuxIds.length === 0) return null
+      const sorted = [...this.selectedAuxIds].sort((a, b) => a - b).join('&')
+      return this.attrs.find(a => {
+        if (!a.aux_value_ids || a.aux_value_ids.length === 0) return false
+        const aSorted = [...a.aux_value_ids].sort((a, b) => a - b).join('&')
+        return aSorted === sorted
+      }) || null
+    },
+    // 当前价格：选中规格取 SKU 价格，未选规格取商品最低价
+    currentPrice() {
+      if (this.currentSku) return this.currentSku.show_price || 0
+      return this.goods ? (this.goods.show_price || 0) : 0
+    },
+    // 当前库存：选中规格取 SKU 库存，未选规格取商品总库存
+    currentStock() {
+      if (this.currentSku) return this.currentSku.stock || 0
+      return this.goods ? (this.goods.stock || 0) : 0
+    },
+    // 选中规格文本
+    selectedSpecText() {
+      const names = []
+      for (const id of this.selectedAuxIds) {
+        for (const group of this.attrGroups) {
+          const val = group.values.find(v => v.id === id)
+          if (val) { names.push(val.name); break }
+        }
+      }
+      return names.length > 0 ? '已选: ' + names.join(' / ') : ''
+    },
+    // 是否已选全所有属性组
+    allGroupsSelected() {
+      if (this.attrGroups.length === 0) return true
+      return this.selectedAuxIds.length >= this.attrGroups.length
+    },
+    // 是否已售罄（当前选中规格库存为 0 或无匹配 SKU）
+    sellOut() {
+      // 无多规格：看商品级库存
+      if (this.attrs.length === 0) {
+        return this.goods ? (this.goods.stock <= 0) : true
+      }
+      // 有多规格且已选全：看当前 SKU 库存
+      if (this.allGroupsSelected && this.currentSku) {
+        return this.currentSku.stock <= 0
+      }
+      // 有多规格未选全：不算售罄
+      return false
+    },
+    // 需要先选择规格
+    needSelectSpec() {
+      return this.attrGroups.length > 0 && !this.allGroupsSelected
+    },
+    // 是否可以购买（已选全且有库存）
+    canBuy() {
+      if (this.needSelectSpec) return false
+      return !this.sellOut
+    },
   },
   onLoad(options) {
     this.goodsId = Number(options.id) || 0
@@ -193,28 +218,67 @@ export default {
         const res = await goodsApi.detail(this.goodsId)
         this.goods = res.goods || res
         this.units = res.units || []
-        this.attrs = res.attrs || []
-        this.content = res.content || (res.goods && res.goods.content) || ''
+        this.content = res.content || ''
         this.goodsImages = res.goods_images || []
 
-        // 解析属性分组
-        if (this.attrs.length > 0) {
-          this.attrGroups = this.attrs.map(a => ({
-            name: a.name || a.attr_name || '',
-            values: (a.values || []).map(v => ({
-              id: v.id || v.value_id || v,
-              name: v.name || v.value_name || v,
-            }))
-          }))
-          this.selectedAttrs = this.attrGroups.map(() => -1)
+        // 新格式多规格
+        if (res.attr_groups && res.attr_groups.length > 0) {
+          this.attrGroups = res.attr_groups
+          this.attrs = res.attrs || []
+          // 默认选中每个属性组的第一个值（有库存的优先）
+          this.autoSelectFirstSpec()
+        } else {
+          this.attrGroups = []
+          this.attrs = []
         }
+
         // 默认选中第一个单位
         if (this.units.length > 0) {
-          this.selectedUnit = 0
+          this.selectedUnitIndex = 0
         }
       } catch (e) {
         uni.showToast({ title: e, icon: 'none' })
       }
+    },
+    // 默认选中第一个有库存的规格
+    autoSelectFirstSpec() {
+      // 找第一个有库存的 SKU
+      const skuWithStock = this.attrs.find(a => (a.stock || 0) > 0)
+      const targetSku = skuWithStock || this.attrs[0]
+      if (targetSku && targetSku.aux_value_ids && targetSku.aux_value_ids.length > 0) {
+        this.selectedAuxIds = [...targetSku.aux_value_ids]
+      } else {
+        // 无 SKU 数据时，每个组选第一个值
+        this.attrGroups.forEach(g => {
+          if (g.values && g.values.length > 0) {
+            this.selectedAuxIds.push(g.values[0].id)
+          }
+        })
+      }
+    },
+    // 页面级规格选择（非弹窗）
+    isAuxSelected(auxId) {
+      return this.selectedAuxIds.includes(auxId)
+    },
+    isAuxDisabled(group, auxId) {
+      if (this.attrs.length === 0) return false
+      const testIds = this.selectedAuxIds.filter(id =>
+        !(group.values || []).some(v => v.id === id)
+      )
+      testIds.push(auxId)
+      const sorted = [...testIds].sort((a, b) => a - b).join('&')
+      return !this.attrs.some(a => {
+        if (!a.aux_value_ids || a.aux_value_ids.length === 0) return false
+        return [...a.aux_value_ids].sort((a, b) => a - b).join('&') === sorted
+      })
+    },
+    selectAux(group, opt) {
+      if (!group || !group.values) return
+      group.values.forEach(v => {
+        const idx = this.selectedAuxIds.indexOf(v.id)
+        if (idx >= 0) this.selectedAuxIds.splice(idx, 1)
+      })
+      this.selectedAuxIds.push(opt.id)
     },
     async loadCartCount() {
       try {
@@ -222,39 +286,8 @@ export default {
         this.cartCount = res.count || 0
       } catch (_) {}
     },
-    selectAttr(gi, oi) {
-      this.selectedAttrs[gi] = this.selectedAttrs[gi] === oi ? -1 : oi
-    },
-    getAttrIds() {
-      const ids = []
-      for (let gi = 0; gi < this.attrGroups.length; gi++) {
-        const oi = this.selectedAttrs[gi]
-        if (oi >= 0 && this.attrGroups[gi].values[oi]) {
-          ids.push(this.attrGroups[gi].values[oi].id)
-        }
-      }
-      return ids.join('&')
-    },
-    getAttrName() {
-      const names = []
-      for (let gi = 0; gi < this.attrGroups.length; gi++) {
-        const oi = this.selectedAttrs[gi]
-        if (oi >= 0 && this.attrGroups[gi].values[oi]) {
-          names.push(this.attrGroups[gi].values[oi].name)
-        }
-      }
-      return names.join('/')
-    },
-    getGoodsUnit() {
-      if (this.units.length > 0 && this.selectedUnit >= 0) {
-        const unit = this.units[this.selectedUnit]
-        return unit.id || 0
-      }
-      return 0
-    },
     goCart() { uni.switchTab({ url: '/pages/cart/cart' }) },
     formatPrice(v) { return Number(v || 0).toFixed(2) },
-    closeSheet() { this.showSheet = false; this.quantity = 1 },
     checkLogin() {
       if (!getToken()) {
         // #ifdef MP-WEIXIN
@@ -268,21 +301,45 @@ export default {
       return true
     },
     handleService() { uni.showToast({ title: '客服电话: 400-xxx-xxxx', icon: 'none' }) },
-    async addCart() {
+    // 打开弹窗
+    openSheet(mode) {
       if (!this.checkLogin()) return
+      if (this.needSelectSpec) {
+        uni.showToast({ title: '请先选择规格', icon: 'none' })
+        return
+      }
+      if (this.sellOut) {
+        uni.showToast({ title: '该规格已售罄', icon: 'none' })
+        return
+      }
+      this.showSheet = true
+    },
+    closeSheet() {
+      this.showSheet = false
+    },
+    // 组件事件：规格变更 → 同步页面展示
+    onSheetSpecChange(e) {
+      this.selectedAuxIds = e.selectedAuxIds || []
+      this.selectedUnitIndex = e.selectedUnitIdx || 0
+    },
+    // 组件事件：加入订货单
+    async onSheetAddToCart(payload) {
       try {
-        await cartApi.add(this.goodsId, this.quantity, this.getAttrIds(), this.getGoodsUnit())
+        await cartApi.add(payload.goods_id, payload.quantity, payload.attr_ids, payload.goods_unit)
         this.closeSheet()
         this.cartCount++
         uni.showToast({ title: '已加入订货单', icon: 'none' })
       } catch (e) { uni.showToast({ title: e, icon: 'none' }) }
     },
-    async buyNow() {
-      if (!this.checkLogin()) return
-      const attrIds = this.getAttrIds()
-      const goodsUnit = this.getGoodsUnit()
+    // 组件事件：立即购买
+    onSheetBuyNow(payload) {
+      this.closeSheet()
       uni.navigateTo({
-        url: '/pages/order/checkout?goods_id=' + this.goodsId + '&quantity=' + this.quantity + '&attr_ids=' + attrIds + '&goods_unit=' + goodsUnit
+        url: '/pages/order/checkout?goods_id=' + payload.goods_id +
+          '&quantity=' + payload.quantity +
+          '&attr_ids=' + encodeURIComponent(payload.attr_ids) +
+          '&goods_unit=' + payload.goods_unit +
+          '&attr_name=' + encodeURIComponent(payload.attr_name)
       })
     },
   },
@@ -314,27 +371,23 @@ export default {
 .rich-content { line-height: 1.8; font-size: 26rpx; color: #303133; overflow: hidden; }
 .rich-content >>> img { max-width: 100%; height: auto; display: block; }
 
-/* 属性 */
+/* 规格属性 */
 .attr-group { margin-bottom: 20rpx; }
 .attr-group:last-child { margin-bottom: 0; }
 .attr-label { font-size: 24rpx; color: #606266; display: block; margin-bottom: 10rpx; }
 .attr-options { display: flex; flex-wrap: wrap; gap: 12rpx; }
 .attr-tag {
-  padding: 10rpx 24rpx;
-  font-size: 24rpx;
-  color: #606266;
-  background: #f5f7fa;
-  border-radius: 8rpx;
-  border: 2rpx solid #f5f7fa;
+  padding: 10rpx 24rpx; font-size: 24rpx; color: #606266;
+  background: #f5f7fa; border-radius: 8rpx; border: 2rpx solid #f5f7fa;
 }
 .attr-tag.selected { color: #4A90D9; background: #ecf5ff; border-color: #4A90D9; }
+.attr-tag.disabled { color: #c0c4cc; background: #f5f5f5; border-color: #f5f5f5; text-decoration: line-through; }
 .unit-options { display: flex; flex-wrap: wrap; gap: 12rpx; }
 
 /* 底部操作栏 */
 .bottom-bar {
-  position: fixed; bottom: 0; left: 0; right: 0;
-  background: #fff; display: flex; align-items: center;
-  padding: 0 24rpx; height: 100rpx;
+  position: fixed; bottom: 0; left: 0; right: 0; background: #fff;
+  display: flex; align-items: center; padding: 0 24rpx; height: 100rpx;
   border-top: 1rpx solid #f2f2f2; z-index: 10;
 }
 .action-btn {
@@ -349,28 +402,13 @@ export default {
   border-radius: 14rpx; text-align: center; line-height: 28rpx;
 }
 
-.cart-btn, .buy-btn, .sold-out-btn {
+.cart-btn, .buy-btn, .sold-out-btn, .need-spec-btn {
   flex: 1; height: 76rpx; line-height: 76rpx;
   text-align: center; font-size: 28rpx; font-weight: 500; color: #fff;
 }
 .cart-btn { background: #f5a623; border-radius: 38rpx 0 0 38rpx; margin-left: 20rpx; }
 .buy-btn { background: #4A90D9; border-radius: 0 38rpx 38rpx 0; }
 .sold-out-btn { background: #c0c4cc; border-radius: 38rpx; margin-left: 20rpx; }
+.need-spec-btn { background: #909399; border-radius: 38rpx; margin-left: 20rpx; }
 
-/* 弹窗内容 */
-.sheet-content { padding: 24rpx 32rpx 48rpx; }
-.sheet-goods { display: flex; align-items: center; margin-bottom: 24rpx; }
-.sheet-goods-img {
-  width: 140rpx; height: 140rpx;
-  background: #f5f7fa; border-radius: 12rpx;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; margin-right: 20rpx; overflow: hidden;
-}
-.sheet-goods-info { flex: 1; }
-.sheet-goods-name { font-size: 28rpx; color: #303133; font-weight: 500; display: block; }
-.sheet-goods-price { font-size: 36rpx; color: #f56c6c; font-weight: 700; margin-top: 8rpx; display: block; }
-.sheet-stock { font-size: 22rpx; color: #909399; margin-top: 6rpx; display: block; }
-.sheet-qty { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 0; }
-.sheet-qty-label { font-size: 28rpx; color: #303133; font-weight: 500; }
-.sheet-btn-wrap { margin: 10rpx 0; }
 </style>

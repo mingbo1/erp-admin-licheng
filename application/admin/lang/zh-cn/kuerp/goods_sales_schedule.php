@@ -8,6 +8,8 @@ return [
     'Purchase_time'      => '单据日期',
     'Customers_id'       => '客户',
     'Sale_user'          => '销售员',
+
+    'Delivery_time'      => '交货时间',
     'Receiving_address'  => '收货地址',
     'Goods_code'         => '商品编号',
     'Goods_note'         => '商品备注',
