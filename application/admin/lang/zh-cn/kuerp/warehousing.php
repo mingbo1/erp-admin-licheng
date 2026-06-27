@@ -52,7 +52,7 @@ return [
     'Unit_price'                     => '入库单价',
     'All_money'                      => '入库金额',
     'Remark'                         => '备注',
-    'Print_page'                     => '打印入库单',
+    'Print_page'                     => '打印',
     'Goods_name'                     => '商品名称',
     'Stores_name'                    => '仓库名称',
     'Unit_name'                      => '单位',

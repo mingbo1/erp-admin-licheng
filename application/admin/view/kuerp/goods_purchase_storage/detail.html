@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>{:__('Storage_detail')} - {$row.purchase_code|htmlentities}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: "Microsoft YaHei", "SimSun", Arial, sans-serif; font-size: 14px; color: #333; padding: 20px; }
+        .detail-wrap { max-width: 900px; margin: 0 auto; }
+        .detail-title { text-align: center; font-size: 22px; font-weight: bold; margin-bottom: 20px; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; margin-bottom: 15px; }
+        .info-grid .item { padding: 4px 0; }
+        .goods-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        .goods-table th, .goods-table td { padding: 6px 8px; border: 1px solid #666; text-align: center; }
+        .goods-table th { background: #f0f0f0; font-weight: bold; }
+        .goods-table td.right { text-align: right; }
+        .footer-info { margin-top: 20px; }
+        .footer-info span { display: inline-block; margin-right: 30px; }
+        .close-btn { text-align: center; margin-top: 30px; }
+        .close-btn button { padding: 8px 30px; font-size: 14px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="detail-wrap">
+    <div class="detail-title">{:__('Storage_detail')}</div>
+
+    <div class="info-grid">
+        <div class="item"><strong>{:__('Purchase_code')}：</strong>{$row.purchase_code|htmlentities}</div>
+        <div class="item"><strong>{:__('Purchase_time')}：</strong>{$row.purchase_time|date='Y-m-d',###}</div>
+        <div class="item"><strong>{:__('Supplyer_code')}：</strong>{$row.supplyer_code|htmlentities} {$row.supplyer_name|htmlentities}</div>
+        <div class="item"><strong>{:__('Examine_status')}：</strong>{if condition="$row.examine_status==1"}已审核{else/}未审核{/if}</div>
+        <div class="item"><strong>{:__('Preparation_name')}：</strong>{$row.preparation_name|htmlentities}</div>
+        <div class="item"><strong>{:__('Examine_name')}：</strong>{$row.examine_name|htmlentities}</div>
+        <div class="item"><strong>{:__('Check_status')}：</strong>{if condition="$row.check_status==1"}已对单{else/}未对单{/if}</div>
+        <div class="item"><strong>{:__('Purchase_order_id')}：</strong>{$row.purchase_order_id|htmlentities}</div>
+    </div>
+
+    <table class="goods-table">
+        <thead>
+            <tr>
+                <th>序号</th>
+                <th>{:__('Goods_code')}</th>
+                <th>{:__('Goods_name')}</th>
+                <th>{:__('Goods_note')}</th>
+                <th>{:__('Unit_name')}</th>
+                <th>{:__('Stores_name')}</th>
+
+                <th>库位</th>
+                <th>数量</th>
+                <th>已入库</th>
+                <th>待入库</th>
+                <th>{:__('Remark')}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {php}$total_order = 0;$total_stored = 0;$total_remain = 0;{/php}
+            {foreach name="purchase_info" item="info" key="k"}
+            {php}
+                $orderNum  = isset($info['order_number']) ? (float)$info['order_number'] : (float)$info['number'];
+                $storedNum = isset($info['storage_number']) ? (float)$info['storage_number'] : 0;
+                $remainNum = $orderNum - $storedNum;
+                $total_order  += $orderNum;
+                $total_stored += $storedNum;
+                $total_remain += $remainNum;
+            {/php}
+            <tr>
+                <td>{$k+1}</td>
+                <td>{$info.goods_code|htmlentities}</td>
+                <td>{$info.goods_name|htmlentities}</td>
+                <td>{$info.goods_note|htmlentities}</td>
+                <td>{$info.unit_name|htmlentities}</td>
+                <td>{$info.stores_name|htmlentities}</td>
+
+                <td>{if condition="!empty($info['location_name'])"}{$info.location_name|htmlentities}{else/}-{/if}</td>
+                <td class="right">{$orderNum}</td>
+
+                <td class="right">{if condition="$storedNum > 0"}<span style="color:#5fb878;">{$storedNum}</span>{else/}0{/if}</td>
+                <td class="right">{if condition="$remainNum > 0"}<span style="color:#ff5722;">{$remainNum}</span>{else/}0{/if}</td>
+                <td>{$info.remark|htmlentities}</td>
+            </tr>
+            {/foreach}
+            {if condition="empty($purchase_info)"}
+            <tr><td colspan="11">无明细数据</td></tr>
+            {/if}
+        </tbody>
+        <tfoot>
+            <tr>
+                <th colspan="7">合计</th>
+                <th class="right">{$total_order}</th>
+                <th class="right">{$total_stored}</th>
+                <th class="right">{$total_remain}</th>
+                <th></th>
+            </tr>
+        </tfoot>
+    </table>
+
+    {if condition="!empty($row['note'])"}
+    <div class="footer-info">
+        <strong>{:__('Note')}：</strong>{$row.note|htmlentities}
+    </div>
+    {/if}
+</div>
+
+<div class="close-btn">
+    <button onclick="parent.Fast.api.close()">关闭</button>
+</div>
+
+</body>
+</html>

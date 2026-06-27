@@ -2517,6 +2517,51 @@ class Goods extends Backend
                 $location = Db::name('kuerp_goods_location')->where(['id'=>$list_v['location_id']])->field('id,location_name as name')->find();
                 $list[$list_k]['goods_location'] = $location;
             }
+
+            // 批量查询物理库存和锁定数量（仅对基础商品，不包括属性变体）
+            $goodsIds = [];
+            foreach ($list as $list_v) {
+                if (!empty($list_v['id']) && empty($list_v['goods_attr'])) {
+                    $goodsIds[] = (int)$list_v['id'];
+                }
+            }
+            $stockMap = [];  // goods_id => physical_stock
+            $lockMap = [];   // goods_id => effective_locked
+            if (!empty($goodsIds)) {
+                $goodsIds = array_unique($goodsIds);
+                $stockData = Db::name('kuerp_goods_stock')
+                    ->where(['goods_id' => ['in', $goodsIds]])
+                    ->field('goods_id, SUM(stock) as total_stock')
+                    ->group('goods_id')
+                    ->select();
+                foreach ($stockData as $sd) {
+                    $stockMap[$sd['goods_id']] = (float)$sd['total_stock'];
+                }
+                $lockData = Db::name('kuerp_goods_lock')
+                    ->where(['goods_id' => ['in', $goodsIds], 'status' => '1'])
+                    ->field('goods_id, SUM(lock_quantity) as total_lock, SUM(used_quantity) as total_used')
+                    ->group('goods_id')
+                    ->select();
+                foreach ($lockData as $ld) {
+                    $lockMap[$ld['goods_id']] = (float)$ld['total_lock'] - (float)$ld['total_used'];
+                }
+            }
+
+            // 给每行补充锁定和可用库存字段（仅基础商品，属性变体跳过）
+            foreach ($list as $list_k => $list_v) {
+                $isVariant = !empty($list_v['goods_attr']); // 属性变体
+                if ($isVariant) {
+                    $list[$list_k]['locked_quantity'] = '';
+                    $list[$list_k]['available_stock'] = '';
+                } else {
+                    $gid = (int)$list_v['id'];
+                    $physical = isset($stockMap[$gid]) ? $stockMap[$gid] : 0;
+                    $locked   = isset($lockMap[$gid]) ? $lockMap[$gid] : 0;
+                    $list[$list_k]['stock'] = $physical;
+                    $list[$list_k]['locked_quantity'] = round($locked, 2);
+                    $list[$list_k]['available_stock'] = round($physical - $locked, 2);
+                }
+            }
             $result = array("total" => $total, "rows" => $list);
 
             return json($result);

@@ -14,7 +14,7 @@ use think\Session;
  */
 class GoodsSalesSchedule extends Backend
 {
-    protected $noNeedRight = ['getunit','formatinfo','getbranch','gettime','printpage','getschedulegoods','counter','examine'];
+    protected $noNeedRight = ['getunit','formatinfo','getbranch','gettime','printpage','getschedulegoods','counter','examine','getbomrequirement','lockgoods','unlockgoods','getlockstatus'];
     /**
      * GoodsSalesSchedule模型对象
      * @var \app\admin\model\kuerp\GoodsSalesSchedule
@@ -916,5 +916,383 @@ class GoodsSalesSchedule extends Backend
                 return ['status' => 0, 'msg' => '反审核失败'];
             }
         }
+    }
+
+    /**
+     * 获取BOM零件需求计算（销货排期编辑页BOM联动）
+     * 根据排期中的所有商品，通过BOM模板计算所需子商品零件数量，
+     * 并显示当前零件库存和差值
+     */
+    public function getBomRequirement($schedule_id = null)
+    {
+        if (empty($schedule_id)) {
+            $schedule_id = $this->request->param('schedule_id');
+        }
+        if (empty($schedule_id)) {
+            return json(['code' => 0, 'msg' => '参数错误']);
+        }
+
+        $numberDecimal = 2;
+        $setData = Db::name('kuerp_sets')->where(['name' => 'number_decimal'])->value('value');
+        if ($setData) {
+            $numberDecimal = (int)$setData;
+        }
+
+        // 优先使用前端传入的实时商品数据（编辑页未保存的数据）
+        $goodsData = $this->request->post('goods_data/a');
+
+        if (!empty($goodsData)) {
+            // 使用前端实时数据
+            $infoList = [];
+            foreach ($goodsData as $gd) {
+                if (!empty($gd['goods_code']) && (float)$gd['basic_nmber'] > 0) {
+                    $infoList[] = [
+                        'goods_code' => $gd['goods_code'],
+                        'number' => (float)$gd['number'],
+                        'stores_id' => (int)$gd['stores_id'],
+                        'default_unit' => (float)$gd['default_unit'],
+                        'basic_nmber' => (float)$gd['basic_nmber'],
+                    ];
+                }
+            }
+        } else {
+            // 从数据库读取
+            $row = $this->model->where(['id' => $schedule_id])->find();
+            if (!$row) {
+                return json(['code' => 0, 'msg' => '排期不存在']);
+            }
+            $infoList = Db::name('kuerp_goods_sales_info')
+                ->where(['purchase_code' => $row['purchase_code']])
+                ->select();
+        }
+
+        if (empty($infoList)) {
+            return json(['code' => 0, 'msg' => '排期无商品数据']);
+        }
+
+        // 获取排期的销售订单号（用于查询锁定状态）
+        $scheduleRow = $this->model->where(['id' => $schedule_id])->find();
+        $salesOrderId = $scheduleRow ? ($scheduleRow['purchase_order_id'] ?: '') : '';
+
+        // 查询该销售订单下所有锁定记录
+        $lockMap = []; // "goods_id-stores_id" => {lock_quantity, used_quantity, status}
+        if (!empty($salesOrderId)) {
+            $lockList = Db::name('kuerp_goods_lock')
+                ->where(['sales_order_id' => $salesOrderId, 'status' => '1'])
+                ->select();
+            foreach ($lockList as $lk) {
+                $key = $lk['goods_id'] . '-' . $lk['stores_id'];
+                $lockMap[$key] = [
+                    'id'            => $lk['id'],
+                    'lock_quantity' => (float)$lk['lock_quantity'],
+                    'used_quantity' => (float)$lk['used_quantity'],
+                    'status'        => $lk['status'],
+                ];
+            }
+        }
+
+        // 汇总每个零件：goods_id => ['required' => 累计需求, 'stores' => [store=>需求], 'info' => 商品信息]
+        $partMap = [];
+
+        foreach ($infoList as $info) {
+            $goodsCode = $info['goods_code'];
+            $scheduleQty = (float)$info['number'];
+            $storesId = (int)$info['stores_id'];
+            $defaultUnit = (float)$info['default_unit'];      // 换算率(基本单位)
+            $basicNmber = (float)$info['basic_nmber'];         // 基本单位数量
+
+            // 找到该商品对应的goods_id
+            $goodsId = Db::name('kuerp_goods')->where(['goods_code' => $goodsCode])->value('id');
+            if (!$goodsId) continue;
+
+            // 查找该商品的BOM模板
+            $bomList = Db::name('kuerp_goods_bom')->where(['goods_id' => $goodsId])->select();
+            if (empty($bomList)) continue;
+
+            foreach ($bomList as $bom) {
+                // 获取BOM子商品（type=2），且只取零件类型
+                $children = Db::name('kuerp_goods_bom_info')->alias('a')
+                    ->join('kuerp_goods g', 'g.id=a.goods_id')
+                    ->where([
+                        'a.bom_id' => $bom['id'],
+                        'a.type' => '2',
+                        'g.product_type' => 'part',
+                    ])
+                    ->field('a.goods_id, a.goods_code, a.number as bom_number, g.goods_name, g.unit_id')
+                    ->select();
+
+                foreach ($children as $child) {
+                    $childGoodsId = $child['goods_id'];
+                    // BOM中的子商品数量是"1个父商品需要多少子商品"
+                    // 排期中的数量是父商品的排期数量
+                    // 需求 = BOM子商品数量 × 排期数量(基本单位)
+                    $childBomQty = (float)$child['bom_number'];
+                    $requiredQty = $childBomQty * $basicNmber;
+
+                    if (!isset($partMap[$childGoodsId])) {
+                        $partMap[$childGoodsId] = [
+                            'goods_id' => $childGoodsId,
+                            'goods_code' => $child['goods_code'],
+                            'goods_name' => $child['goods_name'],
+                            'unit_id' => $child['unit_id'],
+                            'required_total' => 0,
+                            'stores' => [],
+                        ];
+                    }
+                    $partMap[$childGoodsId]['required_total'] += $requiredQty;
+
+                    // 按仓库累计需求
+                    $storeKey = (string)$storesId;
+                    if (!isset($partMap[$childGoodsId]['stores'][$storeKey])) {
+                        $partMap[$childGoodsId]['stores'][$storeKey] = 0;
+                    }
+                    $partMap[$childGoodsId]['stores'][$storeKey] += $requiredQty;
+                }
+            }
+        }
+
+        if (empty($partMap)) {
+            return json(['code' => 0, 'msg' => '未找到BOM零件数据']);
+        }
+
+        // 查询每个零件的当前库存（按仓库汇总）
+        $partGoodsIds = array_keys($partMap);
+        $stockData = Db::name('kuerp_goods_stock')
+            ->where(['goods_id' => ['in', $partGoodsIds]])
+            ->field('goods_id, stores_id, stock')
+            ->select();
+
+        // 仓库名称映射
+        $storeIds = [];
+        foreach ($stockData as $sd) {
+            $storeIds[] = $sd['stores_id'];
+        }
+        $storeNames = [];
+        if (!empty($storeIds)) {
+            $storeNames = Db::name('kuerp_stores')
+                ->where(['id' => ['in', array_unique($storeIds)]])
+                ->column('name', 'id');
+        }
+
+        // 组装每个零件的仓库库存
+        $goodsStockMap = []; // goods_id => [stores_id => stock]
+        foreach ($stockData as $sd) {
+            $gid = $sd['goods_id'];
+            $sid = $sd['stores_id'];
+            if (!isset($goodsStockMap[$gid])) {
+                $goodsStockMap[$gid] = [];
+            }
+            $goodsStockMap[$gid][$sid] = (float)$sd['stock'];
+        }
+
+        // 构建返回数据
+        $result = [];
+        foreach ($partMap as $goodsId => $part) {
+            // 计算总库存
+            $totalStock = 0;
+            $stockDetails = []; // 按仓库明细: [{stores_name, stock, required, diff}]
+
+            // 该零件所有有库存的仓库
+            $allStores = [];
+            if (isset($goodsStockMap[$goodsId])) {
+                foreach ($goodsStockMap[$goodsId] as $sid => $stk) {
+                    $allStores[$sid] = $stk;
+                }
+            }
+
+            // 需求按仓库
+            $reqByStore = $part['stores'];
+
+            // 合并所有仓库（有库存或有需求的）
+            $allStoreIds = array_unique(array_merge(array_keys($allStores), array_keys($reqByStore)));
+
+            foreach ($allStoreIds as $sid) {
+                $stk = isset($allStores[$sid]) ? $allStores[$sid] : 0;
+                $req = isset($reqByStore[$sid]) ? $reqByStore[$sid] : 0;
+                $diff = $stk - $req;
+                $totalStock += $stk;
+                $stockDetails[] = [
+                    'stores_id' => (int)$sid,
+                    'stores_name' => isset($storeNames[$sid]) ? $storeNames[$sid] : '仓库'.$sid,
+                    'stock' => round($stk, $numberDecimal),
+                    'required' => round($req, $numberDecimal),
+                    'diff' => round($diff, $numberDecimal),
+                ];
+            }
+
+            $totalDiff = $totalStock - $part['required_total'];
+
+            // 查询该零件在各仓库的锁定信息
+            $lockInfo = []; // stores_id => {locked, used, remaining}
+            if (!empty($salesOrderId)) {
+                foreach ($allStoreIds as $sid) {
+                    $key = $goodsId . '-' . $sid;
+                    if (isset($lockMap[$key])) {
+                        $lk = $lockMap[$key];
+                        $lockInfo[(int)$sid] = [
+                            'lock_quantity' => round($lk['lock_quantity'], $numberDecimal),
+                            'used_quantity' => round($lk['used_quantity'], $numberDecimal),
+                            'remaining'     => round($lk['lock_quantity'] - $lk['used_quantity'], $numberDecimal),
+                        ];
+                    }
+                }
+            }
+            $hasLock = !empty($lockInfo);
+
+            $result[] = [
+                'goods_id'      => $goodsId,
+                'goods_code'    => $part['goods_code'],
+                'goods_name'    => $part['goods_name'],
+                'required_total'=> round($part['required_total'], $numberDecimal),
+                'total_stock'   => round($totalStock, $numberDecimal),
+                'total_diff'    => round($totalDiff, $numberDecimal),
+                'stock_details' => $stockDetails,
+                'lock_info'     => $lockInfo,
+                'has_lock'      => $hasLock,
+                'sales_order_id'=> $salesOrderId,
+            ];
+        }
+
+        // 按差值排序（差值小的在前，即最缺货的在前）
+        usort($result, function ($a, $b) {
+            return $a['total_diff'] <=> $b['total_diff'];
+        });
+
+        return json([
+            'code' => 1,
+            'msg' => $result,
+        ]);
+    }
+
+    /**
+     * 锁定零件库存
+     * POST: schedule_id, goods_code, goods_id, stores_id, lock_quantity
+     */
+    public function lockGoods()
+    {
+        $scheduleId   = $this->request->post('schedule_id');
+        $goodsCode    = $this->request->post('goods_code');
+        $goodsId      = $this->request->post('goods_id');
+        $storesId     = $this->request->post('stores_id');
+        $lockQuantity = (float)$this->request->post('lock_quantity');
+
+        if (empty($scheduleId) || empty($goodsCode) || empty($goodsId) || empty($storesId) || $lockQuantity <= 0) {
+            return json(['code' => 0, 'msg' => '参数错误']);
+        }
+
+        // 获取销售订单号
+        $schedule = $this->model->where(['id' => $scheduleId])->find();
+        if (empty($schedule) || empty($schedule['purchase_order_id'])) {
+            return json(['code' => 0, 'msg' => '排期未关联销售订单']);
+        }
+        $salesOrderId = $schedule['purchase_order_id'];
+
+        // 校验：锁定数量 ≤ 物理库存 - 其他订单已锁定
+        $available = \addons\kuerp\library\Goods::getAvailableStock($goodsId, $storesId, 0, $salesOrderId);
+        if ($lockQuantity > $available) {
+            return json(['code' => 0, 'msg' => "锁定数量({$lockQuantity})超过可用库存({$available})"]);
+        }
+
+        $admin = Session::get('admin');
+        $now = time();
+
+        // 检查是否已有该商品+仓库的锁定（覆盖更新）
+        $existLock = Db::name('kuerp_goods_lock')
+            ->where([
+                'sales_order_id' => $salesOrderId,
+                'goods_id'       => $goodsId,
+                'stores_id'      => $storesId,
+            ])
+            ->find();
+
+        if ($existLock) {
+            // 覆盖更新
+            Db::name('kuerp_goods_lock')->where(['id' => $existLock['id']])->update([
+                'lock_quantity' => $lockQuantity,
+                'used_quantity' => 0,
+                'status'        => '1',
+                'admin_id'      => $admin['id'],
+                'updatetime'    => $now,
+            ]);
+        } else {
+            // 新增
+            Db::name('kuerp_goods_lock')->insert([
+                'admin_id'        => $admin['id'],
+                'sales_order_id'  => $salesOrderId,
+                'goods_id'        => $goodsId,
+                'goods_code'      => $goodsCode,
+                'attribute_id'    => 0,
+                'stores_id'       => $storesId,
+                'lock_quantity'   => $lockQuantity,
+                'used_quantity'   => 0,
+                'status'          => '1',
+                'createtime'      => $now,
+                'updatetime'      => $now,
+            ]);
+        }
+
+        return json(['code' => 1, 'msg' => '锁定成功']);
+    }
+
+    /**
+     * 解锁零件库存
+     * POST: schedule_id, goods_code, goods_id, stores_id
+     */
+    public function unlockGoods()
+    {
+        $scheduleId = $this->request->post('schedule_id');
+        $goodsCode  = $this->request->post('goods_code');
+        $goodsId    = $this->request->post('goods_id');
+        $storesId   = $this->request->post('stores_id');
+
+        if (empty($scheduleId) || empty($goodsId) || empty($storesId)) {
+            return json(['code' => 0, 'msg' => '参数错误']);
+        }
+
+        $schedule = $this->model->where(['id' => $scheduleId])->find();
+        if (empty($schedule) || empty($schedule['purchase_order_id'])) {
+            return json(['code' => 0, 'msg' => '排期未关联销售订单']);
+        }
+        $salesOrderId = $schedule['purchase_order_id'];
+
+        $result = Db::name('kuerp_goods_lock')
+            ->where([
+                'sales_order_id' => $salesOrderId,
+                'goods_id'       => $goodsId,
+                'stores_id'      => $storesId,
+            ])
+            ->update([
+                'status'     => '0',
+                'updatetime' => time(),
+            ]);
+
+        if ($result !== false) {
+            return json(['code' => 1, 'msg' => '解锁成功']);
+        }
+        return json(['code' => 0, 'msg' => '解锁失败']);
+    }
+
+    /**
+     * 查询锁定状态
+     * POST: schedule_id
+     */
+    public function getLockStatus()
+    {
+        $scheduleId = $this->request->post('schedule_id');
+        if (empty($scheduleId)) {
+            return json(['code' => 0, 'msg' => '参数错误']);
+        }
+
+        $schedule = $this->model->where(['id' => $scheduleId])->find();
+        if (empty($schedule) || empty($schedule['purchase_order_id'])) {
+            return json(['code' => 1, 'msg' => []]);
+        }
+        $salesOrderId = $schedule['purchase_order_id'];
+
+        $locks = Db::name('kuerp_goods_lock')
+            ->where(['sales_order_id' => $salesOrderId, 'status' => '1'])
+            ->select();
+
+        return json(['code' => 1, 'msg' => $locks]);
     }
 }

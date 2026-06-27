@@ -492,6 +492,17 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                                 }
                             }},
                         {field: 'stock', title: __('库存数量')},
+                        {field: 'locked_quantity', title: __('已锁定'), templet: function (d) {
+                                if (d.locked_quantity === '' || d.locked_quantity === null || parseFloat(d.locked_quantity) <= 0) {
+                                    return '<span class="text-gray">0</span>';
+                                }
+                                return '<span class="text-warning">' + d.locked_quantity + '</span>';
+                            }},
+                        {field: 'available_stock', title: __('可用库存'), templet: function (d) {
+                                if (d.available_stock === '' || d.available_stock === null) return '';
+                                var cls = parseFloat(d.available_stock) <= 0 ? 'text-danger' : 'text-success';
+                                return '<span class="' + cls + '">' + d.available_stock + '</span>';
+                            }},
                         {field: 'number', title: __('录入数量'),edit:'text',templet: function (d) {
                                 return '';
                             }},

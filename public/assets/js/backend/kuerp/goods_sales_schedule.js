@@ -1117,15 +1117,384 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     return strs;
                 }
 
-                // 「生成采购单」按钮 — 弹出采购计划添加页
-                $(document).on("click", ".generate-purchase", function(){
+                // 「生成采购订单」按钮 — 弹出购货订单添加页，带BOM零件预填
+                $(document).on("click", ".generate-purchase-order", function(){
                     var schedule_id = $(this).data('id');
-                    parent.Fast.api.open("kuerp/goods_purchase_plan/add?schedule_id="+schedule_id, "采购计划",{ area:['90%','75%'],});
+                    parent.Fast.api.open("kuerp/goods_purchase_order/add?schedule_id="+schedule_id, "购货订单",{ area:['95%','80%'],});
                 });
-                // 「生成销货单」按钮 — 弹出销货单添加页
-                $(document).on("click", ".generate-sales", function(){
-                    var schedule_id = $(this).data('id');
-                    parent.Fast.api.open("kuerp/goods_sales/add?schedule_id="+schedule_id, "销货单",{ area:['90%','75%'],});
+
+                // 「生成组装单」按钮 — 弹出组装单添加页，将该行商品作为组合件、BOM零件作为子件
+                $(document).on("click", ".generate-assemble", function(){
+                    var scheduleId = $(this).data('schedule-id');
+                    var goodsCode = $(this).data('goods-code');
+                    parent.Fast.api.open("kuerp/assemble/add?schedule_id="+scheduleId+"&goods_code="+goodsCode, "生成组装单",{ area:['90%','75%'],});
+                });
+
+                // ============ BOM零件需求计算 ============
+                // 从URL获取排期ID
+                var scheduleId = null;
+                (function(){
+                    var url = window.location.href;
+                    var match = url.match(/[?&]ids=(\d+)/);
+                    if (match) {
+                        scheduleId = match[1];
+                    }
+                })();
+
+                // 加载BOM需求数据
+                function loadBomRequirement() {
+                    if (!scheduleId) return;
+                    var $tbody = $('#bom_tbody');
+                    $tbody.html('<tr><td colspan="7" class="text-center text-muted">计算中...</td></tr>');
+
+                    // 收集当前页面的商品数据
+                    var goodsData = [];
+                    $('#purchase_table tr').each(function(){
+                        var $row = $(this);
+                        var goodsCode = $row.find('.goods_code').val();
+                        if (goodsCode) {
+                            var number = parseFloat($row.find('.number').val()) || 0;
+                            var defaultUnit = parseFloat($row.find('.default_unit_id').val()) || 0;
+                            var basicNmber = parseFloat($row.find('.basic_nmber').val()) || 0;
+                            var storesId = $row.find('.stores_id').val() || 0;
+                            goodsData.push({
+                                goods_code: goodsCode,
+                                number: number,
+                                default_unit: defaultUnit,
+                                basic_nmber: basicNmber,
+                                stores_id: storesId
+                            });
+                        }
+                    });
+
+                    $.ajax({
+                        url: "kuerp/goods_sales_schedule/getBomRequirement",
+                        type: "POST",
+                        data: {
+                            schedule_id: scheduleId,
+                            goods_data: goodsData
+                        },
+                        success: function(res){
+                            if (res.code === 1 && res.msg && res.msg.length > 0) {
+                                renderBomTable(res.msg);
+                            } else {
+                                $tbody.html('<tr><td colspan="7" class="text-center text-muted">' + (res.msg || '未找到BOM零件数据') + '</td></tr>');
+                            }
+                        },
+                        error: function(){
+                            $tbody.html('<tr><td colspan="7" class="text-center text-danger">加载失败，请重试</td></tr>');
+                        }
+                    });
+                }
+
+                // 渲染BOM表格
+                function renderBomTable(data) {
+                    var $tbody = $('#bom_tbody');
+                    var html = '';
+                    var scheduleIdForLock = scheduleId;
+                    $(data).each(function(k, v){
+                        var diffClass = v.total_diff >= 0 ? 'text-success' : 'text-danger';
+                        var diffIcon = v.total_diff >= 0 ? '✓' : '✗';
+
+                        // 构建仓库明细文本
+                        var storeLines = [];
+                        $(v.stock_details).each(function(i, sd){
+                            var sdiffClass = sd.diff >= 0 ? 'text-success' : 'text-danger';
+                            storeLines.push(
+                                '<span style="white-space:nowrap;">' +
+                                sd.stores_name + ': 库存=' + sd.stock +
+                                ' / 需求=' + sd.required +
+                                ' / <span class="' + sdiffClass + '">差值=' + sd.diff + '</span>' +
+                                '</span>'
+                            );
+                        });
+                        var storeDetail = storeLines.join('<br>');
+
+                        // 锁定状态
+                        var lockHtml = '';
+                        // 构建仓库选项（用于锁定弹窗）
+                        var storesJson = [];
+                        $(v.stock_details).each(function(i, sd){
+                            storesJson.push({id: sd.stores_id, name: sd.stores_name, stock: sd.stock});
+                        });
+                        var storesJsonStr = JSON.stringify(storesJson).replace(/'/g, "&#39;").replace(/"/g, '&quot;');
+
+                        if (v.has_lock && v.lock_info) {
+                            // 显示解锁按钮 + 锁定信息（按仓库）
+                            var lockInfoHtml = [];
+                            $.each(v.lock_info, function(sid, li){
+                                // 查找仓库名
+                                var sname = '仓库' + sid;
+                                $.each(storesJson, function(i, sj){ if (sj.id == sid) { sname = sj.name; } });
+                                lockInfoHtml.push(
+                                    '<span style="white-space:nowrap;color:#1890ff;">' +
+                                    sname + ': 锁定' + li.lock_quantity +
+                                    (li.used_quantity > 0 ? ' / 已用' + li.used_quantity : '') +
+                                    ' / 剩余' + li.remaining +
+                                    '</span>'
+                                );
+                            });
+                            lockHtml = '<div style="margin-bottom:4px;">' + lockInfoHtml.join('<br>') + '</div>' +
+                                '<button type="button" class="btn btn-xs btn-warning unlock-goods"' +
+                                ' data-goods-id="' + v.goods_id + '"' +
+                                ' data-goods-code="' + v.goods_code + '"' +
+                                ' data-stores="' + storesJsonStr + '"' +
+                                ' data-schedule-id="' + scheduleIdForLock + '">解锁</button>';
+                        } else {
+                            // 显示锁定按钮（传入所有仓库信息）
+                            lockHtml = '<button type="button" class="btn btn-xs btn-success lock-goods"' +
+                                ' data-goods-id="' + v.goods_id + '"' +
+                                ' data-goods-code="' + v.goods_code + '"' +
+                                ' data-goods-name="' + v.goods_name + '"' +
+                                ' data-required="' + v.required_total + '"' +
+                                ' data-stores="' + storesJsonStr + '"' +
+                                ' data-schedule-id="' + scheduleIdForLock + '"' +
+                                ' data-available="' + v.total_stock + '">锁定</button>';
+                        }
+
+                        html += '<tr>';
+                        html += '<td>' + v.goods_code + '</td>';
+                        html += '<td>' + v.goods_name + '</td>';
+                        html += '<td>' + v.required_total + '</td>';
+                        html += '<td>' + v.total_stock + '</td>';
+                        html += '<td class="' + diffClass + '"><strong>' + diffIcon + ' ' + v.total_diff + '</strong></td>';
+                        html += '<td style="font-size:12px;">' + storeDetail + '</td>';
+                        html += '<td style="text-align:center;">' + lockHtml + '</td>';
+                        html += '</tr>';
+                    });
+                    $tbody.html(html);
+
+                    // 汇总行
+                    var totalRequired = 0, totalStock = 0, totalDiff = 0;
+                    $(data).each(function(k, v){
+                        totalRequired += parseFloat(v.required_total);
+                        totalStock += parseFloat(v.total_stock);
+                        totalDiff += parseFloat(v.total_diff);
+                    });
+                    var summaryClass = totalDiff >= 0 ? 'text-success' : 'text-danger';
+                    var summaryHtml = '<tr style="font-weight:bold;background:#f5f5f5;">' +
+                        '<td colspan="2">合计</td>' +
+                        '<td>' + totalRequired.toFixed(2) + '</td>' +
+                        '<td>' + totalStock.toFixed(2) + '</td>' +
+                        '<td class="' + summaryClass + '">' + totalDiff.toFixed(2) + '</td>' +
+                        '<td></td><td></td>' +
+                        '</tr>';
+                    $tbody.append(summaryHtml);
+                }
+
+                // 页面加载时自动计算BOM（编辑页）
+                if (scheduleId) {
+                    loadBomRequirement();
+                }
+
+                // BOM刷新按钮
+                $(document).on("click", "#bom-refresh", function(){
+                    loadBomRequirement();
+                });
+
+                // ============ 锁定/解锁事件 ============
+                // 锁定按钮
+                $(document).on("click", ".lock-goods", function(){
+                    var $btn = $(this);
+                    var goodsId = $btn.data('goods-id');
+                    var goodsCode = $btn.data('goods-code');
+                    var goodsName = $btn.data('goods-name');
+                    var requiredQty = parseFloat($btn.data('required'));
+                    var scheduleId = $btn.data('schedule-id');
+                    var stores = $btn.data('stores');
+                    // 解析仓库JSON
+                    if (typeof stores === 'string') {
+                        stores = stores.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+                        try { stores = JSON.parse(stores); } catch(e) { stores = []; }
+                    }
+
+                    // 构建仓库选项
+                    var storeOptions = '';
+                    $.each(stores, function(i, s){
+                        storeOptions += '<option value="' + s.id + '" data-stock="' + s.stock + '">' + s.name + ' (库存:' + s.stock + ')</option>';
+                    });
+
+                    var defaultStoreId = stores.length > 0 ? stores[0].id : '';
+                    var defaultStock = stores.length > 0 ? stores[0].stock : 0;
+
+                    // 弹窗输入锁定数量
+                    var html = '<form id="lock-form" class="form-horizontal" role="form">' +
+                        '<div class="form-group">' +
+                        '<label class="control-label col-xs-3">商品:</label>' +
+                        '<div class="col-xs-9"><p class="form-control-static">' + goodsCode + ' ' + goodsName + '</p></div>' +
+                        '</div>' +
+                        '<div class="form-group">' +
+                        '<label class="control-label col-xs-3">需求数量:</label>' +
+                        '<div class="col-xs-9"><p class="form-control-static">' + requiredQty.toFixed(2) + '</p></div>' +
+                        '</div>' +
+                        '<div class="form-group">' +
+                        '<label class="control-label col-xs-3"><span class="must">*</span>锁定仓库:</label>' +
+                        '<div class="col-xs-9"><select class="form-control" id="lock-store">' + storeOptions + '</select></div>' +
+                        '</div>' +
+                        '<div class="form-group">' +
+                        '<label class="control-label col-xs-3"><span class="must">*</span>锁定数量:</label>' +
+                        '<div class="col-xs-9"><input type="number" class="form-control" id="lock-quantity" value="' + requiredQty.toFixed(2) + '" step="0.01" min="0.01">' +
+                        '<span class="help-block" id="lock-available-tip">该仓库可用库存: ' + defaultStock.toFixed(2) + '</span></div>' +
+                        '</div>' +
+                        '</form>';
+
+                    layer.open({
+                        type: 1,
+                        title: '锁定库存 - ' + goodsName,
+                        shadeClose: true,
+                        area: ['480px', '360px'],
+                        content: html,
+                        btn: ['确定', '取消'],
+                        yes: function(index, layero){
+                            var lockQty = parseFloat($('#lock-quantity').val());
+                            var lockStore = $('#lock-store').val();
+                            var available = parseFloat($('#lock-store').find('option:selected').data('stock'));
+                            if (isNaN(lockQty) || lockQty <= 0) {
+                                Toastr.error('请输入有效的锁定数量');
+                                return;
+                            }
+                            if (!lockStore) {
+                                Toastr.error('请选择仓库');
+                                return;
+                            }
+                            if (lockQty > available) {
+                                Toastr.error('锁定数量不能超过该仓库库存(' + available.toFixed(2) + ')');
+                                return;
+                            }
+                            $.ajax({
+                                url: 'kuerp/goods_sales_schedule/lockGoods',
+                                type: 'POST',
+                                data: {
+                                    schedule_id: scheduleId,
+                                    goods_code: goodsCode,
+                                    goods_id: goodsId,
+                                    stores_id: lockStore,
+                                    lock_quantity: lockQty
+                                },
+                                success: function(res){
+                                    if (res.code === 1) {
+                                        Toastr.success('锁定成功');
+                                        layer.close(index);
+                                        loadBomRequirement();
+                                    } else {
+                                        Toastr.error(res.msg || '锁定失败');
+                                    }
+                                },
+                                error: function(){
+                                    Toastr.error('锁定失败，请重试');
+                                }
+                            });
+                        }
+                    });
+
+                    // 仓库切换时更新可用库存提示
+                    $(document).on('change', '#lock-store', function(){
+                        var stock = $(this).find('option:selected').data('stock');
+                        $('#lock-available-tip').text('该仓库可用库存: ' + (parseFloat(stock) || 0).toFixed(2));
+                    });
+                });
+
+                // 解锁按钮
+                $(document).on("click", ".unlock-goods", function(){
+                    var $btn = $(this);
+                    var goodsId = $btn.data('goods-id');
+                    var goodsCode = $btn.data('goods-code');
+                    var scheduleId = $btn.data('schedule-id');
+                    var stores = $btn.data('stores');
+                    // 解析仓库JSON
+                    if (typeof stores === 'string') {
+                        stores = stores.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+                        try { stores = JSON.parse(stores); } catch(e) { stores = []; }
+                    }
+
+                    // 如果只有一个仓库，直接确认解锁
+                    if (stores.length <= 1) {
+                        var storesId = stores.length === 1 ? stores[0].id : 0;
+                        Layer.confirm(
+                            '确认解锁该商品的库存锁定？',
+                            {icon: 3, title: '解锁确认', shadeClose: true},
+                            function(index){
+                                $.ajax({
+                                    url: 'kuerp/goods_sales_schedule/unlockGoods',
+                                    type: 'POST',
+                                    data: {
+                                        schedule_id: scheduleId,
+                                        goods_code: goodsCode,
+                                        goods_id: goodsId,
+                                        stores_id: storesId
+                                    },
+                                    success: function(res){
+                                        if (res.code === 1) {
+                                            Toastr.success('解锁成功');
+                                            Layer.close(index);
+                                            loadBomRequirement();
+                                        } else {
+                                            Toastr.error(res.msg || '解锁失败');
+                                        }
+                                    },
+                                    error: function(){
+                                        Toastr.error('解锁失败，请重试');
+                                    }
+                                });
+                            }
+                        );
+                        return;
+                    }
+
+                    // 多仓库：弹窗选择
+                    var storeOptions = '';
+                    $.each(stores, function(i, s){
+                        storeOptions += '<option value="' + s.id + '">' + s.name + ' (库存:' + s.stock + ')</option>';
+                    });
+                    var html = '<form id="unlock-form" class="form-horizontal" role="form">' +
+                        '<div class="form-group">' +
+                        '<label class="control-label col-xs-3">选择仓库:</label>' +
+                        '<div class="col-xs-9"><select class="form-control" id="unlock-store">' + storeOptions + '</select></div>' +
+                        '</div>' +
+                        '</form>';
+
+                    layer.open({
+                        type: 1,
+                        title: '解锁库存 - 选择仓库',
+                        shadeClose: true,
+                        area: ['400px', '180px'],
+                        content: html,
+                        btn: ['确定', '取消'],
+                        yes: function(index, layero){
+                            var storesId = $('#unlock-store').val();
+                            $.ajax({
+                                url: 'kuerp/goods_sales_schedule/unlockGoods',
+                                type: 'POST',
+                                data: {
+                                    schedule_id: scheduleId,
+                                    goods_code: goodsCode,
+                                    goods_id: goodsId,
+                                    stores_id: storesId
+                                },
+                                success: function(res){
+                                    if (res.code === 1) {
+                                        Toastr.success('解锁成功');
+                                        layer.close(index);
+                                        loadBomRequirement();
+                                    } else {
+                                        Toastr.error(res.msg || '解锁失败');
+                                    }
+                                },
+                                error: function(){
+                                    Toastr.error('解锁失败，请重试');
+                                }
+                            });
+                        }
+                    });
+                });
+
+                // 当商品数量/单位/仓库改变时自动刷新BOM（防抖500ms）
+                var bomRefreshTimer = null;
+                $(document).on("change input", ".number_ipt, .goods_unit, .stores_id", function(){
+                    if (bomRefreshTimer) clearTimeout(bomRefreshTimer);
+                    bomRefreshTimer = setTimeout(function(){
+                        loadBomRequirement();
+                    }, 500);
                 });
 
                 Form.api.bindevent($("form[role=form]"), function(data, ret){

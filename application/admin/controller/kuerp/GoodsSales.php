@@ -2438,9 +2438,13 @@ class GoodsSales extends Backend
         }
         if($store){
             $stock = Db::name('kuerp_goods_stock')->where(['goods_code'=>$row['goods_code'],'stores_id'=>$store])->value('stock');
+            $storesId = (int)$store;
         }else{
             $stock = Db::name('kuerp_goods_stock')->where(['goods_code'=>$row['goods_code'],'stores_id'=>$row['manager_warehouse_id']])->value('stock');
+            $storesId = (int)$row['manager_warehouse_id'];
         }
+        // 锁定库存调整：销货订单新增时不关联特定销售订单，扣除所有锁定库存
+        $stock = \addons\kuerp\library\Goods::getAvailableStock($goods_id, $storesId, 0, '');
         if($row['more_unit']==1){
             $unit_ids_arr = Db::name('kuerp_unit_conversion')->where(['id'=>$row['more_unit_id']])->field('main_unit,vice_unit,advance_rate')->find();
             $unit_ids = [$unit_ids_arr['main_unit'],$unit_ids_arr['vice_unit']];
@@ -2576,6 +2580,12 @@ class GoodsSales extends Backend
             $where['attribute_id'] = $attr;
         }
         $stock = Db::name('kuerp_goods_stock')->where($where)->value('stock');
+
+        // 锁定库存调整：销货订单新增时不关联特定销售订单，扣除所有锁定库存
+        $attrId = isset($attr) ? (int)$attr : 0;
+        $storesId = isset($where['stores_id']) ? (int)$where['stores_id'] : 0;
+        $stock = \addons\kuerp\library\Goods::getAvailableStock($goods_id, $storesId, $attrId, '');
+
         if($row['more_unit']==1){
             $unit = Db::name('kuerp_unit_conversion')->alias('uc')
                 ->join('kuerp_unit u','u.id=uc.vice_unit')

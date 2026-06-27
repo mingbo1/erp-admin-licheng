@@ -48,6 +48,12 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 return layui.util.toDateString(d.purchase_time*1000,"yyyy-MM-dd");
                             },width:110},
                         {field: 'purchase_code', title: __('Purchase_code'), operate: 'LIKE',width:160},
+                        {field: 'sales_order_id', title: __('Sales_order_id'),width:140,templet: function (d) {
+                                if (d.sales_order_id) {
+                                    return '<span style="color:#1890ff">'+d.sales_order_id+'</span>';
+                                }
+                                return '<span style="color:#ccc">—</span>';
+                            }},
                         {field: 'purchase_type', title: __('Purchase_type'),templet: function (d) {
                                 if(d.purchase_type==1){
                                     return __('Purchase_type 1');
@@ -381,6 +387,34 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 }
                             })
 
+                        });
+                    }
+                }
+
+                // 从销货排期BOM预填零件商品
+                initScheduleBom();
+                function initScheduleBom() {
+                    var scheduleBomGoods = Config.scheduleBomGoods;
+                    var salesOrderId = Config.scheduleSalesOrderId || '';
+                    if (scheduleBomGoods && scheduleBomGoods.length > 0) {
+                        var lawtable = document.getElementById("goods_table");
+                        var rows = lawtable.rows;
+                        var htmlp = rows[1].innerHTML;
+                        var obj = $('.goods_id0');
+                        $(scheduleBomGoods).each(function (k, v) {
+                            var rowClass = 'bom_goods_' + k;
+                            var html = '<tr class="' + rowClass + '">' + htmlp + '</tr>';
+                            $(obj).after(html);
+                            var thisobj = $('.' + rowClass);
+                            // 先设置基本值
+                            thisobj.find('.goods_code').val(v.goods_code);
+                            thisobj.find('.goods_name').val(v.goods_code + ' ' + (v.goods_name || ''));
+                            thisobj.find('.sales_order_id').val(salesOrderId);
+                            if (v.stores_id) {
+                                thisobj.find('.stores_id').val(v.stores_id);
+                            }
+                            // 调用changeGoods获取单位/库存/价格信息
+                            changeGoods(v.goods_code, v.stores_id || '', '', thisobj, v.unit_id || '', v.number || 1, '');
                         });
                     }
                 }

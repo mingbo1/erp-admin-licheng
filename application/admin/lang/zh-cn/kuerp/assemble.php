@@ -39,4 +39,6 @@ return [
     'Goods_name'        => '商品名称',
     'Stores_name'       => '仓库名称',
     'Unit_name'         => '单位',
+    'Sales_order_id'    => '销货订单号',
+    'Generate_assemble' => '生成组装单',
 ];

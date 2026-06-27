@@ -2118,4 +2118,99 @@ class Goods
         return $lists;
     }
 
+    /**
+     * 获取考虑锁定的可用库存
+     * @param int    $goodsId        商品ID
+     * @param int    $storesId       仓库ID
+     * @param int    $attributeId    属性ID（默认0）
+     * @param string $salesOrderId   当前销售订单号（空字符串表示不区分锁定来源）
+     * @return float 可用库存（基本单位）
+     */
+    public static function getAvailableStock($goodsId, $storesId, $attributeId = 0, $salesOrderId = '')
+    {
+        // 物理库存
+        $where = ['goods_id' => $goodsId, 'stores_id' => $storesId];
+        if ($attributeId > 0) {
+            $where['attribute_id'] = $attributeId;
+        }
+        $physicalStock = Db::name('kuerp_goods_stock')->where($where)->value('stock');
+        $physicalStock = $physicalStock ? (float)$physicalStock : 0;
+
+        // 所有生效锁定的有效数量（锁定-已使用）
+        // 注意：TP5的sum()不支持算术表达式，需分别求和后相减
+        $lockWhere = ['goods_id' => $goodsId, 'stores_id' => $storesId, 'status' => '1'];
+        if ($attributeId > 0) {
+            $lockWhere['attribute_id'] = $attributeId;
+        }
+        $totalLockQty = Db::name('kuerp_goods_lock')->where($lockWhere)->sum('lock_quantity');
+        $totalUsedQty = Db::name('kuerp_goods_lock')->where($lockWhere)->sum('used_quantity');
+        $totalEffectiveLocked = (float)$totalLockQty - (float)$totalUsedQty;
+
+        if (empty($salesOrderId)) {
+            // 无关联订单 → 库存 - 所有锁定
+            return $physicalStock - $totalEffectiveLocked;
+        }
+
+        // 当前订单的锁定
+        $ownLockWhere = array_merge($lockWhere, ['sales_order_id' => $salesOrderId]);
+        $ownLockQty = Db::name('kuerp_goods_lock')->where($ownLockWhere)->sum('lock_quantity');
+        $ownUsedQty = Db::name('kuerp_goods_lock')->where($ownLockWhere)->sum('used_quantity');
+        $lockedForThis = (float)$ownLockQty - (float)$ownUsedQty;
+
+        // 可用 = 物理库存 - 其他订单锁定
+        return $physicalStock - $totalEffectiveLocked + $lockedForThis;
+    }
+
+    /**
+     * 消费锁定：出库审核通过后扣减锁定数量
+     * @param string $salesOrderId   销售订单号
+     * @param int    $goodsId        商品ID
+     * @param int    $storesId       仓库ID
+     * @param float  $outboundQty    本次出库数量(基本单位)
+     * @param int    $attributeId    属性ID（默认0）
+     * @return void
+     */
+    public static function consumeLock($salesOrderId, $goodsId, $storesId, $outboundQty, $attributeId = 0)
+    {
+        if (empty($salesOrderId) || $outboundQty <= 0) {
+            return;
+        }
+        $where = [
+            'sales_order_id' => $salesOrderId,
+            'goods_id'       => $goodsId,
+            'stores_id'      => $storesId,
+            'attribute_id'   => $attributeId,
+            'status'         => '1',
+        ];
+        $lock = Db::name('kuerp_goods_lock')->where($where)->find();
+        if (empty($lock)) {
+            return;
+        }
+        $newUsed = (float)$lock['used_quantity'] + $outboundQty;
+        $update = ['used_quantity' => $newUsed, 'updatetime' => time()];
+        if ($newUsed >= (float)$lock['lock_quantity']) {
+            $update['status'] = '0'; // 锁定已全部消费，自动解锁
+        }
+        Db::name('kuerp_goods_lock')->where(['id' => $lock['id']])->update($update);
+    }
+
+    /**
+     * 查询商品在所有仓库/指定仓库的锁定记录
+     * @param string $salesOrderId   销售订单号
+     * @param int    $goodsId        商品ID（可选，0=查所有）
+     * @param int    $storesId       仓库ID（可选，0=查所有）
+     * @return array
+     */
+    public static function getLockList($salesOrderId, $goodsId = 0, $storesId = 0)
+    {
+        $where = ['sales_order_id' => $salesOrderId, 'status' => '1'];
+        if ($goodsId > 0) {
+            $where['goods_id'] = $goodsId;
+        }
+        if ($storesId > 0) {
+            $where['stores_id'] = $storesId;
+        }
+        return Db::name('kuerp_goods_lock')->where($where)->select();
+    }
+
 }

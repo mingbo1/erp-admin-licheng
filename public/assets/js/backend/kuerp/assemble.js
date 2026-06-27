@@ -43,6 +43,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {checkbox: true,merge:['purchase_code']},
                         {field: 'purchase_time', title: __('Purchase_time'),merge:['purchase_code'],width:120},
                         {field: 'purchase_code', title: __('Purchase_code'),merge:true,width:150},
+                        {field: 'sales_order_id', title: __('Sales_order_id'),merge:['purchase_code'],width:140,templet: function (d) {
+                            if (d.sales_order_id) { return '<span style="color:#1890ff">'+d.sales_order_id+'</span>'; }
+                            return '<span style="color:#ccc">—</span>';
+                        }},
                         {field: 'pname', title: __('组合件'),merge:['purchase_code'],width:140},
                         {field: 'pnumber', title: __('组合件数量'),merge:['purchase_code']},
                         {field: 'unit_name', title: __('单位'),merge:['purchase_code']},
@@ -1335,12 +1339,14 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         number_decimal = 1;
                     }
                     var customers_id = $('#customers_id').val();
+                    var sales_order_id = $('.sales_order_id').val() || '';
 
                     $.ajax( {
                         url: "kuerp/goods_purchase/getUnit",
                         type: "POST",
                         data:{
-                            'goods_code':goods_code,'store':store,'attr':attr,'customers_id':customers_id
+                            'goods_code':goods_code,'store':store,'attr':attr,'customers_id':customers_id,
+                            'sales_order_id': sales_order_id
                         },
                         success: function(res){
                             res = JSON.parse(res);
@@ -1546,6 +1552,63 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         })
                     })
                 });
+
+                // 从销货排期生成组装单：预填组合件和BOM子件
+                (function initScheduleBom() {
+                    var salesOrderId = Config.scheduleSalesOrderId;
+                    var goodsCode = Config.scheduleGoodsCode;
+                    var bomChildren = Config.scheduleBomChildren;
+
+                    if (!salesOrderId && !goodsCode) return;
+
+                    // 设置销货订单号
+                    $('.sales_order_id').val(salesOrderId);
+
+                    if (!goodsCode) return;
+
+                    // 填充组合件（父级）
+                    var parentRow = $('#assemble_table').find('tr').last();
+                    var storesId = Config.scheduleStoresId || '';
+                    var number = Config.scheduleNumber || 1;
+                    var goodsUnit = Config.scheduleGoodsUnit || '';
+                    var goodsAttr = Config.scheduleGoodsAttr || '';
+
+                    parentRow.find('.goods_code').val(goodsCode);
+                    parentRow.find('.goods_names').val(goodsCode + ' ' + (Config.scheduleGoodsName || ''));
+                    changeGoods(goodsCode, storesId, goodsAttr, parentRow, goodsUnit, number);
+
+                    // 填充子件（BOM零件）
+                    if (bomChildren && bomChildren.length > 0) {
+                        var childTable = $('#assemble_table_c');
+                        var templateRow = childTable.find('tr').eq(1);
+                        var rows = childTable.find('tr');
+                        for (var i = rows.length - 1; i >= 2; i--) {
+                            $(rows[i]).remove();
+                        }
+
+                        $(bomChildren).each(function (k, v) {
+                            var newRow = $(templateRow).clone();
+                            newRow.show();
+                            newRow.find('.goods_code').val(v.goods_code);
+                            newRow.find('.goods_name').val(v.goods_code + ' ' + v.goods_name);
+                            childTable.append(newRow);
+
+                            var childStoresId = v.stores_id || storesId;
+                            changeGoods(v.goods_code, childStoresId, '', newRow, '', v.number);
+                        });
+
+                        // 重新绑定日期选择器
+                        layui.use('laydate', function () {
+                            var laydate = layui.laydate;
+                            lay('.manufacture').each(function () {
+                                laydate.render({ elem: this, trigger: "click", done: function (value) { manufacture(); } });
+                            });
+                            lay('.validity').each(function () {
+                                laydate.render({ elem: this, trigger: "click", done: function (value) { validity(); } });
+                            });
+                        });
+                    }
+                })();
 
                 Form.api.bindevent($("form[role=form]"), function(data, ret){
                     if(reloadStatus){

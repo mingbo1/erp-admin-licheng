@@ -9,12 +9,7 @@
                         <div class="layui-btn-container">
                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-cyan btn-refresh" lay-event="refresh"><i class="layui-icon">&#xe669;</i> {:__('Refresh')}</button>
 
-                            {if condition="isset($set['examine']['is_checked']) && $set['examine']['is_checked']==1"}
-                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger fright {if condition="$auth->check($nowmenu.'/counter')!=1"}hiddens{/if}" lay-event="counter_f"><i class="layui-icon">&#xe6c9;</i> 反对单</button>
-                            <button class="layui-btn layui-icon-btn layui-btn-sm fright {if condition="$auth->check($nowmenu.'/counter')!=1"}hiddens{/if}" lay-event="counter"><i class="layui-icon">&#xe6c9;</i> 对单</button>
-                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger fright {if condition="$auth->check($nowmenu.'/examine')!=1"}hiddens{/if}" lay-event="examine_f"><i class="layui-icon">&#xe674;</i> 反审核</button>
-                            <button class="layui-btn layui-icon-btn layui-btn-sm fright {if condition="$auth->check($nowmenu.'/examine')!=1"}hiddens{/if}" lay-event="examine"><i class="layui-icon">&#xe674;</i> 审核</button>
-                            {/if}
+                    
                         </div>
                     </script>
 
@@ -82,5 +77,8 @@
 
 <script type="text/html" id="barDemoStorage">
     <a class="layui-btn layui-btn-xs layui-bg-blue" lay-event="detail">详情</a>
-    <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+    <a class="layui-btn layui-btn-xs layui-bg-green" lay-event="print">打印</a>
+    {{# if(d.examine_status == 1 && d.check_status == 1){ }}
+    <a class="layui-btn layui-btn-xs layui-bg-orange" lay-event="storage">入库</a>
+    {{# } }}
 </script>

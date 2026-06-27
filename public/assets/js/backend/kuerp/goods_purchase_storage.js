@@ -82,6 +82,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             }
                         }},
                         {field: 'note', title: __('Note')},
+                        {fixed: 'right', title:__('Operate'), toolbar: '#barDemoStorage', width:180}
                     ]]
                 });
 
@@ -133,12 +134,23 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 table.on('tool(table)', function(obj){
                     var data = obj.data;
                     if(obj.event === 'detail'){
-                        Fast.api.open('kuerp/goods_purchase/printpage/ids/'+data.id, '购货单详情', {
+                        // 查看详情 - 不显示金额
+                        Fast.api.open('kuerp/goods_purchase_storage/detail/ids/'+data.id, __('Storage_detail'), {
                             area: ['90%', '75%'],
                         });
-                    }else if(obj.event === 'edit'){
-                        Fast.api.open('kuerp/goods_purchase/edit/ids/'+data.id, '编辑购货单', {
+                    }else if(obj.event === 'print'){
+                        // 打印入库单 - 不显示金额
+                        Fast.api.open('kuerp/goods_purchase_storage/printstorage/ids/'+data.id, __('Storage_print'), {
                             area: ['90%', '75%'],
+                        });
+                    }else if(obj.event === 'storage'){
+                        // 入库 - 打开入库页面，可输入每次入库数量
+                        Fast.api.open('kuerp/goods_purchase_storage/storage/ids/'+data.id, __('Storage_in'), {
+                            area: ['90%', '75%'],
+                            callback: function(){
+                                // 入库成功后刷新列表
+                                table.reload('table');
+                            }
                         });
                     }
                 });

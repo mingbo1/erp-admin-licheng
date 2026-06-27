@@ -10,7 +10,7 @@ use think\Session;
 class GoodsPurchase
 {
     //获取单位价格信息
-    public static function getUnit($goods_code='',$store='',$attr='',$supplyer_code=''){
+    public static function getUnit($goods_code='',$store='',$attr='',$supplyer_code='',$salesOrderId=''){
         $set= (new \addons\kuerp\model\Sets())->where(['name'=>'taxes'])->field('value,is_checked')->find();
         $taxes= (new \addons\kuerp\model\Sets())->where(['name'=>'price_taxes'])->value('is_checked');
 

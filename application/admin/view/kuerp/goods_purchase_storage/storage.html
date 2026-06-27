@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>{:__('Storage_in')} - {$row.purchase_code|htmlentities}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: "Microsoft YaHei", "SimSun", Arial, sans-serif; font-size: 14px; color: #333; padding: 20px; background: #fff; }
+        .storage-wrap { max-width: 900px; margin: 0 auto; }
+        .storage-title { text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 20px; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; margin-bottom: 15px; padding: 10px; background: #f9f9f9; border-radius: 4px; }
+        .info-grid .item { padding: 3px 0; }
+        .goods-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        .goods-table th, .goods-table td { padding: 8px; border: 1px solid #ddd; text-align: center; }
+        .goods-table th { background: #f5f5f5; font-weight: bold; font-size: 13px; }
+        .goods-table input.form-control { width: 100px; text-align: center; padding: 4px; border: 1px solid #ccc; border-radius: 3px; }
+        .goods-table input.form-control:focus { border-color: #5fb878; outline: none; }
+        .btn-wrap { text-align: center; margin-top: 20px; }
+        .btn-wrap button { padding: 8px 30px; font-size: 14px; cursor: pointer; margin: 0 10px; border: none; border-radius: 4px; }
+        .btn-submit { background: #5fb878; color: #fff; }
+        .btn-submit:hover { background: #4a9e64; }
+        .btn-close { background: #ccc; color: #333; }
+        .btn-close:hover { background: #b3b3b3; }
+        .highlight { color: #ff5722; font-weight: bold; }
+        .summary-row { text-align: right; margin-bottom: 15px; padding: 10px; background: #f9f9f9; border-radius: 4px; }
+        .summary-row span { margin-left: 15px; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<div class="storage-wrap">
+    <div class="storage-title">{:__('Storage_in')}</div>
+
+    <div class="info-grid">
+        <div class="item"><strong>{:__('Purchase_code')}：</strong>{$row.purchase_code|htmlentities}</div>
+        <div class="item"><strong>{:__('Purchase_time')}：</strong>{$row.purchase_time|date='Y-m-d',###}</div>
+        <div class="item"><strong>{:__('Supplyer_code')}：</strong>{$row.supplyer_code|htmlentities} {$row.supplyer_name|htmlentities}</div>
+        <div class="item"><strong>{:__('Stores_name')}：</strong>{$row.preparation_name|htmlentities}</div>
+        <div class="item"><strong>{:__('Purchase_order_id')}：</strong>{$row.purchase_order_id|htmlentities}</div>
+        <div class="item"><strong>{:__('Examine_status')}：</strong>{if condition="$row.examine_status==1"}已审核{else/}<span class="highlight">未审核</span>{/if}</div>
+        {if condition="!empty($row['note'])"}
+        <div class="item" style="grid-column: 1 / -1;"><strong>{:__('Note')}：</strong>{$row.note|htmlentities}</div>
+        {/if}
+    </div>
+
+    <form id="storage-form" method="POST" action="{:url('kuerp/goods_purchase_storage/storage', ['ids' => $row.id])}">
+        <table class="goods-table">
+            <thead>
+                <tr>
+                    <th>序号</th>
+                    <th>{:__('Goods_code')}</th>
+                    <th>{:__('Goods_name')}</th>
+                    <th>{:__('Goods_note')}</th>
+                    <th>库位</th>
+                    <th>{:__('Stores_name')}</th>
+                    <th>{:__('Unit_name')}</th>
+                    <th>采购数量</th>
+                    <th>已入库</th>
+                    <th>待入库</th>
+                    <th><span style="color:red;">*</span>本次入库数量</th>
+                </tr>
+            </thead>
+            <tbody>
+                {php}$total_storage = 0;$total_plan = 0;$total_stored = 0;$total_remain = 0;{/php}
+                {foreach name="purchase_info" item="info" key="k"}
+                {php}
+                    $orderNum  = isset($info['order_number']) ? $info['order_number'] : (float)$info['number'];
+                    $storedNum = isset($info['storage_number']) ? (float)$info['storage_number'] : 0;
+                    $remainNum = isset($info['remain_number']) ? (float)$info['remain_number'] : ($orderNum - $storedNum);
+                    $total_plan   += $orderNum;
+                    $total_stored += $storedNum;
+                    $total_remain += $remainNum;
+                {/php}
+                <tr>
+                    <td>{$k+1}</td>
+                    <td>{$info.goods_code|htmlentities}</td>
+                    <td>{$info.goods_name|htmlentities}</td>
+                    <td>{$info.goods_note|htmlentities}</td>
+                    <td>{if condition="!empty($info['location_name'])"}{$info.location_name|htmlentities}{else/}-{/if}</td>
+                    <td>{$info.stores_name|htmlentities}</td>
+                    <td>{$info.unit_name|htmlentities}</td>
+                    <td>{$orderNum}</td>
+                    <td>{if condition="$storedNum > 0"}<span style="color:#5fb878;">{$storedNum}</span>{else/}0{/if}</td>
+                    <td>{if condition="$remainNum > 0"}<span style="color:#ff5722;">{$remainNum}</span>{else/}<span style="color:#999;">0(已全部入库)</span>{/if}</td>
+                    <td>
+                        <input type="hidden" name="row[info_id][]" value="{$info.id}">
+                        <input type="number" name="row[storage_number][]" value="{$remainNum}"
+                               class="form-control storage-number" step="0.0001" min="0" max="{$remainNum}"
+                               data-plan="{$orderNum}" data-stored="{$storedNum}" data-remain="{$remainNum}">
+                    </td>
+                </tr>
+                {/foreach}
+                {if condition="empty($purchase_info)"}
+                <tr><td colspan="11">无明细数据</td></tr>
+                {/if}
+            </tbody>
+        </table>
+
+        <div class="summary-row">
+            <span>采购总数量：<strong id="plan-total">{$total_plan}</strong></span>
+            <span>已入库：<strong style="color:#5fb878;">{$total_stored}</strong></span>
+            <span>待入库：<strong style="color:#ff5722;">{$total_remain}</strong></span>
+            <span>本次入库总数量：<strong id="storage-total" class="highlight">0</strong></span>
+        </div>
+
+        <div class="btn-wrap">
+            <button type="submit" class="btn-submit">确认入库</button>
+            <button type="button" class="btn-close" onclick="closeParentLayer()">关闭</button>
+        </div>
+    </form>
+</div>
+
+<script src="/assets/js/backend/kuerp/goods_purchase_storage_layer.js"></script>
+
+</body>
+</html>

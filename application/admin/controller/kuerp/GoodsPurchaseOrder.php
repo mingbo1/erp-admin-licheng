@@ -196,12 +196,21 @@ class GoodsPurchaseOrder extends Backend
                     }
                 }
                 if(!empty($data)){
+                    // 合并所有行的sales_order_id（取第一个非空的）
+                    $mainSalesOrderId = '';
+                    foreach ($data as $d) {
+                        if (!empty($d['sales_order_id'])) {
+                            $mainSalesOrderId = $d['sales_order_id'];
+                            break;
+                        }
+                    }
                     $row = [
                         'purchase_code'     =>  $params['purchase_code'],
                         'purchase_type'     =>  $params['purchase_type'],
                         'purchase_time'     =>  strtotime($params['purchase_time']),
                         'delivery_time'     =>  strtotime($params['delivery_time']),
                         'supplyer_code'     =>  $params['supplyer_code'],//供应商
+                        'sales_order_id'    =>  $mainSalesOrderId,
                         'number'            =>  $number,
                         'all_money'         =>  $all_money,
                         'tax_money'         =>  $tax_money,
@@ -300,6 +309,80 @@ class GoodsPurchaseOrder extends Backend
             }
         }
 
+        // 从销货排期生成：预填BOM零件商品
+        $scheduleBomGoods = [];
+        $scheduleSalesOrderId = ''; // 关联的销货订单号
+        $schedule_id = $this->request->param('schedule_id');
+        if (!empty($schedule_id)) {
+            $schedule = Db::name('kuerp_goods_sales')->where(['id' => $schedule_id, 'purchase_type' => '1'])->find();
+            if ($schedule) {
+                // 获取关联的销货订单号
+                $salesOrderCode = $schedule['purchase_order_id']; // purchase_order_id 存储的是销货订单编号
+
+                // 获取排期商品明细
+                $scheduleInfo = Db::name('kuerp_goods_sales_info')
+                    ->where(['purchase_code' => $schedule['purchase_code']])
+                    ->select();
+
+                $numberDecimal = 2;
+                $setData = Db::name('kuerp_sets')->where(['name' => 'number_decimal'])->value('value');
+                if ($setData) $numberDecimal = (int)$setData;
+
+                $partMap = [];
+                foreach ($scheduleInfo as $info) {
+                    $goodsCode = $info['goods_code'];
+                    $basicNmber = (float)$info['basic_nmber'];
+                    $storesId = (int)$info['stores_id'];
+
+                    $goodsId = Db::name('kuerp_goods')->where(['goods_code' => $goodsCode])->value('id');
+                    if (!$goodsId) continue;
+
+                    $bomList = Db::name('kuerp_goods_bom')->where(['goods_id' => $goodsId])->select();
+                    if (empty($bomList)) continue;
+
+                    foreach ($bomList as $bom) {
+                        $children = Db::name('kuerp_goods_bom_info')->alias('a')
+                            ->join('kuerp_goods g', 'g.id=a.goods_id')
+                            ->where(['a.bom_id' => $bom['id'], 'a.type' => '2', 'g.product_type' => 'part'])
+                            ->field('a.goods_id, a.goods_code, a.number as bom_number, g.goods_name, g.unit_id')
+                            ->select();
+
+                        foreach ($children as $child) {
+                            $childGoodsId = $child['goods_id'];
+                            $requiredQty = (float)$child['bom_number'] * $basicNmber;
+
+                            if (!isset($partMap[$childGoodsId])) {
+                                $partMap[$childGoodsId] = [
+                                    'goods_code' => $child['goods_code'],
+                                    'goods_name' => $child['goods_name'],
+                                    'number' => 0,
+                                    'stores_id' => $storesId,
+                                    'unit_id' => $child['unit_id'],
+                                ];
+                            }
+                            $partMap[$childGoodsId]['number'] += $requiredQty;
+                        }
+                    }
+                }
+
+                foreach ($partMap as $p) {
+                    $scheduleBomGoods[] = [
+                        'goods_code' => $p['goods_code'],
+                        'goods_name' => $p['goods_name'],
+                        'number' => round($p['number'], $numberDecimal),
+                        'stores_id' => $p['stores_id'],
+                        'unit_id' => $p['unit_id'],
+                    ];
+                }
+
+                // 默认供应商从排期客户的反推？不，购货订单要选供应商，这里留空让用户选
+                // 传递销货订单号用于关联
+                if (!empty($salesOrderCode)) {
+                    $scheduleSalesOrderId = $salesOrderCode;
+                }
+            }
+        }
+
         $last_customer = Db::name('kuerp_sets')->where(['name'=>'customer'])->value('is_checked');
         $set_customer = '';
         if($last_customer){
@@ -311,6 +394,13 @@ class GoodsPurchaseOrder extends Backend
 
         $this->view->assign("list", $GoodsPurchaseOrder);
         $this->assignconfig("list", $GoodsPurchaseOrder);
+
+        // 传递BOM预填数据和销货订单关联信息到前端
+        $this->view->assign("scheduleBomGoods", $scheduleBomGoods);
+        $this->assignconfig("scheduleBomGoods", $scheduleBomGoods);
+        $this->view->assign("scheduleSalesOrderId", $scheduleSalesOrderId);
+        $this->assignconfig("scheduleSalesOrderId", $scheduleSalesOrderId);
+
         return $this->view->fetch();
     }
 
@@ -423,12 +513,21 @@ class GoodsPurchaseOrder extends Backend
                     }
                 }
                 if(!empty($data)){
+                    // 合并所有行的sales_order_id（取第一个非空的）
+                    $mainSalesOrderId = '';
+                    foreach ($data as $d) {
+                        if (!empty($d['sales_order_id'])) {
+                            $mainSalesOrderId = $d['sales_order_id'];
+                            break;
+                        }
+                    }
                     $rowdata = [
                         'purchase_code'     =>  $params['purchase_code'],
                         'purchase_type'     =>  $params['purchase_type'],
                         'purchase_time'     =>  strtotime($params['purchase_time']),
                         'delivery_time'     =>  strtotime($params['delivery_time']),
                         'supplyer_code'     =>  $params['supplyer_code'],//供应商
+                        'sales_order_id'    =>  $mainSalesOrderId,
                         'number'            =>  $number,
                         'all_money'         =>  $all_money,
                         'tax_money'         =>  $tax_money,
@@ -676,6 +775,24 @@ class GoodsPurchaseOrder extends Backend
                     ]);
                 }
                 Db::commit();
+
+                // 审核通过后：向关联的销货订单写入操作日志
+                foreach ($list as $examinedOrder) {
+                    if (!empty($examinedOrder['sales_order_id'])) {
+                        $salesOrderId = Db::name('kuerp_goods_sales_order')
+                            ->where(['purchase_code' => $examinedOrder['sales_order_id']])
+                            ->value('id');
+                        if ($salesOrderId) {
+                            Db::name('kuerp_goods_sales_order_log')->insert([
+                                'order_id' => $salesOrderId,
+                                'action' => '生成采购订单',
+                                'note' => '购货订单[' . $examinedOrder['purchase_code'] . ']审核通过',
+                                'admin_id' => $admin['id'],
+                                'createtime' => time(),
+                            ]);
+                        }
+                    }
+                }
             } catch (Exception $e) {
                 Db::rollback();
                 $this->error($e->getMessage());
@@ -696,7 +813,7 @@ class GoodsPurchaseOrder extends Backend
                 $this->error('审核失败');
             }
         }else{
-            $list = $this->model->where(['id'=>['in',$ids],'examine_status'=>'1'])->field('id,purchase_id,purchase_time')->select();
+            $list = $this->model->where(['id'=>['in',$ids],'examine_status'=>'1'])->field('id,purchase_code,sales_order_id,purchase_id,purchase_time')->select();
             foreach ($list as $list_k=>$list_v){
                 $checkout = (new \addons\kuerp\library\Checkout())->checkOutTime($list_v['purchase_time']);
                 if($checkout!==true){
@@ -738,6 +855,24 @@ class GoodsPurchaseOrder extends Backend
                     'operation_id'          => $admin['id']
                 ]);
                 Db::commit();
+
+                // 反审核后：向关联的销货订单写入操作日志
+                foreach ($list as $unexaminedOrder) {
+                    if (!empty($unexaminedOrder['sales_order_id'])) {
+                        $salesOrderId = Db::name('kuerp_goods_sales_order')
+                            ->where(['purchase_code' => $unexaminedOrder['sales_order_id']])
+                            ->value('id');
+                        if ($salesOrderId) {
+                            Db::name('kuerp_goods_sales_order_log')->insert([
+                                'order_id' => $salesOrderId,
+                                'action' => '取消采购订单',
+                                'note' => '购货订单[' . $unexaminedOrder['purchase_code'] . ']反审核',
+                                'admin_id' => $admin['id'],
+                                'createtime' => time(),
+                            ]);
+                        }
+                    }
+                }
             } catch (Exception $e) {
                 Db::rollback();
                 $this->error($e->getMessage());

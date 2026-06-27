@@ -1180,6 +1180,18 @@ class ProcessOrder extends Backend
                     $data['unit'][$k]['tax_money'] = 0;
                 }
             }
+
+            // 外协加工单无销售订单关联，扣除所有锁定库存
+            $storesId = isset($where['stores_id']) ? (int)$where['stores_id'] : 0;
+            $attrId = isset($attr) ? (int)$attr : 0;
+            $availableStock = \addons\kuerp\library\Goods::getAvailableStock($goods_id, $storesId, $attrId, '');
+            foreach ($data['unit'] as $k => $v) {
+                if ($v['is_default'] == 1) {
+                    $data['unit'][$k]['stock'] = $availableStock;
+                } else {
+                    $data['unit'][$k]['stock'] = round($availableStock / $v['basic_nmber'], 2);
+                }
+            }
         }
 
         return json_encode($data);

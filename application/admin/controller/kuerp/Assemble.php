@@ -121,6 +121,7 @@ class Assemble extends Backend
                     $row['examine_status'] = $list_v['examine_status'];
                     $row['inbound_status'] = $list_v['inbound_status'];
                     $row['outbound_status'] = $list_v['outbound_status'];
+                    $row['sales_order_id'] = $list_v['sales_order_id'];
 
                     $row['purchase_code'] = $list_v['purchase_code'];
                     $row['purchase_time'] = date('Y-m-d',$list_v['purchase_time']);
@@ -322,6 +323,7 @@ class Assemble extends Backend
                                 'preparation_id'    =>  $admin['id'],
                                 'operation_id'      =>  $admin['id'],
 
+                                'sales_order_id'    =>  isset($params['sales_order_id']) ? $params['sales_order_id'] : '',
                                 'createtime'        => time(),
                                 'updatetime'        => time(),
                                 'goods_batch'       => $goods_batch,
@@ -432,6 +434,7 @@ class Assemble extends Backend
                                 'preparation_id'    =>  $admin['id'],
                                 'operation_id'      =>  $admin['id'],
 
+                                'sales_order_id'    =>  isset($params['sales_order_id']) ? $params['sales_order_id'] : '',
                                 'createtime'        => time(),
                                 'updatetime'        => time(),
                                 'goods_batch'       => $goods_batch,
@@ -453,6 +456,7 @@ class Assemble extends Backend
                         'purchase_time'     =>  strtotime($params['purchase_time']),
                         'business_type'     =>  1,
                         'money'             =>  $params['costs']===''?null:(float)$params['costs'],
+                        'sales_order_id'    =>  isset($params['sales_order_id']) ? $params['sales_order_id'] : '',
                         'remark'            =>  $params['note']===''?null:$params['note'],
                         'preparation_id'    =>  $admin['id'],
                         'operation_id'      =>  $admin['id'],
@@ -524,6 +528,80 @@ class Assemble extends Backend
             }
             $this->error(__('Parameter %s can not be empty', ''));
         }
+        // 从销货排期生成组装单：预填组合件和BOM子件
+        $schedule_id = $this->request->get('schedule_id');
+        $scheduleGoodsCode = $this->request->get('goods_code');
+        if (!empty($schedule_id) && !empty($scheduleGoodsCode)) {
+            // 查询排期信息获取销货订单号
+            $salesOrderId = '';
+            $scheduleNumber = 1;
+            $scheduleStoresId = '';
+            $scheduleBasicNmber = 1;
+            $scheduleGoodsUnit = '';
+            $scheduleDefaultUnit = '';
+            $scheduleGoodsAttr = '';
+            $schedule = Db::name('kuerp_goods_sales')->where(['id' => $schedule_id])->find();
+            if ($schedule) {
+                $salesOrderId = $schedule['purchase_order_id'];
+
+                // 查该排期下该商品的信息（仓库、数量等）
+                $scheduleInfo = Db::name('kuerp_goods_sales_info')
+                    ->where(['purchase_code' => $schedule['purchase_code'], 'goods_code' => $scheduleGoodsCode])
+                    ->find();
+                $scheduleNumber = $scheduleInfo ? (float)$scheduleInfo['number'] : 1;
+                $scheduleStoresId = $scheduleInfo ? (int)$scheduleInfo['stores_id'] : '';
+                $scheduleBasicNmber = $scheduleInfo ? (float)$scheduleInfo['basic_nmber'] : 1;
+                $scheduleGoodsUnit = $scheduleInfo ? (int)$scheduleInfo['goods_unit'] : '';
+                $scheduleDefaultUnit = $scheduleInfo ? (int)$scheduleInfo['default_unit'] : '';
+                $scheduleGoodsAttr = $scheduleInfo ? (int)$scheduleInfo['goods_attr'] : '';
+            }
+
+            // 查该商品的BOM模板，计算子件零件
+            $bomChildren = [];
+            if (!empty($scheduleGoodsCode)) {
+                $goods = Db::name('kuerp_goods')->where(['goods_code' => $scheduleGoodsCode])->find();
+                if ($goods) {
+                    $bomList = Db::name('kuerp_goods_bom')->where(['goods_id' => $goods['id']])->select();
+                    foreach ($bomList as $bom) {
+                        $children = Db::name('kuerp_goods_bom_info')->alias('a')
+                            ->join('kuerp_goods g', 'g.id=a.goods_id')
+                            ->where([
+                                'a.bom_id'      => $bom['id'],
+                                'a.type'        => '2',
+                                'g.product_type'=> 'part',
+                            ])
+                            ->field('a.goods_id, a.goods_code, a.number as bom_number, g.goods_name, g.unit_id, g.manager_warehouse_id')
+                            ->select();
+                        foreach ($children as $child) {
+                            $childQty = (float)$child['bom_number'] * (float)$scheduleBasicNmber;
+                            if (isset($bomChildren[$child['goods_id']])) {
+                                $bomChildren[$child['goods_id']]['number'] += $childQty;
+                            } else {
+                                $bomChildren[$child['goods_id']] = [
+                                    'goods_code'  => $child['goods_code'],
+                                    'goods_name'  => $child['goods_name'],
+                                    'number'      => $childQty,
+                                    'unit_id'     => $child['unit_id'],
+                                    'stores_id'   => $child['manager_warehouse_id'],
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+            $bomChildren = array_values($bomChildren);
+
+            $this->assignconfig('scheduleSalesOrderId', $salesOrderId);
+            $this->assignconfig('scheduleGoodsCode', $scheduleGoodsCode);
+            $this->assignconfig('scheduleGoodsName', isset($goods) ? $goods['goods_name'] : '');
+            $this->assignconfig('scheduleStoresId', isset($scheduleStoresId) ? $scheduleStoresId : '');
+            $this->assignconfig('scheduleNumber', isset($scheduleNumber) ? $scheduleNumber : '');
+            $this->assignconfig('scheduleGoodsUnit', isset($scheduleGoodsUnit) ? $scheduleGoodsUnit : '');
+            $this->assignconfig('scheduleDefaultUnit', isset($scheduleDefaultUnit) ? $scheduleDefaultUnit : '');
+            $this->assignconfig('scheduleGoodsAttr', isset($scheduleGoodsAttr) ? $scheduleGoodsAttr : '');
+            $this->assignconfig('scheduleBomChildren', $bomChildren);
+        }
+
         $code = \addons\kuerp\library\Goods::getCodes('',19);
         $this->view->assign("code", $code);
         return $this->view->fetch();
@@ -703,6 +781,7 @@ class Assemble extends Backend
                                 'preparation_id'    =>  $admin['id'],
                                 'operation_id'      =>  $admin['id'],
 
+                                'sales_order_id'    =>  isset($params['sales_order_id']) ? $params['sales_order_id'] : '',
                                 'createtime'        => time(),
                                 'updatetime'        => time(),
                                 'goods_batch'       => $goods_batch,
@@ -813,6 +892,7 @@ class Assemble extends Backend
                                 'preparation_id'    =>  $admin['id'],
                                 'operation_id'      =>  $admin['id'],
 
+                                'sales_order_id'    =>  isset($params['sales_order_id']) ? $params['sales_order_id'] : '',
                                 'createtime'        => time(),
                                 'updatetime'        => time(),
                                 'goods_batch'       => $goods_batch,
@@ -834,6 +914,7 @@ class Assemble extends Backend
                         'purchase_time'     =>  strtotime($params['purchase_time']),
                         'business_type'     =>  1,
                         'money'             =>  $params['costs']===''?null:(float)$params['costs'],
+                        'sales_order_id'    =>  isset($params['sales_order_id']) ? $params['sales_order_id'] : '',
                         'remark'            =>  $params['note']===''?null:$params['note'],
                         'preparation_id'    =>  $admin['id'],
                         'operation_id'      =>  $admin['id'],
@@ -1038,6 +1119,22 @@ class Assemble extends Backend
                 $admin = Session::get('admin');
                 $result = $this->model->where(['id'=>['in',$ids],'examine_status'=>'0'])->update(['examine_status'=>1,'examine_id'=>$admin['id'],'examine_time'=>time(),'operation_id'=>$admin['id']]);
                 if($result !== false){
+                    // 写入销货订单操作日志
+                    $examinedList = $this->model->where(['id'=>['in',$ids]])->field('id,purchase_code,sales_order_id')->select();
+                    foreach ($examinedList as $eo) {
+                        if (!empty($eo['sales_order_id'])) {
+                            $salesOrder = Db::name('kuerp_goods_sales_order')->where(['purchase_code' => $eo['sales_order_id']])->field('id')->find();
+                            if ($salesOrder) {
+                                Db::name('kuerp_goods_sales_order_log')->insert([
+                                    'order_id'   => $salesOrder['id'],
+                                    'action'     => '生成组装单',
+                                    'note'       => '组装单[' . $eo['purchase_code'] . ']子件出库审核通过',
+                                    'admin_id'   => $admin['id'],
+                                    'createtime' => time(),
+                                ]);
+                            }
+                        }
+                    }
                     $this->success(sizeof($list).'条数据子件出库审核成功');
                 }else{
                     $this->error('子件出库审核失败');
@@ -1273,6 +1370,39 @@ class Assemble extends Backend
                 }
                 $result = $this->model->where(['id'=>['in',$ids],'examine_status'=>'0'])->update(['examine_status'=>1,'examine_id'=>$admin['id'],'examine_time'=>time(),'operation_id'=>$admin['id']]);
                 Db::commit();
+                // 写入销货订单操作日志 + 消费锁定
+                $examinedList2 = $this->model->where(['id'=>['in',$ids]])->field('id,purchase_code,sales_order_id')->select();
+                foreach ($examinedList2 as $eo) {
+                    if (!empty($eo['sales_order_id'])) {
+                        // 写入销货订单操作日志
+                        $salesOrder = Db::name('kuerp_goods_sales_order')->where(['purchase_code' => $eo['sales_order_id']])->field('id')->find();
+                        if ($salesOrder) {
+                            Db::name('kuerp_goods_sales_order_log')->insert([
+                                'order_id'   => $salesOrder['id'],
+                                'action'     => '生成组装单',
+                                'note'       => '组装单[' . $eo['purchase_code'] . ']子件出库审核通过',
+                                'admin_id'   => $admin['id'],
+                                'createtime' => time(),
+                            ]);
+                        }
+
+                        // 消费该组装单出库子件的锁定
+                        $childItems = Db::name('kuerp_assemble_info')
+                            ->where(['purchase_code' => $eo['purchase_code'], 'type' => '2'])
+                            ->field('goods_id,goods_code,stores_id,goods_attr,basic_number')
+                            ->select();
+                        foreach ($childItems as $ci) {
+                            $attrId = $ci['goods_attr'] ? (int)$ci['goods_attr'] : 0;
+                            \addons\kuerp\library\Goods::consumeLock(
+                                $eo['sales_order_id'],
+                                $ci['goods_id'],
+                                $ci['stores_id'],
+                                (float)$ci['basic_number'],
+                                $attrId
+                            );
+                        }
+                    }
+                }
             } catch (Exception $e) {
                 Db::rollback();
                 $this->error($e->getMessage());
@@ -1427,6 +1557,22 @@ class Assemble extends Backend
 
                 $result = $this->model->where(['id'=>['in',$ids],'examine_status'=>'1'])->update(['examine_status'=>0,'examine_id'=>0,'examine_time'=>'','operation_id'=>$admin['id']]);
                 Db::commit();
+                // 写入销货订单操作日志
+                $examinedList3 = $this->model->where(['id'=>['in',$ids]])->field('id,purchase_code,sales_order_id')->select();
+                foreach ($examinedList3 as $eo) {
+                    if (!empty($eo['sales_order_id'])) {
+                        $salesOrder = Db::name('kuerp_goods_sales_order')->where(['purchase_code' => $eo['sales_order_id']])->field('id')->find();
+                        if ($salesOrder) {
+                            Db::name('kuerp_goods_sales_order_log')->insert([
+                                'order_id'   => $salesOrder['id'],
+                                'action'     => '取消组装单',
+                                'note'       => '组装单[' . $eo['purchase_code'] . ']子件出库反审核',
+                                'admin_id'   => $admin['id'],
+                                'createtime' => time(),
+                            ]);
+                        }
+                    }
+                }
             } catch (Exception $e) {
                 Db::rollback();
                 $this->error($e->getMessage());
@@ -2687,6 +2833,25 @@ class Assemble extends Backend
             $this->model->where(['id' => $ids])->update($update_data);
 
             Db::commit();
+
+            // 消费锁定：手动出库的子件扣减对应销售订单的锁定库存
+            if ($has_out && !empty($row['sales_order_id']) && !empty($out_data)) {
+                foreach ($out_data as $info_id => $out_number) {
+                    $out_number = (float)$out_number;
+                    if ($out_number <= 0) continue;
+                    $info = Db::name('kuerp_assemble_info')->where(['id' => $info_id, 'type' => '2', 'purchase_code' => $row['purchase_code']])->find();
+                    if (!$info) continue;
+                    $basic_number = round(($info['basic_number'] / max($info['number'], 0.0001)) * $out_number, 4);
+                    $attrId = $info['goods_attr'] ? (int)$info['goods_attr'] : 0;
+                    \addons\kuerp\library\Goods::consumeLock(
+                        $row['sales_order_id'],
+                        $info['goods_id'],
+                        $info['stores_id'],
+                        $basic_number,
+                        $attrId
+                    );
+                }
+            }
         } catch (Exception $e) {
             Db::rollback();
             $this->error($e->getMessage());

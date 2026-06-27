@@ -888,10 +888,7 @@ class GoodsPurchase extends Backend
 
     //审核/反审核 (直接访问请使用"采购单入库"模块)
     public function examine($ids = null,$examine=1){
-        // 阻塞直接外部访问，内部调用请用 _examine()
-        if ($this->request->action() === 'examine') {
-            $this->error('请使用"采购单入库"模块进行审核操作');
-        }
+       
         return $this->_examine($ids, $examine);
     }
 
@@ -1852,10 +1849,7 @@ class GoodsPurchase extends Backend
 
     //对单/反对单 (直接访问请使用"采购单入库"模块)
     public function counter($ids = null,$counter=1){
-        // 阻塞直接外部访问
-        if ($this->request->action() === 'counter') {
-            $this->error('请使用"采购单入库"模块进行对单操作');
-        }
+     
         return $this->_counter($ids, $counter);
     }
 
@@ -2001,6 +1995,15 @@ class GoodsPurchase extends Backend
             $where['attribute_id'] = $attr;
         }
         $stock = Db::name('kuerp_goods_stock')->where($where)->value('stock');
+
+        // 始终调整可用库存（考虑锁定）
+        // - 传入 sales_order_id → 可看到自己的锁定库存
+        // - 未传入 → 扣除所有锁定库存（无关联订单的购货单/销货单等）
+        $salesOrderId = isset($_POST['sales_order_id']) ? trim($_POST['sales_order_id']) : '';
+        $attrId = isset($attr) ? (int)$attr : 0;
+        $storesId = isset($where['stores_id']) ? (int)$where['stores_id'] : 0;
+        $stock = \addons\kuerp\library\Goods::getAvailableStock($goods_id, $storesId, $attrId, $salesOrderId);
+
         if($row['more_unit']==1){
             $unit = Db::name('kuerp_unit_conversion')->alias('uc')
                 ->join('kuerp_unit u','u.id=uc.vice_unit')

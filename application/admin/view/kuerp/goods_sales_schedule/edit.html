@@ -1,8 +1,7 @@
 {include file="kuerp/common/menu" /}
 <div class="">
     <a href="{:url('kuerp/goods_sales_schedule/printpage', ['ids' => $row.id])}" target="_blank" class="layui-btn layui-icon-btn layui-btn-sm layui-btn-normal fright" style="margin-right: 10px;"><i class="layui-icon">&#xe65a;</i> {:__('Print_page')}</a>
-    <button type="button" class="layui-btn layui-icon-btn layui-btn-sm layui-btn-warm fright generate-sales" data-id="{$row.id}" style="margin-right: 20px;"><i class="layui-icon">&#xe654;</i> {:__('Generate_sales')}</button>
-    <button type="button" class="layui-btn layui-icon-btn layui-btn-sm layui-btn-warm fright generate-purchase" data-id="{$row.id}" style="margin-right: 20px;"><i class="layui-icon">&#xe654;</i> {:__('Generate_purchase')}</button>
+    <button type="button" class="layui-btn layui-icon-btn layui-btn-sm layui-btn-warm fright generate-purchase-order" data-id="{$row.id}" style="margin-right: 20px;"><i class="layui-icon">&#xe654;</i> {:__('Generate_purchase_order')}</button>
 </div>
 <div style="clear: both;"></div>
 <form id="edit-form" class="form-horizontal" role="form" data-toggle="validator" method="POST" action="">
@@ -85,6 +84,7 @@
                     <th class="goods_batch_sd">批次</th><th class="goods_batch_sd">生产日期</th><th class="goods_batch_sd">保质期(天)</th><th class="goods_batch_sd">有效期至</th>
                     <th>{:__('Number')}</th><th>{:__('Default_unit')}</th><th>{:__('Basic_nmber')}</th>
                     <th>{:__('Remark')}</th>
+                    <th>操作</th>
                 </tr>
                 <tr style="display: none;">
                     <td><div class="btn"><span class="add"><i class="fa fa-plus"></i></span><span class="del"><i class="fa fa-trash"></i></span></div></td>
@@ -138,6 +138,7 @@
                     <td><div><input type="text" readonly class="default_unit"><input type="hidden" name="row[default_unit][]" class="default_unit_id"></div></td>
                     <td><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly></div></td>
                     <td><div><input type="text" name="row[remark][]" class="remark"></div></td>
+                    <td></td>
                 </tr>
                 {foreach name="purchase_info" item="info" key="k"}
                 <tr>
@@ -204,6 +205,11 @@
                     <td><div><input type="text" readonly class="default_unit" value="{$unit_name|default=''}"><input type="hidden" value="{$info.default_unit|htmlentities}" name="row[default_unit][]" class="default_unit_id"></div></td>
                     <td><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" value="{$info.basic_nmber|htmlentities}" readonly></div></td>
                     <td><div><input type="text" name="row[remark][]" class="remark" value="{$info.remark|htmlentities}"></div></td>
+                    <td>
+                        <button type="button" class="btn btn-xs btn-info generate-assemble"
+                            data-schedule-id="{$row.id}"
+                            data-goods-code="{$info.goods_code}">生成组装单</button>
+                    </td>
                 </tr>
                 {/foreach}
                 {php}for($a=0;$a<(4-sizeof($purchase_info));$a++){ {/php}
@@ -259,12 +265,43 @@
                     <td><div><input type="text" readonly class="default_unit"><input type="hidden" name="row[default_unit][]" class="default_unit_id"></div></td>
                     <td><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly></div></td>
                     <td><div><input type="text" name="row[remark][]" class="remark"></div></td>
+                    <td></td>
                 </tr>
                 {php}}{/php}
             </table>
         </div>
     </div>
     <div class="chose_goods_boxs"></div>
+
+    <!-- BOM零件需求计算 -->
+    <div class="panel panel-default" id="bom-panel" style="margin-top: 15px;">
+        <div class="panel-heading">
+            <h3 class="panel-title">
+                {:__('BOM零件需求')}
+                <button type="button" class="btn btn-xs btn-info pull-right" id="bom-refresh"><i class="fa fa-refresh"></i> {:__('Refresh_calc')}</button>
+            </h3>
+        </div>
+        <div class="panel-body" style="overflow-x: auto;">
+            <table class="table table-bordered table-striped" id="bom_table">
+                <thead>
+                    <tr>
+                        <th>{:__('Goods_code')}</th>
+                        <th>{:__('Goods_name')}</th>
+                        <th>{:__('Required_qty')}</th>
+                        <th>{:__('Stock_qty')}</th>
+                        <th>{:__('Diff_qty')}</th>
+                        <th>{:__('Store_detail')}</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="bom_tbody">
+                    <tr id="bom-empty-row">
+                        <td colspan="7" class="text-center text-muted">{:__('Bom_loading')}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 
     <div class="row" style="margin-bottom: 10px;">
         <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
