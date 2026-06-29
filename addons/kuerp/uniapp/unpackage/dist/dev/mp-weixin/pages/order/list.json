@@ -4,6 +4,7 @@
   "backgroundColor": "#f5f7fa",
   "usingComponents": {
     "u-sticky": "/node-modules/uview-ui/components/u-sticky/u-sticky",
+    "u-tabs": "/node-modules/uview-ui/components/u-tabs/u-tabs",
     "u-button": "/node-modules/uview-ui/components/u-button/u-button",
     "u-empty": "/node-modules/uview-ui/components/u-empty/u-empty",
     "u-loadmore": "/node-modules/uview-ui/components/u-loadmore/u-loadmore"

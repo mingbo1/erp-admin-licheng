@@ -100,20 +100,29 @@ __webpack_require__.r(__webpack_exports__);
 var components
 try {
   components = {
-    uTag: function () {
-      return Promise.all(/*! import() | node-modules/uview-ui/components/u-tag/u-tag */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-tag/u-tag")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-tag/u-tag.vue */ 322))
-    },
     uIcon: function () {
       return Promise.all(/*! import() | node-modules/uview-ui/components/u-icon/u-icon */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-icon/u-icon")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-icon/u-icon.vue */ 290))
+    },
+    "u-Input": function () {
+      return Promise.all(/*! import() | node-modules/uview-ui/components/u--input/u--input */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u--input/u--input")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u--input/u--input.vue */ 389))
+    },
+    "u-Textarea": function () {
+      return Promise.all(/*! import() | node-modules/uview-ui/components/u--textarea/u--textarea */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u--textarea/u--textarea")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u--textarea/u--textarea.vue */ 395))
+    },
+    uButton: function () {
+      return Promise.all(/*! import() | node-modules/uview-ui/components/u-button/u-button */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-button/u-button")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-button/u-button.vue */ 371))
+    },
+    uTag: function () {
+      return Promise.all(/*! import() | node-modules/uview-ui/components/u-tag/u-tag */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-tag/u-tag")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-tag/u-tag.vue */ 322))
     },
     uDivider: function () {
       return Promise.all(/*! import() | node-modules/uview-ui/components/u-divider/u-divider */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-divider/u-divider")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-divider/u-divider.vue */ 330))
     },
-    "u-Textarea": function () {
-      return Promise.all(/*! import() | node-modules/uview-ui/components/u--textarea/u--textarea */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u--textarea/u--textarea")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u--textarea/u--textarea.vue */ 389))
+    uPopup: function () {
+      return Promise.all(/*! import() | node-modules/uview-ui/components/u-popup/u-popup */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-popup/u-popup")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-popup/u-popup.vue */ 401))
     },
-    uButton: function () {
-      return Promise.all(/*! import() | node-modules/uview-ui/components/u-button/u-button */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-button/u-button")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-button/u-button.vue */ 371))
+    uSearch: function () {
+      return Promise.all(/*! import() | node-modules/uview-ui/components/u-search/u-search */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-search/u-search")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-search/u-search.vue */ 274))
     },
   }
 } catch (e) {
@@ -147,11 +156,57 @@ var render = function () {
       m1: m1,
     }
   })
+  var g0 = _vm.customerList.length
+  var g1 = _vm.addressList.length
+  if (!_vm._isMounted) {
+    _vm.e0 = function ($event) {
+      _vm.showCustomerPicker = true
+    }
+    _vm.e1 = function ($event) {
+      _vm.showCustomerPicker = true
+    }
+    _vm.e2 = function ($event) {
+      _vm.showCustomerPicker = true
+    }
+    _vm.e3 = function ($event) {
+      _vm.showAddressPicker = true
+    }
+    _vm.e4 = function ($event) {
+      _vm.showAddressPicker = true
+    }
+    _vm.e5 = function ($event) {
+      _vm.showAddressEdit = false
+    }
+    _vm.e6 = function ($event) {
+      _vm.showCustomerPicker = false
+    }
+    _vm.e7 = function ($event) {
+      _vm.showCustomerPicker = false
+    }
+    _vm.e8 = function ($event) {
+      _vm.showAddCustomer = false
+    }
+    _vm.e9 = function ($event) {
+      _vm.showAddCustomer = false
+    }
+    _vm.e10 = function ($event) {
+      _vm.showAddressPicker = false
+    }
+    _vm.e11 = function ($event) {
+      _vm.showAddressPicker = false
+    }
+    _vm.e12 = function ($event) {
+      _vm.showAddressPicker = false
+      _vm.openManualAddress()
+    }
+  }
   _vm.$mp.data = Object.assign(
     {},
     {
       $root: {
         l0: l0,
+        g0: g0,
+        g1: g1,
       },
     }
   )
@@ -209,12 +264,31 @@ var _default = {
   data: function data() {
     return {
       goodsList: [],
+      customer: null,
       address: null,
       remark: '',
       submitting: false,
-      // buyNow 模式
       directGoods: null,
-      cartIds: ''
+      cartIds: '',
+      // 客户选择
+      showCustomerPicker: false,
+      customerList: [],
+      customerKeyword: '',
+      // 新增客户
+      showAddCustomer: false,
+      addCustomerName: '',
+      addCustomerMobile: '',
+      addCustomerContact: '',
+      addCustomerAddress: '',
+      addingCustomer: false,
+      // 地址选择
+      showAddressPicker: false,
+      addressList: [],
+      // 手动地址
+      showAddressEdit: false,
+      editReceiverName: '',
+      editReceiverMobile: '',
+      editReceiverAddress: ''
     };
   },
   computed: {
@@ -230,7 +304,6 @@ var _default = {
     }
   },
   onLoad: function onLoad(options) {
-    // buyNow 模式
     if (options.goods_id) {
       this.directGoods = {
         goods_id: Number(options.goods_id),
@@ -245,73 +318,290 @@ var _default = {
     }
   },
   onShow: function onShow() {
-    var _this = this;
-    this.loadAddress();
-    // 来自地址选择
-    uni.$on('selectAddress', function (addr) {
-      _this.address = addr;
-    });
     if (this.directGoods) {
       this.loadDirectGoods();
     } else {
       this.loadCart();
     }
-  },
-  onUnload: function onUnload() {
-    uni.$off('selectAddress');
+    this.loadCustomers();
   },
   methods: {
-    loadAddress: function loadAddress() {
-      var _this2 = this;
+    // ========== 客户 ==========
+    loadCustomers: function loadCustomers(keyword) {
+      var _this = this;
       return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee() {
-        var res, list, defaultAddr;
+        var res, own;
         return _regenerator.default.wrap(function _callee$(_context) {
           while (1) {
             switch (_context.prev = _context.next) {
               case 0:
                 _context.prev = 0;
                 _context.next = 3;
-                return _api.addressApi.index();
+                return _api.customerApi.list(keyword || '');
               case 3:
                 res = _context.sent;
-                list = res.list || [];
-                defaultAddr = list.find(function (a) {
-                  return a.is_first == 1;
-                }) || list[0];
-                if (defaultAddr) _this2.address = defaultAddr;
-                _context.next = 11;
+                _this.customerList = res.list || [];
+                // 自动选中自己的客户
+                if (!_this.customer) {
+                  own = _this.customerList.find(function (c) {
+                    return c.is_own;
+                  });
+                  if (own) {
+                    _this.selectCustomer(own);
+                  }
+                }
+                _context.next = 10;
                 break;
-              case 9:
-                _context.prev = 9;
+              case 8:
+                _context.prev = 8;
                 _context.t0 = _context["catch"](0);
-              case 11:
+              case 10:
               case "end":
                 return _context.stop();
             }
           }
-        }, _callee, null, [[0, 9]]);
+        }, _callee, null, [[0, 8]]);
       }))();
     },
-    loadCart: function loadCart() {
-      var _this3 = this;
+    searchCustomers: function searchCustomers() {
+      this.loadCustomers(this.customerKeyword);
+    },
+    selectCustomer: function selectCustomer(c) {
+      this.customer = c;
+      this.showCustomerPicker = false;
+      // 加载该客户的地址
+      this.loadAddresses(c.id);
+      // 用客户默认信息填充地址
+      this.address = {
+        first_connect_name: c.connet_name || c.customer_name,
+        first_connect_mobile: c.customer_mobile || '',
+        connect_address: c.getgoods_address || '',
+        is_first: 1
+      };
+      this.showAddressEdit = false;
+    },
+    openAddCustomer: function openAddCustomer() {
+      this.showCustomerPicker = false;
+      this.showAddCustomer = true;
+      this.addCustomerName = '';
+      this.addCustomerMobile = '';
+      this.addCustomerContact = '';
+      this.addCustomerAddress = '';
+    },
+    submitAddCustomer: function submitAddCustomer() {
+      var _this2 = this;
       return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee2() {
-        var res, list;
+        var res;
         return _regenerator.default.wrap(function _callee2$(_context2) {
           while (1) {
             switch (_context2.prev = _context2.next) {
               case 0:
-                _context2.prev = 0;
-                _context2.next = 3;
+                if (_this2.addCustomerName) {
+                  _context2.next = 3;
+                  break;
+                }
+                uni.showToast({
+                  title: '请输入客户名称',
+                  icon: 'none'
+                });
+                return _context2.abrupt("return");
+              case 3:
+                _this2.addingCustomer = true;
+                _context2.prev = 4;
+                _context2.next = 7;
+                return _api.customerApi.add({
+                  customer_name: _this2.addCustomerName,
+                  customer_mobile: _this2.addCustomerMobile,
+                  connet_name: _this2.addCustomerContact || _this2.addCustomerName,
+                  getgoods_address: _this2.addCustomerAddress
+                });
+              case 7:
+                res = _context2.sent;
+                _this2.showAddCustomer = false;
+                _this2.addingCustomer = false;
+                // 选中新客户
+                if (res.customer) {
+                  _this2.customer = res.customer;
+                  _this2.address = {
+                    first_connect_name: res.customer.connet_name || res.customer.customer_name,
+                    first_connect_mobile: res.customer.customer_mobile || '',
+                    connect_address: res.customer.getgoods_address || '',
+                    is_first: 1
+                  };
+                  _this2.addressList = [];
+                }
+                _this2.loadCustomers();
+                _context2.next = 17;
+                break;
+              case 14:
+                _context2.prev = 14;
+                _context2.t0 = _context2["catch"](4);
+                uni.showToast({
+                  title: typeof _context2.t0 === 'string' ? _context2.t0 : '添加失败',
+                  icon: 'none'
+                });
+              case 17:
+                _context2.prev = 17;
+                _this2.addingCustomer = false;
+                return _context2.finish(17);
+              case 20:
+              case "end":
+                return _context2.stop();
+            }
+          }
+        }, _callee2, null, [[4, 14, 17, 20]]);
+      }))();
+    },
+    // ========== 地址 ==========
+    loadAddresses: function loadAddresses(customerId) {
+      var _this3 = this;
+      return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee3() {
+        var res, def;
+        return _regenerator.default.wrap(function _callee3$(_context3) {
+          while (1) {
+            switch (_context3.prev = _context3.next) {
+              case 0:
+                _context3.prev = 0;
+                _context3.next = 3;
+                return _api.customerApi.addresses(customerId || (_this3.customer ? _this3.customer.id : 0));
+              case 3:
+                res = _context3.sent;
+                _this3.addressList = res.list || [];
+                if (res.customer && !_this3.customer) {
+                  _this3.customer = res.customer;
+                }
+                def = _this3.addressList.find(function (a) {
+                  return a.is_first == 1;
+                }) || _this3.addressList[0];
+                if (def) {
+                  _this3.address = def;
+                }
+                _context3.next = 12;
+                break;
+              case 10:
+                _context3.prev = 10;
+                _context3.t0 = _context3["catch"](0);
+              case 12:
+              case "end":
+                return _context3.stop();
+            }
+          }
+        }, _callee3, null, [[0, 10]]);
+      }))();
+    },
+    selectAddress: function selectAddress(a) {
+      this.address = a;
+      this.showAddressPicker = false;
+      this.showAddressEdit = false;
+    },
+    openManualAddress: function openManualAddress() {
+      this.editReceiverName = this.address ? this.address.first_connect_name || '' : '';
+      this.editReceiverMobile = this.address ? this.address.first_connect_mobile || '' : '';
+      this.editReceiverAddress = this.address ? this.address.connect_address || '' : '';
+      this.showAddressEdit = true;
+    },
+    confirmManualAddress: function confirmManualAddress() {
+      var _this4 = this;
+      return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee4() {
+        var res, idx;
+        return _regenerator.default.wrap(function _callee4$(_context4) {
+          while (1) {
+            switch (_context4.prev = _context4.next) {
+              case 0:
+                if (!(!_this4.editReceiverName || !_this4.editReceiverAddress)) {
+                  _context4.next = 3;
+                  break;
+                }
+                uni.showToast({
+                  title: '请填写收货人和地址',
+                  icon: 'none'
+                });
+                return _context4.abrupt("return");
+              case 3:
+                if (!(_this4.customer && _this4.customer.id)) {
+                  _context4.next = 16;
+                  break;
+                }
+                _context4.prev = 4;
+                _context4.next = 7;
+                return _api.customerApi.saveAddress({
+                  customer_id: _this4.customer.id,
+                  first_connect_name: _this4.editReceiverName,
+                  first_connect_mobile: _this4.editReceiverMobile,
+                  connect_address: _this4.editReceiverAddress
+                });
+              case 7:
+                res = _context4.sent;
+                if (res && res.address) {
+                  _this4.address = res.address;
+                  // 同步更新到地址列表（去重替换）
+                  idx = _this4.addressList.findIndex(function (a) {
+                    return a.id === res.address.id;
+                  });
+                  if (idx >= 0) {
+                    _this4.addressList.splice(idx, 1, res.address);
+                  } else {
+                    _this4.addressList.unshift(res.address);
+                  }
+                }
+                _context4.next = 14;
+                break;
+              case 11:
+                _context4.prev = 11;
+                _context4.t0 = _context4["catch"](4);
+                // 保存失败时降级为本地地址
+                _this4.address = {
+                  first_connect_name: _this4.editReceiverName,
+                  first_connect_mobile: _this4.editReceiverMobile,
+                  connect_address: _this4.editReceiverAddress,
+                  is_first: 0
+                };
+              case 14:
+                _context4.next = 17;
+                break;
+              case 16:
+                // 无客户时仅本地使用
+                _this4.address = {
+                  first_connect_name: _this4.editReceiverName,
+                  first_connect_mobile: _this4.editReceiverMobile,
+                  connect_address: _this4.editReceiverAddress,
+                  is_first: 0
+                };
+              case 17:
+                _this4.showAddressEdit = false;
+                uni.showToast({
+                  title: '地址已更新',
+                  icon: 'success'
+                });
+              case 19:
+              case "end":
+                return _context4.stop();
+            }
+          }
+        }, _callee4, null, [[4, 11]]);
+      }))();
+    },
+    // ========== 商品 ==========
+    loadCart: function loadCart() {
+      var _this5 = this;
+      return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee5() {
+        var res, list;
+        return _regenerator.default.wrap(function _callee5$(_context5) {
+          while (1) {
+            switch (_context5.prev = _context5.next) {
+              case 0:
+                _context5.prev = 0;
+                _context5.next = 3;
                 return _api.cartApi.index({
-                  ids: _this3.cartIds
+                  ids: _this5.cartIds
                 });
               case 3:
-                res = _context2.sent;
+                res = _context5.sent;
                 list = (res.list || []).filter(function (i) {
                   return !i.sell_out;
                 });
                 if (!(list.length === 0)) {
-                  _context2.next = 9;
+                  _context5.next = 9;
                   break;
                 }
                 uni.showToast({
@@ -321,10 +611,9 @@ var _default = {
                 setTimeout(function () {
                   return uni.navigateBack();
                 }, 500);
-                return _context2.abrupt("return");
+                return _context5.abrupt("return");
               case 9:
-                // 映射字段用于显示
-                _this3.goodsList = list.map(function (item) {
+                _this5.goodsList = list.map(function (item) {
                   return _objectSpread(_objectSpread({}, item), {}, {
                     goods_id: item.goods_id,
                     goods_name: item.goods_name,
@@ -335,47 +624,46 @@ var _default = {
                     attr_name: item.attr_name
                   });
                 });
-                _context2.next = 15;
+                _context5.next = 15;
                 break;
               case 12:
-                _context2.prev = 12;
-                _context2.t0 = _context2["catch"](0);
+                _context5.prev = 12;
+                _context5.t0 = _context5["catch"](0);
                 uni.showToast({
-                  title: _context2.t0,
+                  title: _context5.t0,
                   icon: 'none'
                 });
               case 15:
               case "end":
-                return _context2.stop();
+                return _context5.stop();
             }
           }
-        }, _callee2, null, [[0, 12]]);
+        }, _callee5, null, [[0, 12]]);
       }))();
     },
     loadDirectGoods: function loadDirectGoods() {
-      var _this4 = this;
-      return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee3() {
+      var _this6 = this;
+      return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee6() {
         var _yield$import, goodsApi, res, goods, unitName, unitId, unit, attrName, attrIds, ids, names, source, skuPrice, skuStock, sortedIds, matched;
-        return _regenerator.default.wrap(function _callee3$(_context3) {
+        return _regenerator.default.wrap(function _callee6$(_context6) {
           while (1) {
-            switch (_context3.prev = _context3.next) {
+            switch (_context6.prev = _context6.next) {
               case 0:
-                _context3.prev = 0;
-                _context3.next = 3;
+                _context6.prev = 0;
+                _context6.next = 3;
                 return Promise.resolve().then(function () {
                   return _interopRequireWildcard(__webpack_require__(/*! ../../api */ 33));
                 });
               case 3:
-                _yield$import = _context3.sent;
+                _yield$import = _context6.sent;
                 goodsApi = _yield$import.goodsApi;
-                _context3.next = 7;
-                return goodsApi.detail(_this4.directGoods.goods_id);
+                _context6.next = 7;
+                return goodsApi.detail(_this6.directGoods.goods_id);
               case 7:
-                res = _context3.sent;
-                // 后端返回 { goods, units, attrs }，需要解包
+                res = _context6.sent;
                 goods = res && res.goods ? res.goods : res;
                 if (!(!goods || !goods.id)) {
-                  _context3.next = 13;
+                  _context6.next = 13;
                   break;
                 }
                 uni.showToast({
@@ -385,20 +673,18 @@ var _default = {
                 setTimeout(function () {
                   return uni.navigateBack();
                 }, 500);
-                return _context3.abrupt("return");
+                return _context6.abrupt("return");
               case 13:
-                // 解析单位名称
                 unitName = '';
-                unitId = _this4.directGoods.goods_unit;
+                unitId = _this6.directGoods.goods_unit;
                 if (unitId && res.units) {
                   unit = res.units.find(function (u) {
                     return u.id == unitId;
                   });
                   if (unit) unitName = unit.name;
                 }
-                // 解析属性名称：优先用传入的，其次从 API 解析
-                attrName = _this4.directGoods.attr_name || '';
-                attrIds = _this4.directGoods.attr_ids;
+                attrName = _this6.directGoods.attr_name || '';
+                attrIds = _this6.directGoods.attr_ids;
                 if (!attrName && attrIds) {
                   ids = ('' + attrIds).split('&').map(Number);
                   names = [];
@@ -411,7 +697,6 @@ var _default = {
                   });
                   attrName = names.join(' / ');
                 }
-                // 根据 attr_ids 匹配 SKU，获取规格价格（而非商品级最低价）
                 skuPrice = goods.show_price || goods.market_sell_price || 0;
                 skuStock = goods.stock || 0;
                 if (attrIds && res.attrs && res.attrs.length > 0) {
@@ -430,11 +715,11 @@ var _default = {
                     skuStock = matched.stock || 0;
                   }
                 }
-                _this4.goodsList = [{
+                _this6.goodsList = [{
                   goods_id: goods.id,
                   goods_name: goods.goods_name,
                   goods_image: goods.goods_image,
-                  quantity: _this4.directGoods.quantity,
+                  quantity: _this6.directGoods.quantity,
                   unit_price: skuPrice,
                   goods_unit: unitId,
                   attr_ids: attrIds,
@@ -442,79 +727,91 @@ var _default = {
                   unit_name: unitName,
                   stock: skuStock
                 }];
-                _context3.next = 28;
+                _context6.next = 28;
                 break;
               case 25:
-                _context3.prev = 25;
-                _context3.t0 = _context3["catch"](0);
+                _context6.prev = 25;
+                _context6.t0 = _context6["catch"](0);
                 uni.showToast({
-                  title: _context3.t0,
+                  title: _context6.t0,
                   icon: 'none'
                 });
               case 28:
               case "end":
-                return _context3.stop();
+                return _context6.stop();
             }
           }
-        }, _callee3, null, [[0, 25]]);
+        }, _callee6, null, [[0, 25]]);
       }))();
-    },
-    selectAddress: function selectAddress() {
-      uni.navigateTo({
-        url: '/pages/address/list?select=1'
-      });
     },
     calcItemTotal: function calcItemTotal(item) {
       return ((item.unit_price || item.show_price || 0) * item.quantity).toFixed(2);
     },
+    // ========== 提交订单 ==========
     submitOrder: function submitOrder() {
-      var _this5 = this;
-      return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee4() {
-        var goods, res;
-        return _regenerator.default.wrap(function _callee4$(_context4) {
+      var _this7 = this;
+      return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee7() {
+        var goods, orderData, res;
+        return _regenerator.default.wrap(function _callee7$(_context7) {
           while (1) {
-            switch (_context4.prev = _context4.next) {
+            switch (_context7.prev = _context7.next) {
               case 0:
-                if (!_this5.submitting) {
-                  _context4.next = 2;
+                if (!_this7.submitting) {
+                  _context7.next = 2;
                   break;
                 }
-                return _context4.abrupt("return");
+                return _context7.abrupt("return");
               case 2:
-                if (_this5.address) {
-                  _context4.next = 5;
+                if (_this7.customer) {
+                  _context7.next = 5;
                   break;
                 }
                 uni.showToast({
-                  title: '请选择收货地址',
+                  title: '请选择客户',
                   icon: 'none'
                 });
-                return _context4.abrupt("return");
+                return _context7.abrupt("return");
               case 5:
-                _this5.submitting = true;
-                _context4.prev = 6;
-                // 构造商品列表数据
-                goods = _this5.directGoods ? [{
-                  goods_id: _this5.directGoods.goods_id,
-                  quantity: _this5.directGoods.quantity,
-                  attr_ids: _this5.directGoods.attr_ids,
-                  goods_unit: _this5.directGoods.goods_unit
-                }] : _this5.goodsList.map(function (item) {
+                if (_this7.address) {
+                  _context7.next = 8;
+                  break;
+                }
+                uni.showToast({
+                  title: '请填写收货地址',
+                  icon: 'none'
+                });
+                return _context7.abrupt("return");
+              case 8:
+                _this7.submitting = true;
+                _context7.prev = 9;
+                goods = _this7.directGoods ? [{
+                  goods_id: _this7.directGoods.goods_id,
+                  quantity: _this7.directGoods.quantity,
+                  attr_ids: _this7.directGoods.attr_ids,
+                  goods_unit: _this7.directGoods.goods_unit
+                }] : _this7.goodsList.map(function (item) {
                   return {
                     goods_id: item.goods_id,
                     quantity: item.quantity,
                     attr_ids: item.attr_ids || '',
                     goods_unit: item.goods_unit || 0
                   };
-                });
-                _context4.next = 10;
-                return _api.orderApi.add({
-                  address_id: _this5.address.id,
-                  remark: _this5.remark,
+                }); // 构造下单参数
+                orderData = {
+                  customer_id: _this7.customer.id,
+                  remark: _this7.remark,
                   goods: JSON.stringify(goods)
-                });
-              case 10:
-                res = _context4.sent;
+                }; // 地址：优先用 address_id，否则手动传
+                if (_this7.address.id && _this7.address.id > 0) {
+                  orderData.address_id = _this7.address.id;
+                }
+                orderData.receiver_name = _this7.address.first_connect_name || '';
+                orderData.receiver_mobile = _this7.address.first_connect_mobile || '';
+                orderData.receiver_address = _this7.address.connect_address || '';
+                _context7.next = 18;
+                return _api.orderApi.add(orderData);
+              case 18:
+                res = _context7.sent;
                 uni.showToast({
                   title: '下单成功'
                 });
@@ -523,25 +820,25 @@ var _default = {
                     url: '/pages/order/detail?id=' + res.order.id
                   });
                 }, 500);
-                _context4.next = 18;
+                _context7.next = 26;
                 break;
-              case 15:
-                _context4.prev = 15;
-                _context4.t0 = _context4["catch"](6);
+              case 23:
+                _context7.prev = 23;
+                _context7.t0 = _context7["catch"](9);
                 uni.showToast({
-                  title: _context4.t0,
+                  title: typeof _context7.t0 === 'string' ? _context7.t0 : '提交失败',
                   icon: 'none'
                 });
-              case 18:
-                _context4.prev = 18;
-                _this5.submitting = false;
-                return _context4.finish(18);
-              case 21:
+              case 26:
+                _context7.prev = 26;
+                _this7.submitting = false;
+                return _context7.finish(26);
+              case 29:
               case "end":
-                return _context4.stop();
+                return _context7.stop();
             }
           }
-        }, _callee4, null, [[6, 15, 18, 21]]);
+        }, _callee7, null, [[9, 23, 26, 29]]);
       }))();
     }
   }

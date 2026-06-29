@@ -6,15 +6,13 @@ use addons\kuerp\model\MiniDelivery;
 
 class Delivery extends Base
 {
+
     /**
      * 查看物流信息
      * GET /api/kuerp/delivery/index
      */
     public function index()
     {
-        if (!$this->auth->isLogin()) {
-            return json(['code' => 1, 'msg' => '请先登录']);
-        }
 
         $deliveryId = $this->request->get('delivery_id/d', 0);
         $orderId    = $this->request->get('order_id/d', 0);

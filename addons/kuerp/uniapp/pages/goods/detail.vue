@@ -291,7 +291,7 @@ export default {
     checkLogin() {
       if (!getToken()) {
         // #ifdef MP-WEIXIN
-        uni.navigateTo({ url: '/pages/user/wxlogin' })
+        uni.navigateTo({ url: '/pages/user/login' })
         // #endif
         // #ifndef MP-WEIXIN
         uni.navigateTo({ url: '/pages/user/login' })

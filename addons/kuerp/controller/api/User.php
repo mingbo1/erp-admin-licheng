@@ -158,7 +158,7 @@ class User extends Base
 
         $miniUser = MiniUser::where('user_id', $this->auth->id)->find();
         if (!$miniUser) {
-            // 创建 mini_user
+            // 创建 mini_user（首次账密登录，默认标记为销售员类型）
             $customerId = Db::name('kuerp_customers')->where('customer_mobile', $mobile)->value('id');
             if (!$customerId) {
                 $customerCode = \addons\kuerp\library\Goods::getCodes('', 1);
@@ -167,6 +167,7 @@ class User extends Base
                     'customer_code'    => $customerCode,
                     'customer_mobile'  => $mobile,
                     'customerlevel_id' => 1,
+                    'customertype_id'  => 1,
                     'status'           => 1,
                     'createtime'       => time(),
                     'updatetime'       => time(),
@@ -176,8 +177,9 @@ class User extends Base
                 'user_id'     => $this->auth->id,
                 'customer_id' => $customerId,
                 'mobile'      => $mobile,
-                'apptype'     => 'h5',
-                'openid'      => 'h5_' . $this->auth->id,
+                'apptype'     => 'mobile',
+                'user_type'   => 'sales',
+                'openid'      => 'mobile_' . $this->auth->id,
                 'nickname'    => $user->nickname,
                 'status'      => 'normal',
                 'createdtime' => time(),
@@ -185,11 +187,25 @@ class User extends Base
             ]);
         }
 
+        // 获取绑定的销售人员信息
+        $staffInfo = null;
+        if (!empty($miniUser['staff_id'])) {
+            $staff = Db::name('kuerp_staff_member')->where('id', $miniUser['staff_id'])->find();
+            if ($staff) {
+                $staffInfo = [
+                    'staff_id'   => $staff['id'],
+                    'staff_name' => $staff['name'],
+                    'men_code'   => $staff['men_code'],
+                ];
+            }
+        }
+
         $userinfo = $this->auth->getUserinfo();
 
         return json(['code' => 0, 'msg' => '登录成功', 'data' => [
-            'userinfo'  => $userinfo,
-            'mini_user' => $miniUser,
+            'userinfo'   => $userinfo,
+            'mini_user'  => $miniUser,
+            'staff_info' => $staffInfo,
         ]]);
     }
 
@@ -289,9 +305,6 @@ class User extends Base
      */
     public function info()
     {
-        if (!$this->auth->isLogin()) {
-            return json(['code' => 1, 'msg' => '请先登录']);
-        }
         $miniUser = MiniUser::where('user_id', $this->auth->id)->find();
         if (!$miniUser) {
             return json(['code' => 1, 'msg' => '用户不存在']);
@@ -316,9 +329,6 @@ class User extends Base
      */
     public function update()
     {
-        if (!$this->auth->isLogin()) {
-            return json(['code' => 1, 'msg' => '请先登录']);
-        }
         $miniUser = MiniUser::where('user_id', $this->auth->id)->find();
         if (!$miniUser) {
             return json(['code' => 1, 'msg' => '用户不存在']);

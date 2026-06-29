@@ -2,6 +2,7 @@
 
 namespace app\admin\controller\kuerp;
 
+use app\admin\model\kuerp\GoodsSalesOrderLog;
 use app\common\controller\Backend;
 use think\Db;
 use Exception;
@@ -505,6 +506,10 @@ class Assemble extends Backend
                     $this->error($e->getMessage());
                 }
                 if (isset($result) && $result !== false) {
+                    // 写入销货订单日志：生成组装单
+                    if (!empty($row['sales_order_id'])) {
+                        GoodsSalesOrderLog::writeLogByCode($row['sales_order_id'], '生成组装单', '生成组装单：' . $row['purchase_code'], 'assemble', $result);
+                    }
                     if($examine!=1){
                         try {
                             $exa = $this->examine($result,1);
@@ -1119,20 +1124,11 @@ class Assemble extends Backend
                 $admin = Session::get('admin');
                 $result = $this->model->where(['id'=>['in',$ids],'examine_status'=>'0'])->update(['examine_status'=>1,'examine_id'=>$admin['id'],'examine_time'=>time(),'operation_id'=>$admin['id']]);
                 if($result !== false){
-                    // 写入销货订单操作日志
+                    // 写入销货订单操作日志：子件出库
                     $examinedList = $this->model->where(['id'=>['in',$ids]])->field('id,purchase_code,sales_order_id')->select();
                     foreach ($examinedList as $eo) {
                         if (!empty($eo['sales_order_id'])) {
-                            $salesOrder = Db::name('kuerp_goods_sales_order')->where(['purchase_code' => $eo['sales_order_id']])->field('id')->find();
-                            if ($salesOrder) {
-                                Db::name('kuerp_goods_sales_order_log')->insert([
-                                    'order_id'   => $salesOrder['id'],
-                                    'action'     => '生成组装单',
-                                    'note'       => '组装单[' . $eo['purchase_code'] . ']子件出库审核通过',
-                                    'admin_id'   => $admin['id'],
-                                    'createtime' => time(),
-                                ]);
-                            }
+                            GoodsSalesOrderLog::writeLogByCode($eo['sales_order_id'], '组装单子件出库', '组装单[' . $eo['purchase_code'] . ']子件出库审核通过', 'assemble', $eo['id']);
                         }
                     }
                     $this->success(sizeof($list).'条数据子件出库审核成功');
@@ -1375,16 +1371,7 @@ class Assemble extends Backend
                 foreach ($examinedList2 as $eo) {
                     if (!empty($eo['sales_order_id'])) {
                         // 写入销货订单操作日志
-                        $salesOrder = Db::name('kuerp_goods_sales_order')->where(['purchase_code' => $eo['sales_order_id']])->field('id')->find();
-                        if ($salesOrder) {
-                            Db::name('kuerp_goods_sales_order_log')->insert([
-                                'order_id'   => $salesOrder['id'],
-                                'action'     => '生成组装单',
-                                'note'       => '组装单[' . $eo['purchase_code'] . ']子件出库审核通过',
-                                'admin_id'   => $admin['id'],
-                                'createtime' => time(),
-                            ]);
-                        }
+                        GoodsSalesOrderLog::writeLogByCode($eo['sales_order_id'], '组装单子件出库', '组装单[' . $eo['purchase_code'] . ']子件出库审核通过', 'assemble', $eo['id']);
 
                         // 消费该组装单出库子件的锁定
                         $childItems = Db::name('kuerp_assemble_info')
@@ -1557,20 +1544,11 @@ class Assemble extends Backend
 
                 $result = $this->model->where(['id'=>['in',$ids],'examine_status'=>'1'])->update(['examine_status'=>0,'examine_id'=>0,'examine_time'=>'','operation_id'=>$admin['id']]);
                 Db::commit();
-                // 写入销货订单操作日志
+                // 写入销货订单操作日志：取消组装单
                 $examinedList3 = $this->model->where(['id'=>['in',$ids]])->field('id,purchase_code,sales_order_id')->select();
                 foreach ($examinedList3 as $eo) {
                     if (!empty($eo['sales_order_id'])) {
-                        $salesOrder = Db::name('kuerp_goods_sales_order')->where(['purchase_code' => $eo['sales_order_id']])->field('id')->find();
-                        if ($salesOrder) {
-                            Db::name('kuerp_goods_sales_order_log')->insert([
-                                'order_id'   => $salesOrder['id'],
-                                'action'     => '取消组装单',
-                                'note'       => '组装单[' . $eo['purchase_code'] . ']子件出库反审核',
-                                'admin_id'   => $admin['id'],
-                                'createtime' => time(),
-                            ]);
-                        }
+                        GoodsSalesOrderLog::writeLogByCode($eo['sales_order_id'], '取消组装单', '组装单[' . $eo['purchase_code'] . ']子件出库反审核', 'assemble', $eo['id']);
                     }
                 }
             } catch (Exception $e) {
@@ -1631,6 +1609,12 @@ class Assemble extends Backend
                 $admin = Session::get('admin');
                 $result = $this->model->where(['id'=>['in',$ids],'inbound_status'=>'0'])->update(['inbound_status'=>1,'operation_id'=>$admin['id']]);
                 if($result !== false){
+                    // 写入销货订单日志：成品入库
+                    foreach ($list as $logOrder) {
+                        if (!empty($logOrder['sales_order_id'])) {
+                            GoodsSalesOrderLog::writeLogByCode($logOrder['sales_order_id'], '组装单成品入库', '组装单[' . $logOrder['purchase_code'] . ']组合件入库审核通过', 'assemble', $logOrder['id']);
+                        }
+                    }
                     $this->success(sizeof($list).'条数据组合件入库审核成功');
                 }else{
                     $this->error('组合件入库审核失败');
@@ -1942,6 +1926,12 @@ class Assemble extends Backend
                 $this->error($e->getMessage());
             }
             if($result !== false){
+                // 写入销货订单日志：成品入库
+                foreach ($list as $logOrder) {
+                    if (!empty($logOrder['sales_order_id'])) {
+                        GoodsSalesOrderLog::writeLogByCode($logOrder['sales_order_id'], '组装单成品入库', '组装单[' . $logOrder['purchase_code'] . ']组合件入库审核通过', 'assemble', $logOrder['id']);
+                    }
+                }
                 if($examine_set!=1){
                     return ['status'=>1,'msg'=>'操作成功'];
                 }
@@ -2857,6 +2847,10 @@ class Assemble extends Backend
             $this->error($e->getMessage());
         }
 
+        // 写入销货订单日志：成品入库
+        if ($has_in && !empty($row['sales_order_id'])) {
+            GoodsSalesOrderLog::writeLogByCode($row['sales_order_id'], '组装单成品入库', '组装单[' . $row['purchase_code'] . ']组合件入库审核通过', 'assemble', $ids);
+        }
         $msg = '';
         if ($has_out) $msg .= '子件出库成功';
         if ($has_in) $msg .= ($msg ? '，' : '') . '组合件入库成功';

@@ -30,7 +30,8 @@ class GoodsSalesOrder extends Model
         'examine_status_text',
         'examine_time_text',
         'second_examine_status_text',
-        'second_examine_time_text'
+        'second_examine_time_text',
+        'source_text',
     ];
     
 
@@ -53,6 +54,11 @@ class GoodsSalesOrder extends Model
     public function getExamineStatusList()
     {
         return ['0' => __('Examine_status 0'), '1' => __('Examine_status 1')];
+    }
+
+    public function getSourceList()
+    {
+        return ['admin' => __('Source admin'), 'miniapp' => __('Source miniapp')];
     }
 
 
@@ -106,6 +112,13 @@ class GoodsSalesOrder extends Model
     {
         $value = $value ? $value : (isset($data['examine_time']) ? $data['examine_time'] : '');
         return is_numeric($value) ? date("Y-m-d H:i:s", $value) : $value;
+    }
+
+    public function getSourceTextAttr($value, $data)
+    {
+        $value = $value ? $value : (isset($data['source']) ? $data['source'] : '');
+        $list = $this->getSourceList();
+        return isset($list[$value]) ? $list[$value] : '';
     }
 
     protected function setPurchaseTimeAttr($value)

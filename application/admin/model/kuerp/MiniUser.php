@@ -18,6 +18,7 @@ class MiniUser extends Model
     protected $append = [
         'status_text',
         'apptype_text',
+        'user_type_text',
     ];
 
     public function getStatusList()
@@ -28,6 +29,11 @@ class MiniUser extends Model
     public function getApptypeList()
     {
         return ['miniapp' => __('小程序'), 'mp' => __('公众号'), 'mobile' => __('手机注册')];
+    }
+
+    public function getUserTypeList()
+    {
+        return ['sales' => __('User_type sales'), 'supplier' => __('User_type supplier')];
     }
 
     public function getStatusTextAttr($value, $data)
@@ -42,5 +48,22 @@ class MiniUser extends Model
         $value = $value ?: ($data['apptype'] ?? '');
         $list = $this->getApptypeList();
         return $list[$value] ?? '';
+    }
+
+    public function getUserTypeTextAttr($value, $data)
+    {
+        $value = $value ?: ($data['user_type'] ?? '');
+        $list = $this->getUserTypeList();
+        return $list[$value] ?? '';
+    }
+
+    public function staffMember()
+    {
+        return $this->belongsTo('\app\admin\model\kuerp\StaffMember', 'staff_id', 'id');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo('\app\common\model\User', 'user_id', 'id');
     }
 }

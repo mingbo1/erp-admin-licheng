@@ -132,7 +132,7 @@ export default {
     goLogin() {
     // #ifdef MP-WEIXIN
 			uni.navigateTo({
-				url: '/pages/user/wxlogin'
+				url: '/pages/user/login'
 			})
 			// #endif
 			// #ifndef MP-WEIXIN

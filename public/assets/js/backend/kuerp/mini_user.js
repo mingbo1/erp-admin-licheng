@@ -19,36 +19,55 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         { field: 'id', title: 'ID', width: 60 },
                         { field: 'nickname', title: __('Nickname'), width: 120 },
                         { field: 'mobile', title: __('Mobile'), width: 120 },
+                        { field: 'user_type', title: __('User_type'), width: 90, templet: function (d) {
+                            return d.user_type_text || d.user_type || '-';
+                        }},
+                        { field: 'staff_id', title: __('Staff_id'), width: 160, templet: function (d) {
+                            if (d.staffmember && d.staffmember.name) {
+                                return (d.staffmember.men_code || '') + ' ' + d.staffmember.name;
+                            }
+                            return '-';
+                        }},
                         { field: 'apptype', title: __('Apptype'), width: 80, templet: function (d) {
-                            return d.apptype_text || d.apptype;
+                            return d.apptype_text || d.apptype || '-';
                         }},
                         { field: 'createdtime', title: __('Createdtime'), width: 160, templet: function (d) {
                             return d.createdtime ? new Date(d.createdtime * 1000).toLocaleString() : '-';
                         }},
-                        { field: 'customer_id', title: __('Customer_id'), width: 100 },
                         { field: 'status', title: __('Status'), width: 80, templet: function (d) {
                             return d.status == 'normal' ? '<span class="label label-success">正常</span>' : '<span class="label label-default">禁用</span>';
                         }},
                         { field: 'id', title: __('Operate'), width: 100, templet: function (d) {
-                            return '<a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>';
+                            return '<a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a><a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="del">删除</a>';
                         }}
                     ]]
                 });
 
-                //头工具栏事件
+                // 头工具栏事件
                 table.on('toolbar(table)', function(obj){
                     switch(obj.event){
                         case 'refresh':
                             table.reload('table', []);
                             break;
+                        case 'add':
+                            Fast.api.open("kuerp/mini_user/add", __('Add_mini_user'), {area:['50%','70%']});
+                            break;
                     }
                 });
 
-                //监听行工具事件
+                // 监听行工具事件
                 table.on('tool(table)', function(obj){
                     var data = obj.data;
                     if(obj.event === 'edit'){
-                        Fast.api.open("kuerp/mini_user/edit/ids/" + data.id, "编辑", {area:['90%','75%']});
+                        Fast.api.open("kuerp/mini_user/edit/ids/" + data.id, __('Edit'), {area:['50%','70%']});
+                    } else if(obj.event === 'del'){
+                        Fast.api.ajax({
+                            url: 'kuerp/mini_user/del',
+                            data: { ids: data.id },
+                            success: function () {
+                                table.reload('table', []);
+                            }
+                        });
                     }
                 });
 
@@ -68,19 +87,26 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     if (nickname) search.nickname = nickname;
                     var mobile = $('#mobile').val();
                     if (mobile) search.mobile = mobile;
+                    var userType = $('#user_type').val();
+                    if (userType) search.user_type = userType;
                     return search;
                 }
 
                 function getOp() {
-                    return { nickname: 'LIKE', mobile: 'LIKE' };
+                    return { nickname: 'LIKE', mobile: 'LIKE', user_type: '=' };
                 }
             });
+            Controller.api.bindevent();
+        },
+
+        add: function () {
             Controller.api.bindevent();
         },
 
         edit: function () {
             Controller.api.bindevent();
         },
+
         api: {
             bindevent: function () {
                 Form.api.bindevent($("form[role=form]"), function (data, ret) {

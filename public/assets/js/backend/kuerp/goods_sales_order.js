@@ -65,6 +65,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'all_money', title: __('All_money'),templet: function (d) {
                                 return (d.all_money-(-d.tax_money)).toFixed(price_decimal);
                             }},
+                        {field: 'delivery_time', title: __('Delivery_time'),templet: function (d) {
+                                return layui.util.toDateString(d.delivery_time*1000,"yyyy-MM-dd");
+                            },width:110},
                         {field: 'status', title: __('Status'),templet: function (d) {
                                 if(d.status==0){
                                     return __('Status 0');
@@ -105,6 +108,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                     return '';
                                 }
                             },hide:hideStatus},
+                        {field: 'source', title: __('Source'), width: 90, templet: function (d) {
+                                return d.source_text || d.source || 'admin';
+                            }},
                         {field: 'note', title: __('Note')},
                         {field: 'print_num', title: __('Print_num')},
                         {fixed: 'right', title:__('Operate'), toolbar: '#barDemo', width:150}
@@ -247,6 +253,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     var second_examine_status = $('#second_examine_status').val();
                     if(second_examine_status!=''){
                         search.second_examine_status = second_examine_status;
+                    }
+                    var source = $('#source').val();
+                    if(source!=''){
+                        search.source = source;
                     }
                     var purchase_time = $('#purchase_time').val();
                     if(purchase_time!=''){

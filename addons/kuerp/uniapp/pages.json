@@ -60,7 +60,7 @@
     {
       "path": "pages/user/wxlogin",
       "style": {
-        "navigationBarTitleText": "微信登录",
+        "navigationBarTitleText": "登录",
         "backgroundColor": "#f5f7fa"
       }
     },
@@ -75,14 +75,6 @@
       "path": "pages/user/login",
       "style": {
         "navigationBarTitleText": "登录",
-        "navigationBarBackgroundColor": "#ffffff",
-        "navigationBarTextStyle": "black"
-      }
-    },
-    {
-      "path": "pages/user/register",
-      "style": {
-        "navigationBarTitleText": "注册",
         "navigationBarBackgroundColor": "#ffffff",
         "navigationBarTextStyle": "black"
       }

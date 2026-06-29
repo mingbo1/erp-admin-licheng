@@ -165,7 +165,7 @@ var plugins = [];
 var parser = __webpack_require__(/*! ./parser */ 344);
 var node = function node() {
   __webpack_require__.e(/*! require.ensure | node-modules/uview-ui/components/u-parse/node/node */ "node-modules/uview-ui/components/u-parse/node/node").then((function () {
-    return resolve(__webpack_require__(/*! ./node/node */ 505));
+    return resolve(__webpack_require__(/*! ./node/node */ 513));
   }).bind(null, __webpack_require__)).catch(__webpack_require__.oe);
 };
 var _default = {

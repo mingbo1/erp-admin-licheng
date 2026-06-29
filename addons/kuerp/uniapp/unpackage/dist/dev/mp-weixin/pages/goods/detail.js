@@ -521,7 +521,7 @@ var _default = {
     checkLogin: function checkLogin() {
       if (!(0, _request.getToken)()) {
         uni.navigateTo({
-          url: '/pages/user/wxlogin'
+          url: '/pages/user/login'
         });
         return false;
       }

@@ -815,18 +815,6 @@ class Collection extends Backend
                                 $pay_money = $order['pay_money']+$info_list_v['write_off_price'];
                                 Db::name('kuerp_goods_sales')->where(['purchase_code'=>$info_list_v['purchase_number']])
                                     ->update(['pay_money'=>$pay_money,'pay_status'=>$status]);
-                                // 销货单已全部付清 → 通知订货通订单改为已支付
-                                if ($status == 1) {
-                                    $miniOrder = Db::name('kuerp_mini_order')
-                                        ->where('sales_code', $info_list_v['purchase_number'])
-                                        ->where('status', 'confirmed')
-                                        ->find();
-                                    if ($miniOrder) {
-                                        Db::name('kuerp_mini_order')
-                                            ->where('id', $miniOrder['id'])
-                                            ->update(['status' => 'paid', 'updatetime' => time()]);
-                                    }
-                                }
                                 Db::name('kuerp_collection_sale')->where(['id'=>$info_list_v['id']])->update([
                                     'old_money'=>$order['pay_money'],
                                     'old_status'=>$order['pay_status'],

@@ -2,6 +2,7 @@
 
 namespace app\admin\controller\kuerp;
 
+use app\admin\model\kuerp\GoodsSalesOrderLog;
 use app\common\controller\Backend;
 use think\Db;
 use Exception;
@@ -273,6 +274,10 @@ class GoodsPurchaseOrder extends Backend
                     $this->error($e->getMessage());
                 }
                 if (isset($result) && $result !== false) {
+                    // 写入销货订单日志：生成采购订单
+                    if (!empty($mainSalesOrderId)) {
+                        GoodsSalesOrderLog::writeLogByCode($mainSalesOrderId, '生成采购订单', '生成采购订单：' . $params['purchase_code'], 'purchase_order', $result);
+                    }
                     if($examine!=1){
                         try {
                             $exa = $this->examine($result,1);
@@ -779,18 +784,7 @@ class GoodsPurchaseOrder extends Backend
                 // 审核通过后：向关联的销货订单写入操作日志
                 foreach ($list as $examinedOrder) {
                     if (!empty($examinedOrder['sales_order_id'])) {
-                        $salesOrderId = Db::name('kuerp_goods_sales_order')
-                            ->where(['purchase_code' => $examinedOrder['sales_order_id']])
-                            ->value('id');
-                        if ($salesOrderId) {
-                            Db::name('kuerp_goods_sales_order_log')->insert([
-                                'order_id' => $salesOrderId,
-                                'action' => '生成采购订单',
-                                'note' => '购货订单[' . $examinedOrder['purchase_code'] . ']审核通过',
-                                'admin_id' => $admin['id'],
-                                'createtime' => time(),
-                            ]);
-                        }
+                        GoodsSalesOrderLog::writeLogByCode($examinedOrder['sales_order_id'], '采购订单审核通过', '购货订单[' . $examinedOrder['purchase_code'] . ']审核通过', 'purchase_order', $examinedOrder['id']);
                     }
                 }
             } catch (Exception $e) {
@@ -859,18 +853,7 @@ class GoodsPurchaseOrder extends Backend
                 // 反审核后：向关联的销货订单写入操作日志
                 foreach ($list as $unexaminedOrder) {
                     if (!empty($unexaminedOrder['sales_order_id'])) {
-                        $salesOrderId = Db::name('kuerp_goods_sales_order')
-                            ->where(['purchase_code' => $unexaminedOrder['sales_order_id']])
-                            ->value('id');
-                        if ($salesOrderId) {
-                            Db::name('kuerp_goods_sales_order_log')->insert([
-                                'order_id' => $salesOrderId,
-                                'action' => '取消采购订单',
-                                'note' => '购货订单[' . $unexaminedOrder['purchase_code'] . ']反审核',
-                                'admin_id' => $admin['id'],
-                                'createtime' => time(),
-                            ]);
-                        }
+                        GoodsSalesOrderLog::writeLogByCode($unexaminedOrder['sales_order_id'], '采购订单反审核', '购货订单[' . $unexaminedOrder['purchase_code'] . ']反审核', 'purchase_order', $unexaminedOrder['id']);
                     }
                 }
             } catch (Exception $e) {

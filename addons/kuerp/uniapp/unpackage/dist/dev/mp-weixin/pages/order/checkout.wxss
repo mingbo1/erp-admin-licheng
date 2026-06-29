@@ -1,16 +1,29 @@
 
 .page.data-v-c64697c0 { padding-bottom: 140rpx; min-height: 100vh; background: #f5f7fa;
 }
-.card-hover.data-v-c64697c0 { -webkit-transform: scale(0.98); transform: scale(0.98);
-}
 .section-card.data-v-c64697c0 {
-  background: #fff; margin: 20rpx; border-radius: 16rpx; padding: 24rpx; transition: -webkit-transform 0.15s; transition: transform 0.15s; transition: transform 0.15s, -webkit-transform 0.15s;
-  overflow: hidden;      /* 防止内容溢出圆角 */
+  background: #fff; margin: 20rpx; border-radius: 16rpx; padding: 24rpx;
+  overflow: hidden;
 }
 .section-header.data-v-c64697c0 { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16rpx;
 }
 .section-title.data-v-c64697c0 { font-size: 28rpx; font-weight: 600; color: #303133;
 }
+.section-action.data-v-c64697c0 { font-size: 24rpx; color: #2979ff; display: flex; align-items: center; gap: 4rpx; height: 100%;
+}
+
+/* 客户 */
+.customer-info.data-v-c64697c0 { display: flex; align-items: center; gap: 16rpx;
+}
+.customer-name.data-v-c64697c0 { font-size: 30rpx; font-weight: 600; color: #303133;
+}
+.customer-contact.data-v-c64697c0 { font-size: 26rpx; color: #909399;
+}
+.customer-empty.data-v-c64697c0 { display: flex; align-items: center; gap: 12rpx; padding: 8rpx 0;
+}
+.empty-text.data-v-c64697c0 { font-size: 26rpx; color: #c0c4cc; flex: 1;
+}
+
 /* 地址 */
 .address-area.data-v-c64697c0 { display: flex; align-items: center;
 }
@@ -24,14 +37,41 @@
 }
 .address-detail.data-v-c64697c0 { font-size: 26rpx; color: #909399; line-height: 1.5;
 }
-.address-empty.data-v-c64697c0 { display: flex; align-items: center; padding: 20rpx 0;
-}
-.address-empty-info.data-v-c64697c0 { display: flex; align-items: center; gap: 12rpx; flex: 1; min-width: 0;
-}
-.address-empty-text.data-v-c64697c0 { font-size: 26rpx; color: #c0c4cc;
+.address-empty.data-v-c64697c0 { padding: 8rpx 0;
 }
 .address-arrow.data-v-c64697c0 { flex-shrink: 0; margin-left: 16rpx;
 }
+.address-edit.data-v-c64697c0 { padding-top: 16rpx;
+}
+.address-edit-form.data-v-c64697c0 {
+  background: #f8f9fc; border-radius: 12rpx; padding: 8rpx 16rpx;
+}
+.edit-field.data-v-c64697c0 {
+  display: flex; align-items: center; min-height: 88rpx;
+  border-bottom: 1rpx solid #eee;
+}
+.edit-field.data-v-c64697c0:last-of-type { border-bottom: none;
+}
+.edit-label.data-v-c64697c0 {
+  font-size: 26rpx; color: #606266; width: 120rpx; flex-shrink: 0;
+  font-weight: 500;
+}
+.edit-field .edit-input.data-v-c64697c0 { flex: 1;
+}
+.edit-field .edit-textarea.data-v-c64697c0 { flex: 1;
+}
+.address-edit-actions.data-v-c64697c0 {
+  display: flex; gap: 16rpx; margin-top: 20rpx;
+}
+.edit-confirm-btn.data-v-c64697c0 { flex: 1;
+}
+.edit-cancel-btn.data-v-c64697c0 { flex: 1;
+}
+.address-edit-toggle.data-v-c64697c0 { padding-top: 12rpx;
+}
+.edit-link.data-v-c64697c0 { font-size: 24rpx; color: #2979ff;
+}
+
 /* 商品 */
 .goods-item.data-v-c64697c0 { display: flex; align-items: center; padding: 16rpx 0;
 }
@@ -62,6 +102,39 @@
 }
 .total-row .total-price.data-v-c64697c0 { color: #f56c6c; font-size: 32rpx;
 }
+
+/* 弹窗 */
+.picker-wrap.data-v-c64697c0 { max-height: 70vh; display: flex; flex-direction: column; padding: 24rpx 24rpx 0;
+}
+.picker-header.data-v-c64697c0 { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16rpx;
+}
+.picker-title.data-v-c64697c0 { font-size: 32rpx; font-weight: 600; color: #303133;
+}
+.picker-search.data-v-c64697c0 { margin-bottom: 16rpx;
+}
+.picker-list.data-v-c64697c0 { max-height: 50vh;
+}
+.picker-item.data-v-c64697c0 {
+  display: flex; align-items: center; padding: 20rpx 0;
+  border-bottom: 1rpx solid #f5f7fa;
+}
+.picker-item-active.data-v-c64697c0 { background: #f0f7ff; margin: 0 -24rpx; padding: 20rpx 24rpx;
+}
+.picker-item-info.data-v-c64697c0 { flex: 1; min-width: 0;
+}
+.picker-item-name.data-v-c64697c0 { font-size: 28rpx; font-weight: 500; color: #303133; display: block;
+}
+.picker-item-detail.data-v-c64697c0 { font-size: 24rpx; color: #909399; margin-top: 4rpx; display: block;
+}
+.picker-item-addr.data-v-c64697c0 { font-size: 22rpx; color: #c0c4cc; margin-top: 4rpx;
+}
+.picker-empty.data-v-c64697c0 { text-align: center; padding: 40rpx 0; color: #c0c4cc; font-size: 26rpx;
+}
+.picker-footer.data-v-c64697c0 { padding: 20rpx 0;
+}
+.add-form.data-v-c64697c0 { padding-top: 12rpx;
+}
+
 /* 提交栏 */
 .submit-bar.data-v-c64697c0 {
   position: fixed; bottom: 0; left: 0; right: 0; background: #fff;

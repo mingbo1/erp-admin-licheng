@@ -2,6 +2,7 @@
 
 namespace app\admin\controller\kuerp;
 
+use app\admin\model\kuerp\GoodsSalesOrderLog;
 use think\Db;
 use think\Session;
 
@@ -346,6 +347,13 @@ class GoodsPurchaseStorage extends GoodsPurchase
                     $this->model->where(['id' => $ids])->update(['updatetime' => time()]);
 
                     Db::commit();
+                    // 写入销货订单日志：零件入库
+                    if (!empty($row['purchase_order_id'])) {
+                        $salesOrderCode = Db::name('kuerp_goods_purchase_order')->where(['purchase_code' => $row['purchase_order_id']])->value('sales_order_id');
+                        if (!empty($salesOrderCode)) {
+                            GoodsSalesOrderLog::writeLogByCode($salesOrderCode, '零件入库', '购货单入库，关联购货单：' . $row['purchase_code'] . '，本次入库' . $total_store . '件', 'purchase', $ids);
+                        }
+                    }
                 } catch (\Exception $e) {
                     Db::rollback();
                     $this->error($e->getMessage());

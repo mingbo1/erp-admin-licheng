@@ -485,20 +485,6 @@ class GoodsSalesOutbound extends Backend
                     $this->error($e->getMessage());
                 }
                 if ($result !== false) {
-                    // 同步 Mini 订单支付状态（根据 sales_code 关联）
-                    $miniOrder = Db::name('kuerp_mini_order')
-                        ->where('sales_code', $rowdata['purchase_code'])
-                        ->where('status', 'confirmed')
-                        ->find();
-                    if ($miniOrder && $rowdata['pay_status'] == 1) {
-                        Db::name('kuerp_mini_order')
-                            ->where('id', $miniOrder['id'])
-                            ->update([
-                                'status' => 'paid',
-                                'payment_time' => time(),
-                                'updatetime' => time(),
-                            ]);
-                    }
 
                     if($examine!=1){
                         try {

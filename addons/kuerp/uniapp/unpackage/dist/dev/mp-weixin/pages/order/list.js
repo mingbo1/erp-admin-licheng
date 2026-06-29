@@ -101,7 +101,10 @@ var components
 try {
   components = {
     uSticky: function () {
-      return Promise.all(/*! import() | node-modules/uview-ui/components/u-sticky/u-sticky */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-sticky/u-sticky")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-sticky/u-sticky.vue */ 395))
+      return Promise.all(/*! import() | node-modules/uview-ui/components/u-sticky/u-sticky */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-sticky/u-sticky")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-sticky/u-sticky.vue */ 409))
+    },
+    uTabs: function () {
+      return Promise.all(/*! import() | node-modules/uview-ui/components/u-tabs/u-tabs */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-tabs/u-tabs")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-tabs/u-tabs.vue */ 282))
     },
     uButton: function () {
       return Promise.all(/*! import() | node-modules/uview-ui/components/u-button/u-button */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-button/u-button")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-button/u-button.vue */ 371))
@@ -137,35 +140,37 @@ var render = function () {
   var g0 = _vm.list.length
   var l1 =
     g0 > 0
-      ? _vm.__map(_vm.list, function (item, __i1__) {
+      ? _vm.__map(_vm.list, function (item, __i0__) {
           var $orig = _vm.__get_orig(item)
-          var g1 = item.goods ? item.goods.length : null
-          var m0 = _vm.formatTime(item.createdtime)
-          var m1 = _vm.statusText(item.status)
-          var g2 = item.goods && item.goods.length > 0
+          var g1 = item.items ? item.items.length : null
+          var m0 = _vm.formatTime(item.createtime)
+          var m1 = _vm.getStatusInfo(item.display_status)
+          var m2 = _vm.getStatusInfo(item.display_status)
+          var g2 = item.items && item.items.length > 0
           var l0 = g2
-            ? _vm.__map(item.goods.slice(0, 3), function (oi, idx) {
+            ? _vm.__map(item.items.slice(0, 3), function (oi, idx) {
                 var $orig = _vm.__get_orig(oi)
-                var m2 = oi.goods_image ? _vm.$img(oi.goods_image) : null
+                var m3 = oi.goods_image ? _vm.getImgUrl(oi.goods_image) : null
                 return {
                   $orig: $orig,
-                  m2: m2,
+                  m3: m3,
                 }
               })
             : null
-          var g3 = g2 ? item.goods.length : null
-          var g4 = g2 && g3 > 3 ? item.goods.length : null
-          var m3 = _vm.formatTime(item.createdtime)
+          var g3 = g2 ? item.items.length : null
+          var g4 = g2 && g3 > 3 ? item.items.length : null
+          var m4 = _vm.canCancel(item)
           return {
             $orig: $orig,
             g1: g1,
             m0: m0,
             m1: m1,
+            m2: m2,
             g2: g2,
             l0: l0,
             g3: g3,
             g4: g4,
-            m3: m3,
+            m4: m4,
           }
         })
       : null
@@ -227,22 +232,7 @@ exports.default = void 0;
 var _regenerator = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/regenerator */ 30));
 var _asyncToGenerator2 = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/helpers/asyncToGenerator */ 32));
 var _api = __webpack_require__(/*! ../../api */ 33);
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
+var _config = _interopRequireDefault(__webpack_require__(/*! ../../config */ 35));
 //
 //
 //
@@ -336,58 +326,69 @@ var _api = __webpack_require__(/*! ../../api */ 33);
 //
 //
 
-var STATUS_MAP = {
-  pending_confirm: {
-    text: '待确认'
+// display_status 映射
+var DISPLAY_MAP = {
+  pending_review: {
+    text: '待审核',
+    css: 'pending'
   },
-  confirmed: {
-    text: '已确认'
+  pending_ship: {
+    text: '待发货',
+    css: 'confirmed'
+  },
+  partial_shipped: {
+    text: '部分发货',
+    css: 'shipped'
   },
   shipped: {
-    text: '已发货'
-  },
-  received: {
-    text: '已收货'
-  },
-  completed: {
-    text: '已完成'
+    text: '已发货',
+    css: 'shipped'
   },
   cancelled: {
-    text: '已取消'
-  },
-  returned: {
-    text: '已退货'
+    text: '已取消',
+    css: 'cancelled'
   }
 };
 var _default = {
   data: function data() {
     return {
+      DISPLAY_MAP: DISPLAY_MAP,
       list: [],
       page: 1,
       loaded: false,
-      loading: false,
+      loading: true,
       hasMore: true,
       activeTab: 'all',
+      requestVersion: 0,
       tabs: [{
         key: 'all',
         label: '全部'
       }, {
-        key: 'pending_confirm',
-        label: '待确认'
+        key: 'pending_review',
+        label: '待审核'
       }, {
-        key: 'confirmed',
-        label: '已确认'
+        key: 'pending_ship',
+        label: '待发货'
+      }, {
+        key: 'partial_shipped',
+        label: '部分发货'
       }, {
         key: 'shipped',
         label: '已发货'
-      }, {
-        key: 'completed',
-        label: '已完成'
       }, {
         key: 'cancelled',
         label: '已取消'
       }]
     };
+  },
+  computed: {
+    tabIndex: function tabIndex() {
+      var _this = this;
+      var idx = this.tabs.findIndex(function (t) {
+        return t.key === _this.activeTab;
+      });
+      return idx >= 0 ? idx : 0;
+    }
   },
   onShow: function onShow() {
     this.page = 1;
@@ -408,65 +409,92 @@ var _default = {
   methods: {
     loadOrders: function loadOrders() {
       var _arguments = arguments,
-        _this = this;
+        _this2 = this;
       return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee() {
-        var append, res;
+        var append, reqId, res;
         return _regenerator.default.wrap(function _callee$(_context) {
           while (1) {
             switch (_context.prev = _context.next) {
               case 0:
                 append = _arguments.length > 0 && _arguments[0] !== undefined ? _arguments[0] : false;
-                if (!_this.loading) {
+                if (!(append && _this2.loading)) {
                   _context.next = 3;
                   break;
                 }
                 return _context.abrupt("return");
               case 3:
-                _this.loading = true;
-                _context.prev = 4;
-                _context.next = 7;
-                return _api.orderApi.index({
-                  page: _this.page,
-                  limit: 20,
-                  status: _this.activeTab || undefined
-                });
-              case 7:
-                res = _context.sent;
-                if (append) {
-                  _this.list = _this.list.concat(res.list || []);
-                } else {
-                  _this.list = res.list || [];
+                if (!append) {
+                  _this2.requestVersion++;
                 }
-                _this.hasMore = _this.list.length < (res.total || 0);
-                _this.loaded = true;
-                _context.next = 16;
+                reqId = _this2.requestVersion;
+                _this2.loading = true;
+                _context.prev = 6;
+                _context.next = 9;
+                return _api.orderApi.index({
+                  page: _this2.page,
+                  limit: 20,
+                  status: _this2.activeTab || undefined
+                });
+              case 9:
+                res = _context.sent;
+                if (!(reqId !== _this2.requestVersion)) {
+                  _context.next = 12;
+                  break;
+                }
+                return _context.abrupt("return");
+              case 12:
+                if (append) {
+                  _this2.list = _this2.list.concat(res.list || []);
+                } else {
+                  _this2.list = res.list || [];
+                }
+                _this2.hasMore = _this2.list.length < (res.total || 0);
+                _this2.loaded = true;
+                _context.next = 22;
                 break;
-              case 13:
-                _context.prev = 13;
-                _context.t0 = _context["catch"](4);
+              case 17:
+                _context.prev = 17;
+                _context.t0 = _context["catch"](6);
+                if (!(reqId !== _this2.requestVersion)) {
+                  _context.next = 21;
+                  break;
+                }
+                return _context.abrupt("return");
+              case 21:
                 uni.showToast({
                   title: _context.t0,
                   icon: 'none'
                 });
-              case 16:
-                _context.prev = 16;
-                _this.loading = false;
-                return _context.finish(16);
-              case 19:
+              case 22:
+                _context.prev = 22;
+                if (reqId === _this2.requestVersion) {
+                  _this2.loading = false;
+                }
+                return _context.finish(22);
+              case 25:
               case "end":
                 return _context.stop();
             }
           }
-        }, _callee, null, [[4, 13, 16, 19]]);
+        }, _callee, null, [[6, 17, 22, 25]]);
       }))();
     },
-    switchTab: function switchTab(key) {
-      this.activeTab = key;
+    switchTab: function switchTab(e) {
+      var idx = typeof e === 'number' ? e : e.index;
+      var tab = this.tabs[idx];
+      if (!tab) return;
+      this.activeTab = tab.key;
       this.page = 1;
       this.loadOrders();
     },
-    statusText: function statusText(s) {
-      return (STATUS_MAP[s] || {}).text || s;
+    canCancel: function canCancel(item) {
+      return item && item.display_status === 'pending_review';
+    },
+    getStatusInfo: function getStatusInfo(status) {
+      return DISPLAY_MAP[status] || {
+        text: '待审核',
+        css: ''
+      };
     },
     formatTime: function formatTime(t) {
       if (!t) return '';
@@ -476,23 +504,28 @@ var _default = {
       };
       return "".concat(d.getFullYear(), "-").concat(pad(d.getMonth() + 1), "-").concat(pad(d.getDate()), " ").concat(pad(d.getHours()), ":").concat(pad(d.getMinutes()));
     },
+    getImgUrl: function getImgUrl(path) {
+      if (!path) return '';
+      if (path.startsWith('http')) return path;
+      return _config.default.imgBaseUrl + path;
+    },
     goDetail: function goDetail(id) {
       uni.navigateTo({
         url: '/pages/order/detail?id=' + id
       });
     },
     handleCancel: function handleCancel(item) {
-      var _this2 = this;
+      var _this3 = this;
       uni.showModal({
         title: '取消订单',
-        content: "\u786E\u5B9A\u53D6\u6D88\u8BA2\u5355\u300C".concat(item.order_no, "\u300D\u5417\uFF1F"),
+        content: "\u786E\u5B9A\u53D6\u6D88\u8BA2\u5355\u300C".concat(item.purchase_code, "\u300D\u5417\uFF1F"),
         success: function success(res) {
-          if (res.confirm) _this2.cancelOrder(item.id);
+          if (res.confirm) _this3.cancelOrder(item.id);
         }
       });
     },
     cancelOrder: function cancelOrder(id) {
-      var _this3 = this;
+      var _this4 = this;
       return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee2() {
         return _regenerator.default.wrap(function _callee2$(_context2) {
           while (1) {
@@ -506,8 +539,8 @@ var _default = {
                   title: '订单已取消',
                   icon: 'none'
                 });
-                _this3.page = 1;
-                _this3.loadOrders();
+                _this4.page = 1;
+                _this4.loadOrders();
                 _context2.next = 11;
                 break;
               case 8:
@@ -524,54 +557,6 @@ var _default = {
           }
         }, _callee2, null, [[0, 8]]);
       }))();
-    },
-    confirmReceived: function confirmReceived(item) {
-      var _this4 = this;
-      uni.showModal({
-        title: '确认收货',
-        content: '是否确认已收到商品？',
-        success: function () {
-          var _success = (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee3(res) {
-            return _regenerator.default.wrap(function _callee3$(_context3) {
-              while (1) {
-                switch (_context3.prev = _context3.next) {
-                  case 0:
-                    if (!res.confirm) {
-                      _context3.next = 12;
-                      break;
-                    }
-                    _context3.prev = 1;
-                    _context3.next = 4;
-                    return _api.orderApi.received(item.id);
-                  case 4:
-                    uni.showToast({
-                      title: '确认收货成功',
-                      icon: 'none'
-                    });
-                    _this4.page = 1;
-                    _this4.loadOrders();
-                    _context3.next = 12;
-                    break;
-                  case 9:
-                    _context3.prev = 9;
-                    _context3.t0 = _context3["catch"](1);
-                    uni.showToast({
-                      title: _context3.t0,
-                      icon: 'none'
-                    });
-                  case 12:
-                  case "end":
-                    return _context3.stop();
-                }
-              }
-            }, _callee3, null, [[1, 9]]);
-          }));
-          function success(_x) {
-            return _success.apply(this, arguments);
-          }
-          return success;
-        }()
-      });
     }
   }
 };

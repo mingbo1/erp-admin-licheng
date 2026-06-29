@@ -28,7 +28,7 @@
       <u-cell-group :border="false">
         <u-cell icon="order" title="我的订单" isLink :border="false" @click="goOrders"></u-cell>
         <u-cell icon="shopping-cart" title="订货单" isLink :border="false" @click="goCart"></u-cell>
-        <u-cell icon="map" title="收货地址" isLink :border="false" @click="goAddress"></u-cell>
+        <!-- <u-cell icon="map" title="收货地址" isLink :border="false" @click="goAddress"></u-cell> -->
         <u-cell icon="edit-pen" title="编辑资料" isLink :border="false" @click="goProfile"></u-cell>
       </u-cell-group>
     </view>
@@ -77,7 +77,7 @@ export default {
     handleProfileClick() {
       if (!this.isLogin) {
         // #ifdef MP-WEIXIN
-        uni.navigateTo({ url: '/pages/user/wxlogin' })
+        uni.navigateTo({ url: '/pages/user/login' })
         // #endif
         // #ifndef MP-WEIXIN
         uni.navigateTo({ url: '/pages/user/login' })
@@ -103,7 +103,7 @@ export default {
             const app = getApp()
             if (app && app.globalData) { app.globalData.userInfo = null }
             // #ifdef MP-WEIXIN
-            uni.reLaunch({ url: '/pages/user/wxlogin' })
+            uni.reLaunch({ url: '/pages/user/login' })
             // #endif
             // #ifndef MP-WEIXIN
             uni.reLaunch({ url: '/pages/user/login' })

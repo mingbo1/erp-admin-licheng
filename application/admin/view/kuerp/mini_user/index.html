@@ -8,6 +8,7 @@
                     <script type="text/html" id="toolbar">
                         <div class="layui-btn-container">
                             <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-cyan btn-refresh" lay-event="refresh"><i class="layui-icon">&#xe669;</i> {:__('Refresh')}</button>
+                            <button class="layui-btn layui-btn-sm layui-btn-success btn-add" lay-event="add"><i class="layui-icon">&#xe654;</i> {:__('Add')}</button>
                         </div>
                     </script>
 
@@ -17,6 +18,14 @@
                         </div>
                         <div class="layui-input-inline">
                             <input type="text" name="mobile" id="mobile" autocomplete="off" placeholder="{:__('Mobile')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="user_type" id="user_type" placeholder="{:__('User_type')}" class="layui-input">
+                                <option value="">{:__('User_type')}</option>
+                                {foreach name="userTypeList" item="vo" key="k"}
+                                <option value="{$k}">{$vo}</option>
+                                {/foreach}
+                            </select>
                         </div>
                         <div class="layui-input-inline" style="width: 90px">
                             <button class="layui-btn layui-btn-sm btn-refresh" type="button" id="search" data-type="reload">

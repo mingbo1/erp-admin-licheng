@@ -44,7 +44,7 @@ async function request(url, options = {}) {
         } else {
           const msg = res.data.msg || '请求失败'
           // 未登录 → 触发 App 层重新登录
-          if (msg === '请先登录') {
+          if (msg === '请先登录' || msg === '请登录后再操作' || msg === '请登录后操作') {
             setToken('')
             uni.showToast({ title: '登录已过期', icon: 'none' })
             // #ifdef MP-WEIXIN

@@ -1,5 +1,18 @@
 {
   "setting": {
     "urlCheck": false
+  },
+  "condition": {
+    "miniprogram": {
+      "list": [
+        {
+          "name": "pages/order/list",
+          "pathName": "pages/order/list",
+          "query": "",
+          "scene": null,
+          "launchMode": "default"
+        }
+      ]
+    }
   }
 }

@@ -1,59 +1,34 @@
 <template>
-	<view class="wxlogin-page">
-	
-		<view class="content">
-			<!-- 头像选择区域 -->
-			<view class="avatar-section">
-				<button class="avatar-btn" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">
-					<image v-if="avatarUrl" class="avatar-img" :src="avatarUrl" mode="aspectFill"></image>
-					<view v-else class="avatar-placeholder">
-						<u-icon name="camera" size="48" color="#ccc"></u-icon>
-					</view>
-				</button>
-				<text class="avatar-tip">点击选择头像</text>
-			</view>
+  <view class="page">
+    <view class="login-wrap">
+      <view class="logo-area">
+        <u-icon name="account" size="80" color="#4A90D9" />
+        <text class="logo-title">欢迎回来</text>
+        <text class="logo-desc">请输入账号密码登录</text>
+      </view>
 
-			<!-- 昵称输入 -->
-			<view class="nickname-section">
-				<text class="label">昵称</text>
-				<input
-					type="nickname"
-					class="nickname-input"
-					v-model="nickname"
-					placeholder="请输入昵称"
-					maxlength="50"
-				/>
-			</view>
+      <view class="form-area">
+        <u--form>
+          <u-form-item label="账号" borderBottom :label-width="70">
+            <u--input v-model="username" placeholder="请输入手机号/账号" border="none" />
+          </u-form-item>
+          <u-form-item label="密码" borderBottom :label-width="70">
+            <u--input v-model="password" placeholder="请输入密码" password border="none" />
+          </u-form-item>
+        </u--form>
+      </view>
 
-			<!-- 权限说明 -->
-			<view class="permission-tip">
-				<text class="tip-title">申请获取以下权限</text>
-				<text class="tip-desc">获取你的昵称、头像</text>
-			</view>
+      <view class="login-btn-wrap">
+        <u-button type="primary" shape="circle" :loading="loading" :disabled="loading" @click="handleLogin">
+          登 录
+        </u-button>
+      </view>
 
-			<!-- 底部按钮 -->
-			<view class="btn-group">
-				<u-button
-					shape="circle"
-					class="btn-allow"
-					type="primary"
-					:loading="loading"
-					:custom-style="{ backgroundColor: themeColor, borderColor: themeColor }"
-					@click="handleAllow"
-				>允许</u-button>
-				<u-button
-					shape="circle"
-					class="btn-refuse"
-					@click="handleRefuse"
-				>暂不登录</u-button>
-			</view>
-
-			<!-- 账号密码登录入口 -->
-			<view class="other-login">
-				<text class="link" @click="toAccountLogin">账密登录</text>
-			</view>
-		</view>
-	</view>
+      <view class="tip-area">
+        <text class="tip-text">账号由管理员在后台分配，如有疑问请联系管理员</text>
+      </view>
+    </view>
+  </view>
 </template>
 
 <script>
@@ -61,295 +36,96 @@ import { userApi } from '@/api/index.js'
 import { setToken } from '@/api/request.js'
 
 export default {
-	data() {
-		return {
-			avatarUrl: '',
-			avatarFilePath: '',     // chooseAvatar 返回的临时路径，用于上传
-			nickname: '',
-			loading: false,
-			themeColor: '#07c160',  // 微信绿色
-			hasAccount: false       // 静默登录是否已有账号
-		}
-	},
-	onLoad() {
-		this.silentCheck()
-	},
-	methods: {
-		// ========== 步骤1：静默检查 ==========
-		// 用 wx.login 获取 code 发给后端，检查是否已有账号
-		async silentCheck() {
-			try {
-				const code = await this.getWxCode()
-				const res = await userApi.wxLogin({ code })
+  data() {
+    return {
+      username: '',
+      password: '',
+      loading: false,
+    }
+  },
+  methods: {
+    async handleLogin() {
+      if (!this.username.trim()) {
+        uni.showToast({ title: '请输入账号', icon: 'none' })
+        return
+      }
+      if (!this.password || this.password.length < 6) {
+        uni.showToast({ title: '密码至少6位', icon: 'none' })
+        return
+      }
+      if (this.loading) return
 
-				if (res && res.userinfo) {
-					// 已有账号：直接登录
-					this.saveLogin(res.userinfo)
-					uni.showToast({ title: '登录成功', icon: 'success' })
-					setTimeout(() => this.goHome(), 800)
-				} else {
-					// 新用户：等待填写头像和昵称
-					this.hasAccount = false
-				}
-			} catch (e) {
-				// 静默检查失败（例如首次访问），正常流程，不需要提示
-				this.hasAccount = false
-			}
-		},
-
-		// ========== 步骤2：用户授权登录 ==========
-		async handleAllow() {
-			if (this.loading) return
-
-			if (!this.avatarUrl) {
-				uni.showToast({ title: '请选择头像', icon: 'none' })
-				return
-			}
-			if (!this.nickname.trim()) {
-				uni.showToast({ title: '请填写昵称', icon: 'none' })
-				return
-			}
-
-			this.loading = true
-			try {
-				// 如果有新的临时头像文件，先上传
-				let avatarUrl = this.avatarUrl
-				if (this.avatarFilePath) {
-					try {
-						const uploadRes = await userApi.uploadAvatar(this.avatarFilePath)
-						avatarUrl = uploadRes.fullurl || uploadRes.url || avatarUrl
-					} catch (e) {
-						// 上传失败就用原始路径（可能是 base64 或已有 URL）
-						console.warn('头像上传失败，使用原始路径', e)
-					}
-				}
-
-				// 重新获取 code
-				const code = await this.getWxCode()
-
-				// 调用登录接口
-				const res = await userApi.wxLogin({
-					code,
-					nickname: this.nickname.trim(),
-					avatar: avatarUrl
-				})
-
-				if (res && res.userinfo) {
-					this.saveLogin(res.userinfo)
-					uni.showToast({ title: '登录成功', icon: 'success' })
-					setTimeout(() => this.goHome(), 800)
-				} else {
-					uni.showToast({ title: '登录失败，请重试', icon: 'none' })
-				}
-			} catch (e) {
-				console.error('登录失败:', e)
-				uni.showToast({ title: typeof e === 'string' ? e : '登录失败', icon: 'none' })
-			} finally {
-				this.loading = false
-			}
-		},
-
-		// ========== 辅助方法 ==========
-
-		// 获取微信登录 code
-		getWxCode() {
-			return new Promise((resolve, reject) => {
-				// #ifdef MP-WEIXIN
-				wx.login({
-					success: (res) => {
-						if (res.code) {
-							resolve(res.code)
-						} else {
-							reject('获取微信登录凭证失败')
-						}
-					},
-					fail: () => reject('微信登录失败')
-				})
-				// #endif
-				// #ifndef MP-WEIXIN
-				reject('非微信小程序环境')
-				// #endif
-			})
-		},
-
-		// 保存登录态
-		saveLogin(userinfo) {
-			const token = userinfo.token || ''
-			if (token) {
-				setToken(token)
-			}
-			// 保存用户信息到 globalData 供全局使用
-			const app = getApp()
-			if (app) {
-				app.globalData.userInfo = userinfo
-			}
-		},
-
-		// 跳转到首页
-		goHome() {
-			uni.switchTab({
-				url: '/pages/index/index'
-			})
-		},
-
-		// 选择头像回调
-		onChooseAvatar(e) {
-			const { avatarUrl } = e.detail
-			if (avatarUrl) {
-				this.avatarUrl = avatarUrl
-				this.avatarFilePath = avatarUrl  // 保存临时路径用于上传
-			}
-		},
-
-		// 拒绝授权
-		handleRefuse() {
-			uni.navigateBack({
-				fail: () => this.goHome()
-			})
-		},
-
-		// 跳转账密登录
-		toAccountLogin() {
-			// #ifdef MP-WEIXIN
-			uni.navigateTo({
-				url: '/pages/user/wxlogin'
-			})
-			// #endif
-			// #ifndef MP-WEIXIN
-			uni.navigateTo({
-				url: '/pages/user/login'
-			})
-			// #endif
-		}
-	}
+      this.loading = true
+      try {
+        const res = await userApi.loginByPwd(this.username.trim(), this.password)
+        if (res && res.userinfo) {
+          setToken(res.userinfo.token || '')
+          const app = getApp()
+          if (app) {
+            app.globalData.userInfo = res.userinfo
+          }
+          uni.showToast({ title: '登录成功', icon: 'success' })
+          setTimeout(() => {
+            uni.switchTab({ url: '/pages/index/index' })
+          }, 800)
+        } else {
+          uni.showToast({ title: '登录失败，请重试', icon: 'none' })
+        }
+      } catch (e) {
+        uni.showToast({ title: typeof e === 'string' ? e : '登录失败', icon: 'none' })
+      } finally {
+        this.loading = false
+      }
+    },
+  },
 }
 </script>
 
-<style lang="scss" scoped>
-.wxlogin-page {
-	min-height: 100vh;
-	background-color: #fff;
+<style scoped>
+.page {
+  min-height: 100vh;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+}
+.login-wrap {
+  flex: 1;
+  padding: 160rpx 48rpx 60rpx;
+  display: flex;
+  flex-direction: column;
+}
+.logo-area {
+  text-align: center;
+  margin-bottom: 80rpx;
+}
+.logo-title {
+  font-size: 44rpx;
+  font-weight: 700;
+  color: #303133;
+  display: block;
+  margin-top: 24rpx;
+}
+.logo-desc {
+  font-size: 26rpx;
+  color: #909399;
+  margin-top: 12rpx;
+  display: block;
 }
 
-.content {
-	padding: 120rpx 60rpx 0;
+.form-area {
+  margin-bottom: 48rpx;
 }
 
-// 头像区域
-.avatar-section {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	padding-bottom: 40rpx;
-
-	.avatar-btn {
-		width: 180rpx;
-		height: 180rpx;
-		padding: 0;
-		margin: 0;
-		background: #f0f0f0;
-		border: none;
-		border-radius: 50%;
-		overflow: hidden;
-		box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.15);
-		line-height: 1;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-
-		&::after {
-			border: none;
-		}
-
-		.avatar-img {
-			width: 100%;
-			height: 100%;
-			border-radius: 50%;
-		}
-
-		.avatar-placeholder {
-			width: 100%;
-			height: 100%;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			background: #f0f0f0;
-			border-radius: 50%;
-		}
-	}
-
-	.avatar-tip {
-		margin-top: 20rpx;
-		font-size: 24rpx;
-		color: #999;
-	}
+.login-btn-wrap {
+  margin-bottom: 32rpx;
 }
 
-// 昵称输入
-.nickname-section {
-	display: flex;
-	align-items: center;
-	height: 100rpx;
-	border-bottom: 1rpx solid #f0f0f0;
-	padding: 0 20rpx;
-
-	.label {
-		width: 45%;
-		font-size: 28rpx;
-		color: #333;
-		margin-right: 20rpx;
-		flex-shrink: 0;
-		text-align: right;
-	}
-
-	.nickname-input {
-		width: 50%;
-		font-size: 28rpx;
-		color: #333;
-		text-align: left;
-	}
+.tip-area {
+  text-align: center;
+  padding: 0 20rpx;
 }
-
-// 权限提示
-.permission-tip {
-	padding: 50rpx 0 40rpx;
-	text-align: center;
-
-	.tip-title {
-		display: block;
-		font-size: 28rpx;
-		color: #333;
-		margin-bottom: 10rpx;
-	}
-
-	.tip-desc {
-		display: block;
-		font-size: 24rpx;
-		color: #999;
-	}
-}
-
-// 按钮组
-.btn-group {
-	.btn-allow {
-		margin-bottom: 20rpx;
-	}
-
-	.btn-refuse {
-		background: #f5f5f5;
-		color: #666;
-		border-color: #f5f5f5;
-	}
-}
-
-// 其他登录方式
-.other-login {
-	text-align: center;
-	margin-top: 60rpx;
-
-	.link {
-		font-size: 26rpx;
-		color: #07c160;
-	}
+.tip-text {
+  font-size: 22rpx;
+  color: #c0c4cc;
 }
 </style>

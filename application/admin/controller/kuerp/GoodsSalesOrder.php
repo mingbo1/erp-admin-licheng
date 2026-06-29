@@ -2,6 +2,7 @@
 
 namespace app\admin\controller\kuerp;
 
+use app\admin\model\kuerp\GoodsSalesOrderLog;
 use app\common\controller\Backend;
 use think\Db;
 use Exception;
@@ -48,6 +49,7 @@ class GoodsSalesOrder extends Backend
         $this->view->assign("saleList", $this->model->getSaleList());
 
         $this->view->assign("secondExamineStatusList", $this->model->getSecondExamineStatusList());
+        $this->view->assign("sourceList", $this->model->getSourceList());
 
         // 二次审核金额阈值
         $sales_order_examine_money = Db::name('kuerp_sets')->where(['name'=>'sales_order_examine_money'])->value('value');
@@ -273,6 +275,9 @@ class GoodsSalesOrder extends Backend
                     $this->error($e->getMessage());
                 }
                 if (isset($result) && $result !== false) {
+                    // 写入操作日志
+                    GoodsSalesOrderLog::writeLog($result, '创建销货订单', '新建销货订单：' . $row['purchase_code'], 'sales_order', $result);
+
                     if($examine!=1){
                         try {
                             $exa = $this->examine($result,1);
@@ -508,6 +513,8 @@ class GoodsSalesOrder extends Backend
                     $this->error($e->getMessage());
                 }
                 if ($result !== false) {
+                    // 写入操作日志
+                    GoodsSalesOrderLog::writeLog($ids, '编辑销货订单', '编辑销货订单：' . $row['purchase_code'], 'sales_order', $ids);
                     if($examine!=1){
                         try {
                             $exa = $this->examine($ids,1);
@@ -556,6 +563,24 @@ class GoodsSalesOrder extends Backend
             $this->assign('exclass','hiddens');
         }
         $this->assignconfig("examine_status", $row['examine_status']);
+
+        // 查询操作日志列表
+        $logList = Db::name('kuerp_goods_sales_order_log')
+            ->where('order_id', $ids)
+            ->order('id', 'desc')
+            ->select();
+        $adminIds = array_unique(array_column($logList, 'admin_id'));
+        $adminMap = [];
+        if (!empty($adminIds)) {
+            $admins = Db::name('admin')->where('id', 'in', $adminIds)->column('username', 'id');
+            foreach ($admins as $aid => $auser) {
+                $adminMap[$aid] = $auser;
+            }
+        }
+        foreach ($logList as &$log) {
+            $log['admin_username'] = isset($adminMap[$log['admin_id']]) ? $adminMap[$log['admin_id']] : '';
+        }
+        $this->view->assign('logList', $logList);
 
         return $this->view->fetch();
     }
@@ -613,8 +638,11 @@ class GoodsSalesOrder extends Backend
             Db::startTrans();
             try {
                 foreach ($list as $k => $v) {
+                    $purchaseCode = $v['purchase_code'];
                     $count += $v->delete();
-                    Db::name('kuerp_goods_sales_order_info')->where(['purchase_code'=>$v['purchase_code']])->delete();
+                    // 写入操作日志
+                    GoodsSalesOrderLog::writeLog($v['id'], '删除销货订单', '删除销货订单：' . $purchaseCode, 'sales_order', $v['id']);
+                    Db::name('kuerp_goods_sales_order_info')->where(['purchase_code'=>$purchaseCode])->delete();
 
                     //删除附件记录
                     Db::name('kuerp_enclosure_log')->where(['purchase_code'=>$v['purchase_code'],'type'=>'4'])->delete();
@@ -703,6 +731,14 @@ class GoodsSalesOrder extends Backend
                 $this->error($e->getMessage());
             }
             if(isset($result) && $result !== false){
+                // 写入操作日志
+                foreach ($list as $logOrder) {
+                    if (in_array($logOrder['id'], $belowIds)) {
+                        GoodsSalesOrderLog::writeLog($logOrder['id'], '审核通过（含二审）', '销货订单审核通过（金额未超阈值，自动二审）：' . $logOrder['purchase_code'], 'sales_order', $logOrder['id']);
+                    } else {
+                        GoodsSalesOrderLog::writeLog($logOrder['id'], '审核通过（一审）', '销货订单一审通过（待二审）：' . $logOrder['purchase_code'], 'sales_order', $logOrder['id']);
+                    }
+                }
                 if($examine_set!=1){
                     return ['status'=>1,'msg'=>'操作成功'];
                 }
@@ -765,6 +801,10 @@ class GoodsSalesOrder extends Backend
                 $this->error($e->getMessage());
             }
             if(isset($result) && $result !== false){
+                // 写入操作日志
+                foreach ($list as $logOrder) {
+                    GoodsSalesOrderLog::writeLog($logOrder['id'], '反审核', '销货订单反审核：' . $logOrder['purchase_code'], 'sales_order', $logOrder['id']);
+                }
                 if($examine_set!=1){
                     return ['status'=>1,'msg'=>'操作成功'];
                 }
@@ -809,6 +849,10 @@ class GoodsSalesOrder extends Backend
             $this->error($e->getMessage());
         }
         if(isset($result) && $result !== false){
+            // 写入操作日志
+            foreach ($list as $logOrder) {
+                GoodsSalesOrderLog::writeLog($logOrder['id'], '二次审核通过', '销货订单董事长二审通过：' . $logOrder['purchase_code'], 'sales_order', $logOrder['id']);
+            }
             $this->success(sizeof($list).'条数据二次审核成功');
         }else{
             $this->error('二次审核失败');

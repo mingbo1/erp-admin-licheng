@@ -134,49 +134,28 @@ var render = function () {
   var _vm = this
   var _h = _vm.$createElement
   var _c = _vm._self._c || _h
-  var g0 = _vm.order
-    ? _vm.order.delivery && _vm.order.delivery.length > 0
-    : null
-  var l0 =
-    _vm.order && g0
-      ? _vm.__map(_vm.order.delivery, function (d, __i0__) {
-          var $orig = _vm.__get_orig(d)
-          var m0 = d.shipped_time ? _vm.formatTime(d.shipped_time) : null
-          return {
-            $orig: $orig,
-            m0: m0,
-          }
-        })
-      : null
-  var l1 = _vm.order
-    ? _vm.__map(_vm.order.goods || [], function (oi, __i1__) {
+  var l0 = _vm.order
+    ? _vm.__map(_vm.order.items || [], function (oi, __i0__) {
         var $orig = _vm.__get_orig(oi)
-        var m1 = oi.goods_image ? _vm.$img(oi.goods_image) : null
+        var m0 = oi.goods_image ? _vm.getImgUrl(oi.goods_image) : null
         return {
           $orig: $orig,
-          m1: m1,
+          m0: m0,
         }
       })
     : null
-  var m2 = _vm.order ? _vm.formatTime(_vm.order.createdtime) : null
-  var m3 =
-    _vm.order && _vm.order.confirm_time
-      ? _vm.formatTime(_vm.order.confirm_time)
-      : null
-  var m4 =
-    _vm.order && _vm.order.complete_time
-      ? _vm.formatTime(_vm.order.complete_time)
+  var m1 = _vm.order ? _vm.formatTime(_vm.order.createtime) : null
+  var m2 =
+    _vm.order && _vm.order.examine_time
+      ? _vm.formatTime(_vm.order.examine_time)
       : null
   _vm.$mp.data = Object.assign(
     {},
     {
       $root: {
-        g0: g0,
         l0: l0,
-        l1: l1,
+        m1: m1,
         m2: m2,
-        m3: m3,
-        m4: m4,
       },
     }
   )
@@ -223,33 +202,7 @@ exports.default = void 0;
 var _regenerator = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/regenerator */ 30));
 var _asyncToGenerator2 = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/helpers/asyncToGenerator */ 32));
 var _api = __webpack_require__(/*! ../../api */ 33);
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
+var _config = _interopRequireDefault(__webpack_require__(/*! ../../config */ 35));
 //
 //
 //
@@ -354,46 +307,34 @@ var _api = __webpack_require__(/*! ../../api */ 33);
 //
 
 var STATUS_MAP = {
-  pending_confirm: {
-    text: '待确认',
-    desc: '等待后台管理员确认订单',
+  pending_review: {
+    text: '待审核',
+    desc: '订单已提交，等待后台审核',
     bg: '#F5A623',
     icon: 'clock'
   },
-  confirmed: {
-    text: '已确认',
-    desc: '订单已确认，等待发货',
+  pending_ship: {
+    text: '待发货',
+    desc: '订单已审核，仓库备货中',
     bg: 'linear-gradient(135deg, #4A90D9, #357ABD)',
     icon: 'checkmark-circle'
   },
-  shipped: {
-    text: '已发货',
-    desc: '商品已发出，请注意查收',
-    bg: 'linear-gradient(135deg, #2c8cff, #1a6dcc)',
+  partial_shipped: {
+    text: '部分发货',
+    desc: '部分商品已发出',
+    bg: 'linear-gradient(135deg, #67C23A, #529b2e)',
     icon: 'car'
   },
-  received: {
-    text: '已收货',
-    desc: '商品已签收',
-    bg: 'linear-gradient(135deg, #67C23A, #529b2e)',
-    icon: 'checkmark-circle-fill'
-  },
-  completed: {
-    text: '已完成',
-    desc: '订单已完成',
-    bg: 'linear-gradient(135deg, #67C23A, #529b2e)',
-    icon: 'checkmark-circle-fill'
+  shipped: {
+    text: '已发货',
+    desc: '商品已全部发出',
+    bg: 'linear-gradient(135deg, #2c8cff, #1a6dcc)',
+    icon: 'car'
   },
   cancelled: {
     text: '已取消',
     desc: '订单已取消',
     bg: 'linear-gradient(135deg, #909399, #72767b)',
-    icon: 'close-circle'
-  },
-  returned: {
-    text: '已退货',
-    desc: '订单已退货',
-    bg: 'linear-gradient(135deg, #f56c6c, #d33b3b)',
     icon: 'close-circle'
   }
 };
@@ -406,7 +347,11 @@ var _default = {
   },
   computed: {
     statusInfo: function statusInfo() {
-      return STATUS_MAP[this.order && this.order.status] || {};
+      var st = this.order ? this.order.display_status : '';
+      return STATUS_MAP[st] || STATUS_MAP['pending_review'];
+    },
+    canCancel: function canCancel() {
+      return this.order && this.order.display_status === 'pending_review';
     }
   },
   onLoad: function onLoad(options) {
@@ -456,10 +401,10 @@ var _default = {
       };
       return "".concat(d.getFullYear(), "-").concat(pad(d.getMonth() + 1), "-").concat(pad(d.getDate()), " ").concat(pad(d.getHours()), ":").concat(pad(d.getMinutes()));
     },
-    goLogistics: function goLogistics(deliveryId) {
-      uni.navigateTo({
-        url: '/pages/order/logistics?delivery_id=' + deliveryId
-      });
+    getImgUrl: function getImgUrl(path) {
+      if (!path) return '';
+      if (path.startsWith('http')) return path;
+      return _config.default.imgBaseUrl + path;
     },
     cancelOrder: function cancelOrder() {
       var _this2 = this;
@@ -492,64 +437,6 @@ var _default = {
             }
           }
         }, _callee2, null, [[0, 7]]);
-      }))();
-    },
-    confirmReceived: function confirmReceived() {
-      var _this3 = this;
-      return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee4() {
-        return _regenerator.default.wrap(function _callee4$(_context4) {
-          while (1) {
-            switch (_context4.prev = _context4.next) {
-              case 0:
-                uni.showModal({
-                  title: '确认收货',
-                  content: '是否确认已收到商品？',
-                  success: function () {
-                    var _success = (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee3(res) {
-                      return _regenerator.default.wrap(function _callee3$(_context3) {
-                        while (1) {
-                          switch (_context3.prev = _context3.next) {
-                            case 0:
-                              if (!res.confirm) {
-                                _context3.next = 11;
-                                break;
-                              }
-                              _context3.prev = 1;
-                              _context3.next = 4;
-                              return _api.orderApi.received(_this3.orderId);
-                            case 4:
-                              uni.showToast({
-                                title: '确认收货成功'
-                              });
-                              _this3.loadDetail();
-                              _context3.next = 11;
-                              break;
-                            case 8:
-                              _context3.prev = 8;
-                              _context3.t0 = _context3["catch"](1);
-                              uni.showToast({
-                                title: _context3.t0,
-                                icon: 'none'
-                              });
-                            case 11:
-                            case "end":
-                              return _context3.stop();
-                          }
-                        }
-                      }, _callee3, null, [[1, 8]]);
-                    }));
-                    function success(_x) {
-                      return _success.apply(this, arguments);
-                    }
-                    return success;
-                  }()
-                });
-              case 1:
-              case "end":
-                return _context4.stop();
-            }
-          }
-        }, _callee4);
       }))();
     }
   }

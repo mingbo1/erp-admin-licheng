@@ -3,71 +3,42 @@
 
     <!-- 轮播图 -->
     <view class="banner-wrap" v-if="bannerList.length > 0">
-      <u-swiper
-        :list="bannerList"
-        keyName="image"
-        :height="230"
-        :radius="16"
-        :interval="3000"
-        :autoplay="true"
-        :circular="true"
-        indicator
-        indicatorMode="dot"
-        indicatorActiveColor="#4A90D9"
-      ></u-swiper>
+      <u-swiper :list="bannerList" keyName="image" :height="230" :radius="16" :interval="3000" :autoplay="true"
+        :circular="true" indicator indicatorMode="dot" indicatorActiveColor="#4A90D9"></u-swiper>
     </view>
 
     <!-- 搜索栏 -->
     <view class="search-wrap">
-      <u-search
-        v-model="search"
-        placeholder="搜索商品名称 / 编号"
-        :show-action="false"
-        bg-color="#fff"
-        shape="round"
-        @search="onSearch"
-        @clear="onClear"
-      ></u-search>
+      <u-search v-model="search" placeholder="搜索商品名称 / 编号" :show-action="false" bg-color="#fff" shape="round"
+        @search="onSearch" @clear="onClear"></u-search>
     </view>
 
     <!-- 分类切换 -->
-    <scroll-view class="cate-scroll" scroll-x show-scrollbar="false">
-      <view class="cate-inner">
-        <view
-          class="cate-item"
-          :class="{ active: cateId === 0 }"
-          @click="switchCate(0)"
-        >全部</view>
-        <view class="cate-item" v-for="c in categories" :key="c.id"
-          :class="{ active: cateId === c.id }"
-          @click="switchCate(c.id)"
-        >{{ c.name }}</view>
-      </view>
-    </scroll-view>
+    <view class="tabs-scroll">
+      <u-tabs :list="tabList" :current="cateIndex" @change="switchCate" keyName="name" :scrollable="true"></u-tabs>
+
+    </view>
+
 
     <!-- 商品列表 -->
     <view class="goods-grid" v-if="list.length > 0">
-      <view
-        class="goods-card"
-        v-for="item in list"
-        :key="item.id"
-        @click="goDetail(item.id)"
-        hover-class="card-hover"
-      >
+      <view class="goods-card" v-for="item in list" :key="item.id" @click="goDetail(item.id)" hover-class="card-hover">
         <view class="card-img">
-          <image v-if="item.goods_image" :src="$img(item.goods_image)" mode="aspectFill" style="width:100%;height:100%;border-radius:16rpx;" />
+          <image v-if="item.goods_image" :src="$img(item.goods_image)" mode="aspectFill"
+            style="width:100%;height:100%;border-radius:16rpx;" />
           <u-icon v-else name="shopping-cart" size="48" color="#c0c4cc" />
         </view>
         <view class="card-body">
           <text class="card-name u-line-2">{{ item.goods_name }}</text>
           <view class="card-spec" v-if="item.attr_name || item.unit_name">
-            <text class="card-spec-text">{{ item.attr_name }}{{ item.attr_name && item.unit_name ? ' / ' : '' }}{{ item.unit_name }}</text>
+            <text class="card-spec-text">{{ item.attr_name }}{{ item.attr_name && item.unit_name ? ' / ' : '' }}{{
+              item.unit_name }}</text>
           </view>
           <view class="card-bottom">
             <text class="card-price">¥{{ item.show_price }}</text>
             <view class="card-actions">
               <view class="card-add-btn" v-if="item.stock > 0" @tap.stop="addToCart(item)">
-                <u-icon  name="plus" size="20" color="#fff" />
+                <u-icon name="plus" size="20" color="#fff" />
               </view>
               <text v-if="item.stock <= 0" class="card-soldout">已售罄</text>
             </view>
@@ -92,25 +63,12 @@
     <u-empty mode="search" text="暂无商品" v-if="loaded && list.length === 0 && !loading"></u-empty>
 
     <!-- 加载更多 -->
-    <u-loadmore
-      :status="hasMore ? 'loadmore' : 'nomore'"
-      margin-top="24"
-      margin-bottom="32"
-      v-if="list.length > 0"
-    />
+    <u-loadmore :status="hasMore ? 'loadmore' : 'nomore'" margin-top="24" margin-bottom="32" v-if="list.length > 0" />
 
     <!-- 底部弹窗 - 加入订货单（多规格组件） -->
-    <GoodsActionSheet
-      v-model="showSheet"
-      :goods="sheetItem"
-      :attrGroups="sheetAttrGroups"
-      :attrs="sheetAttrs"
-      :units="sheetUnits"
-      :showBuyNow="true"
-      @addToCart="onSheetAddToCart"
-      @input="closeSheet"
-      @buyNow="onSheetBuyNow"
-    />
+    <GoodsActionSheet v-model="showSheet" :goods="sheetItem" :attrGroups="sheetAttrGroups" :attrs="sheetAttrs"
+      :units="sheetUnits" :showBuyNow="true" @addToCart="onSheetAddToCart" @input="closeSheet"
+      @buyNow="onSheetBuyNow" />
 
   </view>
 </template>
@@ -138,12 +96,20 @@ export default {
       showSheet: false,
       sheetItem: null,           // 列表商品
       sheetDetail: null,         // 详情数据（attr_groups, attrs, units）
+      requestVersion: 0,          // 请求版本号，防止竞态
     }
   },
   computed: {
+    tabList() {
+      return [{ id: 0, name: '全部' }, ...this.categories]
+    },
+    cateIndex() {
+      const idx = this.tabList.findIndex(t => t.id === this.cateId)
+      return idx >= 0 ? idx : 0
+    },
     sheetAttrGroups() { return (this.sheetDetail && this.sheetDetail.attr_groups) || [] },
-    sheetAttrs()      { return (this.sheetDetail && this.sheetDetail.attrs) || [] },
-    sheetUnits()      { return (this.sheetDetail && this.sheetDetail.units) || [] },
+    sheetAttrs() { return (this.sheetDetail && this.sheetDetail.attrs) || [] },
+    sheetUnits() { return (this.sheetDetail && this.sheetDetail.units) || [] },
   },
   onLoad() {
     this.loadBanner()
@@ -169,7 +135,7 @@ export default {
           ...i,
           image: this.$img(i.image),
         }))
-      } catch (_) {}
+      } catch (_) { }
     },
     async loadCategories() {
       if (categoriesCache) {
@@ -180,10 +146,17 @@ export default {
         const res = await goodsApi.categories()
         this.categories = res.list || []
         categoriesCache = this.categories
-      } catch (_) {}
+      } catch (_) { }
     },
     async loadData(append = false) {
-      if (this.loading) return
+      // 追加加载时防重复，但切换分类/搜索时不阻塞（允许覆盖旧请求）
+      if (append && this.loading) return
+
+      if (!append) {
+        this.requestVersion++
+      }
+      const reqId = this.requestVersion
+
       this.loading = true
       if (!append) {
         this.page = 1
@@ -196,6 +169,8 @@ export default {
           category_id: this.cateId || undefined,
           search: this.search || undefined,
         })
+        // 竞态保护：忽略过时响应
+        if (reqId !== this.requestVersion) return
         if (append) {
           this.list = this.list.concat(res.list || [])
         } else {
@@ -204,13 +179,19 @@ export default {
         this.hasMore = this.list.length < (res.total || 0)
         this.loaded = true
       } catch (e) {
+        if (reqId !== this.requestVersion) return
         uni.showToast({ title: e, icon: 'none' })
       } finally {
-        this.loading = false
+        if (reqId === this.requestVersion) {
+          this.loading = false
+        }
       }
     },
-    switchCate(id) {
-      this.cateId = id
+    switchCate(e) {
+      const idx = typeof e === 'number' ? e : e.index
+      const tab = this.tabList[idx]
+      if (!tab) return
+      this.cateId = tab.id
       this.loadData()
     },
     onSearch() { this.loadData() },
@@ -219,7 +200,7 @@ export default {
     addToCart(item) {
       if (!getToken()) {
         // #ifdef MP-WEIXIN
-        uni.navigateTo({ url: '/pages/user/wxlogin' })
+        uni.navigateTo({ url: '/pages/user/login' })
         // #endif
         // #ifndef MP-WEIXIN
         uni.navigateTo({ url: '/pages/user/login' })
@@ -232,7 +213,7 @@ export default {
       // 异步加载商品详情（含多规格）
       goodsApi.detail(item.id).then(res => {
         this.sheetDetail = res
-      }).catch(() => {})
+      }).catch(() => { })
     },
     // 组件事件：加入订货单
     async onSheetAddToCart(payload) {
@@ -247,7 +228,7 @@ export default {
       this.sheetItem = null
       this.sheetDetail = null
     },
-     // 组件事件：立即购买
+    // 组件事件：立即购买
     onSheetBuyNow(payload) {
       this.closeSheet()
       uni.navigateTo({
@@ -263,33 +244,26 @@ export default {
 </script>
 
 <style scoped>
-.page { padding-bottom: 130rpx; min-height: 100vh; background: #f5f7fa; }
+.page {
+  padding-bottom: 130rpx;
+  min-height: 100vh;
+  background: #f5f7fa;
+}
 
 /* 轮播图 */
-.banner-wrap { padding: 20rpx 20rpx 0; }
+.banner-wrap {
+  padding: 20rpx 20rpx 0;
+}
 
 /* 搜索栏 */
-.search-wrap { padding: 20rpx 20rpx 0; background: #f5f7fa; }
-
-/* 分类 */
-.cate-scroll { padding: 20rpx 20rpx; background: #f5f7fa; }
-.cate-inner { display: flex; align-items: center; white-space: nowrap; gap: 12rpx; }
-.cate-item {
-  display: inline-flex;
-  align-items: center;
-  padding: 12rpx 28rpx;
-  font-size: 26rpx;
-  color: #606266;
-  background: #fff;
-  border-radius: 40rpx;
-  white-space: nowrap;
-  font-weight: 500;
-  transition: all 0.2s;
+.search-wrap {
+  padding: 20rpx 20rpx 0;
+  background: #f5f7fa;
 }
-.cate-item.active {
-  color: #fff;
-  background: linear-gradient(135deg, #4A90D9, #357ABD);
-  font-weight: 600;
+
+.tabs-scroll {
+  background: #fff;
+  margin: 20rpx 0;
 }
 
 /* 商品网格 - 两列 */
@@ -298,6 +272,7 @@ export default {
   flex-wrap: wrap;
   padding: 0 16rpx;
 }
+
 .goods-card {
   width: 48%;
   margin-bottom: 16rpx;
@@ -306,8 +281,15 @@ export default {
   overflow: hidden;
   transition: transform 0.15s;
 }
-.goods-card:nth-child(odd) { margin-right: 4%; }
-.card-hover { transform: scale(0.97); }
+
+.goods-card:nth-child(odd) {
+  margin-right: 4%;
+}
+
+.card-hover {
+  transform: scale(0.97);
+}
+
 .card-img {
   width: 100%;
   aspect-ratio: 1;
@@ -317,19 +299,46 @@ export default {
   justify-content: center;
   overflow: hidden;
 }
+
 .card-body {
   padding: 16rpx 16rpx 20rpx;
   display: flex;
   flex-direction: column;
   gap: 8rpx;
 }
-.card-name { font-size: 26rpx; color: #303133; font-weight: 500; line-height: 1.4; }
-.card-spec { }
-.card-spec-text { font-size: 22rpx; color: #c0c4cc; }
 
-.card-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 4rpx; }
-.card-price { font-size: 32rpx; color: #f56c6c; font-weight: 700; }
-.card-actions { display: flex; align-items: center; }
+.card-name {
+  font-size: 26rpx;
+  color: #303133;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.card-spec {}
+
+.card-spec-text {
+  font-size: 22rpx;
+  color: #c0c4cc;
+}
+
+.card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4rpx;
+}
+
+.card-price {
+  font-size: 32rpx;
+  color: #f56c6c;
+  font-weight: 700;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+}
+
 .card-add-btn {
   width: 48rpx;
   height: 48rpx;
@@ -339,15 +348,21 @@ export default {
   align-items: center;
   justify-content: center;
 }
-.card-soldout { font-size: 22rpx; color: #c0c4cc; }
+
+.card-soldout {
+  font-size: 22rpx;
+  color: #c0c4cc;
+}
 
 /* 骨架屏 */
 .skeleton-card-img {
-  width: 100%; aspect-ratio: 1;
+  width: 100%;
+  aspect-ratio: 1;
   background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
+
 .skeleton-line {
   height: 26rpx;
   background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
@@ -355,9 +370,14 @@ export default {
   animation: shimmer 1.5s infinite;
   border-radius: 13rpx;
 }
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
 
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
 </style>

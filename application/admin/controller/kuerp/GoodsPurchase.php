@@ -3,6 +3,7 @@
 namespace app\admin\controller\kuerp;
 
 use app\admin\model\Admin;
+use app\admin\model\kuerp\GoodsSalesOrderLog;
 use app\common\controller\Backend;
 use think\Db;
 use Exception;
@@ -14,7 +15,7 @@ use think\Session;
  */
 class GoodsPurchase extends Backend
 {
-    protected $noNeedRight = ['checkpurchase','getsuppliers','getunit','formatinfo','formatinfo2','getbranch','gettime','printpage'];
+    protected $noNeedRight = ['checkpurchase','getsuppliers','getunit','formatinfo','formatinfo2','getbranch','gettime','printpage','summary'];
     /**
      * GoodsPurchase模型对象
      * @var \app\admin\model\kuerp\GoodsPurchase
@@ -377,6 +378,11 @@ class GoodsPurchase extends Backend
                     if(!empty($purchase_order_id)){
                         if($result){
                             Db::name('kuerp_goods_purord')->insert(['order_id'=>$order_id,'purchase_id'=>$result]);
+                            // 写入销货订单日志：生成购货单
+                            $salesOrderCode = Db::name('kuerp_goods_purchase_order')->where(['id' => $order_id])->value('sales_order_id');
+                            if (!empty($salesOrderCode)) {
+                                GoodsSalesOrderLog::writeLogByCode($salesOrderCode, '生成购货单', '生成购货单：' . $params['purchase_code'], 'purchase', $result);
+                            }
                         }
                     }
                     Db::commit();
@@ -1481,6 +1487,14 @@ class GoodsPurchase extends Backend
                         unset($order_count[$order_count_k]['store_number']);
                     }
                     $goodsPurchaseOrder->saveAll($order_count);
+                    // 写入销货订单日志：零件入库
+                    foreach ($order_count as $oc) {
+                        $salesOrderCode = Db::name('kuerp_goods_purchase_order')->where(['id' => $oc['id']])->value('sales_order_id');
+                        if (!empty($salesOrderCode)) {
+                            GoodsSalesOrderLog::writeLogByCode($salesOrderCode, '零件入库', '购货单审核入库，关联购货单号：' . implode(',', $purchase_code), 'purchase', $ids);
+                            break; // 同一个订单只写一次
+                        }
+                    }
                 }
 
                 if(!empty($payment_log)){
@@ -1500,10 +1514,14 @@ class GoodsPurchase extends Backend
                 Db::name('kuerp_goods_purord_info')->where(['purchase_id'=>['in',$purchase_info]])->update(['status'=>'1','times'=>time()]);
                 foreach ($info_list as $info_list_k=>$info_list_v){
                     unset($info_list[$info_list_k]['id']);
+                    unset($info_list[$info_list_k]['storage_number']);
                 }
                 foreach ($info_list as $info_list_k=>$info_list_v){
                     if(isset($info_list_v['id'])){
                         unset($info_list[$info_list_k]['id']);
+                    }
+                    if(isset($info_list_v['storage_number'])){
+                        unset($info_list[$info_list_k]['storage_number']);
                     }
                 }
                 Db::name('kuerp_goods_purchase_summary')->insertAll($info_list);
@@ -2467,6 +2485,141 @@ class GoodsPurchase extends Backend
 
         // 增加打印次数
         $this->model->where(['id' => $ids])->setInc('print_num');
+
+        return $this->view->fetch();
+    }
+
+    /**
+     * 采购汇总 — 勾选多条采购单，按商品+属性+仓库汇总
+     */
+    public function summary($ids = null)
+    {
+        $ids = $ids ? $ids : $this->request->get("ids");
+        if (empty($ids)) {
+            return '请选择要汇总的采购单';
+        }
+        $idArr = explode(',', $ids);
+        $idArr = array_map('intval', $idArr);
+        $idArr = array_filter($idArr);
+        if (empty($idArr)) {
+            return '请选择要汇总的采购单';
+        }
+
+        $price_decimal = Db::name('kuerp_sets')->where(['name' => 'price_decimal'])->value('value');
+        $number_decimal = Db::name('kuerp_sets')->where(['name' => 'number_decimal'])->value('value');
+        try {
+            Db::execute("SET @@sql_mode='';");
+        } catch (\Exception $e) {
+        }
+
+        // 通过主表id查找对应的purchase_code
+        $purchaseCodes = Db::name('kuerp_goods_purchase')
+            ->where('id', 'in', $idArr)
+            ->column('purchase_code');
+        if (empty($purchaseCodes)) {
+            return '未找到对应的采购单数据';
+        }
+
+        $list = Db::name('kuerp_goods_purchase_info')->alias('i')
+            ->join('kuerp_goods g', 'g.goods_code=i.goods_code')
+            ->join('kuerp_goods_type gt', 'gt.id=g.goods_type_id', 'LEFT')
+            ->join('kuerp_stores s', 's.id=i.stores_id', 'LEFT')
+            ->join('kuerp_unit u', 'u.id=i.goods_unit', 'LEFT')
+            ->where('i.purchase_code', 'in', $purchaseCodes)
+            ->group('i.goods_code,i.goods_attr,i.stores_id')
+            ->field('SUM(i.number) as i_number, SUM(i.basic_nmber) as basic_nmber, SUM(i.all_money) as all_money,
+                SUM(i.tax_money) as tax_money, SUM(i.money_tax_price) as money_tax_price,
+                SUM(i.purchase_money) as purchase_money,
+                ANY_VALUE(i.goods_code) as goods_code, ANY_VALUE(i.goods_attr) as goods_attr,
+                ANY_VALUE(i.stores_id) as stores_id, ANY_VALUE(i.goods_unit) as goods_unit,
+                ANY_VALUE(i.default_unit) as default_unit,
+                ANY_VALUE(g.goods_name) as goods_name,
+                ANY_VALUE(g.goods_specification_id) as goods_specification_id,
+                ANY_VALUE(gt.supplier_type_name) as supplier_type_name,
+                ANY_VALUE(s.name) as s_name, ANY_VALUE(u.name) as u_name')
+            ->select();
+
+        // 处理单位换算 & 属性名称
+        // 预加载辅助属性
+        $auxiliary = Db::name('kuerp_auxiliary')->where(['status' => 1])->column('name', 'id');
+
+        foreach ($list as $lk => $lv) {
+            // 解析属性名称
+            $attrName = '';
+            if (!empty($lv['goods_attr'])) {
+                $attrId = Db::name('kuerp_goods_attr')->where(['id' => $lv['goods_attr']])->value('attribute_id');
+                if ($attrId) {
+                    $attrIds = Db::name('kuerp_aux_combination')->where(['id' => $attrId])->value('attr_ids');
+                    if ($attrIds) {
+                        $parts = explode('&', $attrIds);
+                        $names = [];
+                        foreach ($parts as $pid) {
+                            if (isset($auxiliary[$pid])) {
+                                $names[] = $auxiliary[$pid];
+                            }
+                        }
+                        $attrName = implode('/', $names);
+                    }
+                }
+            }
+            $list[$lk]['attr_name'] = $attrName;
+
+            if (!empty($lv['default_unit']) && !empty($lv['goods_unit'])) {
+                $list[$lk]['unit_conversion'] = Db::name('kuerp_unit_conversion')
+                    ->where(['main_unit' => $lv['default_unit'], 'vice_unit' => $lv['goods_unit']])
+                    ->value('advance_rate');
+            } else {
+                $list[$lk]['unit_conversion'] = '';
+            }
+            // 副单位数显示
+            if (!empty($list[$lk]['unit_conversion'])) {
+                $unitConv = $list[$lk]['unit_conversion'];
+                $basicNmber = $list[$lk]['basic_nmber'];
+                if ($basicNmber % $unitConv > 0) {
+                    $list[$lk]['basic_nmber_display'] = floor($basicNmber / $unitConv) . $list[$lk]['u_name'] . ($basicNmber % $unitConv) . $list[$lk]['u_name'];
+                } else {
+                    $list[$lk]['basic_nmber_display'] = floor($basicNmber / $unitConv) . $list[$lk]['u_name'];
+                }
+            } else {
+                $list[$lk]['basic_nmber_display'] = '';
+            }
+            // 格式化
+            $list[$lk]['i_number']       = round($lv['i_number'], $number_decimal);
+            $list[$lk]['all_money']      = round($lv['all_money'], $price_decimal);
+            $list[$lk]['purchase_money'] = round($lv['purchase_money'], $price_decimal);
+            $list[$lk]['tax_money']      = round($lv['tax_money'], $price_decimal);
+            $list[$lk]['money_tax_price'] = round($lv['money_tax_price'], $price_decimal);
+            $list[$lk]['unit_price']     = $lv['i_number'] > 0 ? round($lv['all_money'] / $lv['i_number'], $price_decimal) : 0;
+        }
+
+        // 合计
+        $totalNumber = 0; $totalAllMoney = 0; $totalPurchaseMoney = 0;
+        $totalTaxMoney = 0; $totalMoneyTaxPrice = 0;
+        foreach ($list as $lv) {
+            $totalNumber += $lv['i_number'];
+            $totalAllMoney += $lv['all_money'];
+            $totalPurchaseMoney += $lv['purchase_money'];
+            $totalTaxMoney += $lv['tax_money'];
+            $totalMoneyTaxPrice += $lv['money_tax_price'];
+        }
+        $totals = [
+            'i_number'        => round($totalNumber, $number_decimal),
+            'unit_price'      => $totalNumber > 0 ? round($totalAllMoney / $totalNumber, $price_decimal) : 0,
+            'all_money'       => round($totalAllMoney, $price_decimal),
+            'purchase_money'  => round($totalPurchaseMoney, $price_decimal),
+            'tax_money'       => round($totalTaxMoney, $price_decimal),
+            'money_tax_price' => round($totalMoneyTaxPrice, $price_decimal),
+        ];
+
+        $setData = \addons\kuerp\library\Goods::getSetData();
+        $set = $setData['setList'];
+        $taxes = isset($set['taxes']['is_checked']) && $set['taxes']['is_checked'] == 1 ? 1 : 0;
+
+        $this->assign('list', $list);
+        $this->assign('totals', $totals);
+        $this->assign('taxes', $taxes);
+        $this->assign('price_decimal', $price_decimal);
+        $this->assign('number_decimal', $number_decimal);
 
         return $this->view->fetch();
     }

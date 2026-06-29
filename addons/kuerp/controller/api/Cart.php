@@ -7,15 +7,13 @@ use think\Db;
 
 class Cart extends Base
 {
+    protected $noNeedLogin = [];
     /**
      * 购物车列表
      * GET /api/kuerp/cart/index
      */
     public function index()
     {
-        if (!$this->auth->isLogin()) {
-            return json(['code' => 1, 'msg' => '请先登录']);
-        }
         $ids = $this->request->param('ids', '');
     
 
@@ -88,10 +86,6 @@ class Cart extends Base
      */
     public function add()
     {
-        if (!$this->auth->isLogin()) {
-            return json(['code' => 1, 'msg' => '请先登录']);
-        }
-
         $goodsId   = $this->request->post('goods_id/d', 0);
         $quantity  = $this->request->post('quantity/f', 1);
         $attrIds   = htmlspecialchars_decode($this->request->post('attr_ids/s', ''));
@@ -187,10 +181,6 @@ class Cart extends Base
      */
     public function edit()
     {
-        if (!$this->auth->isLogin()) {
-            return json(['code' => 1, 'msg' => '请先登录']);
-        }
-
         $id       = $this->request->post('id/d', 0);
         $quantity = $this->request->post('quantity/f', 1);
 
@@ -216,10 +206,6 @@ class Cart extends Base
      */
     public function delete()
     {
-        if (!$this->auth->isLogin()) {
-            return json(['code' => 1, 'msg' => '请先登录']);
-        }
-
         $id = $this->request->post('id/d', 0);
         if (!$id) {
             return json(['code' => 1, 'msg' => '参数错误']);
@@ -235,9 +221,6 @@ class Cart extends Base
      */
     public function clear()
     {
-        if (!$this->auth->isLogin()) {
-            return json(['code' => 1, 'msg' => '请先登录']);
-        }
 
         MiniCart::where('user_id', $this->auth->id)->delete();
         return json(['code' => 0, 'msg' => '已清空']);

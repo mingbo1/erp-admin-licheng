@@ -21,8 +21,8 @@
 }
 .login-btn-wrap.data-v-802e0a44 { margin-bottom: 32rpx;
 }
-.links.data-v-802e0a44 { text-align: center;
+.tip-area.data-v-802e0a44 { text-align: center; padding: 0 20rpx;
 }
-.link.data-v-802e0a44 { font-size: 26rpx; color: #4A90D9;
+.tip-text.data-v-802e0a44 { font-size: 22rpx; color: #c0c4cc;
 }
 

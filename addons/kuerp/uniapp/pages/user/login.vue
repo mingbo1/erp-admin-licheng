@@ -24,8 +24,8 @@
         </u-button>
       </view>
 
-      <view class="links">
-        <text class="link" @click="goRegister">没有账号？立即注册</text>
+      <view class="tip-area">
+        <text class="tip-text">账号由管理员在后台分配，如有疑问请联系管理员</text>
       </view>
     </view>
   </view>
@@ -67,9 +67,6 @@ export default {
         this.loading = false
       }
     },
-    goRegister() {
-      uni.navigateTo({ url: '/pages/user/register' })
-    },
   },
 }
 </script>
@@ -95,6 +92,6 @@ export default {
 
 .login-btn-wrap { margin-bottom: 32rpx; }
 
-.links { text-align: center; }
-.link { font-size: 26rpx; color: #4A90D9; }
+.tip-area { text-align: center; padding: 0 20rpx; }
+.tip-text { font-size: 22rpx; color: #c0c4cc; }
 </style>

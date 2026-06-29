@@ -181,6 +181,14 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 $('.btn-refresh').click();
                             },'',true);
                             break;
+                        case 'summary':
+                            if(data.length<=0){
+                                Toastr.error('请选择要汇总的数据');return;
+                            }
+                            Fast.api.open("kuerp/goods_purchase/summary?ids="+ids, "采购汇总", {
+                                area: ['90%', '75%'],
+                            });
+                            break;
                     }
                 });
                 function reloadTable(){

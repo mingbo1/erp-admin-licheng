@@ -93,6 +93,14 @@ export const addressApi = {
   setDefault: (id) => post('/addons/kuerp/api.address/setDefault', { id }),
 }
 
+// 客户（小程序端选择下单客户）
+export const customerApi = {
+  list: (keyword) => get('/addons/kuerp/api.order/customerList', keyword ? { keyword } : {}),
+  add: (data) => post('/addons/kuerp/api.order/customerAdd', data),
+  addresses: (customerId) => get('/addons/kuerp/api.order/addressList', { customer_id: customerId }),
+  saveAddress: (data) => post('/addons/kuerp/api.order/addressSave', data),
+}
+
 // 订单
 export const orderApi = {
   add: (data) => post('/addons/kuerp/api.order/add', data),
@@ -100,7 +108,6 @@ export const orderApi = {
   detail: (id) => get('/addons/kuerp/api.order/detail', { id }),
   cancel: (id) => post('/addons/kuerp/api.order/cancel', { id }),
   received: (id) => post('/addons/kuerp/api.order/received', { id }),
-  buyNow: (data) => post('/addons/kuerp/api.order/buyNow', data),
 }
 
 // 物流

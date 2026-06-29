@@ -10,7 +10,6 @@
     "pages/user/wxlogin",
     "pages/user/profile",
     "pages/user/login",
-    "pages/user/register",
     "pages/address/list",
     "pages/address/edit",
     "pages/order/logistics"

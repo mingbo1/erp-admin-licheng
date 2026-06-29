@@ -12,14 +12,31 @@ class Base extends Controller
 
     public function _initialize()
     {
+        // 保存子类设置的真实 $noNeedLogin，绕过框架的登录检查
+        // （框架 $this->error() 返回 code=0，与业务 code=1 冲突，导致前端误判为成功）
+        $realNoNeedLogin = $this->noNeedLogin;
+        $this->noNeedLogin = ['*'];
         parent::_initialize();
+        $this->noNeedLogin = $realNoNeedLogin;
+
         check_cors_request();
+
+        // 手动获取 token 并初始化 auth
         $token = $this->request->header('token');
         if (!$token) {
             $token = $this->request->request('token');
         }
         if ($token) {
             $this->auth->init($token);
+        }
+
+        // 手动登录检查（返回业务格式 code=1）
+        if (!$this->auth->match($this->noNeedLogin)) {
+            if (!$this->auth->isLogin()) {
+                throw new \think\exception\HttpResponseException(
+                    json(['code' => 1, 'msg' => '请先登录'])
+                );
+            }
         }
     }
 
@@ -52,26 +69,21 @@ class Base extends Controller
         }
         return $customer_id;
     }
-    public function createCustomer($nickname = '',$mobile = '')
+    public function createCustomer($nickname = '', $mobile = '')
     {
-         // 在 fa_kuerp_customers 创建客户
-         $customerCode = \addons\kuerp\library\Goods::getCodes('', 1);
-       $customerData = [
-                    'customer_name'     => $nickname ?: '微信用户',
-                    'customer_code'     => $customerCode,
-                    'customertype_id' =>1,
-                    'customerlevel_id'  => 1,
-                    'customer_mobile'   => $mobile,
-                    'status'            => 1,
-                    'createtime'        => time(),
-                    'updatetime'        => time(),
-                ];
-                $customerId = Db::name('kuerp_customers')->insertGetId($customerData);
-        if (!$customerId) {
-            // 创建客户
-            $this->createCustomer();
-        }
-        return $customerId;
+        $customerCode = \addons\kuerp\library\Goods::getCodes('', 1);
+        $customerData = [
+            'customer_name'    => $nickname ?: '微信用户',
+            'customer_code'    => $customerCode,
+            'customertype_id'  => 1,
+            'customerlevel_id' => 1,
+            'customer_mobile'  => $mobile,
+            'status'           => 1,
+            'createtime'       => time(),
+            'updatetime'       => time(),
+        ];
+        $customerId = Db::name('kuerp_customers')->insertGetId($customerData);
+        return $customerId ?: 0;
     }
 
    

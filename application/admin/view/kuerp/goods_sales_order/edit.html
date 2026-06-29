@@ -77,7 +77,7 @@
             <div class="form-group">
                 <label class="control-label col-xs-12 col-sm-4">{:__('Delivery_time')}:</label>
                 <div class="col-xs-12 col-sm-8">
-                    <input id="c-delivery_time" class="form-control" name="row[delivery_time]" type="text" value="{$row.delivery_time|date='Y-m-d',###}" placeholder="{:__('Delivery_time')}">
+                    <input id="c-delivery_time" class="form-control" name="row[delivery_time]" type="text" value="{$row.delivery_time ? date('Y-m-d', $row.delivery_time) : ''}" placeholder="{:__('Delivery_time')}">
                 </div>
             </div>
         </div>

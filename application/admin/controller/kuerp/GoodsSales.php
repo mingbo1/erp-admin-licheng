@@ -2,6 +2,7 @@
 
 namespace app\admin\controller\kuerp;
 
+use app\admin\model\kuerp\GoodsSalesOrderLog;
 use app\common\controller\Backend;
 use think\Db;
 use Exception;
@@ -465,14 +466,8 @@ class GoodsSales extends Backend
                     if(!empty($purchase_order_id)){
                         if($result){
                             Db::name('kuerp_goods_saleord')->insert(['order_id'=>$order_id,'purchase_id'=>$result]);
-                            // 在订单上记录"生成销货单"日志
-                            Db::name('kuerp_goods_sales_order_log')->insert([
-                                'order_id'   => $order_id,
-                                'action'     => '生成销货单',
-                                'note'       => '生成销货单：' . $params['purchase_code'],
-                                'admin_id'   => $admin['id'],
-                                'createtime' => time(),
-                            ]);
+                            // 在订单上记录"生成销货单"日志（统一使用 GoodsSalesOrderLog）
+                            GoodsSalesOrderLog::writeLog($order_id, '生成销货单', '生成销货单：' . $params['purchase_code'], 'sales', $result);
                         }
                     }
                     Db::commit();
@@ -483,27 +478,6 @@ class GoodsSales extends Backend
                 if (isset($result) && $result !== false) {
                     // 写入操作日志
                     $this->writeSalesLog($result, '创建', '创建销货单');
-                    // 来自订货通订单 → 回写 sales_code
-                    if (!empty($params['order_id'])) {
-                        $miniOrder = Db::name('kuerp_mini_order')
-                            ->where('id', $params['order_id'])
-                            ->where('status', 'confirmed')
-                            ->find();
-                        if ($miniOrder && empty($miniOrder['sales_code'])) {
-                            $updateData = [
-                                'sales_code' => $params['purchase_code'],
-                                'updatetime' => time(),
-                            ];
-                            // 如果销货单已收款，同步支付状态到 mini 订单
-                            if (isset($pay_status) && $pay_status == 1) {
-                                $updateData['status'] = 'paid';
-                                $updateData['payment_time'] = time();
-                            }
-                            Db::name('kuerp_mini_order')
-                                ->where('id', $miniOrder['id'])
-                                ->update($updateData);
-                        }
-                    }
 
                     if($examine!=1){
                         try {
@@ -581,64 +555,6 @@ class GoodsSales extends Backend
         $purchase_info = isset($purchase_info)?$purchase_info:[];
         $this->assignconfig("give_account", $give_account);
         $give_account = $give_account+$real_money+$row['real_money'];
-
-        if(!empty($order_id)){
-            $order = Db::name('kuerp_mini_order')->where(['id'=>$order_id])->find();
-            if($order){
-                $purchase_info = [];
-                $customers_id = $order['customer_id'];
-                $customers = Db::name('kuerp_customers')->where(['id'=>$customers_id])->find();
-                $goods_list = Db::name('kuerp_mini_order_goods')->where(['order_id'=>$order['id']])
-                    ->select();
-                foreach ($goods_list as $goods_list_k=>$goods_list_v){
-                    $goods = Db::name('kuerp_goods')->where(['id'=>$goods_list_v['goods_id']])->find();
-                    $unit = json_decode($this->getUnit($goods['goods_code']),true);
-
-                    $goods_list_v['basic_number'] = $goods_list_v['quantity'];
-                    foreach ($unit['unit'] as $unit_k=>$unit_v){
-                        if($unit_v['id']==$goods_list_v['goods_unit']){
-                            $goods_list_v['basic_number'] = ($goods_list_v['quantity'])*$unit_v['basic_nmber'];
-                        }
-                    }
-
-                    $purchase_info[] = [
-                        'id' => '',
-                        'unit'  => $unit,
-                        'goods_code' => $goods['goods_code'],
-                        'goods_note' => $goods['note'],
-                        'goods_attr' => $goods_list_v['attr_ids'],
-                        'goods_unit' => $goods_list_v['goods_unit'],
-                        'stores_id'  => '',
-                        'allow_stock'=> $goods['inventory'],
-                        'purchase_number' => $goods_list_v['quantity'],
-                        'default_unit' => $goods['unit_id'],
-                        'basic_nmber'=> $goods_list_v['basic_number'],
-                        'unit_price' => $goods_list_v['unit_price'],
-                        'tax_included' => $goods_list_v['unit_price'],
-                        'discount'=> 0,
-                        'dis_money' => 0,
-                        'all_money' => $goods_list_v['all_money'],
-                        'tax_rate'=> 0,
-                        'tax_money' => 0,
-                        'money_tax_price' => $goods_list_v['all_money'],
-                        'purchase_money' => '',
-                        'remark'=> '',
-                        'purchase_code' => '',
-                        'order_info_id' => $goods_list_v['id'],
-                    ];
-                }
-                $address = trim($order['receiver_province'] . $order['receiver_city'] . $order['receiver_district'] . $order['receiver_address']);
-                $row['customers_id'] = $customers_id;
-                $row['receiving_address'] = $address;
-                $row['real_money'] = $order['payable_amount'];
-                $row['order_id'] = $order['id'];
-                if($customers){
-                    $give_account = $customers['need_receive_account'] + $order['payable_amount'];//客户需要收款金额+订单金额=需要收款金额
-                }else{
-                    $give_account = $order['payable_amount'];
-                }
-            }
-        }
 
         // 来自销货排期：预填商品列表
         $schedule_id = $this->request->param('schedule_id');
@@ -1061,20 +977,6 @@ class GoodsSales extends Backend
                 if ($result !== false) {
                     // 写入操作日志
                     $this->writeSalesLog($ids, '编辑', '编辑销货单');
-                    // 同步 Mini 订单支付状态（根据 sales_code 关联）
-                    $miniOrder = Db::name('kuerp_mini_order')
-                        ->where('sales_code', $rowdata['purchase_code'])
-                        ->where('status', 'confirmed')
-                        ->find();
-                    if ($miniOrder && $rowdata['pay_status'] == 1) {
-                        Db::name('kuerp_mini_order')
-                            ->where('id', $miniOrder['id'])
-                            ->update([
-                                'status' => 'paid',
-                                'payment_time' => time(),
-                                'updatetime' => time(),
-                            ]);
-                    }
 
                     if($examine!=1){
                         try {
@@ -1895,14 +1797,8 @@ class GoodsSales extends Backend
                     $goodsSalesOrder = (new \app\admin\model\kuerp\GoodsSalesOrder());
                     foreach ($order_count as $order_count_k=>$order_count_v){
                         $goodsSalesOrder->where(['id'=>$order_count_v['id']])->inc('store_number',$order_count_v['store_number'])->update();
-                        // 在订单上记录"出库"日志
-                        Db::name('kuerp_goods_sales_order_log')->insert([
-                            'order_id'   => $order_count_v['id'],
-                            'action'     => '出库',
-                            'note'       => '销售出库，关联销货单：' . implode(',', $purchase_code),
-                            'admin_id'   => $admin['id'],
-                            'createtime' => time(),
-                        ]);
+                        // 在订单上记录"销货出库"日志（统一使用 GoodsSalesOrderLog）
+                        GoodsSalesOrderLog::writeLog($order_count_v['id'], '销货出库', '销售出库，关联销货单：' . implode(',', $purchase_code), 'sales', $ids);
                         unset($order_count[$order_count_k]['store_number']);
                     }
                     $goodsSalesOrder->saveAll($order_count);
@@ -2252,14 +2148,8 @@ class GoodsSales extends Backend
                     $goodsSalesOrder = (new \app\admin\model\kuerp\GoodsSalesOrder());
                     foreach ($order_count as $order_count_k=>$order_count_v){
                         $goodsSalesOrder->where(['id'=>$order_count_v['id']])->dec('store_number',$order_count_v['store_number'])->update();
-                        // 在订单上记录"取消出库"日志
-                        Db::name('kuerp_goods_sales_order_log')->insert([
-                            'order_id'   => $order_count_v['id'],
-                            'action'     => '取消出库',
-                            'note'       => '反审核销货单，取消出库',
-                            'admin_id'   => $admin['id'],
-                            'createtime' => time(),
-                        ]);
+                        // 在订单上记录"取消出库"日志（统一使用 GoodsSalesOrderLog）
+                        GoodsSalesOrderLog::writeLog($order_count_v['id'], '取消出库', '反审核销货单，取消出库', 'sales', $ids);
                         unset($order_count[$order_count_k]['store_number']);
                     }
                     $goodsSalesOrder->saveAll($order_count);
@@ -2339,6 +2229,8 @@ class GoodsSales extends Backend
 
             // 写入操作日志
             $this->writeSalesLog($ids, '催收', $note ?: '催收');
+            // 同步写入销货订单日志
+            GoodsSalesOrderLog::writeLogByCode($row['purchase_order_id'], '催收', '销货单催收：' . $row['purchase_code'] . ' - ' . ($note ?: '催收'), 'sales', $ids);
 
             $this->success(__('催收记录已保存'));
         }

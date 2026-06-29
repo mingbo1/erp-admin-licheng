@@ -60,6 +60,13 @@
                                 <option value="1">{:__('Second_examine_status 1')}</option>
                             </select>
                         </div>
+                        <div class="layui-input-inline">
+                            <select name="source" id="source" placeholder="{:__('Source')}" class="layui-input">
+                                <option value="">请选择{:__('Source')}</option>
+                                <option value="admin">{:__('Source admin')}</option>
+                                <option value="miniapp">{:__('Source miniapp')}</option>
+                            </select>
+                        </div>
                         <div class="layui-input-inline " style="width: 90px">
                             <button class="layui-btn layui-btn-sm" type="button" id="search" data-type="reload">
                                  <i class="layui-icon"></i> {:__('Search')}

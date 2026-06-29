@@ -66,4 +66,7 @@ return [
     'Second_examine_status 1' => '已二审',
     'Second_examine_id'       => '二审人',
     'Second_examine_time'     => '二审时间',
+    'Source'                  => '来源',
+    'Source admin'            => '后台添加',
+    'Source miniapp'          => '小程序端',
 ];

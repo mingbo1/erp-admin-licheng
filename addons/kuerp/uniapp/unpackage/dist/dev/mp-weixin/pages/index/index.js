@@ -101,10 +101,13 @@ var components
 try {
   components = {
     uSwiper: function () {
-      return Promise.all(/*! import() | node-modules/uview-ui/components/u-swiper/u-swiper */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-swiper/u-swiper")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-swiper/u-swiper.vue */ 274))
+      return Promise.all(/*! import() | node-modules/uview-ui/components/u-swiper/u-swiper */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-swiper/u-swiper")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-swiper/u-swiper.vue */ 266))
     },
     uSearch: function () {
-      return Promise.all(/*! import() | node-modules/uview-ui/components/u-search/u-search */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-search/u-search")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-search/u-search.vue */ 282))
+      return Promise.all(/*! import() | node-modules/uview-ui/components/u-search/u-search */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-search/u-search")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-search/u-search.vue */ 274))
+    },
+    uTabs: function () {
+      return Promise.all(/*! import() | node-modules/uview-ui/components/u-tabs/u-tabs */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-tabs/u-tabs")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-tabs/u-tabs.vue */ 282))
     },
     uIcon: function () {
       return Promise.all(/*! import() | node-modules/uview-ui/components/u-icon/u-icon */[__webpack_require__.e("common/vendor"), __webpack_require__.e("node-modules/uview-ui/components/u-icon/u-icon")]).then(__webpack_require__.bind(null, /*! uview-ui/components/u-icon/u-icon.vue */ 290))
@@ -141,7 +144,7 @@ var render = function () {
   var g1 = _vm.list.length
   var l0 =
     g1 > 0
-      ? _vm.__map(_vm.list, function (item, __i1__) {
+      ? _vm.__map(_vm.list, function (item, __i0__) {
           var $orig = _vm.__get_orig(item)
           var m0 = item.goods_image ? _vm.$img(item.goods_image) : null
           return {
@@ -209,6 +212,7 @@ exports.default = void 0;
 var _regenerator = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/regenerator */ 30));
 var _defineProperty2 = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/helpers/defineProperty */ 11));
 var _asyncToGenerator2 = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/helpers/asyncToGenerator */ 32));
+var _toConsumableArray2 = _interopRequireDefault(__webpack_require__(/*! @babel/runtime/helpers/toConsumableArray */ 18));
 var _api = __webpack_require__(/*! ../../api */ 33);
 var _request = __webpack_require__(/*! ../../api/request */ 34);
 function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); enumerableOnly && (symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; })), keys.push.apply(keys, symbols); } return keys; }
@@ -237,11 +241,26 @@ var _default = {
       showSheet: false,
       sheetItem: null,
       // 列表商品
-      sheetDetail: null // 详情数据（attr_groups, attrs, units）
+      sheetDetail: null,
+      // 详情数据（attr_groups, attrs, units）
+      requestVersion: 0 // 请求版本号，防止竞态
     };
   },
 
   computed: {
+    tabList: function tabList() {
+      return [{
+        id: 0,
+        name: '全部'
+      }].concat((0, _toConsumableArray2.default)(this.categories));
+    },
+    cateIndex: function cateIndex() {
+      var _this = this;
+      var idx = this.tabList.findIndex(function (t) {
+        return t.id === _this.cateId;
+      });
+      return idx >= 0 ? idx : 0;
+    },
     sheetAttrGroups: function sheetAttrGroups() {
       return this.sheetDetail && this.sheetDetail.attr_groups || [];
     },
@@ -272,7 +291,7 @@ var _default = {
   },
   methods: {
     loadBanner: function loadBanner() {
-      var _this = this;
+      var _this2 = this;
       return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee() {
         var res;
         return _regenerator.default.wrap(function _callee$(_context) {
@@ -284,9 +303,9 @@ var _default = {
                 return _api.bannerApi.index();
               case 3:
                 res = _context.sent;
-                _this.bannerList = (res.list || []).map(function (i) {
+                _this2.bannerList = (res.list || []).map(function (i) {
                   return _objectSpread(_objectSpread({}, i), {}, {
-                    image: _this.$img(i.image)
+                    image: _this2.$img(i.image)
                   });
                 });
                 _context.next = 9;
@@ -303,7 +322,7 @@ var _default = {
       }))();
     },
     loadCategories: function loadCategories() {
-      var _this2 = this;
+      var _this3 = this;
       return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee2() {
         var res;
         return _regenerator.default.wrap(function _callee2$(_context2) {
@@ -314,7 +333,7 @@ var _default = {
                   _context2.next = 3;
                   break;
                 }
-                _this2.categories = categoriesCache;
+                _this3.categories = categoriesCache;
                 return _context2.abrupt("return");
               case 3:
                 _context2.prev = 3;
@@ -322,8 +341,8 @@ var _default = {
                 return _api.goodsApi.categories();
               case 6:
                 res = _context2.sent;
-                _this2.categories = res.list || [];
-                categoriesCache = _this2.categories;
+                _this3.categories = res.list || [];
+                categoriesCache = _this3.categories;
                 _context2.next = 13;
                 break;
               case 11:
@@ -339,65 +358,86 @@ var _default = {
     },
     loadData: function loadData() {
       var _arguments = arguments,
-        _this3 = this;
+        _this4 = this;
       return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee3() {
-        var append, res;
+        var append, reqId, res;
         return _regenerator.default.wrap(function _callee3$(_context3) {
           while (1) {
             switch (_context3.prev = _context3.next) {
               case 0:
                 append = _arguments.length > 0 && _arguments[0] !== undefined ? _arguments[0] : false;
-                if (!_this3.loading) {
+                if (!(append && _this4.loading)) {
                   _context3.next = 3;
                   break;
                 }
                 return _context3.abrupt("return");
               case 3:
-                _this3.loading = true;
                 if (!append) {
-                  _this3.page = 1;
-                  _this3.list = [];
+                  _this4.requestVersion++;
                 }
-                _context3.prev = 5;
-                _context3.next = 8;
+                reqId = _this4.requestVersion;
+                _this4.loading = true;
+                if (!append) {
+                  _this4.page = 1;
+                  _this4.list = [];
+                }
+                _context3.prev = 7;
+                _context3.next = 10;
                 return _api.goodsApi.index({
-                  page: _this3.page,
+                  page: _this4.page,
                   limit: 20,
-                  category_id: _this3.cateId || undefined,
-                  search: _this3.search || undefined
+                  category_id: _this4.cateId || undefined,
+                  search: _this4.search || undefined
                 });
-              case 8:
+              case 10:
                 res = _context3.sent;
-                if (append) {
-                  _this3.list = _this3.list.concat(res.list || []);
-                } else {
-                  _this3.list = res.list || [];
+                if (!(reqId !== _this4.requestVersion)) {
+                  _context3.next = 13;
+                  break;
                 }
-                _this3.hasMore = _this3.list.length < (res.total || 0);
-                _this3.loaded = true;
-                _context3.next = 17;
+                return _context3.abrupt("return");
+              case 13:
+                if (append) {
+                  _this4.list = _this4.list.concat(res.list || []);
+                } else {
+                  _this4.list = res.list || [];
+                }
+                _this4.hasMore = _this4.list.length < (res.total || 0);
+                _this4.loaded = true;
+                _context3.next = 23;
                 break;
-              case 14:
-                _context3.prev = 14;
-                _context3.t0 = _context3["catch"](5);
+              case 18:
+                _context3.prev = 18;
+                _context3.t0 = _context3["catch"](7);
+                if (!(reqId !== _this4.requestVersion)) {
+                  _context3.next = 22;
+                  break;
+                }
+                return _context3.abrupt("return");
+              case 22:
                 uni.showToast({
                   title: _context3.t0,
                   icon: 'none'
                 });
-              case 17:
-                _context3.prev = 17;
-                _this3.loading = false;
-                return _context3.finish(17);
-              case 20:
+              case 23:
+                _context3.prev = 23;
+                if (reqId === _this4.requestVersion) {
+                  _this4.loading = false;
+                }
+                return _context3.finish(23);
+              case 26:
               case "end":
                 return _context3.stop();
             }
           }
-        }, _callee3, null, [[5, 14, 17, 20]]);
+        }, _callee3, null, [[7, 18, 23, 26]]);
       }))();
     },
-    switchCate: function switchCate(id) {
-      this.cateId = id;
+    switchCate: function switchCate(e) {
+      var idx = typeof e === 'number' ? e : e.index;
+      var tab = this.tabList[idx];
+      if (!tab) return;
+      this.cateId = tab.id;
       this.loadData();
     },
     onSearch: function onSearch() {
@@ -413,10 +453,10 @@ var _default = {
       });
     },
     addToCart: function addToCart(item) {
-      var _this4 = this;
+      var _this5 = this;
       if (!(0, _request.getToken)()) {
         uni.navigateTo({
-          url: '/pages/user/wxlogin'
+          url: '/pages/user/login'
         });
         return;
       }
@@ -425,12 +465,12 @@ var _default = {
       this.showSheet = true;
       // 异步加载商品详情（含多规格）
       _api.goodsApi.detail(item.id).then(function (res) {
-        _this4.sheetDetail = res;
+        _this5.sheetDetail = res;
       }).catch(function () {});
     },
     // 组件事件：加入订货单
     onSheetAddToCart: function onSheetAddToCart(payload) {
-      var _this5 = this;
+      var _this6 = this;
       return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee4() {
         return _regenerator.default.wrap(function _callee4$(_context4) {
           while (1) {
@@ -440,7 +480,7 @@ var _default = {
                 _context4.next = 3;
                 return _api.cartApi.add(payload.goods_id, payload.quantity, payload.attr_ids, payload.goods_unit);
               case 3:
-                _this5.closeSheet();
+                _this6.closeSheet();
                 uni.showToast({
                   title: '已加入订货单',
                   icon: 'none'

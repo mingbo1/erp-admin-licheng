@@ -729,18 +729,6 @@ class Kuerp extends Addons
                                 ['name'=>'kuerp/stone_stock/index','title'=>'查看','icon'=>'fa fa-circle-o','ismenu'=>'0','weigh'=>'0'],
                             ],
                         ],
-                        ['name'=>'kuerp/mini_order','title'=>'订货单','icon'=>'fa fa-file-text-o','ismenu'=>'1','weigh'=>'70',
-                            'sublist'=>[
-                                ['name'=>'kuerp/mini_order/index','title'=>'查看','icon'=>'fa fa-circle-o','ismenu'=>'0','weigh'=>'0'],
-                                ['name'=>'kuerp/mini_order/add','title'=>'添加','icon'=>'fa fa-circle-o','ismenu'=>'0','weigh'=>'0'],
-                                ['name'=>'kuerp/mini_order/edit','title'=>'编辑','icon'=>'fa fa-circle-o','ismenu'=>'0','weigh'=>'0'],
-                                ['name'=>'kuerp/mini_order/del','title'=>'删除','icon'=>'fa fa-circle-o','ismenu'=>'0','weigh'=>'0'],
-                                ['name'=>'kuerp/mini_order/confirm','title'=>'确认','icon'=>'fa fa-circle-o','ismenu'=>'0','weigh'=>'0'],
-                                ['name'=>'kuerp/mini_order/ship','title'=>'发货','icon'=>'fa fa-circle-o','ismenu'=>'0','weigh'=>'0'],
-                                ['name'=>'kuerp/mini_order/cancel','title'=>'取消','icon'=>'fa fa-circle-o','ismenu'=>'0','weigh'=>'0'],
-                                ['name'=>'kuerp/mini_order/detail','title'=>'详情','icon'=>'fa fa-circle-o','ismenu'=>'0','weigh'=>'0'],
-                            ],
-                        ],
                         ['name'=>'kuerp/mini_banner','title'=>'轮播图','icon'=>'fa fa-image','ismenu'=>'1','weigh'=>'60',
                             'sublist'=>[
                                 ['name'=>'kuerp/mini_banner/index','title'=>'查看','icon'=>'fa fa-circle-o','ismenu'=>'0','weigh'=>'0'],

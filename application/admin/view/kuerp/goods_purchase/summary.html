@@ -1,0 +1,81 @@
+<link rel="stylesheet" href="__CDN__/assets/css/bootstrap.min.css" media="all">
+<style>
+    .summary-wrap { padding: 20px; background: #fff; }
+    .summary-title { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
+    .summary-subtitle { font-size: 13px; color: #909399; margin-bottom: 18px; }
+    .summary-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .summary-table th, .summary-table td { padding: 8px 10px; border: 1px solid #e4e7ed; text-align: center; white-space: nowrap; }
+    .summary-table th { background: #f5f7fa; font-weight: 600; color: #303133; }
+    .summary-table td.left { text-align: left; }
+    .summary-table td.right { text-align: right; }
+    .summary-table tbody tr:hover { background: #f5f7fa; }
+    .summary-table .total-row { background: #ecf5ff; font-weight: 700; }
+    .summary-table .total-row td { border-top: 2px solid #409eff; }
+</style>
+
+<div class="summary-wrap">
+    <div class="summary-title"><i class="fa fa-list"></i> 采购汇总</div>
+    <div class="summary-subtitle">已选择采购单，按商品+属性+仓库汇总</div>
+
+    <table class="table table-bordered table-hover summary-table">
+        <thead>
+            <tr>
+                <th>供应商类别</th>
+                <th>商品编号</th>
+                <th>商品名称</th>
+                <th>规格型号</th>
+                <th>仓库</th>
+                <th>单位换算</th>
+                <th>副单位数</th>
+                <th>计量单位</th>
+                <th>基本单位数量</th>
+                <th>单价</th>
+                <th>购货金额</th>
+                <th>采购费用</th>
+                {if $taxes == 1}
+                <th>税额</th>
+                <th>价税合计</th>
+                {/if}
+            </tr>
+        </thead>
+        <tbody>
+            {foreach name="list" item="row"}
+            <tr>
+                <td class="left">{$row.supplier_type_name|default=''}</td>
+                <td>{$row.goods_code}</td>
+                <td class="left">{$row.goods_name|default=''}</td>
+                <td>{if !empty($row.attr_name)}{$row.attr_name}{else}{$row.goods_specification_id|default=''}{/if}</td>
+                <td>{$row.s_name|default=''}</td>
+                <td>
+                    {if !empty($row.unit_conversion)}
+                    1{$row.u_name}={$row.unit_conversion}{$row.u_name}
+                    {/if}
+                </td>
+                <td>{$row.basic_nmber_display|default=''}</td>
+                <td>{$row.u_name|default=''}</td>
+                <td class="right">{:round((float)$row.i_number, (int)$number_decimal)}</td>
+                <td class="right">{:round((float)$row.unit_price, (int)$price_decimal)}</td>
+                <td class="right">{:round((float)$row.all_money, (int)$price_decimal)}</td>
+                <td class="right">{:round((float)$row.purchase_money, (int)$price_decimal)}</td>
+                {if $taxes == 1}
+                <td class="right">{:round((float)$row.tax_money, (int)$price_decimal)}</td>
+                <td class="right">{:round((float)$row.money_tax_price, (int)$price_decimal)}</td>
+                {/if}
+            </tr>
+            {/foreach}
+        </tbody>
+        <tfoot>
+            <tr class="total-row">
+                <td colspan="8">合计</td>
+                <td class="right">{:round((float)$totals.i_number, (int)$number_decimal)}</td>
+                <td class="right">{:round((float)$totals.unit_price, (int)$price_decimal)}</td>
+                <td class="right">{:round((float)$totals.all_money, (int)$price_decimal)}</td>
+                <td class="right">{:round((float)$totals.purchase_money, (int)$price_decimal)}</td>
+                {if $taxes == 1}
+                <td class="right">{:round((float)$totals.tax_money, (int)$price_decimal)}</td>
+                <td class="right">{:round((float)$totals.money_tax_price, (int)$price_decimal)}</td>
+                {/if}
+            </tr>
+        </tfoot>
+    </table>
+</div>
