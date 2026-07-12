@@ -1439,6 +1439,23 @@ class Assemble extends Backend
                 $this->error('请选择需要子件反审核出库的数据');
             }
 
+            // 手动审核模式：仅反转审核状态，不做库存变动（实际出库通过 outboundEdit 页面填写）
+            if($examine_set==1){
+                $admin = Session::get('admin');
+                $result = $this->model->where(['id'=>['in',$ids],'examine_status'=>'1'])->update(['examine_status'=>0,'examine_id'=>0,'examine_time'=>'','operation_id'=>$admin['id']]);
+                if($result !== false){
+                    if($examine_set!=1){
+                        return ['status'=>1,'msg'=>'操作成功'];
+                    }
+                    $this->success(sizeof($list).'条数据子件出库反审核成功');
+                }else{
+                    if($examine_set!=1){
+                        return ['status'=>0,'msg'=>'操作失败'];
+                    }
+                    $this->error('子件出库反审核失败');
+                }
+            }
+
             $editstock = [];//库存表修改库存
             $goods_stock = [];//商品列表库存
             $goods_batch_edit = [];//批次库存更新
@@ -1970,6 +1987,23 @@ class Assemble extends Backend
                     return ['status'=>0,'msg'=>'系统错误'];
                 }
                 $this->error('请选择需要组合件反审核入库的数据');
+            }
+
+            // 手动审核模式：仅反转审核状态，不做库存变动（实际入库通过 outboundEdit 页面填写）
+            if($examine_set==1){
+                $admin = Session::get('admin');
+                $result = $this->model->where(['id'=>['in',$ids],'inbound_status'=>'1'])->update(['inbound_status'=>0,'operation_id'=>$admin['id']]);
+                if($result !== false){
+                    if($examine_set!=1){
+                        return ['status'=>1,'msg'=>'操作成功'];
+                    }
+                    $this->success(sizeof($list).'条数据组合件入库反审核成功');
+                }else{
+                    if($examine_set!=1){
+                        return ['status'=>0,'msg'=>'操作失败'];
+                    }
+                    $this->error('组合件入库反审核失败');
+                }
             }
 
             $editstock = [];//库存表修改库存

@@ -292,6 +292,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                     if(location_id!=''){
                         search.location_id = location_id;
                     }
+                    var supplier_id = $('#supplier_id').val();
+                    if(supplier_id!=''){
+                        search.supplier_id = supplier_id;
+                    }
                     return search;
                 }
                 function getOp() {

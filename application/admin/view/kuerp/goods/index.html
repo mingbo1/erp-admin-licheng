@@ -57,6 +57,14 @@
                                 {/foreach}
                             </select>
                         </div>
+                        <div class="layui-input-inline">
+                            <select name="supplier_id" id="supplier_id" placeholder="供应商" class="layui-input">
+                                <option value="">请选择供应商</option>
+                                {foreach name="supplierlist" item="vo"}
+                                <option value="{$vo.id}">{$vo.supplyer_name}</option>
+                                {/foreach}
+                            </select>
+                        </div>
                         <div class="layui-input-inline " style="width: 90px">
                             <button class="layui-btn layui-btn-sm" type="button" id="search" data-type="reload">
                                  <i class="layui-icon"></i> {:__('Search')}

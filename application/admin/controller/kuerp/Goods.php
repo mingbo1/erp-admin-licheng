@@ -91,6 +91,9 @@ class Goods extends Backend
         }
         $this->view->assign("unit_conversion", $list);
         $this->assignconfig("unit_conversion", json_encode($list));
+
+        $supplierlist = Db::name('kuerp_suppliers')->where(['status'=>1])->field('id,supplyer_name')->select();
+        $this->view->assign('supplierlist', $supplierlist);
     }
 
     public function import()
