@@ -423,9 +423,22 @@ class GoodsSalesSchedule extends Backend
         $this->view->assign("row", $row);
 
         $purchase_info = Db::name('kuerp_goods_sales_info')->where(['purchase_code'=>$row['purchase_code']])->select();
+        // 批量查询动态库存
+        $goodsCodes = array_column($purchase_info, 'goods_code');
+        $goodsIdMap = $goodsCodes ? Db::name('kuerp_goods')->where(['goods_code' => ['in', $goodsCodes]])->column('id', 'goods_code') : [];
+        $stockItems = [];
+        foreach ($purchase_info as $v) {
+            $gid = isset($goodsIdMap[$v['goods_code']]) ? $goodsIdMap[$v['goods_code']] : 0;
+            if ($gid) $stockItems[] = ['goods_id' => $gid, 'stores_id' => (int)$v['stores_id'], 'attribute_id' => (int)$v['goods_attr']];
+        }
+        $stockMap = \addons\kuerp\library\Goods::getAvailableStockBatch($stockItems, '');
+
         foreach ($purchase_info as $purchase_info_k=>$purchase_info_v){
-            $purchase_info[$purchase_info_k]['unit'] = json_decode($this->getUnit($purchase_info_v['goods_code']),true);
+            $purchase_info[$purchase_info_k]['unit'] = json_decode($this->getUnit($purchase_info_v['goods_code'], $purchase_info_v['stores_id'], $purchase_info_v['goods_attr']),true);
             $purchase_info[$purchase_info_k]['serial'] = $purchase_info_v['period'];
+            $gid = isset($goodsIdMap[$purchase_info_v['goods_code']]) ? $goodsIdMap[$purchase_info_v['goods_code']] : 0;
+            $key = $gid . '-' . (int)$purchase_info_v['stores_id'] . '-' . (int)$purchase_info_v['goods_attr'];
+            $purchase_info[$purchase_info_k]['allow_stock'] = isset($stockMap[$key]) ? $stockMap[$key] : 0;
         }
         $this->view->assign("purchase_info", $purchase_info);
 
@@ -1055,22 +1068,20 @@ class GoodsSalesSchedule extends Backend
             return json(['code' => 0, 'msg' => '未找到BOM零件数据']);
         }
 
-        // 查询每个零件的当前库存（按仓库汇总）
+        // 查询每个零件的当前库存（仅查询零件仓库，按仓库汇总）
         $partGoodsIds = array_keys($partMap);
+        $partStoreIds = Db::name('kuerp_stores')->where(['store_type' => 'part'])->column('id');
         $stockData = Db::name('kuerp_goods_stock')
             ->where(['goods_id' => ['in', $partGoodsIds]])
+            ->where(['stores_id' => ['in', $partStoreIds]])
             ->field('goods_id, stores_id, stock')
             ->select();
 
-        // 仓库名称映射
-        $storeIds = [];
-        foreach ($stockData as $sd) {
-            $storeIds[] = $sd['stores_id'];
-        }
+        // 仓库名称映射（查询所有零件仓库，不限于有库存的）
         $storeNames = [];
-        if (!empty($storeIds)) {
+        if (!empty($partStoreIds)) {
             $storeNames = Db::name('kuerp_stores')
-                ->where(['id' => ['in', array_unique($storeIds)]])
+                ->where(['id' => ['in', $partStoreIds]])
                 ->column('name', 'id');
         }
 
@@ -1088,8 +1099,7 @@ class GoodsSalesSchedule extends Backend
         // 构建返回数据
         $result = [];
         foreach ($partMap as $goodsId => $part) {
-            // 计算总库存
-            $totalStock = 0;
+            $totalRequired = $part['required_total'];
             $stockDetails = []; // 按仓库明细: [{stores_name, stock, required, diff}]
 
             // 该零件所有有库存的仓库
@@ -1100,17 +1110,44 @@ class GoodsSalesSchedule extends Backend
                 }
             }
 
-            // 需求按仓库
+            // 需求按仓库（来自前端商品数据，仅用于补齐仓库列表）
             $reqByStore = $part['stores'];
 
             // 合并所有仓库（有库存或有需求的）
             $allStoreIds = array_unique(array_merge(array_keys($allStores), array_keys($reqByStore)));
+            // 过滤：只保留零件仓库 (store_type='part')，排除父商品排期带入的成品/半成品仓库
+            $allStoreIds = array_values(array_intersect($allStoreIds, $partStoreIds));
 
+            // 构建仓库-库存映射，按库存降序排列
+            $storeStockMap = [];
             foreach ($allStoreIds as $sid) {
-                $stk = isset($allStores[$sid]) ? $allStores[$sid] : 0;
-                $req = isset($reqByStore[$sid]) ? $reqByStore[$sid] : 0;
-                $diff = $stk - $req;
-                $totalStock += $stk;
+                $storeStockMap[$sid] = isset($allStores[$sid]) ? $allStores[$sid] : 0;
+            }
+            // 按库存降序：有库存的仓库排在前面
+            arsort($storeStockMap);
+
+            // 分配需求：采购时只考虑一个仓库，优先考虑有库存的仓库
+            // 将需求全部分配给库存最多的仓库，stock 保留实际库存（锁定弹窗需要）
+            $remainingRequired = $totalRequired;
+            $isFirst = true;
+
+            foreach ($storeStockMap as $sid => $stk) {
+                if ($isFirst) {
+                    $isFirst = false;
+                    // 最佳仓库：需求全部分配到这个仓库
+                    $req = $remainingRequired;
+                    $diff = $stk - $req;
+                } else {
+                    // 其他仓库：需求已被最佳仓库吸收，不再分配
+                    $req = 0;
+                    $diff = $stk;
+                }
+
+                // 跳过既无库存也无需求的仓库
+                if ($stk == 0 && $req == 0) {
+                    continue;
+                }
+
                 $stockDetails[] = [
                     'stores_id' => (int)$sid,
                     'stores_name' => isset($storeNames[$sid]) ? $storeNames[$sid] : '仓库'.$sid,
@@ -1120,7 +1157,35 @@ class GoodsSalesSchedule extends Backend
                 ];
             }
 
-            $totalDiff = $totalStock - $part['required_total'];
+            // 极端情况：所有零件仓库都已过滤（无库存 + 父商品排期仓库非零件仓）
+            if (empty($stockDetails) && $totalRequired > 0) {
+                // 优先使用第一个零件仓库作为默认仓库
+                if (!empty($partStoreIds)) {
+                    $defaultSid = (int)reset($partStoreIds);
+                    $stockDetails[] = [
+                        'stores_id' => $defaultSid,
+                        'stores_name' => isset($storeNames[$defaultSid]) ? $storeNames[$defaultSid] : '仓库'.$defaultSid,
+                        'stock' => 0,
+                        'required' => round($totalRequired, $numberDecimal),
+                        'diff' => round(-$totalRequired, $numberDecimal),
+                    ];
+                } else {
+                    $stockDetails[] = [
+                        'stores_id' => 0,
+                        'stores_name' => '暂无仓库',
+                        'stock' => 0,
+                        'required' => round($totalRequired, $numberDecimal),
+                        'diff' => round(-$totalRequired, $numberDecimal),
+                    ];
+                }
+            }
+
+            // 计算合计：total_stock 为实际库存之和
+            $totalStock = 0;
+            foreach ($stockDetails as $sd) {
+                $totalStock += $sd['stock'];
+            }
+            $totalDiff = $totalStock - $totalRequired;
 
             // 查询该零件在各仓库的锁定信息
             $lockInfo = []; // stores_id => {locked, used, remaining}

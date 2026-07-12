@@ -14,6 +14,7 @@ class Order extends Base
         '0' => 'pending_confirm', // 未审核 → 待确认
         '1' => 'confirmed',       // 已审核 → 已确认
         '3' => 'cancelled',       // 已取消
+        '4' => 'received',        // 已收货
     ];
 
     // ============================================================
@@ -297,7 +298,7 @@ class Order extends Base
             'mini_user_id' => $miniUserId,
         ];
         // 前端状态 → 后端条件映射
-        // pending_review=待审核, pending_ship=待发货, partial_shipped=部分发货, shipped=已发货, cancelled=已取消
+        // pending_review=待审核, pending_ship=待发货, partial_shipped=部分发货, shipped=已发货, cancelled=已取消, received=已收货
         if ($status !== '' && $status !== 'all') {
             switch ($status) {
                 case 'pending_review':
@@ -318,6 +319,9 @@ class Order extends Base
                     break;
                 case 'cancelled':
                     $where['status'] = '3';
+                    break;
+                case 'received':
+                    $where['status'] = '4';
                     break;
             }
         }
@@ -390,8 +394,8 @@ class Order extends Base
             ->field('id,customer_code,customer_name,connet_name,customer_mobile,getgoods_address')
             ->find();
 
-        // 如果已发货，查关联的销货单
-        if ($order['display_status'] === 'shipped') {
+        // 如果已发货/已收货，查关联的销货单
+        if ($order['display_status'] === 'shipped' || $order['display_status'] === 'received') {
             $salesCodes = Db::name('kuerp_goods_saleord')
                 ->where('order_id', $order['id'])
                 ->column('purchase_id');
@@ -442,6 +446,50 @@ class Order extends Base
         ]);
 
         return json(['code' => 0, 'msg' => '取消成功']);
+    }
+
+    /**
+     * 确认收货（已发货/部分发货 → 已收货）
+     * POST /api/kuerp/order/received
+     */
+    public function received()
+    {
+
+        $id = $this->request->post('id/d', 0);
+        if (!$id) {
+            return json(['code' => 1, 'msg' => '参数错误']);
+        }
+
+        $miniUser = $this->getMiniUser();
+        $miniUserId = $miniUser ? $miniUser['id'] : 0;
+
+        $order = Db::name('kuerp_goods_sales_order')
+            ->where('id', $id)
+            ->where('source', 'miniapp')
+            ->where('mini_user_id', $miniUserId)
+            ->find();
+        if (!$order) {
+            return json(['code' => 1, 'msg' => '订单不存在']);
+        }
+        if ($order['examine_status'] != 1) {
+            return json(['code' => 1, 'msg' => '未审核的订单不能确认收货']);
+        }
+        if ($order['status'] == '0') {
+            return json(['code' => 1, 'msg' => '未出库的订单不能确认收货']);
+        }
+        if ($order['status'] == '3') {
+            return json(['code' => 1, 'msg' => '已取消的订单不能确认收货']);
+        }
+        if ($order['status'] == '4') {
+            return json(['code' => 1, 'msg' => '该订单已确认收货']);
+        }
+
+        Db::name('kuerp_goods_sales_order')->where('id', $id)->update([
+            'status'      => '4',
+            'updatetime'  => time(),
+        ]);
+
+        return json(['code' => 0, 'msg' => '确认收货成功']);
     }
 
     // ============================================================
@@ -683,6 +731,9 @@ class Order extends Base
         // 已审核 + 状态=部分出库 → 部分发货
         if ((string)$order['status'] === '2') return 'partial_shipped';
         // 已审核 + 状态=全部出库 → 已发货
+        if ((string)$order['status'] === '1') return 'shipped';
+        // 状态=已收货
+        if ((string)$order['status'] === '4') return 'received';
         return 'shipped';
     }
 }

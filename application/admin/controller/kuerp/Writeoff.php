@@ -1341,7 +1341,7 @@ class Writeoff extends Backend
                 if(!empty($filter['purchase_code'])){
                     $where['purchase_code'] = ["like", '%'.$filter['purchase_code'].'%'];
                 }
-            }
+            } 
             $list = Db::name('kuerp_writeoff_source')
                 ->where($where)
                 ->where(function ($query){
@@ -1402,7 +1402,7 @@ class Writeoff extends Backend
             $suppliers = Db::name('kuerp_suppliers')->where(['id'=>$suppliers_id])->find();
             $where = [];
             $where['suppliers_code'] = $suppliers['supplyer_code'];
-            $where['purchase_type'] = ['in',[4,5]];
+            $where['purchase_type'] = ['in',[4,5,6]];
             if(isset($data['filter'])){
                 $filter = (array)json_decode($data['filter'], true);
                 $filter = $filter ? $filter : [];
@@ -1433,7 +1433,9 @@ class Writeoff extends Backend
                 $list[$list_k]['money'] = $list_v['write_off'];
                 $list[$list_k]['purchase_type_id'] = $list_v['id'];
                 $list[$list_k]['purchase_codes'] = $list_v['purchase_code'];
-                if($list_v['purchase_type']>4){
+                if($list_v['purchase_type']==6){
+                    $list[$list_k]['purchase_type'] = '外协加工';
+                }else if($list_v['purchase_type']>4){
                     $list[$list_k]['purchase_type'] = '期初余额';
                     $list[$list_k]['purchase_code'] = '期初余额';
                 }else{

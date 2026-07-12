@@ -2463,59 +2463,156 @@ class Goods extends Backend
             }
             $where['status'] = '1';
             $goods = Db::name('kuerp_goods')->where($where)->select();
+            $auxiliary = Db::name('kuerp_sets')->where(['name'=>'auxiliary'])->value('is_checked');
+
+            // ===== 批量预查询：收集所有需要的ID =====
+            $allUnitIds = [];
+            $allTypeIds = [];
+            $allLocationIds = [];
+            $auxGoodsCodes = []; // 有辅助属性的商品编码
+
+            foreach ($goods as $g) {
+                if ($g['unit_id']) $allUnitIds[] = $g['unit_id'];
+                if ($g['goods_type_id']) $allTypeIds[] = $g['goods_type_id'];
+                if ($g['location_id']) $allLocationIds[] = $g['location_id'];
+                if ($auxiliary == 1 && $g['auxiliary']) $auxGoodsCodes[] = $g['goods_code'];
+            }
+
+            // 批量查询：单位
+            $unitMap = [];
+            if ($allUnitIds) {
+                $units = Db::name('kuerp_unit')->where(['id' => ['in', array_unique($allUnitIds)]])->field('id,name')->select();
+                foreach ($units as $u) $unitMap[$u['id']] = $u;
+            }
+
+            // 批量查询：商品类别
+            $typeMap = [];
+            if ($allTypeIds) {
+                $types = Db::name('kuerp_goods_type')->where(['id' => ['in', array_unique($allTypeIds)]])->field('id,supplier_type_name as name')->select();
+                foreach ($types as $t) $typeMap[$t['id']] = $t;
+            }
+
+            // 批量查询：库位 + 层级路径解析（使用path字段构建完整层级名）
+            $locationMap = [];
+            if ($allLocationIds) {
+                $allLocationIds = array_unique($allLocationIds);
+                $locations = Db::name('kuerp_goods_location')->where(['id' => ['in', $allLocationIds]])->field('id,location_name,pid,path')->select();
+                // 收集所有祖先ID
+                $allAncestorIds = [];
+                foreach ($locations as $loc) {
+                    if ($loc['path']) {
+                        $pids = array_filter(explode(',', trim($loc['path'], ',')));
+                        foreach ($pids as $pid) $allAncestorIds[] = (int)$pid;
+                    }
+                }
+                $ancestorMap = [];
+                if ($allAncestorIds) {
+                    $ancestors = Db::name('kuerp_goods_location')->where(['id' => ['in', array_unique($allAncestorIds)]])->field('id,location_name')->select();
+                    foreach ($ancestors as $a) $ancestorMap[$a['id']] = $a['location_name'];
+                }
+                // 构建完整层级名
+                foreach ($locations as $loc) {
+                    $nameChain = [];
+                    if ($loc['path']) {
+                        $pids = array_filter(explode(',', trim($loc['path'], ',')));
+                        foreach ($pids as $pid) {
+                            $pid = (int)$pid;
+                            if ($pid > 0 && isset($ancestorMap[$pid])) {
+                                $nameChain[] = $ancestorMap[$pid];
+                            }
+                        }
+                    }
+                    $nameChain[] = $loc['location_name'];
+                    $locationMap[$loc['id']] = [
+                        'id'   => $loc['id'],
+                        'name' => implode('-', $nameChain), // e.g. "A-1库"
+                    ];
+                }
+            }
+
+            // 批量查询：辅助属性（商品属性、属性组合、辅助资料名称）
+            $attrByGoods = []; // goods_code => [attr rows]
+            $allCombinationIds = [];
+            if ($auxGoodsCodes) {
+                $allAttrs = Db::name('kuerp_goods_attr')->where(['goods_code' => ['in', $auxGoodsCodes]])->field('id,goods_code,attribute_id,attr_code')->select();
+                foreach ($allAttrs as $a) {
+                    $a['__goods_code'] = $a['goods_code'];
+                    $attrByGoods[$a['goods_code']][] = $a;
+                    if ($a['attribute_id']) $allCombinationIds[] = $a['attribute_id'];
+                }
+            }
+            $combinationMap = []; // combination_id => attr_ids array
+            $allAuxIds = [];
+            if ($allCombinationIds) {
+                $combinations = Db::name('kuerp_aux_combination')->where(['id' => ['in', array_unique($allCombinationIds)]])->field('id,attr_ids')->select();
+                foreach ($combinations as $c) {
+                    if ($c['attr_ids']) {
+                        $ids = explode('&', $c['attr_ids']);
+                        $combinationMap[$c['id']] = $ids;
+                        foreach ($ids as $aid) $allAuxIds[] = (int)$aid;
+                    }
+                }
+            }
+            $auxNameMap = []; // auxiliary_id => name
+            if ($allAuxIds) {
+                $auxNames = Db::name('kuerp_auxiliary')->where(['id' => ['in', array_unique($allAuxIds)]])->column('name', 'id');
+                foreach ($auxNames as $aid => $aname) $auxNameMap[$aid] = $aname;
+            }
+
+            // ===== 组装数据 =====
             $goods_list = [];
-            $auxiliary= Db::name('kuerp_sets')->where(['name'=>'auxiliary'])->value('is_checked');
-            foreach ($goods as $goods_k=>$goods_v){
-                $goods_v['goods_image'] = $goods_v['goods_image']?cdnurl($goods_v['goods_image'], true) : '';
+            foreach ($goods as $goods_v) {
+                $goods_v['goods_image'] = $goods_v['goods_image'] ? cdnurl($goods_v['goods_image'], true) : '';
                 $goods_v['goods_attr'] = '';
                 $goods_v['attr_code'] = '';
                 $goods_v['attr_name'] = '';
-                $goods_v['stock'] = $goods_v['inventory'];;
+                $goods_v['stock'] = $goods_v['inventory'];
                 $goods_v['number'] = '';
                 $goods_list[] = $goods_v;
-                if($auxiliary==1 && $goods_v['auxiliary']){
-                    $goods_attr = Db::name('kuerp_goods_attr')->where(['goods_code'=>$goods_v['goods_code']])->field('id,attribute_id,attr_code')->select();
-                    foreach ($goods_attr as $goods_attr_k=>$goods_attr_v){
-                        $attribute_ids = Db::name('kuerp_aux_combination')->where(['id'=>$goods_attr_v['attribute_id']])->value('attr_ids');
-                        if($attribute_ids){
-                            $attribute_ids = explode('&',$attribute_ids);
-                            $attribute = Db::name('kuerp_auxiliary')->where(['id'=>['in',$attribute_ids]])->column('name');
-                            $attribute_name = implode('/',$attribute);
-                            $goods_v['stock'] = '';
-                            $goods_v['attr_code'] = $goods_attr_v['attr_code'];
-                            $goods_v['goods_attr'] = $goods_attr_v['id'];
-                            $goods_v['attr_name'] = $attribute_name;
-                            $goods_v['number'] = '';
-                            $goods_list[] = $goods_v;
+
+                // 展开辅助属性变体
+                if ($auxiliary == 1 && $goods_v['auxiliary'] && isset($attrByGoods[$goods_v['goods_code']])) {
+                    foreach ($attrByGoods[$goods_v['goods_code']] as $attr) {
+                        $attrName = '';
+                        $combId = $attr['attribute_id'];
+                        if (isset($combinationMap[$combId])) {
+                            $names = [];
+                            foreach ($combinationMap[$combId] as $aid) {
+                                if (isset($auxNameMap[$aid])) $names[] = $auxNameMap[$aid];
+                            }
+                            $attrName = implode('/', $names);
                         }
+                        $variant = $goods_v;
+                        $variant['stock'] = '';
+                        $variant['attr_code'] = $attr['attr_code'];
+                        $variant['goods_attr'] = $attr['id'];
+                        $variant['attr_name'] = $attrName;
+                        $variant['number'] = '';
+                        $goods_list[] = $variant;
                     }
                 }
             }
 
-            $page = isset($data['page'])?((int)$data['page']):1;
-            $limit = isset($data['limit'])?((int)$data['limit']):10;
-            $start = ($page-1)*$limit;
-            $end = ($page)*$limit;
-            $total = sizeof($goods_list);
-            foreach ($goods_list as $goods_list_k=>$goods_list_v){
-                if($goods_list_k<$start || $goods_list_k>=$end){
-                    unset($goods_list[$goods_list_k]);
-                }
-            }
-            $list = $goods_list;
-            foreach ($list as $list_k=>$list_v){
-                $list[$list_k]['unit'] = ['name'=>''];
-                $unit = Db::name('kuerp_unit')->where(['id'=>$list_v['unit_id']])->field('id,name')->find();
-                if(empty($unit)){
-                    $unit = ['id'=>'','name'=>''];
-                }
-                $list[$list_k]['unit'] = $unit;
+            // 分页
+            $page = isset($data['page']) ? ((int)$data['page']) : 1;
+            $limit = isset($data['limit']) ? ((int)$data['limit']) : 10;
+            $total = count($goods_list);
+            $start = ($page - 1) * $limit;
+            $list = array_slice($goods_list, $start, $limit);
 
-                $type = Db::name('kuerp_goods_type')->where(['id'=>$list_v['goods_type_id']])->field('id,supplier_type_name as name')->find();
-                $list[$list_k]['goods_type'] = $type;
+            // ===== 填充关联数据（从批量查询的map中取） =====
+            foreach ($list as $list_k => $list_v) {
+                // 单位
+                $uid = $list_v['unit_id'];
+                $list[$list_k]['unit'] = isset($unitMap[$uid]) ? $unitMap[$uid] : ['id' => '', 'name' => ''];
 
-                $location = Db::name('kuerp_goods_location')->where(['id'=>$list_v['location_id']])->field('id,location_name as name')->find();
-                $list[$list_k]['goods_location'] = $location;
+                // 商品类别
+                $tid = $list_v['goods_type_id'];
+                $list[$list_k]['goods_type'] = isset($typeMap[$tid]) ? $typeMap[$tid] : ['id' => '', 'name' => ''];
+
+                // 库位（完整层级名）
+                $lid = $list_v['location_id'];
+                $list[$list_k]['goods_location'] = isset($locationMap[$lid]) ? $locationMap[$lid] : ['id' => '', 'name' => ''];
             }
 
             // 批量查询物理库存和锁定数量（仅对基础商品，不包括属性变体）
@@ -2525,8 +2622,8 @@ class Goods extends Backend
                     $goodsIds[] = (int)$list_v['id'];
                 }
             }
-            $stockMap = [];  // goods_id => physical_stock
-            $lockMap = [];   // goods_id => effective_locked
+            $stockMap = [];
+            $lockMap = [];
             if (!empty($goodsIds)) {
                 $goodsIds = array_unique($goodsIds);
                 $stockData = Db::name('kuerp_goods_stock')
@@ -2549,14 +2646,14 @@ class Goods extends Backend
 
             // 给每行补充锁定和可用库存字段（仅基础商品，属性变体跳过）
             foreach ($list as $list_k => $list_v) {
-                $isVariant = !empty($list_v['goods_attr']); // 属性变体
+                $isVariant = !empty($list_v['goods_attr']);
                 if ($isVariant) {
                     $list[$list_k]['locked_quantity'] = '';
                     $list[$list_k]['available_stock'] = '';
                 } else {
                     $gid = (int)$list_v['id'];
                     $physical = isset($stockMap[$gid]) ? $stockMap[$gid] : 0;
-                    $locked   = isset($lockMap[$gid]) ? $lockMap[$gid] : 0;
+                    $locked = isset($lockMap[$gid]) ? $lockMap[$gid] : 0;
                     $list[$list_k]['stock'] = $physical;
                     $list[$list_k]['locked_quantity'] = round($locked, 2);
                     $list[$list_k]['available_stock'] = round($physical - $locked, 2);

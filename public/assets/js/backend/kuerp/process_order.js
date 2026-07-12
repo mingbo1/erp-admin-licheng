@@ -12,6 +12,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 var hideStatus = examine != 1;
                 var number_decimal = parseInt(set.number_decimal.value);
                 if (isNaN(number_decimal)) { number_decimal = 1; }
+                  var price_decimal = parseInt(set.price_decimal.value);
+                if (isNaN(price_decimal)) { price_decimal = 1; }
 
                 table.render({
                     elem: '#table',
@@ -37,6 +39,15 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             }},
                         { field: 'in_number', title: __('In_number'), templet: function (d) {
                                 return (parseFloat(d.in_number) || 0).toFixed(number_decimal);
+                            }},
+
+                        { field: 'total_process_fee', title: __('Total_process_fee'), templet: function (d) {
+                                return (parseFloat(d.total_process_fee) || 0).toFixed(price_decimal);
+                            }},
+                        { field: 'pay_status', title: __('Pay_status'), templet: function (d) {
+                                if (d.pay_status == 1) return '<span style="color:green">已付清</span>';
+                                if (d.pay_status == 2) return '<span style="color:orange">部分付款</span>';
+                                return '<span style="color:red">未付款</span>';
                             }},
                         { field: 'examine_status', title: __('Examine_status'), templet: function (d) {
                                 if (d.examine_status == 0) return '<span style="color:red">' + __('Examine_status 0') + '</span>';

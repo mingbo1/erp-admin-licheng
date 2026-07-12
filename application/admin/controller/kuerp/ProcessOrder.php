@@ -742,11 +742,24 @@ class ProcessOrder extends Backend
             ->where(['a.process_code' => $row['process_code']])
             ->field('a.*,g.goods_name')
             ->select();
+        // 批量查询动态库存
+        $goodsCodes = array_column($info, 'goods_code');
+        $goodsIdMap = $goodsCodes ? Db::name('kuerp_goods')->where(['goods_code' => ['in', $goodsCodes]])->column('id', 'goods_code') : [];
+        $stockItems = [];
+        foreach ($info as $v) {
+            $gid = isset($goodsIdMap[$v['goods_code']]) ? $goodsIdMap[$v['goods_code']] : 0;
+            if ($gid) $stockItems[] = ['goods_id' => $gid, 'stores_id' => (int)$v['stores_id'], 'attribute_id' => (int)$v['goods_attr']];
+        }
+        $stockMap = \addons\kuerp\library\Goods::getAvailableStockBatch($stockItems, '');
+
         foreach ($info as $info_k => $info_v) {
-            $info[$info_k]['unit'] = json_decode(\addons\kuerp\library\GoodsPurchase::getUnit($info_v['goods_code']), true);
+            $info[$info_k]['unit'] = json_decode(\addons\kuerp\library\GoodsPurchase::getUnit($info_v['goods_code'], $info_v['stores_id'], $info_v['goods_attr']), true);
             // DB→表单字段映射（成本在后台计算，前端隐藏）
             $info[$info_k]['unit_price'] = $info_v['unit_cost'];
             $info[$info_k]['all_money'] = $info_v['cost_money'];
+            $gid = isset($goodsIdMap[$info_v['goods_code']]) ? $goodsIdMap[$info_v['goods_code']] : 0;
+            $key = $gid . '-' . (int)$info_v['stores_id'] . '-' . (int)$info_v['goods_attr'];
+            $info[$info_k]['allow_stock'] = isset($stockMap[$key]) ? $stockMap[$key] : 0;
         }
         $this->view->assign("info_list", $info);
         $this->assignconfig("info_list", $info);
@@ -876,6 +889,44 @@ class ProcessOrder extends Backend
                 $this->model->where(['id' => $id])->update(['total_process_fee' => $total_fee]);
             }
 
+            // 创建核销源单（写入 writeoff_source，使付款单可选此加工单为源单）
+            $row = $this->model->get($id);
+            if ($total_fee > 0 && !empty($row['supplyer_code'])) {
+                $existing = Db::name('kuerp_writeoff_source')
+                    ->where(['purchase_code' => $row['process_code'], 'purchase_type' => 6])
+                    ->find();
+                if (!$existing) {
+                    Db::name('kuerp_writeoff_source')->insert([
+                        'purchase_type'  => 6,
+                        'type'           => 1,
+                        'suppliers_code' => $row['supplyer_code'],
+                        'purchase_code'  => $row['process_code'],
+                        'purchase_time'  => $row['process_time'],
+                        'price'          => $total_fee,
+                        'money'          => 0,
+                        'write_off'      => $total_fee,
+                        'remark'         => $row['remark'],
+                    ]);
+                    // 增加供应商应付余额
+                    Db::name('kuerp_suppliers')->where(['supplyer_code' => $row['supplyer_code']])
+                        ->inc('need_give_account', $total_fee)->update();
+                    // 记录应付明细
+                    $supplier = Db::name('kuerp_suppliers')->where(['supplyer_code' => $row['supplyer_code']])->field('id')->find();
+                    if ($supplier) {
+                        Db::name('kuerp_accounts_copewith')->insert(\addons\kuerp\library\Goods::setDataInfo([
+                            'suppliers_id'  => $supplier['id'],
+                            'purchase_time' => $row['process_time'],
+                            'purchase_code' => $row['process_code'],
+                            'business_type' => '10',
+                            'receivable'    => $total_fee,
+                            'remark'        => $row['remark'],
+                            'createtime'    => time(),
+                            'updatetime'    => time(),
+                        ]));
+                    }
+                }
+            }
+
             // 执行审核
             $this->examine($ids, 1);
             return;
@@ -956,7 +1007,47 @@ class ProcessOrder extends Backend
                     'operation_id'    => $admin['id'],
                     'in_status'       => '0',
                     'outbound_status' => '0',
+                    'pay_status'      => '0',
+                    'pay_money'       => 0,
                 ]);
+                // 创建核销源单（auto-audit模式或examine_fee漏创建时的补偿）
+                foreach ($list as $list_v) {
+                    if (!empty($list_v['total_process_fee']) && $list_v['total_process_fee'] > 0 && !empty($list_v['supplyer_code'])) {
+                        $existing = Db::name('kuerp_writeoff_source')
+                            ->where(['purchase_code' => $list_v['process_code'], 'purchase_type' => 6])
+                            ->find();
+                        if (!$existing) {
+                            Db::name('kuerp_writeoff_source')->insert([
+                                'purchase_type'  => 6,
+                                'type'           => 1,
+                                'suppliers_code' => $list_v['supplyer_code'],
+                                'purchase_code'  => $list_v['process_code'],
+                                'purchase_time'  => $list_v['process_time'],
+                                'price'          => $list_v['total_process_fee'],
+                                'money'          => 0,
+                                'write_off'      => $list_v['total_process_fee'],
+                                'remark'         => $list_v['remark'],
+                            ]);
+                            // 增加供应商应付余额
+                            Db::name('kuerp_suppliers')->where(['supplyer_code' => $list_v['supplyer_code']])
+                                ->inc('need_give_account', $list_v['total_process_fee'])->update();
+                            // 记录应付明细
+                            $supplier = Db::name('kuerp_suppliers')->where(['supplyer_code' => $list_v['supplyer_code']])->field('id')->find();
+                            if ($supplier) {
+                                Db::name('kuerp_accounts_copewith')->insert(\addons\kuerp\library\Goods::setDataInfo([
+                                    'suppliers_id'  => $supplier['id'],
+                                    'purchase_time' => $list_v['process_time'],
+                                    'purchase_code' => $list_v['process_code'],
+                                    'business_type' => '10',
+                                    'receivable'    => $list_v['total_process_fee'],
+                                    'remark'        => $list_v['remark'],
+                                    'createtime'    => time(),
+                                    'updatetime'    => time(),
+                                ]));
+                            }
+                        }
+                    }
+                }
                 Db::commit();
             } catch (Exception $e) {
                 Db::rollback();
@@ -1009,8 +1100,32 @@ class ProcessOrder extends Backend
                     'examine_status' => 0,
                     'examine_id'     => 0,
                     'examine_time'   => '',
-                    'operation_id'   => $admin['id']
+                    'operation_id'   => $admin['id'],
+                    'pay_status'     => 0,
+                    'pay_money'      => 0,
                 ]);
+                // 删除核销源单及应付记录（仅当未发生付款核销时）
+                foreach ($list as $list_v) {
+                    $has_log = Db::name('kuerp_writeoff_log')->alias('l')
+                        ->join('kuerp_writeoff_source s', 's.id=l.source_id')
+                        ->where(['s.purchase_code' => $list_v['process_code'], 's.purchase_type' => 6])
+                        ->where('l.money', '>', 0)
+                        ->find();
+                    if (!$has_log) {
+                        Db::name('kuerp_writeoff_source')
+                            ->where(['purchase_code' => $list_v['process_code'], 'purchase_type' => 6])
+                            ->delete();
+                        // 减少供应商应付余额
+                        if (!empty($list_v['total_process_fee']) && $list_v['total_process_fee'] > 0 && !empty($list_v['supplyer_code'])) {
+                            Db::name('kuerp_suppliers')->where(['supplyer_code' => $list_v['supplyer_code']])
+                                ->dec('need_give_account', $list_v['total_process_fee'])->update();
+                            // 删除应付明细
+                            Db::name('kuerp_accounts_copewith')
+                                ->where(['business_type' => '10', 'purchase_code' => $list_v['process_code']])
+                                ->delete();
+                        }
+                    }
+                }
                 Db::commit();
             } catch (Exception $e) {
                 Db::rollback();

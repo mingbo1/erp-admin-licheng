@@ -54,6 +54,7 @@
                         <th class="goods_attr_sd">属性</th>
                         <th>单位</th>
                         <th>仓库</th>
+                        <th>可出库数量</th>
                         <th>计划数量</th>
                         <th>已出库数量</th>
                         <th>本次出库数量</th>
@@ -66,6 +67,7 @@
                         <td class="goods_attr_sd">{$item.attr_name}</td>
                         <td>{$item.unit_name}</td>
                         <td>{$item.stores_name}</td>
+                        <td>{$item.allow_stock|default=0|htmlentities}</td>
                         <td>{$item.number|htmlentities}</td>
                         <td>{$item.out_number|default=0|htmlentities}</td>
                         <td>
@@ -79,7 +81,7 @@
                     </tr>
                     {/foreach}
                     {if condition="empty($infoList)"}
-                    <tr><td colspan="9" style="text-align:center;color:#999;">暂无商品数据</td></tr>
+                    <tr><td colspan="10" style="text-align:center;color:#999;">暂无商品数据</td></tr>
                     {/if}
                 </table>
             </div>

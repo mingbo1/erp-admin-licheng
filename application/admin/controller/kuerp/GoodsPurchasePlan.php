@@ -486,9 +486,22 @@ class GoodsPurchasePlan extends Backend
         $this->view->assign("row", $row);
 
         $purchase_info = Db::name('kuerp_goods_purchase_info')->where(['purchase_code'=>$row['purchase_code']])->select();
+        // 批量查询动态库存
+        $goodsCodes = array_column($purchase_info, 'goods_code');
+        $goodsIdMap = $goodsCodes ? Db::name('kuerp_goods')->where(['goods_code' => ['in', $goodsCodes]])->column('id', 'goods_code') : [];
+        $stockItems = [];
+        foreach ($purchase_info as $v) {
+            $gid = isset($goodsIdMap[$v['goods_code']]) ? $goodsIdMap[$v['goods_code']] : 0;
+            if ($gid) $stockItems[] = ['goods_id' => $gid, 'stores_id' => (int)$v['stores_id'], 'attribute_id' => (int)$v['goods_attr']];
+        }
+        $stockMap = \addons\kuerp\library\Goods::getAvailableStockBatch($stockItems, '');
+
         foreach ($purchase_info as $purchase_info_k=>$purchase_info_v){
-            $purchase_info[$purchase_info_k]['unit'] = json_decode($this->getUnit($purchase_info_v['goods_code']),true);
+            $purchase_info[$purchase_info_k]['unit'] = json_decode($this->getUnit($purchase_info_v['goods_code'], $purchase_info_v['stores_id'], $purchase_info_v['goods_attr']),true);
             $purchase_info[$purchase_info_k]['serial'] = $purchase_info_v['period'];
+            $gid = isset($goodsIdMap[$purchase_info_v['goods_code']]) ? $goodsIdMap[$purchase_info_v['goods_code']] : 0;
+            $key = $gid . '-' . (int)$purchase_info_v['stores_id'] . '-' . (int)$purchase_info_v['goods_attr'];
+            $purchase_info[$purchase_info_k]['allow_stock'] = isset($stockMap[$key]) ? $stockMap[$key] : 0;
         }
         $this->view->assign("purchase_info", $purchase_info);
 

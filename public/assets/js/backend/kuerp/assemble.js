@@ -1373,6 +1373,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
 
                             if(attr!=''){
                                 obj.find('.goods_attr').val(attr);
+                            }else if(attrarr && attrarr.length > 0){
+                                // 没有指定属性时，自动选中第一个属性（避免辅助属性商品提交时报"请选择商品属性"）
+                                obj.find('.goods_attr').val(attrarr[0].id);
                             }
                             if(store!=''){
                                 obj.find('.stores_id').val(store);

@@ -81,6 +81,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 if(d.status==3){
                                     return __('Status 3');
                                 }
+                                if(d.status==4){
+                                    return __('Status 4');
+                                }
                             }},
                         {field: 'preparation_id', title: __('Preparation_id'),templet: function (d) {
                                 return d.preparation.username;
@@ -113,12 +116,12 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             }},
                         {field: 'note', title: __('Note')},
                         {field: 'print_num', title: __('Print_num')},
-                        {fixed: 'right', title:__('Operate'), toolbar: '#barDemo', width:150}
+                        {fixed: 'right', title:__('Operate'), toolbar: '#barDemoSales', width:280}
                     ]]
                 });
 
                 upload.render({
-                    elem: '#import'
+                    elem: '#import' 
                     ,url: 'ajax/upload'
                     ,done: function(res, index, upload){ //上传后的回调
                         if(res.code==1){
@@ -220,6 +223,24 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 Layer.close(index);
                             }
                         );
+                    } else if(obj.event === 'ship'){
+                        Fast.api.open("kuerp/goods_sales_order/ship?ids="+data.id, "发货",{
+                            area:['700px','500px'],
+                            callback:function(value){
+                                $('.btn-refresh').click();
+                            }
+                        });
+                    } else if(obj.event === 'confirmreceipt'){
+                        Layer.confirm(
+                            __('确认收货后不再显示发货按钮，确定要继续吗？'),
+                            {icon: 3, title: __('Warning')},
+                            function (index) {
+                                Fast.api.ajax('kuerp/goods_sales_order/confirmReceipt?ids=' + data.id, function () {
+                                    $('.btn-refresh').click();
+                                },'',true);
+                                Layer.close(index);
+                            }
+                        );
                     } else if(obj.event === 'edit'){
                         Fast.api.open("kuerp/goods_sales_order/edit?ids="+data.id, "编辑",{ area:['90%','75%'],});
                     }
@@ -279,6 +300,36 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
         },
         edit: function () {
             Controller.api.bindevent(false);
+        },
+        ship: function () {
+            Controller.api.bindevent(true);
+
+            // 配送方式切换
+            $(document).on('change', 'input[name="row[delivery_type]"]', function () {
+                var type = $(this).val();
+                $('[data-favisible^="delivery_type="]').hide();
+                $('[data-favisible="delivery_type=' + type + '"]').show();
+            });
+            // 页面加载时显示默认配送方式的区域
+            var defaultType = $('input[name="row[delivery_type]"]:checked').val() || 'logistics';
+            $('[data-favisible^="delivery_type="]').hide();
+            $('[data-favisible="delivery_type=' + defaultType + '"]').show();
+
+            // 删除发货记录
+            $(document).on('click', '.btn-del-delivery', function () {
+                var id = $(this).data('id');
+                Layer.confirm('确定要删除这条发货记录吗？', {icon: 3, title: '警告'}, function (index) {
+                    Fast.api.ajax('delDelivery?id=' + id, function (res) {
+                        if (res.code == 1) {
+                            $('#delivery-row-' + id).remove();
+                            if ($('[id^="delivery-row-"]').length == 0) {
+                                location.reload();
+                            }
+                        }
+                    });
+                    Layer.close(index);
+                });
+            });
         },
         api: {
             bindevent: function (reloadStatus=true) {

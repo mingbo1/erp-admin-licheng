@@ -89,8 +89,9 @@
     </view>
 
     <!-- 操作 -->
-    <view class="action-bar" v-if="canCancel">
-      <u-button type="info" plain hairline shape="circle" @click="cancelOrder">取消订单</u-button>
+    <view class="action-bar" v-if="canCancel || canConfirmReceipt">
+      <u-button type="info" plain hairline shape="circle" v-if="canCancel" @click="cancelOrder">取消订单</u-button>
+      <u-button type="warning" plain hairline shape="circle" v-if="canConfirmReceipt" @click="confirmReceipt">确认收货</u-button>
     </view>
   </view>
 
@@ -110,6 +111,7 @@ const STATUS_MAP = {
   partial_shipped: { text: '部分发货', desc: '部分商品已发出', bg: 'linear-gradient(135deg, #67C23A, #529b2e)', icon: 'car' },
   shipped: { text: '已发货', desc: '商品已全部发出', bg: 'linear-gradient(135deg, #2c8cff, #1a6dcc)', icon: 'car' },
   cancelled: { text: '已取消', desc: '订单已取消', bg: 'linear-gradient(135deg, #909399, #72767b)', icon: 'close-circle' },
+  received: { text: '已收货', desc: '货物已确认签收', bg: 'linear-gradient(135deg, #4caf50, #388e3c)', icon: 'checkbox-mark' },
 }
 
 export default {
@@ -123,6 +125,9 @@ export default {
     },
     canCancel() {
       return this.order && this.order.display_status === 'pending_review'
+    },
+    canConfirmReceipt() {
+      return this.order && (this.order.display_status === 'shipped' || this.order.display_status === 'partial_shipped')
     },
   },
   onLoad(options) { this.orderId = Number(options.id) || 0; if (this.orderId) this.loadDetail() },
@@ -151,6 +156,21 @@ export default {
         uni.showToast({ title: '订单已取消', icon: 'none' })
         this.loadDetail()
       } catch (e) { uni.showToast({ title: e, icon: 'none' }) }
+    },
+    async confirmReceipt() {
+      uni.showModal({
+        title: '确认收货',
+        content: '确定已收到该订单的货物吗？',
+        success: async (res) => {
+          if (res.confirm) {
+            try {
+              await orderApi.received(this.orderId)
+              uni.showToast({ title: '已确认收货', icon: 'none' })
+              this.loadDetail()
+            } catch (e) { uni.showToast({ title: e, icon: 'none' }) }
+          }
+        }
+      })
     },
   },
 }

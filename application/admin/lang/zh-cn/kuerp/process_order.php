@@ -23,6 +23,7 @@ return [
     'Preparation_id'    => '制单人',
     'Examine_id'        => '审核人',
     'Operation_id'      => '最后操作人',
+    'Pay_status'        => '付款状态',
 
     'Examine_status'    => '审核状态',
     'Examine_status 0'  => '未审核',

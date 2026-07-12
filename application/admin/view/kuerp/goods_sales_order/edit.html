@@ -1,6 +1,6 @@
 {include file="kuerp/common/menu" /}
 {if condition="isset($set['examine']['is_checked']) && $set['examine']['is_checked']==1"}
-{if condition="$row.examine_status==1"}
+{if condition="$row.second_examine_status==1"}
 <div class="">
     {if condition="$row.purchase_type==1"}
     <button type="button" class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger fright purchase" data-id="{$row.id}" style="padding-left: 10px;">生成销货单</button>
@@ -358,12 +358,12 @@
                 <table class="table table-bordered table-striped">
                     <thead>
                         <tr>
-                            <th>{:__('发货单号')}</th>
-                            <th>{:__('配送方式')}</th>
-                            <th>{:__('快递公司')}</th>
-                            <th>{:__('快递单号')}</th>
-                            <th>{:__('发货时间')}</th>
-                            <th>{:__('Remark')}</th>
+                            <th style="text-align: center;">{:__('发货单号')}</th>
+                            <th style="text-align: center;">{:__('配送方式')}</th>
+                            <th style="text-align: center;">{:__('快递公司')}</th>
+                            <th style="text-align: center;">{:__('快递单号')}</th>
+                            <th style="text-align: center;">{:__('发货时间')}</th>
+                            <th style="text-align: center;">{:__('Remark')}</th>
                         </tr>
                     </thead>
                     <tbody>

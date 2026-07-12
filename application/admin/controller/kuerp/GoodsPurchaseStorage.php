@@ -114,7 +114,33 @@ class GoodsPurchaseStorage extends GoodsPurchase
                 if (!empty($g['location_id'])) $locIds[] = $g['location_id'];
             }
             if (!empty($locIds)) {
-                $locationMap = Db::name('kuerp_goods_location')->where(['id' => ['in', array_unique($locIds)], 'status' => '1'])->column('location_name', 'id');
+                $locIds = array_unique($locIds);
+                $locList = Db::name('kuerp_goods_location')->where(['id' => ['in', $locIds], 'status' => '1'])->field('id,location_name,path')->select();
+                // 收集祖先ID，批量查询后构建完整层级名（如"A-1库"）
+                $allPids = [];
+                foreach ($locList as $loc) {
+                    if ($loc['path']) {
+                        foreach (array_filter(explode(',', trim($loc['path'], ','))) as $pid) {
+                            if ((int)$pid > 0) $allPids[] = (int)$pid;
+                        }
+                    }
+                }
+                $ancestorMap = [];
+                if ($allPids) {
+                    $ancestorMap = Db::name('kuerp_goods_location')->where(['id' => ['in', array_unique($allPids)]])->column('location_name', 'id');
+                }
+                $locationMap = [];
+                foreach ($locList as $loc) {
+                    $names = [];
+                    if ($loc['path']) {
+                        foreach (array_filter(explode(',', trim($loc['path'], ','))) as $pid) {
+                            $pid = (int)$pid;
+                            if ($pid > 0 && isset($ancestorMap[$pid])) $names[] = $ancestorMap[$pid];
+                        }
+                    }
+                    $names[] = $loc['location_name'];
+                    $locationMap[$loc['id']] = implode('-', $names);
+                }
             }
         }
         foreach ($purchase_info as $k => $v) {
@@ -173,7 +199,33 @@ class GoodsPurchaseStorage extends GoodsPurchase
                 if (!empty($g['location_id'])) $locIds[] = $g['location_id'];
             }
             if (!empty($locIds)) {
-                $locationMap = Db::name('kuerp_goods_location')->where(['id' => ['in', array_unique($locIds)], 'status' => '1'])->column('location_name', 'id');
+                $locIds = array_unique($locIds);
+                $locList = Db::name('kuerp_goods_location')->where(['id' => ['in', $locIds], 'status' => '1'])->field('id,location_name,path')->select();
+                // 收集祖先ID，批量查询后构建完整层级名（如"A-1库"）
+                $allPids = [];
+                foreach ($locList as $loc) {
+                    if ($loc['path']) {
+                        foreach (array_filter(explode(',', trim($loc['path'], ','))) as $pid) {
+                            if ((int)$pid > 0) $allPids[] = (int)$pid;
+                        }
+                    }
+                }
+                $ancestorMap = [];
+                if ($allPids) {
+                    $ancestorMap = Db::name('kuerp_goods_location')->where(['id' => ['in', array_unique($allPids)]])->column('location_name', 'id');
+                }
+                $locationMap = [];
+                foreach ($locList as $loc) {
+                    $names = [];
+                    if ($loc['path']) {
+                        foreach (array_filter(explode(',', trim($loc['path'], ','))) as $pid) {
+                            $pid = (int)$pid;
+                            if ($pid > 0 && isset($ancestorMap[$pid])) $names[] = $ancestorMap[$pid];
+                        }
+                    }
+                    $names[] = $loc['location_name'];
+                    $locationMap[$loc['id']] = implode('-', $names);
+                }
             }
         }
         foreach ($purchase_info as $k => $v) {
@@ -381,7 +433,33 @@ class GoodsPurchaseStorage extends GoodsPurchase
                 if (!empty($g['location_id'])) $locIds[] = $g['location_id'];
             }
             if (!empty($locIds)) {
-                $locationMap = Db::name('kuerp_goods_location')->where(['id' => ['in', array_unique($locIds)], 'status' => '1'])->column('location_name', 'id');
+                $locIds = array_unique($locIds);
+                $locList = Db::name('kuerp_goods_location')->where(['id' => ['in', $locIds], 'status' => '1'])->field('id,location_name,path')->select();
+                // 收集祖先ID，批量查询后构建完整层级名（如"A-1库"）
+                $allPids = [];
+                foreach ($locList as $loc) {
+                    if ($loc['path']) {
+                        foreach (array_filter(explode(',', trim($loc['path'], ','))) as $pid) {
+                            if ((int)$pid > 0) $allPids[] = (int)$pid;
+                        }
+                    }
+                }
+                $ancestorMap = [];
+                if ($allPids) {
+                    $ancestorMap = Db::name('kuerp_goods_location')->where(['id' => ['in', array_unique($allPids)]])->column('location_name', 'id');
+                }
+                $locationMap = [];
+                foreach ($locList as $loc) {
+                    $names = [];
+                    if ($loc['path']) {
+                        foreach (array_filter(explode(',', trim($loc['path'], ','))) as $pid) {
+                            $pid = (int)$pid;
+                            if ($pid > 0 && isset($ancestorMap[$pid])) $names[] = $ancestorMap[$pid];
+                        }
+                    }
+                    $names[] = $loc['location_name'];
+                    $locationMap[$loc['id']] = implode('-', $names);
+                }
             }
         }
         foreach ($purchase_info as $k => $v) {

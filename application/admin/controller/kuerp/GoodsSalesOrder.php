@@ -14,7 +14,7 @@ use think\Session;
  */
 class GoodsSalesOrder extends Backend
 {
-    protected $noNeedRight = ['checkpurchase','checkexchange'];
+    protected $noNeedRight = ['checkpurchase','checkexchange','ship','delDelivery','confirmReceipt'];
     /**
      * GoodsSalesOrder模型对象
      * @var \app\admin\model\kuerp\GoodsSalesOrder
@@ -534,8 +534,21 @@ class GoodsSalesOrder extends Backend
         $this->view->assign("row", $row);
 
         $purchase_info = Db::name('kuerp_goods_sales_order_info')->where(['purchase_code'=>$row['purchase_code']])->select();
+        // 批量查询动态库存
+        $goodsCodes = array_column($purchase_info, 'goods_code');
+        $goodsIdMap = $goodsCodes ? Db::name('kuerp_goods')->where(['goods_code' => ['in', $goodsCodes]])->column('id', 'goods_code') : [];
+        $stockItems = [];
+        foreach ($purchase_info as $v) {
+            $gid = isset($goodsIdMap[$v['goods_code']]) ? $goodsIdMap[$v['goods_code']] : 0;
+            if ($gid) $stockItems[] = ['goods_id' => $gid, 'stores_id' => (int)$v['stores_id'], 'attribute_id' => (int)$v['goods_attr']];
+        }
+        $stockMap = \addons\kuerp\library\Goods::getAvailableStockBatch($stockItems, '');
+
         foreach ($purchase_info as $purchase_info_k=>$purchase_info_v){
-            $purchase_info[$purchase_info_k]['unit'] = json_decode(\addons\kuerp\library\GoodsSales::getUnit($purchase_info_v['goods_code']),true);
+            $purchase_info[$purchase_info_k]['unit'] = json_decode(\addons\kuerp\library\GoodsSales::getUnit($purchase_info_v['goods_code'], $purchase_info_v['stores_id'], $purchase_info_v['goods_attr']),true);
+            $gid = isset($goodsIdMap[$purchase_info_v['goods_code']]) ? $goodsIdMap[$purchase_info_v['goods_code']] : 0;
+            $key = $gid . '-' . (int)$purchase_info_v['stores_id'] . '-' . (int)$purchase_info_v['goods_attr'];
+            $purchase_info[$purchase_info_k]['allow_stock'] = isset($stockMap[$key]) ? $stockMap[$key] : 0;
         }
         $this->view->assign("purchase_info", $purchase_info);
         $this->assignconfig("purchase_id", $row['id']);
@@ -581,6 +594,13 @@ class GoodsSalesOrder extends Backend
             $log['admin_username'] = isset($adminMap[$log['admin_id']]) ? $adminMap[$log['admin_id']] : '';
         }
         $this->view->assign('logList', $logList);
+
+        // 查询发货记录列表
+        $deliveryList = Db::name('kuerp_goods_sales_order_delivery')
+            ->where('order_id', $ids)
+            ->order('id', 'desc')
+            ->select();
+        $this->view->assign('deliveryList', $deliveryList);
 
         return $this->view->fetch();
     }
@@ -865,13 +885,16 @@ class GoodsSalesOrder extends Backend
             $this->error('参数错误');
         }
         $row = Db::name('kuerp_goods_sales_order')->where(['id'=>$order_id])
-            ->field('examine_status,purchase_code')
+            ->field('examine_status,second_examine_status,purchase_code')
             ->find();
         if(empty($row)){
             $this->error('参数错误');
         }
         if($row['examine_status']!=1){
             $this->error('此销货订单未审核，不可生成销货单');
+        }
+        if($row['second_examine_status']!=1){
+            $this->error('此销货订单未通过二次审核，不可生成销货单');
         }
         $purchase_info = Db::name('kuerp_goods_sales_order_info')->where(['purchase_code'=>$row['purchase_code']])->select();
         foreach ($purchase_info as $purchase_info_k=>$purchase_info_v){
@@ -892,13 +915,16 @@ class GoodsSalesOrder extends Backend
             $this->error('参数错误');
         }
         $row = Db::name('kuerp_goods_sales_order')->where(['id'=>$order_id])
-            ->field('examine_status,purchase_code')
+            ->field('examine_status,second_examine_status,purchase_code')
             ->find();
         if(empty($row)){
             $this->error('参数错误');
         }
         if($row['examine_status']!=1){
             $this->error('此销货订单未审核，不可生成退货单');
+        }
+        if($row['second_examine_status']!=1){
+            $this->error('此销货订单未通过二次审核，不可生成退货单');
         }
         $purchase_info = Db::name('kuerp_goods_sales_order_info')->where(['purchase_code'=>$row['purchase_code']])->select();
         foreach ($purchase_info as $purchase_info_k=>$purchase_info_v){
@@ -912,5 +938,230 @@ class GoodsSalesOrder extends Backend
             $this->error('此销货订单已全部生成退货单');
         }
         $this->success();
+    }
+
+    /**
+     * 发货
+     */
+    public function ship($ids = null)
+    {
+        $ids = $ids ? $ids : $this->request->param('ids');
+        if (empty($ids)) {
+            $this->error('参数错误');
+        }
+        $row = $this->model->get($ids);
+        if (!$row) {
+            $this->error(__('No Results were found'));
+        }
+
+        if ($row['examine_status'] != 1) {
+            $this->error('未审核的订单不能发货');
+        }
+        if ($row['purchase_type'] != 1) {
+            $this->error('退货订单不支持发货');
+        }
+        if ($row['status'] == 3) {
+            $this->error('已取消的订单不能发货');
+        }
+        if ($row['status'] == 4) {
+            $this->error('已收货的订单不能发货');
+        }
+
+        if ($this->request->isPost()) {
+            $params = $this->request->post('row/a');
+            if (empty($params['delivery_type'])) {
+                $this->error('请选择配送方式');
+            }
+
+            $admin = Session::get('admin');
+            $shippedTime = time();
+
+            $deliveryList = [];
+            $baseNo = 'DN' . date('YmdHi');
+
+            if ($params['delivery_type'] == 'logistics') {
+                // 解析快递信息 JSON，每条快递记录生成一个发货单
+                $expressData = [];
+                if (!empty($params['express'])) {
+                    $expressData = json_decode($params['express'], true);
+                }
+                if (empty($expressData)) {
+                    $this->error('请添加快递信息');
+                }
+                foreach ($expressData as $index => $express) {
+                    $expressNo = isset($express['no']) ? trim($express['no']) : '';
+                    if (empty($expressNo)) {
+                        $this->error('请填写快递单号');
+                    }
+                    $expressCode = isset($express['code']) ? trim($express['code']) : '';
+                    $expressCompany = '';
+                    if (!empty($expressCode)) {
+                        $expressCompany = Db::name('kuerp_data_express')
+                            ->where(['code' => $expressCode])
+                            ->value('name');
+                        $expressCompany = $expressCompany ?: '';
+                    }
+                    $deliveryNo = $baseNo . rand(100, 999) . ($index + 1);
+                    $deliveryList[] = [
+                        'order_id'       => $ids,
+                        'delivery_no'    => $deliveryNo,
+                        'delivery_type'  => 'logistics',
+                        'status'         => 'shipped',
+                        'shipped_time'   => $shippedTime,
+                        'admin_id'       => $admin['id'],
+                        'remark'         => isset($params['remark']) ? $params['remark'] : '',
+                        'express_code'   => $expressCode,
+                        'express_no'     => $expressNo,
+                        'express_company'=> $expressCompany,
+                        'createdtime'    => $shippedTime,
+                        'updatetime'     => $shippedTime,
+                    ];
+                }
+            } else {
+                // 专业配送：单条记录
+                $deliveryNo = $baseNo . rand(100, 999) . '1';
+                $deliveryList[] = [
+                    'order_id'       => $ids,
+                    'delivery_no'    => $deliveryNo,
+                    'delivery_type'  => 'professional',
+                    'status'         => 'shipped',
+                    'shipped_time'   => $shippedTime,
+                    'admin_id'       => $admin['id'],
+                    'remark'         => isset($params['remark']) ? $params['remark'] : '',
+                    'carrier_name'   => isset($params['carrier_name']) ? $params['carrier_name'] : '',
+                    'carrier_mobile' => isset($params['carrier_mobile']) ? $params['carrier_mobile'] : '',
+                    'createdtime'    => $shippedTime,
+                    'updatetime'     => $shippedTime,
+                ];
+            }
+
+            Db::startTrans();
+            try {
+                foreach ($deliveryList as $deliveryData) {
+                    Db::name('kuerp_goods_sales_order_delivery')->insert($deliveryData);
+                    // 写入操作日志
+                    GoodsSalesOrderLog::writeLog($ids, '发货', '销货订单发货，发货单号：' . $deliveryData['delivery_no'] . '，配送方式：' . ($params['delivery_type'] == 'logistics' ? '物流配送' : '专业配送'), 'sales_order', $ids);
+                }
+
+                // 更新订单状态为"全部出库"
+                $this->model->where(['id' => $ids])->update([
+                    'status'       => 1,
+                    'operation_id' => $admin['id'],
+                    'updatetime'   => time(),
+                ]);
+
+                Db::commit();
+            } catch (Exception $e) {
+                Db::rollback();
+                $this->error($e->getMessage());
+            }
+
+            $this->success('发货成功，共生成' . count($deliveryList) . '条发货记录');
+        }
+
+        // 获取快递公司列表
+        $expressList = Db::name('kuerp_data_express')->field('name,code')->order('weigh ASC')->select();
+        $this->view->assign('expressList', $expressList);
+
+        // 获取已有的发货记录
+        $deliveryList = Db::name('kuerp_goods_sales_order_delivery')
+            ->where(['order_id' => $ids])
+            ->order('id', 'desc')
+            ->select();
+        $this->view->assign('deliveryList', $deliveryList);
+
+        $this->view->assign('order', $row);
+
+        return $this->view->fetch();
+    }
+
+    /**
+     * 删除发货记录
+     */
+    public function delDelivery()
+    {
+        $id = $this->request->param('id');
+        if (empty($id)) {
+            $this->error('参数错误');
+        }
+        $delivery = Db::name('kuerp_goods_sales_order_delivery')->where(['id' => $id])->find();
+        if (!$delivery) {
+            $this->error('发货记录不存在');
+        }
+        $orderId = $delivery['order_id'];
+
+        Db::startTrans();
+        try {
+            Db::name('kuerp_goods_sales_order_delivery')->where(['id' => $id])->delete();
+
+            // 检查是否还有发货记录
+            $remainingCount = Db::name('kuerp_goods_sales_order_delivery')
+                ->where(['order_id' => $orderId])
+                ->count();
+            if ($remainingCount == 0) {
+                // 无发货记录时恢复订单状态
+                $this->model->where(['id' => $orderId])->update([
+                    'status'       => 0,
+                    'operation_id' => Session::get('admin')['id'] ?? 0,
+                    'updatetime'   => time(),
+                ]);
+            }
+
+            // 写入操作日志
+            GoodsSalesOrderLog::writeLog($orderId, '删除发货', '删除发货记录：' . $delivery['delivery_no'], 'sales_order', $orderId);
+
+            Db::commit();
+        } catch (Exception $e) {
+            Db::rollback();
+            $this->error($e->getMessage());
+        }
+
+        $this->success('删除成功');
+    }
+
+    /**
+     * 确认收货
+     */
+    public function confirmReceipt()
+    {
+        $ids = $this->request->param('ids');
+        if (empty($ids)) {
+            $this->error('参数错误');
+        }
+        $row = $this->model->get($ids);
+        if (!$row) {
+            $this->error(__('No Results were found'));
+        }
+        if ($row['examine_status'] != 1) {
+            $this->error('未审核的订单不能确认收货');
+        }
+        if ($row['status'] == 0) {
+            $this->error('未出库的订单不能确认收货');
+        }
+        if ($row['status'] == 3) {
+            $this->error('已取消的订单不能确认收货');
+        }
+        if ($row['status'] == 4) {
+            $this->error('该订单已确认收货');
+        }
+
+        $admin = Session::get('admin');
+        Db::startTrans();
+        try {
+            $this->model->where(['id' => $ids])->update([
+                'status'       => 4,
+                'operation_id' => $admin['id'],
+                'updatetime'   => time(),
+            ]);
+
+            GoodsSalesOrderLog::writeLog($ids, '确认收货', '销货订单确认收货', 'sales_order', $ids);
+
+            Db::commit();
+        } catch (Exception $e) {
+            Db::rollback();
+            $this->error($e->getMessage());
+        }
+
+        $this->success('确认收货成功');
     }
 }

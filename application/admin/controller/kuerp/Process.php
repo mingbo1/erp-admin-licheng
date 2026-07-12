@@ -732,11 +732,24 @@ class Process extends Backend
             ->where(['a.process_code' => $row['process_code']])
             ->field('a.*,g.goods_name')
             ->select();
+        // 批量查询动态库存
+        $goodsCodes = array_column($info, 'goods_code');
+        $goodsIdMap = $goodsCodes ? Db::name('kuerp_goods')->where(['goods_code' => ['in', $goodsCodes]])->column('id', 'goods_code') : [];
+        $stockItems = [];
+        foreach ($info as $v) {
+            $gid = isset($goodsIdMap[$v['goods_code']]) ? $goodsIdMap[$v['goods_code']] : 0;
+            if ($gid) $stockItems[] = ['goods_id' => $gid, 'stores_id' => (int)$v['stores_id'], 'attribute_id' => (int)$v['goods_attr']];
+        }
+        $stockMap = \addons\kuerp\library\Goods::getAvailableStockBatch($stockItems, '');
+
         foreach ($info as $info_k => $info_v) {
-            $info[$info_k]['unit'] = json_decode(\addons\kuerp\library\GoodsPurchase::getUnit($info_v['goods_code']), true);
+            $info[$info_k]['unit'] = json_decode(\addons\kuerp\library\GoodsPurchase::getUnit($info_v['goods_code'], $info_v['stores_id'], $info_v['goods_attr']), true);
             // DB→表单字段映射
             $info[$info_k]['unit_price'] = $info_v['unit_cost'];
             $info[$info_k]['all_money'] = $info_v['cost_money'];
+            $gid = isset($goodsIdMap[$info_v['goods_code']]) ? $goodsIdMap[$info_v['goods_code']] : 0;
+            $key = $gid . '-' . (int)$info_v['stores_id'] . '-' . (int)$info_v['goods_attr'];
+            $info[$info_k]['allow_stock'] = isset($stockMap[$key]) ? $stockMap[$key] : 0;
         }
         $this->view->assign("info_list", $info);
         $this->assignconfig("info_list", $info);

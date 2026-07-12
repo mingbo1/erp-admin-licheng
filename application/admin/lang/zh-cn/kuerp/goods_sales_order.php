@@ -36,6 +36,7 @@ return [
     'Status 1'           => '全部出库',
     'Status 2'           => '部分出库',
     'Status 3'           => '已取消',
+    'Status 4'           => '已收货',
     'Check_status'       => '对单状态',
     'Check_status 0'     => '未对单',
     'Check_status 1'     => '已对单',

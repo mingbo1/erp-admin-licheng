@@ -24,7 +24,12 @@
                     </script>
 
                     <script type="text/html" id="barDemoSales">
+                        {{# if(d.examine_status == 1 && d.purchase_type == 1 && d.status != 0 && d.status != 3 && d.status != 4){ }}
                         <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="ship">发货</a>
+                        {{# } }}
+                        {{# if(d.examine_status == 1 && d.purchase_type == 1 && d.status != 0 && d.status != 3 && d.status != 4){ }}
+                        <a class="layui-btn layui-btn-xs layui-bg-orange" lay-event="confirmreceipt">确认收货</a>
+                        {{# } }}
                         <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
                         <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="del">删除</a>
                     </script>
@@ -44,6 +49,7 @@
                                 <option value="1">{:__('Status 1')}</option>
                                 <option value="2">{:__('Status 2')}</option>
                                 <option value="3">{:__('Status 3')}</option>
+                                <option value="4">{:__('Status 4')}</option>
                             </select>
                         </div>
                         <div class="layui-input-inline">

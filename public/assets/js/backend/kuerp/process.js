@@ -40,9 +40,6 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         { field: 'in_number', title: __('In_number'), templet: function (d) {
                                 return (parseFloat(d.in_number) || 0).toFixed(number_decimal);
                             }},
-                        { field: 'total_process_fee', title: __('Total_process_fee'), templet: function (d) {
-                                return (parseFloat(d.total_process_fee) || 0).toFixed(price_decimal);
-                            }},
                         { field: 'examine_status', title: __('Examine_status'), templet: function (d) {
                                 if (d.examine_status == 0) return '<span style="color:red">' + __('Examine_status 0') + '</span>';
                                 return '<span style="color:green">' + __('Examine_status 1') + '</span>';

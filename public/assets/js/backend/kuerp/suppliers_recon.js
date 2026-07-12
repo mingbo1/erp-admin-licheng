@@ -28,6 +28,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     ,cellMinWidth: 100 //全局定义常规单元格的最小宽度，layui 2.2.1 新增
                     ,cols: [[
                         {checkbox: true},
+                        {field: 'customer_name', title: __('供应商'),width: 160},
                         {field: 'purchase_time', title: __('Purchase_time'),width: 130},
                         {field: 'purchase_code', title: __('Purchase_code'),width: 160,'totalRow':'合计'},
                         {field: 'business_type', title: __('Business_type'),templet: function (d) {

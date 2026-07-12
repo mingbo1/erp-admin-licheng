@@ -818,7 +818,7 @@ class Collection extends Backend
                                 Db::name('kuerp_collection_sale')->where(['id'=>$info_list_v['id']])->update([
                                     'old_money'=>$order['pay_money'],
                                     'old_status'=>$order['pay_status'],
-                                    'old_status_i'=>$income['status']
+                                    'old_status_i'=>$income ? $income['status'] : null
                                 ]);
                                 if($income){
                                     Db::name('kuerp_sales_invoicing')->where(['bill_code'=>$info_list_v['purchase_number']])
@@ -850,7 +850,7 @@ class Collection extends Backend
                                 Db::name('kuerp_collection_sale')->where(['id'=>$info_list_v['id']])->update([
                                     'old_money'=>$order['retreat_money'],
                                     'old_status'=>$order['retreat_status'],
-                                    'old_status_i'=>$income['status']
+                                    'old_status_i'=>$income ? $income['status'] : null
                                 ]);
                                 if($income){
                                     $status += 3;

@@ -46,6 +46,7 @@
         <div class="list" style="overflow-x: auto">
             <table id="out_table">
                 <tr>
+                    <th>选择</th>
                     <th>商品</th>
                     <th class="goods_attr_sd">{:__('Goods_attr')}</th>
                     <th>{:__('Goods_unit')}</th>
@@ -121,8 +122,8 @@
                             <input type="hidden" class="period_period" name="row[period_period][]" value="{$info.period}">
                         </div>
                     </td>
-                    <td><div><input type="hidden" name="row[unit_price][]" class="unit_price price_decimal" value="{$info.unit_price|htmlentities}"></div></td>
-                    <td style="display:none"><input type="hidden" name="row[all_money][]" class="all_money price_decimal" value="{$info.all_money|htmlentities}"></td>
+                    <input type="hidden" name="row[unit_price][]" class="unit_price price_decimal" value="{$info.unit_price|htmlentities}">
+                    <input type="hidden" name="row[all_money][]" class="all_money price_decimal" value="{$info.all_money|htmlentities}">
                     <td><div><input type="text" name="row[remark][]" class="remark" value="{$info.remark}"></div></td>
                 </tr>
                 {/if}
@@ -198,6 +199,7 @@
         <div class="list" style="overflow-x: auto">
             <table id="in_table">
                 <tr>
+                    <th>选择</th>
                     <th>商品</th>
                     <th class="goods_attr_sd">{:__('Goods_attr')}</th>
                     <th>{:__('Goods_unit')}</th>

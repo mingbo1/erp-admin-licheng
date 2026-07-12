@@ -2162,6 +2162,71 @@ class Goods
     }
 
     /**
+     * 批量获取考虑锁定的可用库存（高效版，减少N+1查询）
+     * @param array  $items         [['goods_id'=>1, 'stores_id'=>2, 'attribute_id'=>0], ...]
+     * @param string $salesOrderId  当前销售订单号（空字符串表示扣除所有锁定）
+     * @return array  ["goods_id-stores_id-attribute_id" => available_stock]
+     */
+    public static function getAvailableStockBatch(array $items, string $salesOrderId = '')
+    {
+        if (empty($items)) return [];
+
+        // 收集所有 goods_ids, stores_ids
+        $goodsIds = [];
+        $storeIds = [];
+        foreach ($items as $item) {
+            $goodsIds[] = (int)$item['goods_id'];
+            $storeIds[] = (int)$item['stores_id'];
+        }
+        $goodsIds = array_unique($goodsIds);
+        $storeIds = array_unique($storeIds);
+
+        // 1. 批量查询物理库存
+        $stockList = Db::name('kuerp_goods_stock')
+            ->where(['goods_id' => ['in', $goodsIds], 'stores_id' => ['in', $storeIds]])
+            ->field('goods_id, stores_id, attribute_id, stock')
+            ->select();
+        $stockMap = [];
+        foreach ($stockList as $s) {
+            $key = $s['goods_id'] . '-' . $s['stores_id'] . '-' . (int)$s['attribute_id'];
+            $stockMap[$key] = (float)$s['stock'];
+        }
+
+        // 2. 批量查询所有生效锁定的有效数量
+        $lockList = Db::name('kuerp_goods_lock')
+            ->where(['goods_id' => ['in', $goodsIds], 'stores_id' => ['in', $storeIds], 'status' => '1'])
+            ->field('goods_id, stores_id, attribute_id, sales_order_id, lock_quantity, used_quantity')
+            ->select();
+        $lockMap = [];   // key => total effective locked
+        $ownLockMap = []; // key => locked for current sales_order_id
+        foreach ($lockList as $l) {
+            $key = $l['goods_id'] . '-' . $l['stores_id'] . '-' . (int)$l['attribute_id'];
+            $effective = (float)$l['lock_quantity'] - (float)$l['used_quantity'];
+            if (!isset($lockMap[$key])) $lockMap[$key] = 0;
+            $lockMap[$key] += $effective;
+            if (!empty($salesOrderId) && $l['sales_order_id'] === $salesOrderId) {
+                if (!isset($ownLockMap[$key])) $ownLockMap[$key] = 0;
+                $ownLockMap[$key] += $effective;
+            }
+        }
+
+        // 3. 计算结果
+        $result = [];
+        foreach ($items as $item) {
+            $key = (int)$item['goods_id'] . '-' . (int)$item['stores_id'] . '-' . (int)$item['attribute_id'];
+            $physical = isset($stockMap[$key]) ? $stockMap[$key] : 0;
+            $locked = isset($lockMap[$key]) ? $lockMap[$key] : 0;
+            $ownLocked = isset($ownLockMap[$key]) ? $ownLockMap[$key] : 0;
+            if (empty($salesOrderId)) {
+                $result[$key] = $physical - $locked;
+            } else {
+                $result[$key] = $physical - $locked + $ownLocked;
+            }
+        }
+        return $result;
+    }
+
+    /**
      * 消费锁定：出库审核通过后扣减锁定数量
      * @param string $salesOrderId   销售订单号
      * @param int    $goodsId        商品ID

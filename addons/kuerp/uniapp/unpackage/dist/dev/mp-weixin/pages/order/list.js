@@ -160,6 +160,7 @@ var render = function () {
           var g3 = g2 ? item.items.length : null
           var g4 = g2 && g3 > 3 ? item.items.length : null
           var m4 = _vm.canCancel(item)
+          var m5 = _vm.canConfirmReceipt(item)
           return {
             $orig: $orig,
             g1: g1,
@@ -171,6 +172,7 @@ var render = function () {
             g3: g3,
             g4: g4,
             m4: m4,
+            m5: m5,
           }
         })
       : null
@@ -325,6 +327,11 @@ var _config = _interopRequireDefault(__webpack_require__(/*! ../../config */ 35)
 //
 //
 //
+//
+//
+//
+//
+//
 
 // display_status 映射
 var DISPLAY_MAP = {
@@ -347,6 +354,10 @@ var DISPLAY_MAP = {
   cancelled: {
     text: '已取消',
     css: 'cancelled'
+  },
+  received: {
+    text: '已收货',
+    css: 'received'
   }
 };
 var _default = {
@@ -375,6 +386,9 @@ var _default = {
       }, {
         key: 'shipped',
         label: '已发货'
+      }, {
+        key: 'received',
+        label: '已收货'
       }, {
         key: 'cancelled',
         label: '已取消'
@@ -490,6 +504,9 @@ var _default = {
     canCancel: function canCancel(item) {
       return item && item.display_status === 'pending_review';
     },
+    canConfirmReceipt: function canConfirmReceipt(item) {
+      return item && (item.display_status === 'shipped' || item.display_status === 'partial_shipped');
+    },
     getStatusInfo: function getStatusInfo(status) {
       return DISPLAY_MAP[status] || {
         text: '待审核',
@@ -556,6 +573,50 @@ var _default = {
             }
           }
         }, _callee2, null, [[0, 8]]);
+      }))();
+    },
+    handleConfirmReceipt: function handleConfirmReceipt(item) {
+      var _this5 = this;
+      uni.showModal({
+        title: '确认收货',
+        content: "\u786E\u5B9A\u5DF2\u6536\u5230\u8BA2\u5355\u300C".concat(item.purchase_code, "\u300D\u7684\u8D27\u7269\u5417\uFF1F"),
+        success: function success(res) {
+          if (res.confirm) _this5.confirmReceipt(item.id);
+        }
+      });
+    },
+    confirmReceipt: function confirmReceipt(id) {
+      var _this6 = this;
+      return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee3() {
+        return _regenerator.default.wrap(function _callee3$(_context3) {
+          while (1) {
+            switch (_context3.prev = _context3.next) {
+              case 0:
+                _context3.prev = 0;
+                _context3.next = 3;
+                return _api.orderApi.received(id);
+              case 3:
+                uni.showToast({
+                  title: '已确认收货',
+                  icon: 'none'
+                });
+                _this6.page = 1;
+                _this6.loadOrders();
+                _context3.next = 11;
+                break;
+              case 8:
+                _context3.prev = 8;
+                _context3.t0 = _context3["catch"](0);
+                uni.showToast({
+                  title: _context3.t0,
+                  icon: 'none'
+                });
+              case 11:
+              case "end":
+                return _context3.stop();
+            }
+          }
+        }, _callee3, null, [[0, 8]]);
       }))();
     }
   }

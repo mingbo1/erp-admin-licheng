@@ -509,9 +509,61 @@ class GoodsSalesOutbound extends Backend
         $purchase_info = Db::name('kuerp_goods_sales_info')->where(['purchase_code'=>$row['purchase_code']])->select();
         // 明细隐藏金额字段
         $detailHiddenFields = ['all_money','unit_price','cost_price','tax_included','discount','dis_money','tax_rate','tax_money','money_tax_price','preferential_rate','preferential_money','real_money','purchase_money','customers_money','pay_money'];
+        // 批量查询动态库存：收集所有商品的goods_id，一次查询全部可用库存
+        $goodsCodes = array_column($purchase_info, 'goods_code');
+        $goodsIdMap = $goodsCodes ? Db::name('kuerp_goods')->where(['goods_code' => ['in', $goodsCodes]])->column('id', 'goods_code') : [];
+        $stockItems = [];
+        foreach ($purchase_info as $v) {
+            $gid = isset($goodsIdMap[$v['goods_code']]) ? $goodsIdMap[$v['goods_code']] : 0;
+            if ($gid) $stockItems[] = ['goods_id' => $gid, 'stores_id' => (int)$v['stores_id'], 'attribute_id' => (int)$v['goods_attr']];
+        }
+        $stockMap = \addons\kuerp\library\Goods::getAvailableStockBatch($stockItems, '');
+
+        // 批量查询库位层级（完整路径如"A-1库"）
+        $locationMap = [];
+        $goodsIdToLocId = []; // goods_id => location_id
+        if ($goodsCodes) {
+            $goodsLocData = Db::name('kuerp_goods')->where(['goods_code' => ['in', $goodsCodes]])->where('location_id', '>', 0)->column('location_id', 'id');
+            foreach ($goodsLocData as $gid => $lid) {
+                $goodsIdToLocId[(int)$gid] = (int)$lid;
+            }
+            $locIds = array_unique(array_values($goodsIdToLocId));
+            if ($locIds) {
+                $locList = Db::name('kuerp_goods_location')->where(['id' => ['in', $locIds], 'status' => '1'])->field('id,location_name,path')->select();
+                $allPids = [];
+                foreach ($locList as $loc) {
+                    if ($loc['path']) {
+                        foreach (array_filter(explode(',', trim($loc['path'], ','))) as $pid) {
+                            if ((int)$pid > 0) $allPids[] = (int)$pid;
+                        }
+                    }
+                }
+                $ancestorMap = [];
+                if ($allPids) {
+                    $ancestorMap = Db::name('kuerp_goods_location')->where(['id' => ['in', array_unique($allPids)]])->column('location_name', 'id');
+                }
+                foreach ($locList as $loc) {
+                    $names = [];
+                    if ($loc['path']) {
+                        foreach (array_filter(explode(',', trim($loc['path'], ','))) as $pid) {
+                            $pid = (int)$pid;
+                            if ($pid > 0 && isset($ancestorMap[$pid])) $names[] = $ancestorMap[$pid];
+                        }
+                    }
+                    $names[] = $loc['location_name'];
+                    $locationMap[$loc['id']] = implode('-', $names);
+                }
+            }
+        }
+
         foreach ($purchase_info as $purchase_info_k=>$purchase_info_v){
             $purchase_info[$purchase_info_k]['serial'] = $purchase_info_v['period'];
-            $purchase_info[$purchase_info_k]['unit'] = json_decode($this->getUnit($purchase_info_v['goods_code']),true);
+            $purchase_info[$purchase_info_k]['unit'] = json_decode($this->getUnit($purchase_info_v['goods_code'], $purchase_info_v['stores_id'], $purchase_info_v['goods_attr']),true);
+            $gid = isset($goodsIdMap[$purchase_info_v['goods_code']]) ? $goodsIdMap[$purchase_info_v['goods_code']] : 0;
+            $key = $gid . '-' . (int)$purchase_info_v['stores_id'] . '-' . (int)$purchase_info_v['goods_attr'];
+            $purchase_info[$purchase_info_k]['allow_stock'] = isset($stockMap[$key]) ? $stockMap[$key] : 0;
+            $locId = isset($goodsIdToLocId[$gid]) ? $goodsIdToLocId[$gid] : 0;
+            $purchase_info[$purchase_info_k]['location_name'] = ($locId && isset($locationMap[$locId])) ? $locationMap[$locId] : '';
             foreach ($detailHiddenFields as $f) {
                 unset($purchase_info[$purchase_info_k][$f]);
             }
@@ -2222,9 +2274,48 @@ class GoodsSalesOutbound extends Backend
 
         // 销货单详情
         $purchase_info = Db::name('kuerp_goods_sales_info')->where(['purchase_code' => $row['purchase_code']])->select();
+        // 批量查询库位层级
+        $goodsCodes = array_column($purchase_info, 'goods_code');
+        $locationMap = [];
+        $goodsIdToLocId = [];
+        if ($goodsCodes) {
+            $goodsLocData = Db::name('kuerp_goods')->where(['goods_code' => ['in', $goodsCodes]])->where('location_id', '>', 0)->column('location_id', 'id');
+            foreach ($goodsLocData as $gid => $lid) $goodsIdToLocId[(int)$gid] = (int)$lid;
+            $locIds = array_unique(array_values($goodsIdToLocId));
+            if ($locIds) {
+                $locList = Db::name('kuerp_goods_location')->where(['id' => ['in', $locIds], 'status' => '1'])->field('id,location_name,path')->select();
+                $allPids = [];
+                foreach ($locList as $loc) {
+                    if ($loc['path']) {
+                        foreach (array_filter(explode(',', trim($loc['path'], ','))) as $pid) {
+                            if ((int)$pid > 0) $allPids[] = (int)$pid;
+                        }
+                    }
+                }
+                $ancestorMap = [];
+                if ($allPids) {
+                    $ancestorMap = Db::name('kuerp_goods_location')->where(['id' => ['in', array_unique($allPids)]])->column('location_name', 'id');
+                }
+                foreach ($locList as $loc) {
+                    $names = [];
+                    if ($loc['path']) {
+                        foreach (array_filter(explode(',', trim($loc['path'], ','))) as $pid) {
+                            $pid = (int)$pid;
+                            if ($pid > 0 && isset($ancestorMap[$pid])) $names[] = $ancestorMap[$pid];
+                        }
+                    }
+                    $names[] = $loc['location_name'];
+                    $locationMap[$loc['id']] = implode('-', $names);
+                }
+            }
+        }
         $detailHiddenFields = ['all_money','unit_price','cost_price','tax_included','discount','dis_money','tax_rate','tax_money','money_tax_price','preferential_rate','preferential_money','real_money','purchase_money','customers_money','pay_money'];
         foreach ($purchase_info as $k => $v) {
-            $purchase_info[$k]['goods_name'] = Db::name('kuerp_goods')->where(['goods_code' => $v['goods_code']])->value('goods_name');
+            $goods = Db::name('kuerp_goods')->where(['goods_code' => $v['goods_code']])->field('id,goods_name')->find();
+            $purchase_info[$k]['goods_name'] = $goods ? $goods['goods_name'] : '';
+            $gid = $goods ? (int)$goods['id'] : 0;
+            $locId = isset($goodsIdToLocId[$gid]) ? $goodsIdToLocId[$gid] : 0;
+            $purchase_info[$k]['location_name'] = ($locId && isset($locationMap[$locId])) ? $locationMap[$locId] : '';
             $purchase_info[$k]['stores_name'] = Db::name('kuerp_stores')->where(['id' => $v['stores_id']])->value('name');
             $purchase_info[$k]['unit_name'] = Db::name('kuerp_unit')->where(['id' => $v['goods_unit']])->value('name');
             $purchase_info[$k]['out_number'] = isset($v['out_number']) ? (float)$v['out_number'] : 0;
@@ -2302,6 +2393,15 @@ class GoodsSalesOutbound extends Backend
         $storesMap = Db::name('kuerp_stores')->column('name', 'id');
         $unitMap = Db::name('kuerp_unit')->column('name', 'id');
         $goodsMap = Db::name('kuerp_goods')->column('goods_name', 'goods_code');
+        $goodsIdMap = Db::name('kuerp_goods')->column('id', 'goods_code');
+
+        // 批量查询可用库存（按仓库+商品+属性）
+        $stockItems = [];
+        foreach ($infoList as $v) {
+            $gid = isset($goodsIdMap[$v['goods_code']]) ? (int)$goodsIdMap[$v['goods_code']] : 0;
+            if ($gid) $stockItems[] = ['goods_id' => $gid, 'stores_id' => (int)$v['stores_id'], 'attribute_id' => (int)$v['goods_attr']];
+        }
+        $stockMap = \addons\kuerp\library\Goods::getAvailableStockBatch($stockItems, '');
 
         $detailHiddenFields = ['all_money','unit_price','cost_price','tax_included','discount','dis_money','tax_rate','tax_money','money_tax_price','preferential_rate','preferential_money','real_money','purchase_money','customers_money','pay_money'];
 
@@ -2310,9 +2410,13 @@ class GoodsSalesOutbound extends Backend
             $infoList[$k]['stores_name'] = isset($storesMap[$v['stores_id']]) ? $storesMap[$v['stores_id']] : '';
             $infoList[$k]['unit_name'] = isset($unitMap[$v['goods_unit']]) ? $unitMap[$v['goods_unit']] : '';
             $infoList[$k]['out_number'] = isset($v['out_number']) ? (float)$v['out_number'] : 0;
+            // 可用库存
+            $gid = isset($goodsIdMap[$v['goods_code']]) ? (int)$goodsIdMap[$v['goods_code']] : 0;
+            $skey = $gid . '-' . (int)$v['stores_id'] . '-' . (int)$v['goods_attr'];
+            $infoList[$k]['allow_stock'] = isset($stockMap[$skey]) ? $stockMap[$skey] : 0;
             // 属性名称
             if (!empty($v['goods_attr'])) {
-                $attr = Db::name('kuerp_goods_attribute')->where(['id' => $v['goods_attr']])->value('attr_name');
+                $attr = Db::name('kuerp_goods_attr')->where(['id' => $v['goods_attr']])->value('attr_code');
                 $infoList[$k]['attr_name'] = $attr ? $attr : '';
             } else {
                 $infoList[$k]['attr_name'] = '';

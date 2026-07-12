@@ -370,6 +370,39 @@ class GoodsPurchaseOrder extends Backend
                     }
                 }
 
+                // 采购时只考虑一个仓库，优先选择有库存的零件仓库
+                // 查询各零件在各零件仓库的库存，为每个零件选择库存最多的仓库
+                if (!empty($partMap)) {
+                    $partGoodsIds = array_keys($partMap);
+                    $partStoreIds = Db::name('kuerp_stores')->where(['store_type' => 'part'])->column('id');
+                    if (!empty($partStoreIds)) {
+                        $stockData = Db::name('kuerp_goods_stock')
+                            ->where(['goods_id' => ['in', $partGoodsIds]])
+                            ->where(['stores_id' => ['in', $partStoreIds]])
+                            ->field('goods_id, stores_id, stock')
+                            ->select();
+                        $stockMap = []; // goods_id => [stores_id => stock]
+                        foreach ($stockData as $sd) {
+                            $gid = $sd['goods_id'];
+                            if (!isset($stockMap[$gid])) $stockMap[$gid] = [];
+                            $stockMap[$gid][$sd['stores_id']] = (float)$sd['stock'];
+                        }
+                        // 为每个零件选择库存最多的仓库
+                        foreach ($partMap as $goodsId => &$p) {
+                            if (isset($stockMap[$goodsId]) && !empty($stockMap[$goodsId])) {
+                                // 有库存数据：选库存最多的零件仓库
+                                arsort($stockMap[$goodsId]);
+                                $bestKeys = array_keys($stockMap[$goodsId]);
+                                $p['stores_id'] = reset($bestKeys);
+                            } elseif (!empty($partStoreIds)) {
+                                // 无库存数据：兜底使用第一个零件仓库，而非父商品排期的非零件仓库
+                                $p['stores_id'] = (int)reset($partStoreIds);
+                            }
+                        }
+                        unset($p);
+                    }
+                }
+
                 foreach ($partMap as $p) {
                     $scheduleBomGoods[] = [
                         'goods_code' => $p['goods_code'],
@@ -616,8 +649,21 @@ class GoodsPurchaseOrder extends Backend
         $this->view->assign("row", $row);
 
         $purchase_info = Db::name('kuerp_goods_purchase_order_info')->where(['purchase_code'=>$row['purchase_code']])->select();
+        // 批量查询动态库存
+        $goodsCodes = array_column($purchase_info, 'goods_code');
+        $goodsIdMap = $goodsCodes ? Db::name('kuerp_goods')->where(['goods_code' => ['in', $goodsCodes]])->column('id', 'goods_code') : [];
+        $stockItems = [];
+        foreach ($purchase_info as $v) {
+            $gid = isset($goodsIdMap[$v['goods_code']]) ? $goodsIdMap[$v['goods_code']] : 0;
+            if ($gid) $stockItems[] = ['goods_id' => $gid, 'stores_id' => (int)$v['stores_id'], 'attribute_id' => (int)$v['goods_attr']];
+        }
+        $stockMap = \addons\kuerp\library\Goods::getAvailableStockBatch($stockItems, '');
+
         foreach ($purchase_info as $purchase_info_k=>$purchase_info_v){
-            $purchase_info[$purchase_info_k]['unit'] = json_decode(\addons\kuerp\library\GoodsPurchase::getUnit($purchase_info_v['goods_code']),true);
+            $purchase_info[$purchase_info_k]['unit'] = json_decode(\addons\kuerp\library\GoodsPurchase::getUnit($purchase_info_v['goods_code'], $purchase_info_v['stores_id'], $purchase_info_v['goods_attr']),true);
+            $gid = isset($goodsIdMap[$purchase_info_v['goods_code']]) ? $goodsIdMap[$purchase_info_v['goods_code']] : 0;
+            $key = $gid . '-' . (int)$purchase_info_v['stores_id'] . '-' . (int)$purchase_info_v['goods_attr'];
+            $purchase_info[$purchase_info_k]['allow_stock'] = isset($stockMap[$key]) ? $stockMap[$key] : 0;
         }
         $this->view->assign("purchase_info", $purchase_info);
         $this->assignconfig("purchase_id", $row['id']);
@@ -918,7 +964,7 @@ class GoodsPurchaseOrder extends Backend
             $this->error('参数错误');
         }
         $row = Db::name('kuerp_goods_purchase_order')->where(['id'=>$order_id])
-            ->field('examine_status,purchase_code')
+            ->field('examine_status,second_examine_status,purchase_code')
             ->find();
         if(empty($row)){
             $this->error('参数错误');
@@ -927,6 +973,9 @@ class GoodsPurchaseOrder extends Backend
         if($examine==1){
             if($row['examine_status']!=1){
                 $this->error('此购货订单未审核，不可生成购货单');
+            }
+            if($row['second_examine_status']!=1){
+                $this->error('此购货订单未通过二次审核，不可生成购货单');
             }
         }
         $purchase_info = Db::name('kuerp_goods_purchase_order_info')->where(['purchase_code'=>$row['purchase_code']])->select();
@@ -948,7 +997,7 @@ class GoodsPurchaseOrder extends Backend
             $this->error('参数错误');
         }
         $row = Db::name('kuerp_goods_purchase_order')->where(['id'=>$order_id])
-            ->field('examine_status,purchase_code')
+            ->field('examine_status,second_examine_status,purchase_code')
             ->find();
         if(empty($row)){
             $this->error('参数错误');
@@ -957,6 +1006,9 @@ class GoodsPurchaseOrder extends Backend
         if($examine==1){
             if($row['examine_status']!=1){
                 $this->error('此购货订单未审核，不可生成退货单');
+            }
+            if($row['second_examine_status']!=1){
+                $this->error('此购货订单未通过二次审核，不可生成退货单');
             }
         }
         $purchase_info = Db::name('kuerp_goods_purchase_order_info')->where(['purchase_code'=>$row['purchase_code']])->select();

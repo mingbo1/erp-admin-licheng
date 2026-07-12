@@ -65,6 +65,11 @@
               @tap.stop="handleCancel(item)"
             >取消订单</u-button>
             <u-button
+              type="warning" size="small" plain hairline shape="circle"
+              v-if="canConfirmReceipt(item)"
+              @tap.stop="handleConfirmReceipt(item)"
+            >确认收货</u-button>
+            <u-button
               type="primary" size="small" plain hairline shape="circle"
               @tap.stop="goDetail(item.id)"
             >查看详情</u-button>
@@ -101,6 +106,7 @@ const DISPLAY_MAP = {
   partial_shipped: { text: '部分发货', css: 'shipped' },
   shipped: { text: '已发货', css: 'shipped' },
   cancelled: { text: '已取消', css: 'cancelled' },
+  received: { text: '已收货', css: 'received' },
 }
 
 export default {
@@ -120,6 +126,7 @@ export default {
         { key: 'pending_ship', label: '待发货' },
         { key: 'partial_shipped', label: '部分发货' },
         { key: 'shipped', label: '已发货' },
+        { key: 'received', label: '已收货' },
         { key: 'cancelled', label: '已取消' },
       ],
     }
@@ -171,6 +178,9 @@ export default {
     canCancel(item) {
       return item && item.display_status === 'pending_review'
     },
+    canConfirmReceipt(item) {
+      return item && (item.display_status === 'shipped' || item.display_status === 'partial_shipped')
+    },
     getStatusInfo(status) {
       return DISPLAY_MAP[status] || { text: '待审核', css: '' }
     },
@@ -194,6 +204,16 @@ export default {
     },
     async cancelOrder(id) {
       try { await orderApi.cancel(id); uni.showToast({ title: '订单已取消', icon: 'none' }); this.page = 1; this.loadOrders() }
+      catch (e) { uni.showToast({ title: e, icon: 'none' }) }
+    },
+    handleConfirmReceipt(item) {
+      uni.showModal({
+        title: '确认收货', content: `确定已收到订单「${item.purchase_code}」的货物吗？`,
+        success: (res) => { if (res.confirm) this.confirmReceipt(item.id) }
+      })
+    },
+    async confirmReceipt(id) {
+      try { await orderApi.received(id); uni.showToast({ title: '已确认收货', icon: 'none' }); this.page = 1; this.loadOrders() }
       catch (e) { uni.showToast({ title: e, icon: 'none' }) }
     },
   },
@@ -227,6 +247,8 @@ export default {
 .status-cancelled .status-dot { background: #909399; }
 .status-shipped { background: #e8f4fd; color: #2c8cff; }
 .status-shipped .status-dot { background: #2c8cff; }
+.status-received { background: #e8f8e8; color: #4caf50; }
+.status-received .status-dot { background: #4caf50; }
 
 .card-goods { margin: 16rpx 0; padding: 12rpx 16rpx; background: #fafbfc; border-radius: 8rpx; }
 .goods-row { display: flex; align-items: center; padding: 6rpx 0; }

@@ -305,6 +305,7 @@ var _config = _interopRequireDefault(__webpack_require__(/*! ../../config */ 35)
 //
 //
 //
+//
 
 var STATUS_MAP = {
   pending_review: {
@@ -336,6 +337,12 @@ var STATUS_MAP = {
     desc: '订单已取消',
     bg: 'linear-gradient(135deg, #909399, #72767b)',
     icon: 'close-circle'
+  },
+  received: {
+    text: '已收货',
+    desc: '货物已确认签收',
+    bg: 'linear-gradient(135deg, #4caf50, #388e3c)',
+    icon: 'checkbox-mark'
   }
 };
 var _default = {
@@ -352,6 +359,9 @@ var _default = {
     },
     canCancel: function canCancel() {
       return this.order && this.order.display_status === 'pending_review';
+    },
+    canConfirmReceipt: function canConfirmReceipt() {
+      return this.order && (this.order.display_status === 'shipped' || this.order.display_status === 'partial_shipped');
     }
   },
   onLoad: function onLoad(options) {
@@ -437,6 +447,65 @@ var _default = {
             }
           }
         }, _callee2, null, [[0, 7]]);
+      }))();
+    },
+    confirmReceipt: function confirmReceipt() {
+      var _this3 = this;
+      return (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee4() {
+        return _regenerator.default.wrap(function _callee4$(_context4) {
+          while (1) {
+            switch (_context4.prev = _context4.next) {
+              case 0:
+                uni.showModal({
+                  title: '确认收货',
+                  content: '确定已收到该订单的货物吗？',
+                  success: function () {
+                    var _success = (0, _asyncToGenerator2.default)( /*#__PURE__*/_regenerator.default.mark(function _callee3(res) {
+                      return _regenerator.default.wrap(function _callee3$(_context3) {
+                        while (1) {
+                          switch (_context3.prev = _context3.next) {
+                            case 0:
+                              if (!res.confirm) {
+                                _context3.next = 11;
+                                break;
+                              }
+                              _context3.prev = 1;
+                              _context3.next = 4;
+                              return _api.orderApi.received(_this3.orderId);
+                            case 4:
+                              uni.showToast({
+                                title: '已确认收货',
+                                icon: 'none'
+                              });
+                              _this3.loadDetail();
+                              _context3.next = 11;
+                              break;
+                            case 8:
+                              _context3.prev = 8;
+                              _context3.t0 = _context3["catch"](1);
+                              uni.showToast({
+                                title: _context3.t0,
+                                icon: 'none'
+                              });
+                            case 11:
+                            case "end":
+                              return _context3.stop();
+                          }
+                        }
+                      }, _callee3, null, [[1, 8]]);
+                    }));
+                    function success(_x) {
+                      return _success.apply(this, arguments);
+                    }
+                    return success;
+                  }()
+                });
+              case 1:
+              case "end":
+                return _context4.stop();
+            }
+          }
+        }, _callee4);
       }))();
     }
   }

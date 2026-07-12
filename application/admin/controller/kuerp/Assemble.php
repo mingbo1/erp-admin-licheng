@@ -1003,8 +1003,21 @@ class Assemble extends Backend
             ->where(['a.purchase_code'=>$row['purchase_code']])
             ->field('a.*,g.goods_name')
             ->select();
+        // 批量查询动态库存
+        $goodsCodes = array_column($info, 'goods_code');
+        $goodsIdMap = $goodsCodes ? Db::name('kuerp_goods')->where(['goods_code' => ['in', $goodsCodes]])->column('id', 'goods_code') : [];
+        $stockItems = [];
+        foreach ($info as $v) {
+            $gid = isset($goodsIdMap[$v['goods_code']]) ? $goodsIdMap[$v['goods_code']] : 0;
+            if ($gid) $stockItems[] = ['goods_id' => $gid, 'stores_id' => (int)$v['stores_id'], 'attribute_id' => (int)$v['goods_attr']];
+        }
+        $stockMap = \addons\kuerp\library\Goods::getAvailableStockBatch($stockItems, '');
+
         foreach ($info as $info_k=>$info_v){
-            $info[$info_k]['unit'] = json_decode((new GoodsPurchase())->getUnit($info_v['goods_code'],'',''),true);
+            $info[$info_k]['unit'] = json_decode((new GoodsPurchase())->getUnit($info_v['goods_code'], $info_v['stores_id'], $info_v['goods_attr']),true);
+            $gid = isset($goodsIdMap[$info_v['goods_code']]) ? $goodsIdMap[$info_v['goods_code']] : 0;
+            $key = $gid . '-' . (int)$info_v['stores_id'] . '-' . (int)$info_v['goods_attr'];
+            $info[$info_k]['allow_stock'] = isset($stockMap[$key]) ? $stockMap[$key] : 0;
         }
         $this->view->assign("info_list", $info);
 
@@ -2129,11 +2142,8 @@ class Assemble extends Backend
         if ($row['examine_status'] != 1) {
             $this->error('请先审核单据');
         }
-        if ($row['outbound_status'] == 2 && $row['inbound_status'] == 1) {
-            $this->error('该单据已完成全部出库和入库');
-        }
 
-        // 获取详情
+        // 获取详情（提前查询，用于判断是否已完成全部出库和入库）
         $info_list = Db::name('kuerp_assemble_info')->alias('a')
             ->join('kuerp_goods g', 'g.id=a.goods_id')
             ->where(['a.purchase_code' => $row['purchase_code']])
@@ -2158,6 +2168,21 @@ class Assemble extends Backend
             }
         }
         unset($v);
+
+        // 检查是否已完成全部出库和入库（基于实际数量，而非审核状态）
+        $all_out_done = true;
+        $all_in_done = true;
+        foreach ($info_list as $v) {
+            if ($v['type'] == '2' && $v['out_number'] < $v['number']) {
+                $all_out_done = false;
+            }
+            if ($v['type'] == '1' && $v['in_number'] < $v['number']) {
+                $all_in_done = false;
+            }
+        }
+        if ($all_out_done && $all_in_done) {
+            $this->error('该单据已完成全部出库和入库');
+        }
 
         // 分离子件(type=2)和组合件(type=1)
         $out_items = []; // 子件(出库)
@@ -2422,7 +2447,7 @@ class Assemble extends Backend
         $edit_batch_in = [];
         $update_in_info = [];
 
-        if (!empty($in_data) && $row['inbound_status'] != 1) {
+        if (!empty($in_data)) {
             foreach ($in_data as $info_id => $in_number) {
                 $in_number = (float)$in_number;
                 if ($in_number <= 0) {

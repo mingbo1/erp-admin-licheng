@@ -589,9 +589,22 @@ class Warehousing extends Backend
         $this->view->assign("row", $row);
 
         $info = Db::name('kuerp_warehousing_info')->where(['purchase_code'=>$row['purchase_code']])->select();
+        // 批量查询动态库存（info表已有goods_id，直接用）
+        $stockItems = [];
+        foreach ($info as $v) {
+            $gid = (int)$v['goods_id'];
+            if ($gid) {
+                $stockItems[] = ['goods_id' => $gid, 'stores_id' => (int)$v['stores_id'], 'attribute_id' => (int)$v['goods_attr']];
+            }
+        }
+        $stockMap = \addons\kuerp\library\Goods::getAvailableStockBatch($stockItems, '');
+
         foreach ($info as $info_k=>$info_v){
             $goods = Db::name('kuerp_goods')->where(['id'=>$info_v['goods_id']])->find();
-            $info[$info_k]['unit'] = json_decode(\addons\kuerp\library\GoodsPurchase::getUnit($goods['goods_code']),true);
+            $info[$info_k]['unit'] = json_decode(\addons\kuerp\library\GoodsPurchase::getUnit($goods['goods_code'], $info_v['stores_id'], $info_v['goods_attr']),true);
+            $gid = (int)$info_v['goods_id'];
+            $key = $gid . '-' . (int)$info_v['stores_id'] . '-' . (int)$info_v['goods_attr'];
+            $info[$info_k]['stock'] = isset($stockMap[$key]) ? $stockMap[$key] : 0;
         }
         $this->view->assign("purchase_info", $info);
 

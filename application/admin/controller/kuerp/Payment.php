@@ -780,6 +780,19 @@ class Payment extends Backend
                                 $this->error($info_list_v['purchase_number'].'核销金额不能大于未核销金额');
                             }
                         }
+                    }else if($info_list_v['business_type']==6 && $info_list_v['type']==1){
+                        //外协加工
+                        $order = Db::name('kuerp_process')->where(['process_code'=>$info_list_v['purchase_number']])->find();
+                        if($order){
+                            $all_money = $order['total_process_fee'];
+                            $pay_money = $order['pay_money']+$info_list_v['write_off_price'];
+                            if($all_money<$pay_money){
+                                if($examine_set!=1){
+                                    return ['status'=>0,'msg'=>$info_list_v['purchase_number'].'核销金额不能大于未核销金额'];
+                                }
+                                $this->error($info_list_v['purchase_number'].'核销金额不能大于未核销金额');
+                            }
+                        }
                     }
                 }
 
@@ -869,6 +882,32 @@ class Payment extends Backend
                                     ->update(['status'=>$status]);
                                 Db::name('kuerp_invoicing_log')->where(['bill_code'=>$info_list_v['purchase_number']])
                                     ->update(['status'=>$status]);
+                            }
+                        }
+                        if($info_list_v['business_type']==6 && $info_list_v['type']==1){
+                            //外协加工
+                            $order = Db::name('kuerp_process')->where(['process_code'=>$info_list_v['purchase_number']])->find();
+                            if($order){
+                                Db::name('kuerp_payment_log')->insert(\addons\kuerp\library\Goods::setDataInfo([
+                                    'suppliers_code' => $order['supplyer_code'],
+                                    'business_type'  => '5',
+                                    'bill_time'      => time(),
+                                    'bill_code'      => $order['process_code'],
+                                    'bill_codes'     => $info_list_v['purchase_code'],
+                                    'pay_money'      => $info_list_v['write_off_price'],
+                                    'reamrk'         => $list_v['remarks'],
+                                    'createtime'     => time(),
+                                ]));
+                                $more_money = $order['total_process_fee'] - $info_list_v['write_off_price'] - $order['pay_money'];
+                                $status = $more_money <= 0 ? 1 : 2;
+                                $pay_money = $order['pay_money'] + $info_list_v['write_off_price'];
+                                Db::name('kuerp_process')->where(['process_code'=>$info_list_v['purchase_number']])
+                                    ->update(['pay_money'=>$pay_money,'pay_status'=>$status]);
+                                Db::name('kuerp_payment_sale')->where(['id'=>$info_list_v['id']])->update([
+                                    'old_money'=>$order['pay_money'],
+                                    'old_status'=>$order['pay_status'],
+                                    'old_status_i'=>0
+                                ]);
                             }
                         }
                     }
@@ -973,6 +1012,14 @@ class Payment extends Backend
                             if($order){
                                 Db::name('kuerp_goods_exchange')->where(['purchase_code'=>$info_list_v['purchase_number']])
                                     ->update(['retreat_money'=>$info_list_v['old_money'],'retreat_status'=>$info_list_v['old_status']]);
+                            }
+                        }
+                        if($info_list_v['business_type']==6 && $info_list_v['type']==1){
+                            //外协加工
+                            $order = Db::name('kuerp_process')->where(['process_code'=>$info_list_v['purchase_number']])->find();
+                            if($order){
+                                Db::name('kuerp_process')->where(['process_code'=>$info_list_v['purchase_number']])
+                                    ->update(['pay_money'=>$info_list_v['old_money'],'pay_status'=>$info_list_v['old_status']]);
                             }
                         }
                         $income = Db::name('kuerp_invoicing')->where(['bill_code'=>$info_list_v['purchase_number']])->find();

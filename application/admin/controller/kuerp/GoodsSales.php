@@ -997,9 +997,22 @@ class GoodsSales extends Backend
         $this->view->assign("row", $row);
 
         $purchase_info = Db::name('kuerp_goods_sales_info')->where(['purchase_code'=>$row['purchase_code']])->select();
+        // 批量查询动态库存：收集所有商品的goods_id，一次查询全部可用库存
+        $goodsCodes = array_column($purchase_info, 'goods_code');
+        $goodsIdMap = $goodsCodes ? Db::name('kuerp_goods')->where(['goods_code' => ['in', $goodsCodes]])->column('id', 'goods_code') : [];
+        $stockItems = [];
+        foreach ($purchase_info as $v) {
+            $gid = isset($goodsIdMap[$v['goods_code']]) ? $goodsIdMap[$v['goods_code']] : 0;
+            if ($gid) $stockItems[] = ['goods_id' => $gid, 'stores_id' => (int)$v['stores_id'], 'attribute_id' => (int)$v['goods_attr']];
+        }
+        $stockMap = \addons\kuerp\library\Goods::getAvailableStockBatch($stockItems, '');
+
         foreach ($purchase_info as $purchase_info_k=>$purchase_info_v){
             $purchase_info[$purchase_info_k]['serial'] = $purchase_info_v['period'];
-            $purchase_info[$purchase_info_k]['unit'] = json_decode($this->getUnit($purchase_info_v['goods_code']),true);
+            $purchase_info[$purchase_info_k]['unit'] = json_decode($this->getUnit($purchase_info_v['goods_code'], $purchase_info_v['stores_id'], $purchase_info_v['goods_attr']),true);
+            $gid = isset($goodsIdMap[$purchase_info_v['goods_code']]) ? $goodsIdMap[$purchase_info_v['goods_code']] : 0;
+            $key = $gid . '-' . (int)$purchase_info_v['stores_id'] . '-' . (int)$purchase_info_v['goods_attr'];
+            $purchase_info[$purchase_info_k]['allow_stock'] = isset($stockMap[$key]) ? $stockMap[$key] : 0;
         }
         $this->view->assign("purchase_info", $purchase_info);
 
@@ -1239,6 +1252,62 @@ class GoodsSales extends Backend
             foreach ($list as $list_v){
                 $examine_ids[] = $list_v['id'];
             }
+            // 计算客户应付款（need_receive_account），同一客户多个销货单需汇总
+            // 同时生成核销单源单（writeoff_source）和应收账款明细（accounts_receivable）
+            $arrears = [];
+            $writeoff_source = [];
+            $accounts_receivable = [];
+            foreach ($list as $list_v) {
+                if ($list_v['arrears'] > 0) {
+                    // 核销单源单
+                    $writeoff_source[] = [
+                        'purchase_type' => 3,
+                        'type'          => 1,
+                        'customers_id'  => $list_v['customers_id'],
+                        'purchase_code' => $list_v['purchase_code'],
+                        'purchase_time' => $list_v['purchase_time'],
+                        'price'         => $list_v['real_money'],
+                        'money'         => $list_v['pay_money'],
+                        'write_off'     => $list_v['arrears'],
+                        'remark'        => $list_v['note'],
+                    ];
+                    // 客户应付款汇总
+                    $customer = Db::name('kuerp_customers')->where(['id' => $list_v['customers_id']])->field('id,need_receive_account')->find();
+                    if ($customer) {
+                        $found = false;
+                        foreach ($arrears as $k => $v) {
+                            if ($v['id'] == $customer['id']) {
+                                $arrears[$k]['need_receive_account'] = $v['need_receive_account'] + $list_v['arrears'];
+                                $found = true;
+                                break;
+                            }
+                        }
+                        if (!$found) {
+                            $arrears[] = [
+                                'id'                   => $customer['id'],
+                                'need_receive_account' => $customer['need_receive_account'] + $list_v['arrears'],
+                            ];
+                        }
+                    }
+                }
+                // 应收账款明细（每笔销货单都记录）
+                $accounts_receivable[] = \addons\kuerp\library\Goods::setDataInfo([
+                    'customers_id'      => $list_v['customers_id'],
+                    'purchase_time'     => $list_v['purchase_time'],
+                    'purchase_code'     => $list_v['purchase_code'],
+                    'business_type'     => '6',
+                    'receivable'        => $list_v['arrears'],
+                    'staff_member_id'   => $list_v['sale_user'],
+                    'remark'            => $list_v['note'],
+                    'sale_money'        => $list_v['money_tax_price'],
+                    'receivable_money'  => round(($list_v['real_money'] + $list_v['customers_money']), 4),
+                    'amount'            => $list_v['preferential_money'],
+                    'cost'              => $list_v['customers_money'],
+                    'real_money'        => $list_v['pay_money'],
+                    'createtime'        => time(),
+                    'updatetime'        => time(),
+                ]);
+            }
             Db::startTrans();
             try {
                 $this->model->where(['id'=>['in',$examine_ids],'examine_status'=>'0'])->update([
@@ -1252,6 +1321,18 @@ class GoodsSales extends Backend
                     'examine_id'     => $admin['id'],
                     'examine_time'   => time(),
                 ]);
+                // 更新客户应付款
+                if (!empty($arrears)) {
+                    (new \app\admin\model\kuerp\Customers())->saveAll($arrears);
+                }
+                // 写入核销单源单
+                if (!empty($writeoff_source)) {
+                    Db::name('kuerp_writeoff_source')->insertAll($writeoff_source);
+                }
+                // 写入应收账款明细
+                if (!empty($accounts_receivable)) {
+                    Db::name('kuerp_accounts_receivable')->insertAll($accounts_receivable);
+                }
                 foreach ($list as $list_v){
                     $this->writeSalesLog($list_v['id'], '审核', '审核通过，库存变动由出库操作完成');
                 }
