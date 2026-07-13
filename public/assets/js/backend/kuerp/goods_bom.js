@@ -342,9 +342,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
     // 填充父商品（data 来自 getUnit 返回的 {goods:{...}, unit:[...]} 结构）
     function fillParentGoods(obj, data) {
         var g = data.goods;
-        obj.find('.goods_code').val(g.goods_code);
+        var code = $.trim(g.goods_code);
+        var name = $.trim(g.goods_name);
+        obj.find('.goods_code').val(code);
         obj.find('.goods_id').val(g.id);
-        obj.find('.goods_names').val(g.goods_code + ' ' + g.goods_name);
+        obj.find('.goods_names').val(code + ' ' + name);
 
         var typeLabel = '';
         if (g.product_type == 'finished') typeLabel = '成品';
@@ -356,9 +358,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
     // 填充子商品（data 来自 getUnit 返回的 {goods:{...}, unit:[...]} 结构）
     function fillChildGoods(obj, data) {
         var g = data.goods;
-        obj.find('.goods_code').val(g.goods_code);
+        var code = $.trim(g.goods_code);
+        var name = $.trim(g.goods_name);
+        obj.find('.goods_code').val(code);
         obj.find('.goods_id').val(g.id);
-        obj.find('.goods_name').val(g.goods_code + ' ' + g.goods_name);
+        obj.find('.goods_name').val(code + ' ' + name);
 
         var typeLabel = '';
         if (g.product_type == 'finished') typeLabel = '成品';
