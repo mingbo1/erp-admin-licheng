@@ -422,6 +422,7 @@ class GoodsPurchaseOrder extends Backend
                 if (!empty($partMap)) {
                     $partGoodsIds = array_keys($partMap);
                     $partStoreIds = Db::name('kuerp_stores')->where(['store_type' => 'part'])->column('id');
+                    $stockMap = []; // 零件现有库存映射 goods_id => [stores_id => stock]
                     if (!empty($partStoreIds)) {
                         $stockData = Db::name('kuerp_goods_stock')
                             ->where(['goods_id' => ['in', $partGoodsIds]])
@@ -476,11 +477,22 @@ class GoodsPurchaseOrder extends Backend
                     }
                 }
 
-                foreach ($partMap as $p) {
+                foreach ($partMap as $goodsId => $p) {
+                    // 计算缺口数量：需求 - 各零件仓库现有库存之和，库存足够则无需采购
+                    $totalStock = 0;
+                    if (isset($stockMap[$goodsId])) {
+                        foreach ($stockMap[$goodsId] as $stk) {
+                            $totalStock += $stk;
+                        }
+                    }
+                    $shortage = round($p['number'], $numberDecimal) - round($totalStock, $numberDecimal);
+                    if ($shortage <= 0) {
+                        continue; // 现有库存已满足需求，不生成采购明细
+                    }
                     $scheduleBomGoods[] = [
                         'goods_code' => $p['goods_code'],
                         'goods_name' => $p['goods_name'],
-                        'number' => round($p['number'], $numberDecimal),
+                        'number' => round($shortage, $numberDecimal),
                         'stores_id' => $p['stores_id'],
                         'unit_id' => $p['unit_id'],
                         'supplyer_code' => isset($goodsSupplierMap[$p['goods_code']]) ? $goodsSupplierMap[$p['goods_code']] : '',

@@ -105,54 +105,29 @@ class Assemble extends Backend
                     $examine_time = '';
                 }
 
+                // 列表只展示组合件信息，不展示子件/子件数量/子件单位
+                $row = [];
+                $row['id'] = $list_v['id'];
+                $row['preparation'] = $preparation;
+                $row['examine'] = $examine;
+                $row['examine_time'] = $examine_time;
+                $row['remark'] = $list_v['remark'];
+                $row['print_num'] = $list_v['print_num'];
+                $row['examine_status'] = $list_v['examine_status'];
+                $row['inbound_status'] = $list_v['inbound_status'];
+                $row['outbound_status'] = $list_v['outbound_status'];
+                $row['sales_order_id'] = $list_v['sales_order_id'];
 
-                $info = Db::name('kuerp_assemble_info')->alias('a')
-                    ->join('kuerp_goods g','g.id=a.goods_id')
-                    ->where(['a.purchase_code'=>$list_v['purchase_code'],'a.type'=>'2'])
-                    ->field('a.number,g.goods_name,a.goods_attr,a.unit_cost,a.cost_money,a.goods_unit')
-                    ->select();
-                foreach ($info as $info_k=>$info_v){
-                    $row = [];
-                    $row['id'] = $list_v['id'];
-                    $row['preparation'] = $preparation;
-                    $row['examine'] = $examine;
-                    $row['examine_time'] = $examine_time;
-                    $row['remark'] = $list_v['remark'];
-                    $row['print_num'] = $list_v['print_num'];
-                    $row['examine_status'] = $list_v['examine_status'];
-                    $row['inbound_status'] = $list_v['inbound_status'];
-                    $row['outbound_status'] = $list_v['outbound_status'];
-                    $row['sales_order_id'] = $list_v['sales_order_id'];
+                $row['purchase_code'] = $list_v['purchase_code'];
+                $row['purchase_time'] = date('Y-m-d',$list_v['purchase_time']);
+                $row['pnumber'] = $p_info['number'];
+                $row['pname'] = $p_info['goods_name'].' '.$p_info['attr_name'];
+                $row['unit_name'] = $p_info['unit_name'];
+                $row['money'] = $list_v['money'];
+                $row['punit_cost'] = $p_info['unit_cost'];
+                $row['pcost_money'] = $p_info['cost_money'];
 
-                    $row['purchase_code'] = $list_v['purchase_code'];
-                    $row['purchase_time'] = date('Y-m-d',$list_v['purchase_time']);
-                    $row['pnumber'] = $p_info['number'];
-                    $row['pname'] = $p_info['goods_name'].' '.$p_info['attr_name'];
-                    $row['unit_name'] = $p_info['unit_name'];
-                    $row['money'] = $list_v['money'];
-                    $row['punit_cost'] = $p_info['unit_cost'];
-                    $row['pcost_money'] = $p_info['cost_money'];
-
-                    $info_v['attr_name'] = '';
-                    if(!empty($info_v['goods_attr'])){
-                        $attribute_id = Db::name('kuerp_goods_attr')->where(['id'=>$info_v['goods_attr']])->value('attribute_id');
-                        $attribute_ids = Db::name('kuerp_aux_combination')->where(['id'=>$attribute_id])->value('attr_ids');
-                        if($attribute_ids){
-                            $attribute_ids = explode('&',$attribute_ids);
-                            $attribute = Db::name('kuerp_auxiliary')->where(['id'=>['in',$attribute_ids]])->column('name');
-                            $info_v['attr_name'] = implode('/',$attribute);
-                        }
-                    }
-                    $info_v['unit_name'] = Db::name('kuerp_unit')->where(['id'=>$info_v['goods_unit']])->value('name');
-
-                    $row['znumber'] = $info_v['number'];
-                    $row['zname'] = $info_v['goods_name'].' '.$info_v['attr_name'];
-                    $row['zunit_cost'] = $info_v['unit_cost'];
-                    $row['zcost_money'] = $info_v['cost_money'];
-                    $row['zunit_name'] = $info_v['unit_name'];
-
-                    $lists[] = $row;
-                }
+                $lists[] = $row;
             }
             $result = array("total" => $list->total(), "rows" => $lists);
 

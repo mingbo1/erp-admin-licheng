@@ -53,11 +53,6 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         // {field: 'money', title: __('组装费用'),merge:['purchase_code']},
                         // {field: 'punit_cost', title: __('组合件单位成本'),merge:['purchase_code'],width:140},
                         // {field: 'pcost_money', title: __('组合件成本'),merge:['purchase_code']},
-                        {field: 'zname', title: __('子件'),width:140},
-                        {field: 'znumber', title: __('子件数量')},
-                        {field: 'zunit_name', title: __('子件单位')},
-                        // {field: 'zunit_cost', title: __('子件单位成本'),width:140},
-                        // {field: 'zcost_money', title: __('子件成本')},
                         {field: 'preparation', title: __('制单人'),merge:['purchase_code']},
                         {field: 'examine_status', title: __('Examine_status'),merge:['purchase_code'], templet: function(d){
                             if(d.examine_status == 0) return '<span style="color:red">' + __('Examine_status 0') + '</span>';
