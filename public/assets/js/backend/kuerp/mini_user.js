@@ -37,7 +37,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         { field: 'status', title: __('Status'), width: 80, templet: function (d) {
                             return d.status == 'normal' ? '<span class="label label-success">正常</span>' : '<span class="label label-default">禁用</span>';
                         }},
-                        { field: 'id', title: __('Operate'), width: 100, templet: function (d) {
+                        { field: 'id', title: __('Operate'), width: 160, templet: function (d) {
                             return '<a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a><a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="del">删除</a>';
                         }}
                     ]]
@@ -61,13 +61,36 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     if(obj.event === 'edit'){
                         Fast.api.open("kuerp/mini_user/edit/ids/" + data.id, __('Edit'), {area:['50%','70%']});
                     } else if(obj.event === 'del'){
-                        Fast.api.ajax({
-                            url: 'kuerp/mini_user/del',
-                            data: { ids: data.id },
-                            success: function () {
-                                table.reload('table', []);
+                        var that = this;
+                        var top = $(that).offset().top - $(window).scrollTop();
+                        var left = $(that).offset().left - $(window).scrollLeft() - 260;
+                        if (top + 154 > $(window).height()) {
+                            top = top - 154;
+                        }
+                        if ($(window).width() < 480) {
+                            top = left = undefined;
+                        }
+                        Layer.confirm(
+                            __('Are you sure you want to delete this item?'),
+                            {icon: 3, title: __('Warning'), offset: [top, left], shadeClose: true},
+                            function (index) {
+                                $.ajax({
+                                    url: 'kuerp/mini_user/del',
+                                    type: 'POST',
+                                    data: { ids: data.id },
+                                    dataType: 'json',
+                                    success: function (res) {
+                                        if (res.code == 1) {
+                                            table.reload('table', []);
+                                        }
+                                        Layer.close(index);
+                                    },
+                                    error: function () {
+                                        Layer.close(index);
+                                    }
+                                });
                             }
-                        });
+                        );
                     }
                 });
 

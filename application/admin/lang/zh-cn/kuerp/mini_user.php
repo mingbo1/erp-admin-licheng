@@ -12,6 +12,7 @@ return [
     'User_type'         => '用户类型',
     'User_type sales'   => '销售员',
     'User_type supplier'=> '供应商',
+    'User_type customer'=> '客户',
     'Staff_id'          => '绑定销售员',
     'Password'          => '登录密码',
     'Men_code'          => '职员编号',

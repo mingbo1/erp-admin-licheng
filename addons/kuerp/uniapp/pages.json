@@ -19,6 +19,14 @@
       }
     },
     {
+      "path": "pages/goods/list",
+      "style": {
+        "navigationBarTitleText": "商品列表",
+        "enablePullDownRefresh": true,
+        "backgroundColor": "#f5f7fa"
+      }
+    },
+    {
       "path": "pages/cart/cart",
       "style": {
         "navigationBarTitleText": "购物车",

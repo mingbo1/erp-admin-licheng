@@ -33,7 +33,7 @@ class MiniUser extends Model
 
     public function getUserTypeList()
     {
-        return ['sales' => __('User_type sales'), 'supplier' => __('User_type supplier')];
+        return ['sales' => __('User_type sales'), 'supplier' => __('User_type supplier'), 'customer' => __('User_type customer')];
     }
 
     public function getStatusTextAttr($value, $data)

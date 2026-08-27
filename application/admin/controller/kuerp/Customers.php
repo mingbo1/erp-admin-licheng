@@ -123,8 +123,12 @@ class Customers extends Backend
                 $allColumn = $currentSheet->getHighestDataColumn(); //取得最大的列号
                 $allRow = $currentSheet->getHighestRow(); //取得一共有多少行
                 $maxColumnNumber = Coordinate::columnIndexFromString($allColumn);
+                // 跳过前14行说明，第15行为表头，第16行开始为数据
+                $headerRow = 15;   // 表头所在行
+                $dataStartRow = 16; // 数据开始行
+
                 $fields = [];
-                for ($currentRow = 2; $currentRow <= 2; $currentRow++) {
+                for ($currentRow = $headerRow; $currentRow <= $headerRow; $currentRow++) {
                     for ($currentColumn = 1; $currentColumn <= $maxColumnNumber; $currentColumn++) {
                         $val = (string)$currentSheet->getCellByColumnAndRow($currentColumn, $currentRow)->getValue();
                         $val = str_replace('*','',$val);
@@ -132,7 +136,7 @@ class Customers extends Backend
                     }
                 }
 
-                for ($currentRow = 3; $currentRow <= $allRow; $currentRow++) {
+                for ($currentRow = $dataStartRow; $currentRow <= $allRow; $currentRow++) {
                     $values = [];
                     for ($currentColumn = 1; $currentColumn <= $maxColumnNumber; $currentColumn++) {
                         $val = (string)$currentSheet->getCellByColumnAndRow($currentColumn, $currentRow)->getValue();

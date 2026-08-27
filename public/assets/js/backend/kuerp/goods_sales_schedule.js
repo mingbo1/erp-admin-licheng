@@ -223,6 +223,25 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     });
                 });
 
+                //选择客户
+                $(document).on("change", "#customers_id", function(){
+                    var customers_id = $(this).val();
+                    // 自动填充客户绑定的销售员
+                    $.ajax( {
+                        url: "kuerp/goods_sales_schedule/getCustomerSaleUser",
+                        type: "POST",
+                        data:{
+                            'customers_id':customers_id,
+                        },
+                        success: function(res){
+                            var data = JSON.parse(res);
+                            if (data.staff_member_id && data.staff_member_id > 0) {
+                                $('#sale_user').val(data.staff_member_id);
+                            }
+                        }
+                    });
+                });
+
                 //数量格式化
                 $(document).on("change", ".number_decimal", function(){
                     var set = Config.set;
@@ -728,8 +747,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                     obj.find('.default_unit').val(v.name);
                                     obj.find('.default_unit_id').val(v.id);
                                     formatInfo(obj,number,v.stock,v.name,v.id,v.basic_nmber);
+                                    obj.data('basic_rate', v.basic_nmber);
                                 }else if(goods_unit!='' && v.id==goods_unit){
                                     formatInfo(obj,number,v.stock,v.name,v.id,v.basic_nmber);
+                                    obj.data('basic_rate', v.basic_nmber);
                                 }
                             });
                             obj.find('.goods_unit').html(unit_html);
@@ -1002,6 +1023,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                     obj.find('.allow_stock').val(v.stock);
                                     var number = obj.find('.number').val();
                                     formatInfo(obj,number,v.stock,v.name,v.id,v.basic_nmber);
+                                    obj.data('basic_rate', v.basic_nmber);
                                 }
                             });
                         }
@@ -1028,6 +1050,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                     obj.find('.allow_stock').val(v.stock);
                                     var number = obj.find('.number').val();
                                     formatInfo(obj,number,v.stock,v.name,v.id,v.basic_nmber);
+                                    obj.data('basic_rate', v.basic_nmber);
                                 }
                             });
                         }
@@ -1120,7 +1143,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 // 「生成采购订单」按钮 — 弹出购货订单添加页，带BOM零件预填
                 $(document).on("click", ".generate-purchase-order", function(){
                     var schedule_id = $(this).data('id');
-                    parent.Fast.api.open("kuerp/goods_purchase_order/add?schedule_id="+schedule_id, "购货订单",{ area:['95%','80%'],});
+                    parent.Fast.api.open("kuerp/goods_purchase_order_plan/add?schedule_id="+schedule_id, "购货订单",{ area:['95%','80%'],});
                 });
 
                 // 「生成组装单」按钮 — 弹出组装单添加页，将该行商品作为组合件、BOM零件作为子件
@@ -1141,6 +1164,36 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     }
                 })();
 
+                // 重新计算一行商品的基本单位数量 = 数量 × 单位换算率
+                // 换算率优先使用行上缓存的 basic_rate（选择商品/切换单位时写入）；
+                // 未缓存时根据现有 basic_nmber/数量 反推（兼容编辑页已保存且一致的数据）。
+                // 数量被修改后 hidden .basic_nmber 不会自动更新，BOM需求计算必须用它，否则数量改了需求不变。
+                function recalcBasicNmber($row) {
+                    var number = parseFloat($row.find('.number').val()) || 0;
+                    if (number <= 0) {
+                        $row.find('.basic_nmber').val(0);
+                        return 0;
+                    }
+                    var rate = parseFloat($row.data('basic_rate'));
+                    if (!rate || isNaN(rate) || rate <= 0) {
+                        var curBasic = parseFloat($row.find('.basic_nmber').val()) || 0;
+                        rate = curBasic > 0 ? (curBasic / number) : 1;
+                        if (!rate || isNaN(rate) || rate <= 0) rate = 1;
+                        $row.data('basic_rate', rate);
+                    }
+                    var basicNmber = number * rate;
+                    // 按系统小数位取整，避免浮点尾差
+                    var nd = 2;
+                    try {
+                        var set = Config.set;
+                        nd = parseInt(set.number_decimal.value) || 2;
+                    } catch(e) {}
+                    basicNmber = parseFloat(basicNmber.toFixed(nd));
+                    // 写回隐藏域，保证保存时落库的也是重算后的正确值
+                    $row.find('.basic_nmber').val(basicNmber);
+                    return basicNmber;
+                }
+
                 // 加载BOM需求数据
                 function loadBomRequirement() {
                     if (!scheduleId) return;
@@ -1155,7 +1208,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         if (goodsCode) {
                             var number = parseFloat($row.find('.number').val()) || 0;
                             var defaultUnit = parseFloat($row.find('.default_unit_id').val()) || 0;
-                            var basicNmber = parseFloat($row.find('.basic_nmber').val()) || 0;
+                            // 数量修改后重新计算基本单位数量（同时写回隐藏域）
+                            var basicNmber = recalcBasicNmber($row);
                             var storesId = $row.find('.stores_id').val() || 0;
                             goodsData.push({
                                 goods_code: goodsCode,
@@ -1286,6 +1340,23 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 if (scheduleId) {
                     loadBomRequirement();
                 }
+
+                // 编辑页已有行：初始化时按"数量×换算率"的初值缓存换算率，
+                // 保证后续修改数量时 basic_nmber 能按正确的换算率重算
+                $('#purchase_table tr').each(function(){
+                    var $row = $(this);
+                    var n = parseFloat($row.find('.number').val()) || 0;
+                    var b = parseFloat($row.find('.basic_nmber').val()) || 0;
+                    if (n > 0 && b > 0 && !$row.data('basic_rate')) {
+                        $row.data('basic_rate', b / n);
+                    }
+                });
+
+                // 数量变更（失焦）时立即重算基本单位数量并写回隐藏域，
+                // 确保点击保存时落库的是重算后的正确值（不等500ms防抖）
+                $(document).on("change", ".number", function(){
+                    recalcBasicNmber($(this).parents('tr'));
+                });
 
                 // BOM刷新按钮
                 $(document).on("click", "#bom-refresh", function(){
@@ -1490,7 +1561,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
 
                 // 当商品数量/单位/仓库改变时自动刷新BOM（防抖500ms）
                 var bomRefreshTimer = null;
-                $(document).on("change input", ".number_ipt, .goods_unit, .stores_id", function(){
+                $(document).on("change input", ".number_ipt, .number, .goods_unit, .stores_id", function(){
                     if (bomRefreshTimer) clearTimeout(bomRefreshTimer);
                     bomRefreshTimer = setTimeout(function(){
                         loadBomRequirement();

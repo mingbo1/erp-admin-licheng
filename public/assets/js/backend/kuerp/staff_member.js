@@ -26,6 +26,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'men_code', title: __('Men_code'), operate: 'LIKE'},
                         {field: 'name', title: __('Name'), operate: 'LIKE'},
                         {field: 'phone', title: __('Phone'), operate: 'LIKE'},
+                        {field: 'type_text', title: __('Type')},
+                        {field: 'admin_nickname', title: __('Admin_id'), operate: 'LIKE'},
                         {field: 'updatetime', title: __('Updatetime'),templet: function (d) {
                                 return layui.util.toDateString(d.updatetime*1000);
                             }},
@@ -151,6 +153,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     var phone = $('#phone').val();
                     if(phone!=''){
                         search.phone = phone;
+                    }
+                    var type = $('#type').val();
+                    if(type!=''){
+                        search.type = type;
                     }
                     var status = $('#status').val();
                     if(status!=''){

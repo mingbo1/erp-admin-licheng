@@ -52,7 +52,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             }},
                         {field: 'receivable', title: __('Receivable'),totalRow:true},
                         {field: 'advance', title: __('Advance'),totalRow:true},
-                        {field: 'balance', title: __('应付款余额'),totalRow:true},
+                        {field: 'balance', title: __('累计应付款'),totalRow:true},
                         {field: 'remark', title: __('Remark')},
                     ]],
                     done: function(res, curr, count){

@@ -18,7 +18,7 @@
         <div class="col-xs-12 col-sm-8">
             <div class="radio">
             {foreach name="userTypeList" item="vo" key="k"}
-            <label for="row[user_type]-{$k}"><input id="row[user_type]-{$k}" name="row[user_type]" type="radio" value="{$k}" {if condition="isset($row['user_type']) ? $row['user_type']==$k : $k=='sales'"}checked{/if} /> {$vo}</label>
+            <label for="row[user_type]-{$k}"><input id="row[user_type]-{$k}" name="row[user_type]" type="radio" value="{$k}" {if condition="isset($row['user_type']) && $row['user_type']==$k"}checked{/if} /> {$vo}</label>
             {/foreach}
             </div>
         </div>

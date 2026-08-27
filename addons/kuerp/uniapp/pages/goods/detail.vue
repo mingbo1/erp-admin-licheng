@@ -103,7 +103,7 @@
     </view>
 
     <!-- 底部弹窗（多规格组件：加入订货单 + 立即购买） -->
-    <GoodsActionSheet
+    <GoodsActionSheet 
       v-model="showSheet"
       :goods="goods"
       :attrGroups="attrGroups"

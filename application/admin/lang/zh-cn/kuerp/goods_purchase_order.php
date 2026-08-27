@@ -8,6 +8,7 @@ return [
     'Purchase_time'      => '单据日期',
     'Delivery_time'      => '交货时间',
     'Supplyer_code'      => '供应商',
+    'Supplier_count'     => '供应商数',
     'Goods_code'         => '商品编号',
     'Goods_note'         => '商品备注',
     'Goods_attr'         => '属性',

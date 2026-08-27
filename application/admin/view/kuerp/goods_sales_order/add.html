@@ -120,7 +120,7 @@
                 <th>{:__('Allow_stock')}</th>
                 <th>{:__('Number')}</th>
                 <th>{:__('Default_unit')}</th>
-                <th>{:__('Basic_nmber')}</th>
+                <!-- <th>{:__('Basic_nmber')}</th> -->
                 <th>{:__('Unit_price')}</th>
                 <th class="goods_tax_sd">{:__('Tax_included')}</th>
                 <!-- <th>{:__('Discount')}</th><th>{:__('Dis_money')}</th> -->
@@ -180,9 +180,7 @@
                     <div><input type="text" readonly class="default_unit"><input type="hidden"
                             name="row[default_unit][]" class="default_unit_id"></div>
                 </td>
-                <td>
-                    <div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly></div>
-                </td>
+                <input type="hidden" name="row[basic_nmber][]" class="basic_nmber number_decimal" value="{$info.basic_nmber|htmlentities}" readonly>
                 <td>
                     <div><input type="number" name="row[unit_price][]" class="unit_price price_decimal"></div>
                 </td>
@@ -259,9 +257,7 @@
                     <div><input type="text" readonly class="default_unit"><input type="hidden"
                             name="row[default_unit][]" class="default_unit_id"></div>
                 </td>
-                <td>
-                    <div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly></div>
-                </td>
+            <input type="hidden" name="row[basic_nmber][]" class="basic_nmber number_decimal" value="{$info.basic_nmber|htmlentities}" readonly>
                 <td>
                     <div><input type="number" name="row[unit_price][]" class="unit_price price_decimal"></div>
                 </td>

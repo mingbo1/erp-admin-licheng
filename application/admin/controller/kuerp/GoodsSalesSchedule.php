@@ -14,7 +14,7 @@ use think\Session;
  */
 class GoodsSalesSchedule extends Backend
 {
-    protected $noNeedRight = ['getunit','formatinfo','getbranch','gettime','printpage','getschedulegoods','counter','examine','getbomrequirement','lockgoods','unlockgoods','getlockstatus'];
+    protected $noNeedRight = ['getunit','formatinfo','getbranch','gettime','printpage','getschedulegoods','counter','examine','getbomrequirement','lockgoods','unlockgoods','getlockstatus','getCustomerSaleUser'];
     /**
      * GoodsSalesSchedule模型对象
      * @var \app\admin\model\kuerp\GoodsSalesSchedule
@@ -1227,6 +1227,19 @@ class GoodsSalesSchedule extends Backend
             'code' => 1,
             'msg' => $result,
         ]);
+    }
+
+    /**
+     * 获取客户绑定的销售员ID
+     */
+    public function getCustomerSaleUser()
+    {
+        $customers_id = isset($_POST['customers_id']) ? trim($_POST['customers_id']) : 0;
+        if (empty($customers_id)) {
+            return json_encode(['staff_member_id' => 0]);
+        }
+        $staff_member_id = Db::name('kuerp_customers')->where(['id' => $customers_id])->value('staff_member_id');
+        return json_encode(['staff_member_id' => $staff_member_id ? (int)$staff_member_id : 0]);
     }
 
     /**

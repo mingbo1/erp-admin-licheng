@@ -17,12 +17,12 @@ return [
     /**
      * 最大可上传大小
      */
-    'maxsize'   => '10mb',
+    'maxsize'   => '30mb',
     /**
      * 可上传的文件类型
      * 如配置允许 pdf,ppt,docx,svg 等可能含有脚本的文件时，请先从服务器配置此类文件直接下载而不是预览
      */
-    'mimetype'  => 'jpg,png,bmp,jpeg,gif,webp,zip,rar,wav,mp4,mp3,webm',
+    'mimetype'  => 'jpg,png,bmp,jpeg,gif,webp,zip,rar,wav,mp4,mp3,webm,xlsx,pdf,docx,doc,xls',
     /**
      * 是否支持批量上传
      */

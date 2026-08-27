@@ -770,6 +770,59 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         $(this).parents('tr').find('.batch_id').val('');
                     });
 
+                    // ===== 使用BOM模版 =====
+                    $(document).on("click", ".mb_bom", function () {
+                        parent.Fast.api.open("kuerp/goods_bom/chosebom", "选择BOM模板", { area: ['90%', '75%'], callback: function (goodsData) {
+                            if (goodsData != undefined && goodsData.length > 0) {
+                                var bom_id = goodsData[0].id;
+                                $.ajax({
+                                    url: "kuerp/goods_bom/getbomdetail",
+                                    type: "POST",
+                                    data: { 'id': bom_id },
+                                    success: function (res) {
+                                        if (res.code == 1) {
+                                            var parent = res.data.parent;
+                                            var children = res.data.children;
+
+                                            // 入库成品（父件）→ in_table
+                                            var inTable = $('#in_table');
+                                            var inTemplateHtml = inTable.find('tr').eq(1).html();
+                                            var inRows = inTable.find('tr');
+                                            for (var i = inRows.length - 1; i >= 1; i--) { $(inRows[i]).remove(); }
+                                            var parentRow = $('<tr>' + inTemplateHtml + '</tr>');
+                                            inTable.append(parentRow);
+                                            parentRow.find('.goods_code').val(parent.goods_code);
+                                            parentRow.find('.goods_name').val(parent.goods_code + ' ' + parent.goods_name);
+                                            changeGoods(parent.goods_code, parent.manager_warehouse_id > 0 ? parent.manager_warehouse_id : '', '', parentRow, parent.unit_id > 0 ? parent.unit_id : '', parent.number, 'in');
+
+                                            // 出库原材料（子件）→ out_table
+                                            var outTable = $('#out_table');
+                                            var outTemplateHtml = outTable.find('tr').eq(1).html();
+                                            var outRows = outTable.find('tr');
+                                            for (var j = outRows.length - 1; j >= 1; j--) { $(outRows[j]).remove(); }
+                                            $(children).each(function (k, v) {
+                                                var newRow = $('<tr>' + outTemplateHtml + '</tr>');
+                                                outTable.append(newRow);
+                                                newRow.find('.goods_code').val(v.goods_code);
+                                                newRow.find('.goods_names').val(v.goods_code + ' ' + v.goods_name);
+                                                changeGoods(v.goods_code, v.manager_warehouse_id > 0 ? v.manager_warehouse_id : '', '', newRow, v.unit_id > 0 ? v.unit_id : '', v.number, 'out');
+                                            });
+
+                                            // 重新绑定日期选择器
+                                            layui.use('laydate', function () {
+                                                var laydate = layui.laydate;
+                                                lay('.manufacture').each(function () { laydate.render({ elem: this, trigger: "click" }); });
+                                                lay('.validity').each(function () { laydate.render({ elem: this, trigger: "click" }); });
+                                            });
+                                        } else {
+                                            Toastr.error(res.msg);
+                                        }
+                                    }
+                                });
+                            }
+                        } });
+                    });
+
                     // 表单提交
                     Form.api.bindevent($("form[role=form]"), function (data, ret) {
                         $.ajax({

@@ -14,7 +14,7 @@ use think\Session;
  */
 class GoodsSalesOutbound extends Backend
 {
-    protected $noNeedRight = ['getunit','formatinfo2','getbranch','gettime','printpage','outbound','saveoutbound'];
+    protected $noNeedRight = ['getunit','formatinfo2','getbranch','gettime','printpage','outbound','saveoutbound','checkpurchase','getsuppliers','getunits','getreceivingaddress'];
 
     /**
      * GoodsSales模型对象（与销货单共用同一张表）

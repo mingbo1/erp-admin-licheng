@@ -33,6 +33,34 @@ class StaffMember extends Backend
 
         $this->model = new \app\admin\model\kuerp\StaffMember;
         $this->view->assign("statusList", $this->model->getStatusList());
+        $this->view->assign("typeList", $this->model->getTypeList());
+        $this->assignconfig('typeList', $this->model->getTypeList());
+    }
+
+    /**
+     * 查看
+     */
+    public function index()
+    {
+        $this->relationSearch = true;
+        $this->request->filter(['strip_tags', 'trim']);
+        if ($this->request->isAjax()) {
+            if ($this->request->request('keyField')) {
+                return $this->selectpage();
+            }
+            list($where, $sort, $order, $offset, $limit) = $this->buildparams();
+
+            $list = $this->model
+                ->with(['admin'])
+                ->where($where)
+                ->order($sort, $order)
+                ->paginate($limit);
+
+            $result = array("total" => $list->total(), "rows" => $list->items());
+
+            return json($result);
+        }
+        return $this->view->fetch();
     }
 
     public function import()
@@ -103,8 +131,12 @@ class StaffMember extends Backend
                 $allColumn = $currentSheet->getHighestDataColumn(); //取得最大的列号
                 $allRow = $currentSheet->getHighestRow(); //取得一共有多少行
                 $maxColumnNumber = Coordinate::columnIndexFromString($allColumn);
+                // 跳过前11行说明，第11行为表头，第12行开始为数据
+                $headerRow = 11;  // 表头所在行（说明最后一行）
+                $dataStartRow = 12; // 数据开始行
+
                 $fields = [];
-                for ($currentRow = 1; $currentRow <= 1; $currentRow++) {
+                for ($currentRow = $headerRow; $currentRow <= $headerRow; $currentRow++) {
                     for ($currentColumn = 1; $currentColumn <= $maxColumnNumber; $currentColumn++) {
                         $val = (string)$currentSheet->getCellByColumnAndRow($currentColumn, $currentRow)->getValue();
                         $val = str_replace('*','',$val);
@@ -112,7 +144,7 @@ class StaffMember extends Backend
                     }
                 }
 
-                for ($currentRow = 2; $currentRow <= $allRow; $currentRow++) {
+                for ($currentRow = $dataStartRow; $currentRow <= $allRow; $currentRow++) {
                     $values = [];
                     for ($currentColumn = 1; $currentColumn <= $maxColumnNumber; $currentColumn++) {
                         $val = (string)$currentSheet->getCellByColumnAndRow($currentColumn, $currentRow)->getValue();
@@ -133,6 +165,16 @@ class StaffMember extends Backend
                 }
             }
 
+            // 职员类型映射
+            $typeMap = [
+                '销售员'   => 'sales',
+                '计划'     => 'plan',
+                '仓库管理员' => 'warehouse',
+                '财务'     => 'finance',
+                '销售部长'  => 'sales_director',
+                '管理员'   => 'admin',
+            ];
+
             $params = [];
             $code = [];
             $now_code = [];
@@ -149,6 +191,11 @@ class StaffMember extends Backend
                         'createtime'        => time(),
                         'updatetime'        => time(),
                     ];
+                    // 如果导入了职员类型（trim去除Excel单元格多余空格）
+                    $staffType = trim($insert_v['职员类型'] ?? '');
+                    if(!empty($staffType) && isset($typeMap[$staffType])){
+                        $params[$insert_k]['type'] = $typeMap[$staffType];
+                    }
                 }
             }
 

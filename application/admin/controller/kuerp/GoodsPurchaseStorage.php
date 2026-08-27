@@ -279,7 +279,9 @@ class GoodsPurchaseStorage extends GoodsPurchase
                 }
 
                 // 预加载关联的订单明细
-                $orderInfoIds = array_column($info_list, 'order_info_id');
+                $orderInfoIds = array_filter(array_column($info_list, 'order_info_id'), function($v) {
+                    return !empty($v) && $v > 0;
+                });
                 $orderInfoMap = [];
                 if (!empty($orderInfoIds)) {
                     $orderInfos = Db::name('kuerp_goods_purchase_order_info')
@@ -287,6 +289,75 @@ class GoodsPurchaseStorage extends GoodsPurchase
                         ->select();
                     foreach ($orderInfos as $oi) {
                         $orderInfoMap[$oi['id']] = $oi;
+                    }
+                }
+
+                // 预加载 purord_info 桥接表，用于 order_info_id 为0时的回退查找
+                $purordInfoMap = [];
+                $needFallbackIds = [];
+                foreach ($info_list as $info) {
+                    if (empty($info['order_info_id']) || $info['order_info_id'] == 0) {
+                        $needFallbackIds[] = $info['id'];
+                    }
+                }
+                if (!empty($needFallbackIds)) {
+                    $purordInfos = Db::name('kuerp_goods_purord_info')
+                        ->where(['purchase_id' => ['in', $needFallbackIds]])
+                        ->select();
+                    foreach ($purordInfos as $pi) {
+                        $purordInfoMap[$pi['purchase_id']] = $pi;
+                    }
+                    // 通过 purord_info 桥接表加载缺失的订单明细
+                    $fallbackOrderIds = array_filter(array_column($purordInfos, 'order_id'));
+                    if (!empty($fallbackOrderIds)) {
+                        $fallbackOrderInfos = Db::name('kuerp_goods_purchase_order_info')
+                            ->where(['id' => ['in', $fallbackOrderIds]])
+                            ->select();
+                        foreach ($fallbackOrderInfos as $foi) {
+                            if (!isset($orderInfoMap[$foi['id']])) {
+                                $orderInfoMap[$foi['id']] = $foi;
+                            }
+                        }
+                    }
+                }
+
+                // 对于仍未找到订单明细的，通过订单号+商品编码模糊匹配预加载
+                $stillMissing = [];
+                foreach ($info_list as $info) {
+                    $oi_id = $info['order_info_id'];
+                    if ((empty($oi_id) || $oi_id == 0 || !isset($orderInfoMap[$oi_id]))
+                        && !empty($row['purchase_order_id'])) {
+                        // 检查 purord_info 桥接表是否已命中
+                        $found = false;
+                        if (isset($purordInfoMap[$info['id']])) {
+                            $bridgeOrderId = $purordInfoMap[$info['id']]['order_id'];
+                            if (isset($orderInfoMap[$bridgeOrderId])) {
+                                $found = true;
+                            }
+                        }
+                        if (!$found) {
+                            $stillMissing[] = $info;
+                        }
+                    }
+                }
+                if (!empty($stillMissing)) {
+                    $fallbackByCode = Db::name('kuerp_goods_purchase_order_info')
+                        ->where(['purchase_code' => $row['purchase_order_id']])
+                        ->select();
+                    // 按 (goods_code, goods_attr) 索引
+                    $fallbackByCodeMap = [];
+                    foreach ($fallbackByCode as $fbc) {
+                        $key = $fbc['goods_code'] . '_' . $fbc['goods_attr'];
+                        $fallbackByCodeMap[$key] = $fbc;
+                    }
+                    foreach ($stillMissing as $info) {
+                        $key = $info['goods_code'] . '_' . $info['goods_attr'];
+                        if (isset($fallbackByCodeMap[$key])) {
+                            $foi = $fallbackByCodeMap[$key];
+                            if (!isset($orderInfoMap[$foi['id']])) {
+                                $orderInfoMap[$foi['id']] = $foi;
+                            }
+                        }
                     }
                 }
 
@@ -306,7 +377,35 @@ class GoodsPurchaseStorage extends GoodsPurchase
 
                     $info   = $info_by_id[$info_id];
                     $oi_id  = $info['order_info_id'];
-                    $oi     = isset($orderInfoMap[$oi_id]) ? $orderInfoMap[$oi_id] : null;
+                    $need_backfill = false;
+                    $oi = null;
+
+                    // 方法1: 优先从直接关联的 order_info_id 查找
+                    if (!empty($oi_id) && $oi_id > 0 && isset($orderInfoMap[$oi_id])) {
+                        $oi = $orderInfoMap[$oi_id];
+                    }
+                    // 方法2: 通过 purord_info 桥接表查找
+                    if (!$oi && isset($purordInfoMap[$info_id])) {
+                        $bridgeOrderId = $purordInfoMap[$info_id]['order_id'];
+                        if (isset($orderInfoMap[$bridgeOrderId])) {
+                            $oi = $orderInfoMap[$bridgeOrderId];
+                            $oi_id = $bridgeOrderId;
+                            $need_backfill = true;
+                        }
+                    }
+                    // 方法3: 通过订单号+商品编码+属性反向查找（已在预加载阶段处理）
+                    if (!$oi && !empty($row['purchase_order_id'])) {
+                        $key = $info['goods_code'] . '_' . $info['goods_attr'];
+                        foreach ($orderInfoMap as $mappedId => $mappedOi) {
+                            $mappedKey = $mappedOi['goods_code'] . '_' . $mappedOi['goods_attr'];
+                            if ($mappedKey === $key && $mappedOi['purchase_code'] === $row['purchase_order_id']) {
+                                $oi = $mappedOi;
+                                $oi_id = $mappedId;
+                                $need_backfill = true;
+                                break;
+                            }
+                        }
+                    }
                     if (!$oi) {
                         $this->error('商品 ' . $info['goods_code'] . ' 未找到关联的采购订单明细');
                     }
@@ -331,6 +430,7 @@ class GoodsPurchaseStorage extends GoodsPurchase
                         'storage_input'  => $storage_input,     // 本次入库量
                         'storage_number' => $newStored,         // 累计入库量
                         'library_remain' => $orderNum - $newStored, // 剩余未入库
+                        'need_backfill'  => $need_backfill,     // 是否需要回填 order_info_id
                     ];
                     $total_store += $storage_input;
                 }
@@ -369,14 +469,39 @@ class GoodsPurchaseStorage extends GoodsPurchase
                         Db::name('kuerp_goods')->where(['id' => $item['goods_id']])->setInc('inventory', $item['storage_input']);
 
                         // 3. 更新 purchase_info 的 storage_number（累计已入库）
+                        $updateData = ['storage_number' => $item['storage_number']];
+                        // 如果 order_info_id 之前缺失（通过回退查找获得），回填到 purchase_info
+                        if (!empty($item['need_backfill'])) {
+                            $updateData['order_info_id'] = $item['order_info_id'];
+                        }
                         Db::name('kuerp_goods_purchase_info')
                             ->where(['id' => $item['info_id']])
-                            ->update(['storage_number' => $item['storage_number']]);
+                            ->update($updateData);
 
-                        // 4. 同步 purord_info
-                        Db::name('kuerp_goods_purord_info')
+                        // 4. 同步 purord_info（桥接表不存在则创建）
+                        $existPurord = Db::name('kuerp_goods_purord_info')
                             ->where(['purchase_id' => $item['info_id']])
-                            ->update(['number' => $item['storage_number']]);
+                            ->find();
+                        if ($existPurord) {
+                            Db::name('kuerp_goods_purord_info')
+                                ->where(['purchase_id' => $item['info_id']])
+                                ->update(['number' => $item['storage_number']]);
+                        } elseif (!empty($item['order_info_id']) && $item['order_info_id'] > 0) {
+                            // 桥接记录缺失时自动创建，确保后续流程正常
+                            $info = isset($info_by_id[$item['info_id']]) ? $info_by_id[$item['info_id']] : null;
+                            if ($info) {
+                                Db::name('kuerp_goods_purord_info')->insert([
+                                    'order_id'         => $item['order_info_id'],
+                                    'purchase_id'      => $item['info_id'],
+                                    'number'           => $item['storage_number'],
+                                    'money'            => $info['pay_money'] ?? 0,
+                                    'all_money'        => $info['all_money'] ?? 0,
+                                    'tax_rate'         => $info['tax_rate'] ?? 0,
+                                    'tax_money'        => $info['tax_money'] ?? 0,
+                                    'money_tax_price'  => $info['money_tax_price'] ?? 0,
+                                ]);
+                            }
+                        }
 
                         // 5. 更新 order_info 的 library_number（未入库数量）和 status
                         $oiStatus = ($item['library_remain'] <= 0) ? '1' : '2'; // 1=全部入库,2=部分入库

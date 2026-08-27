@@ -106,8 +106,12 @@ class Stores extends Backend
                 $allColumn = $currentSheet->getHighestDataColumn(); //取得最大的列号
                 $allRow = $currentSheet->getHighestRow(); //取得一共有多少行
                 $maxColumnNumber = Coordinate::columnIndexFromString($allColumn);
+                // 跳过前10行说明，第11行为表头，第12行开始为数据
+                $headerRow = 11;   // 表头所在行
+                $dataStartRow = 12; // 数据开始行
+
                 $fields = [];
-                for ($currentRow = 1; $currentRow <= 1; $currentRow++) {
+                for ($currentRow = $headerRow; $currentRow <= $headerRow; $currentRow++) {
                     for ($currentColumn = 1; $currentColumn <= $maxColumnNumber; $currentColumn++) {
                         $val = (string)$currentSheet->getCellByColumnAndRow($currentColumn, $currentRow)->getValue();
                         $val = str_replace('*','',$val);
@@ -115,7 +119,7 @@ class Stores extends Backend
                     }
                 }
 
-                for ($currentRow = 2; $currentRow <= $allRow; $currentRow++) {
+                for ($currentRow = $dataStartRow; $currentRow <= $allRow; $currentRow++) {
                     $values = [];
                     for ($currentColumn = 1; $currentColumn <= $maxColumnNumber; $currentColumn++) {
                         $val = (string)$currentSheet->getCellByColumnAndRow($currentColumn, $currentRow)->getValue();

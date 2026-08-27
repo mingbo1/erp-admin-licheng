@@ -1514,6 +1514,61 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         }});
                 });
 
+                //使用BOM模版
+                $(document).on("click", ".mb_bom", function(){
+                    parent.Fast.api.open("kuerp/goods_bom/chosebom", "选择BOM模板", {area:['90%','75%'], callback: function(goodsData){
+                        if(goodsData != undefined && goodsData.length > 0){
+                            var bom_id = goodsData[0].id;
+                            $.ajax({
+                                url: "kuerp/goods_bom/getbomdetail",
+                                type: "POST",
+                                data: {'id': bom_id},
+                                success: function(res){
+                                    if(res.code == 1){
+                                        var parent = res.data.parent;
+                                        var children = res.data.children;
+
+                                        // 组合件（父件）
+                                        var parentRow = $('#assemble_table').find('.goods_code').parents('tr');
+                                        parentRow.find('.goods_code').val(parent.goods_code);
+                                        parentRow.find('.goods_names').val(parent.goods_code + ' ' + parent.goods_name);
+                                        changeGoods(parent.goods_code, parent.manager_warehouse_id > 0 ? parent.manager_warehouse_id : '', '', parentRow, parent.unit_id > 0 ? parent.unit_id : '', parent.number);
+
+                                        // 子件
+                                        var childTable = $('#assemble_table_c');
+                                        var templateRow = childTable.find('tr').eq(1);
+                                        var rows = childTable.find('tr');
+                                        for (var i = rows.length - 1; i >= 2; i--) {
+                                            $(rows[i]).remove();
+                                        }
+                                        $(children).each(function (k, v) {
+                                            var newRow = $(templateRow).clone();
+                                            newRow.show();
+                                            newRow.find('.goods_code').val(v.goods_code);
+                                            newRow.find('.goods_name').val(v.goods_code + ' ' + v.goods_name);
+                                            childTable.append(newRow);
+                                            changeGoods(v.goods_code, v.manager_warehouse_id > 0 ? v.manager_warehouse_id : '', '', newRow, v.unit_id > 0 ? v.unit_id : '', v.number);
+                                        });
+
+                                        // 重新绑定日期选择器
+                                        layui.use('laydate', function () {
+                                            var laydate = layui.laydate;
+                                            lay('.manufacture').each(function () {
+                                                laydate.render({ elem: this, trigger: "click", done: function (value) { manufacture(); } });
+                                            });
+                                            lay('.validity').each(function () {
+                                                laydate.render({ elem: this, trigger: "click", done: function (value) { validity(); } });
+                                            });
+                                        });
+                                    } else {
+                                        Toastr.error(res.msg);
+                                    }
+                                }
+                            });
+                        }
+                    }});
+                });
+
                 // 删除行
                 $(document).on("click", ".del", function(){
                     var lawtable = document.getElementById("assemble_table_c");

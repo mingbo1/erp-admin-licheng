@@ -1,24 +1,4 @@
 {include file="kuerp/common/menu" /}
-{if condition="isset($set['examine']['is_checked']) && $set['examine']['is_checked']==1"}
-{if condition="$row.second_examine_status==1"}
-<div class="">
-    {if condition="$row.purchase_type==1"}
-    <button type="button" class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger fright purchase" data-id="{$row.id}" style="padding-left: 10px;">生成购货单</button>
-    {else/}
-    <button type="button" class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger fright exchange" data-id="{$row.id}" style="padding-left: 10px;">生成退货单</button>
-    {/if}
-</div>
-{/if}
-{else/}
-<div class="">
-    {if condition="$row.purchase_type==1"}
-    <button type="button" class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger fright purchase" data-id="{$row.id}" style="padding-left: 10px;">生成购货单</button>
-    {else/}
-    <button type="button" class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger fright exchange" data-id="{$row.id}" style="padding-left: 10px;">生成退货单</button>
-    {/if}
-</div>
-{/if}
-<div style="clear: both;height: 10px;"></div>
 <form id="edit-form" class="form-horizontal" role="form" data-toggle="validator" method="POST" action="">
     <div class="row">
         <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
@@ -29,19 +9,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
-            <div class="form-group">
-                <label class="control-label col-xs-12 col-sm-4">{:__('Supplyer_code')}:</label>
-                <div class="col-xs-12 col-sm-8">
-                    <select name="row[supplyer_code]" id="supplyer_code" class="form-control" data-rule="required">
-                        <option value="">请选择{:__('Supplyer_code')}</option>
-                        {foreach name="suppliersList" item="vo"}
-                        <option value="{$vo.supplyer_code}" {if condition="$vo.supplyer_code==$row.supplyer_code"}selected{/if}>{$vo.supplyer_code} {$vo.supplyer_name}</option>
-                        {/foreach}
-                    </select>
-                </div>
-            </div>
-        </div>
+        <input type="hidden" name="row[supplyer_code]" id="supplyer_code" value="{$row.supplyer_code|htmlentities}">
         <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
             <div class="form-group">
                 <label class="control-label col-xs-12 col-sm-4">{:__('Purchase_time')}:</label>
@@ -104,7 +72,7 @@
                             </span>
                         </span>
                     </th>
-                    <th>{:__('Goods_note')}</th><th class="goods_attr_sd">{:__('Goods_attr')}</th><th>{:__('Goods_unit')}</th><th>{:__('Stores_id')}</th><th>{:__('Allow_stock')}</th>
+                    <th>{:__('Goods_note')}</th><th class="goods_attr_sd">{:__('Goods_attr')}</th><th>{:__('Goods_unit')}</th><th>{:__('Stores_id')}</th><th>{:__('Supplyer_code')}</th><th>{:__('Allow_stock')}</th>
                     <th>{:__('Number')}</th><th>{:__('Default_unit')}</th><th>{:__('Basic_nmber')}</th><th>{:__('Unit_price')}</th><th class="goods_tax_sd">{:__('Tax_included')}</th>
                     <!-- <th>{:__('Discount')}</th>
                     <th>{:__('Dis_money')}</th> -->
@@ -145,7 +113,17 @@
                             </select>
                         </div>
                     </td>
-                    <td><div><input type="number" name="row[allow_stock][]" class="allow_stock" readonly></div></td>
+                    <td>
+                    <div>
+                        <select name="row[row_supplyer_code][]" class="form-control row-supplyer_code">
+                            <option value=""></option>
+                            {foreach name="suppliersList" item="vo"}
+                            <option value="{$vo.supplyer_code}">{$vo.supplyer_code} {$vo.supplyer_name}</option>
+                            {/foreach}
+                        </select>
+                    </div>
+                </td>
+                <td><div><input type="number" name="row[allow_stock][]" class="allow_stock" readonly></div></td>
                     <td><div><input type="number" name="row[number][]" class="number number_decimal"></div></td>
                     <td><div><input type="text" readonly class="default_unit"><input type="hidden" name="row[default_unit][]" class="default_unit_id"></div></td>
                     <td><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly></div></td>
@@ -162,7 +140,30 @@
                     <td><div><input type="text" name="row[remark][]" class="remark"></div></td>
                     <td><div><input type="text" name="row[sales_order_id][]" readonly></div></td>
                 </tr>
-                {foreach name="purchase_info" item="info" key="k"}
+                {foreach name="supplierGroups" item="group"}
+                <!-- 供应商分组标题行 -->
+                <tr class="supplier-group-header" style="background:#f5f5f5;border-left:4px solid #1890ff">
+                    <td colspan="19">
+                        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0">
+                            <div>
+                                <strong style="font-size:14px;color:#333">
+                                    <i class="fa fa-truck"></i> 供应商：{$group.supplyer_code} {$group.supplyer_name}
+                                </strong>
+                                <span style="margin-left:20px;color:#666">商品数：<b>{$group.goods_count}</b> 种</span>
+                                <span style="margin-left:15px;color:#666">金额：<b style="color:#f5222d">¥{$group.total_money|round=2}</b></span>
+                            </div>
+                            <div>
+                            {if condition="$group.generated"}
+                                <a href="javascript:;" class="layui-btn layui-btn-sm layui-btn-normal view-purchase" data-purchase-code="{$group.purchase_code}" data-purchase-id="{$group.purchase_id}">查看购货单：{$group.purchase_code}</a>
+                            {else/}
+                                <button type="button" class="layui-btn layui-btn-sm layui-btn-danger purchase-group" data-id="{$row.id}" data-supplier="{$group.supplyer_code}">生成购货单({$group.supplyer_name})</button>
+                            {/if}
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                <!-- 供应商商品行 -->
+                {foreach name="group.items" item="info" key="k"}
                 <tr>
                     <td class="{$exclass|default=''}"><div class="btn"><span class="add"><i class="fa fa-plus"></i></span><span class="del"><i class="fa fa-trash"></i></span></div></td>
                     <td>
@@ -208,7 +209,17 @@
                             </select>
                         </div>
                     </td>
-                    <td><div><input type="number" name="row[allow_stock][]" value="{$info.allow_stock|htmlentities}" class="allow_stock" readonly></div></td>
+                    <td>
+                    <div>
+                        <select name="row[row_supplyer_code][]" class="form-control row-supplyer_code">
+                            <option value=""></option>
+                            {foreach name="suppliersList" item="vo"}
+                            <option value="{$vo.supplyer_code}" {if condition="$vo.supplyer_code==$info.supplyer_code"}selected{/if}>{$vo.supplyer_code} {$vo.supplyer_name}</option>
+                            {/foreach}
+                        </select>
+                    </div>
+                </td>
+                <td><div><input type="number" name="row[allow_stock][]" value="{$info.allow_stock|htmlentities}" class="allow_stock" readonly></div></td>
                     <td><div><input type="number" name="row[number][]" value="{$info.number|htmlentities}" class="number number_decimal"></div></td>
                     <td><div><input type="text" readonly class="default_unit" value="{$unit_name|default=''}"><input type="hidden" value="{$info.default_unit|htmlentities}" name="row[default_unit][]" class="default_unit_id"></div></td>
                     <td><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" value="{$info.basic_nmber|htmlentities}" readonly></div></td>
@@ -225,6 +236,7 @@
                     <td><div><input type="text" name="row[remark][]" class="remark" value="{$info.remark|htmlentities}"></div></td>
                     <td><div><input type="text" name="row[sales_order_id][]" readonly value="{$info.sales_order_id|htmlentities}"></div></td>
                 </tr>
+                {/foreach}
                 {/foreach}
                 {php}for($a=0;$a<(4-sizeof($purchase_info));$a++){ {/php}
                 <tr>
@@ -261,7 +273,17 @@
                             </select>
                         </div>
                     </td>
-                    <td><div><input type="number" name="row[allow_stock][]" class="allow_stock" readonly></div></td>
+                    <td>
+                    <div>
+                        <select name="row[row_supplyer_code][]" class="form-control row-supplyer_code">
+                            <option value=""></option>
+                            {foreach name="suppliersList" item="vo"}
+                            <option value="{$vo.supplyer_code}">{$vo.supplyer_code} {$vo.supplyer_name}</option>
+                            {/foreach}
+                        </select>
+                    </div>
+                </td>
+                <td><div><input type="number" name="row[allow_stock][]" class="allow_stock" readonly></div></td>
                     <td><div><input type="number" name="row[number][]" class="number number_decimal"></div></td>
                     <td><div><input type="text" readonly class="default_unit"><input type="hidden" name="row[default_unit][]" class="default_unit_id"></div></td>
                     <td><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly></div></td>

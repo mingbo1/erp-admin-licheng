@@ -14,12 +14,18 @@ use think\Session;
  */
 class GoodsSales extends Backend
 {
-    protected $noNeedRight = ['checkpurchase','getsuppliers','getunits','getunit','formatinfo2','getbranch','gettime','getreceivingaddress','printpage','dunning','deldunning'];
+    protected $noNeedRight = ['checkpurchase','getsuppliers','getunits','getunit','formatinfo2','getbranch','gettime','getreceivingaddress','printpage','getCustomerSaleUser'];
     /**
      * GoodsSales模型对象
      * @var \app\admin\model\kuerp\GoodsSales
      */
     protected $model = null;
+
+    /**
+     * 当前登录管理员的销售人员ID（仅当管理员绑定type=sales的职员时）
+     * @var int|null
+     */
+    protected $currentSaleUserId = null;
 
     public function _initialize()
     {
@@ -63,6 +69,23 @@ class GoodsSales extends Backend
         // 二次审核金额阈值
         $sales_order_examine_money = Db::name('kuerp_sets')->where(['name'=>'sales_order_examine_money'])->value('value');
         $this->assignconfig('sales_order_examine_money', $sales_order_examine_money ? $sales_order_examine_money : '0');
+
+        // 检查当前管理员是否绑定销售类型职员，若是则只能查看自己的销货单
+        // 超级管理员不受此限制
+        if (!$this->auth->isSuperAdmin()) {
+            $admin = Session::get('admin');
+            if ($admin) {
+                $staff = Db::name('kuerp_staff_member')
+                    ->where(['admin_id' => $admin['id'], 'type' => 'sales', 'status' => '1'])
+                    ->find();
+                if ($staff) {
+                    $this->currentSaleUserId = $staff['id'];
+                }
+            }
+        }
+        $this->assignconfig('currentSaleUserId', $this->currentSaleUserId);
+        // 催收权限标识（前端据此控制「催收」按钮的显示/隐藏）
+        $this->assignconfig('dunning_right', $this->auth->check('kuerp/goods_sales/dunning'));
     }
 
     /**
@@ -84,14 +107,22 @@ class GoodsSales extends Backend
         if ($this->request->isAjax()) {
             //如果发送的来源是Selectpage，则转发到Selectpage
             if ($this->request->request('keyField')) {
+                // 普通销售员在selectpage中也只能看到自己的销货单
+                if (!empty($this->currentSaleUserId)) {
+                    $this->model->where('sale_user', $this->currentSaleUserId);
+                }
                 return $this->selectpage();
             }
             list($where, $sort, $order, $offset, $limit) = $this->buildparams();
             $sort = 'purchase_time';$order='DESC';
             $list = $this->model
                 ->with(['customers','preparation','examine','secondExamine','dunning'])
-                ->where($where)
-                ->order($sort, $order)
+                ->where($where);
+            // 普通销售员只能查看自己的销货单
+            if (!empty($this->currentSaleUserId)) {
+                $list = $list->where('sale_user', $this->currentSaleUserId);
+            }
+            $list = $list->order($sort, $order)
                 ->order('purchase_code', 'DESC')
                 ->paginate($limit);
 
@@ -155,6 +186,10 @@ class GoodsSales extends Backend
                 }
 
                 $admin = Session::get('admin');
+                // 普通销售员强制绑定自己为销售员，不可选择他人
+                if (!empty($this->currentSaleUserId)) {
+                    $params['sale_user'] = $this->currentSaleUserId;
+                }
                 if($params['now_pay_money']>0){
                     if(empty($params['account'])){
                         $this->error('请选择结算账户');
@@ -626,6 +661,10 @@ class GoodsSales extends Backend
         if (!$row) {
             $this->error(__('No Results were found'));
         }
+        // 普通销售员只能编辑自己的销货单
+        if (!empty($this->currentSaleUserId) && $row['sale_user'] != $this->currentSaleUserId) {
+            $this->error('无权编辑该销货单');
+        }
         // 如果销货单没有交货时间，从关联的销货订单获取
         if (empty($row['delivery_time']) && !empty($row['purchase_order_id'])) {
             $orderDeliveryTime = Db::name('kuerp_goods_sales_order')
@@ -664,6 +703,10 @@ class GoodsSales extends Backend
                 }
 
                 $admin = Session::get('admin');
+                // 普通销售员强制绑定自己为销售员，不可选择他人
+                if (!empty($this->currentSaleUserId)) {
+                    $params['sale_user'] = $this->currentSaleUserId;
+                }
                 if($params['now_pay_money']>0){
                     if(empty($params['account'])){
                         $this->error('请选择结算账户');
@@ -1084,6 +1127,10 @@ class GoodsSales extends Backend
             $examine= Db::name('kuerp_sets')->where(['name'=>'examine'])->value('is_checked');
             if (is_array($adminIds)) {
                 $this->model->where($this->dataLimitField, 'in', $adminIds);
+            }
+            // 普通销售员只能删除自己的销货单
+            if (!empty($this->currentSaleUserId)) {
+                $this->model->where('sale_user', $this->currentSaleUserId);
             }
             $list = $this->model->where($pk, 'in', $ids)->select();
             $goods_purchase_id = [];$goods_purchase_code = [];
@@ -2947,6 +2994,17 @@ class GoodsSales extends Backend
         }
         $address = Db::name('kuerp_customers')->where(['id'=>$customers_id])->value('getgoods_address');
         return (empty($address)?'':$address);
+    }
+
+    //获取客户绑定的销售员ID
+    public function getCustomerSaleUser()
+    {
+        $customers_id = isset($_POST['customers_id']) ? trim($_POST['customers_id']) : 0;
+        if (empty($customers_id)) {
+            return json_encode(['staff_member_id' => 0]);
+        }
+        $staff_member_id = Db::name('kuerp_customers')->where(['id' => $customers_id])->value('staff_member_id');
+        return json_encode(['staff_member_id' => $staff_member_id ? (int)$staff_member_id : 0]);
     }
 
     // 打印销货单详情

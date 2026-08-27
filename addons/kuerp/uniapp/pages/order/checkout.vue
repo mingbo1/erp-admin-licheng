@@ -4,12 +4,12 @@
     <view class="section-card">
       <view class="section-header">
         <text class="section-title">下单客户</text>
-        <view class="section-action" @click="showCustomerPicker = true">
+        <view class="section-action" @click="showCustomerPicker = true" v-if="!customerFixed">
           {{ customer ? '切换' : '请选择' }}
           <u-icon name="arrow-right" size="24" color="#2979ff" />
         </view>
       </view>
-      <view class="customer-info" v-if="customer" @click="showCustomerPicker = true">
+      <view class="customer-info" v-if="customer" @click="customerFixed ? null : showCustomerPicker = true">
         <text class="customer-name">{{ customer.customer_name }}</text>
         <text class="customer-contact" v-if="customer.customer_mobile">{{ customer.customer_mobile }}</text>
       </view>
@@ -194,7 +194,7 @@
 </template>
 
 <script>
-import { cartApi, orderApi, customerApi } from '../../api'
+import { cartApi, orderApi, customerApi, userApi } from '../../api'
 
 export default {
   data() {
@@ -206,6 +206,7 @@ export default {
       submitting: false,
       directGoods: null,
       cartIds: '',
+      customerFixed: false,
 
       // 客户选择
       showCustomerPicker: false,
@@ -262,9 +263,20 @@ export default {
       this.loadCart()
     }
     this.loadCustomers()
+    this.checkUserType()
   },
   methods: {
     // ========== 客户 ==========
+    async checkUserType() {
+      try {
+        const res = await userApi.info()
+        const miniUser = (res && res.mini_user) ? res.mini_user : null
+        // 用户类型是客户类型,不可切换
+        if (miniUser && miniUser.user_type ==='customer') {
+          this.customerFixed = true
+        }
+      } catch (_) {}
+    },
     async loadCustomers(keyword) {
       try {
         const res = await customerApi.list(keyword || '')

@@ -63,7 +63,24 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 }
                             }},
                         {field: 'supplyer_code', title: __('Supplyer_code'),templet: function (d) {
-                                return d.suppliers.supplyer_code+' '+d.suppliers.supplyer_name;
+                                if (d.supplier_list && d.supplier_list.length > 0) {
+                                    if (d.supplier_list.length == 1) {
+                                        return d.supplier_list[0].supplyer_code + ' ' + d.supplier_list[0].supplyer_name;
+                                    }
+                                    var names = [];
+                                    for (var i = 0; i < d.supplier_list.length; i++) {
+                                        names.push(d.supplier_list[i].supplyer_code + ' ' + d.supplier_list[i].supplyer_name);
+                                    }
+                                    return '<span style="color:#1890ff">' + names.join('</span><br><span style="color:#1890ff">') + '</span>';
+                                }
+                                return '<span style="color:#ccc">—</span>';
+                            }},
+                        {field: 'supplier_count', title: __('Supplier_count'), width: 100, templet: function (d) {
+                                var count = d.supplier_count || 0;
+                                if (count > 1) {
+                                    return '<span style="color:#1890ff;font-weight:bold">' + count + ' 个供应商</span>';
+                                }
+                                return count == 1 ? '1 个' : '<span style="color:#ccc">—</span>';
                             }},
                         {field: 'purchase_id',width:180, title: __('Purchase_id'), operate: 'LIKE', templet: function (d) {
                                 if(d.purchase_list && d.purchase_list.length > 0){
@@ -413,6 +430,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             if (v.stores_id) {
                                 thisobj.find('.stores_id').val(v.stores_id);
                             }
+                            if (v.supplyer_code) {
+                                thisobj.find('.row-supplyer_code').val(v.supplyer_code);
+                            }
                             // 调用changeGoods获取单位/库存/价格信息
                             changeGoods(v.goods_code, v.stores_id || '', '', thisobj, v.unit_id || '', v.number || 1, '');
                         });
@@ -488,7 +508,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     if(isNaN(number_decimal)){
                         number_decimal = 1;
                     }
-                    var supplyer_code = $('#supplyer_code').val();
+                    var supplyer_code = obj.find('.row-supplyer_code').val();
                     $.ajax( {
                         url: "kuerp/goods_purchase/getUnit",
                         type: "POST",
@@ -505,6 +525,14 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 number = 1;
                             }else{
                                 number = parseFloat(number);
+                            }
+
+                            // 自动填充行级供应商（从商品默认供应商）
+                            if (res.supplier && res.supplier.supplyer_code) {
+                                var rowSupplierSelect = obj.find('.row-supplyer_code');
+                                if (rowSupplierSelect.length && !rowSupplierSelect.val()) {
+                                    rowSupplierSelect.val(res.supplier.supplyer_code);
+                                }
                             }
 
                             attrarr = res.attr;
@@ -566,7 +594,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     var goods_code = obj.find('.goods_code').val();
                     var goods_unit = obj.find('.goods_unit').val();
                     var attr = obj.find('.goods_attr').val();
-                    var supplyer_code = $('#supplyer_code').val();
+                    var supplyer_code = obj.find('.row-supplyer_code').val();
                     var store = obj.find('.stores_id').val();
                     var number = obj.find('.number').val();
                     var unit_price = obj.find('.unit_price').val();
@@ -833,7 +861,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     var attr = $(this).val();
                     var goods_unit = obj.find('.goods_unit').val();
                     var stores_id = obj.find('.stores_id').val();
-                    var supplyer_code = $('#supplyer_code').val();
+                    var supplyer_code = obj.find('.row-supplyer_code').val();
                     $.ajax( {
                         url: "kuerp/goods_purchase/getUnit",
                         type: "POST",
@@ -861,7 +889,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     var attr = obj.find('.goods_attr').val();
                     var goods_unit = $(this).val();
                     var stores_id = obj.find('.stores_id').val();
-                    var supplyer_code = $('#supplyer_code').val();
+                    var supplyer_code = obj.find('.row-supplyer_code').val();
                     $.ajax( {
                         url: "kuerp/goods_purchase/getUnit",
                         type: "POST",
@@ -889,7 +917,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     var attr = obj.find('.goods_attr').val();
                     var goods_unit = obj.find('.goods_unit').val();
                     var stores_id = $(this).val();
-                    var supplyer_code = $('#supplyer_code').val();
+                    var supplyer_code = obj.find('.row-supplyer_code').val();
                     $.ajax( {
                         url: "kuerp/goods_purchase/getUnit",
                         type: "POST",
@@ -906,6 +934,14 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             });
                         }
                     })
+                });
+                // 行级供应商切换时重新获取价格
+                $(document).on("change", ".row-supplyer_code", function(){
+                    var obj = $(this).closest('tr');
+                    var goods_code = obj.find('.goods_code').val();
+                    if (goods_code) {
+                        changeGoods(goods_code, obj.find('.stores_id').val(), obj.find('.goods_attr').val(), obj, obj.find('.goods_unit').val(), obj.find('.number').val());
+                    }
                 });
                 // 单价
                 $(document).on("change", ".unit_price", function(){
@@ -1064,20 +1100,95 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     $('#c-real_money').val(money);
                 }
 
+                // 按供应商分组生成购货单（编辑页按钮）
+                $(document).on("click", ".purchase-group", function(){
+                    var orderId = $(this).data('id');
+                    var supplierCode = $(this).data('supplier');
+                    var btn = $(this);
+                    btn.attr('disabled', true).text('生成中...');
+                    $.ajax({
+                        url: "kuerp/goods_purchase_order/generateBySupplier",
+                        type: "POST",
+                        data: { 'order_id': orderId, 'supplyer_code': supplierCode },
+                        success: function(res) {
+                            if (res.code == 1) {
+                                Toastr.success(res.msg);
+                                setTimeout(function() { location.reload(); }, 1000);
+                            } else {
+                                Toastr.error(res.msg);
+                                btn.attr('disabled', false).text(btn.data('supplier') ? '生成购货单('+btn.data('supplier')+')' : '生成购货单');
+                            }
+                        }
+                    });
+                });
+                // 查看购货单（编辑页链接）
+                $(document).on("click", ".view-purchase", function(e){
+                    e.preventDefault();
+                    var purchaseId = $(this).data('purchase-id');
+                    if (purchaseId && purchaseId > 0) {
+                        Fast.api.open("kuerp/goods_purchase/edit?ids=" + purchaseId, "购货单", { area: ['90%', '75%'] });
+                    }
+                });
                 //生成购货单
                 $(document).on("click", ".purchase", function(){
                     var purchase = $(this).data('id');
-                    $.ajax( {
-                        url: "kuerp/goods_purchase_order/checkPurchase",
+                    // 先检查供应商数量
+                    $.ajax({
+                        url: "kuerp/goods_purchase_order/checkSupplierCount",
                         type: "POST",
-                        data:{
-                            'order_id':purchase
-                        },
-                        success: function(res){
-                            if(res.code==1){
-                                parent.$("#createpurchase").val(purchase);
-                                parent.$(".createpurchase").trigger("click");
-                            }else{
+                        data: { 'order_id': purchase },
+                        success: function(res) {
+                            if (res.code == 1) {
+                                var data = res.data;
+                                if (data.supplier_count > 1) {
+                                    // 多供应商：弹窗展示分组信息
+                                    var groupsHtml = '';
+                                    $(data.groups).each(function(k, v) {
+                                        groupsHtml += '<tr><td>' + v.supplyer_name + '</td><td>' + v.item_count + '种商品</td><td>¥' + v.total_money + '</td></tr>';
+                                    });
+                                    var html = '<div style="padding:10px">' +
+                                        '<p>该订单涉及 <b>' + data.supplier_count + '</b> 个供应商，将分别生成购货单：</p>' +
+                                        '<table class="table table-bordered" style="margin:10px 0">' +
+                                        '<tr><th>供应商</th><th>商品数</th><th>金额</th></tr>' +
+                                        groupsHtml +
+                                        '</table>' +
+                                        '<p style="color:#999;font-size:12px">确认后将自动生成 ' + data.supplier_count + ' 个购货单，每个供应商一个。</p>' +
+                                        '</div>';
+                                    Layer.confirm(html, { title: '确认生成购货单', area: ['500px', 'auto'] }, function(index) {
+                                        Layer.close(index);
+                                        // 批量生成
+                                        $.ajax({
+                                            url: "kuerp/goods_purchase_order/batchGeneratePurchase",
+                                            type: "POST",
+                                            data: { 'order_id': purchase },
+                                            success: function(r) {
+                                                if (r.code == 1) {
+                                                    Toastr.success(r.msg);
+                                                    setTimeout(function() { $('.btn-refresh').click(); }, 1500);
+                                                } else {
+                                                    Toastr.error(r.msg);
+                                                }
+                                            }
+                                        });
+                                    });
+                                } else {
+                                    // 单供应商或返回了redirect URL，走原来流程
+                                    // 先走checkPurchase验证
+                                    $.ajax({
+                                        url: "kuerp/goods_purchase_order/checkPurchase",
+                                        type: "POST",
+                                        data: { 'order_id': purchase },
+                                        success: function(r2) {
+                                            if (r2.code == 1) {
+                                                parent.$("#createpurchase").val(purchase);
+                                                parent.$(".createpurchase").trigger("click");
+                                            } else {
+                                                Toastr.error(r2.msg);
+                                            }
+                                        }
+                                    });
+                                }
+                            } else {
                                 Toastr.error(res.msg);
                             }
                         }

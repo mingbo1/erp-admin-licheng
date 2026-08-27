@@ -263,12 +263,9 @@ class MiniUser extends Backend
             try {
                 foreach ($list as $v) {
                     $count += $v->delete();
-                    // 同步禁用/删除关联的 fa_user
+                    // 同步删除关联的 fa_user
                     if ($v['user_id']) {
-                        Db::name('user')->where('id', $v['user_id'])->update([
-                            'status'     => 'hidden',
-                            'updatetime' => time(),
-                        ]);
+                        Db::name('user')->where('id', $v['user_id'])->delete();
                     }
                 }
                 Db::commit();

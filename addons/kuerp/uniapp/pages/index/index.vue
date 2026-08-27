@@ -7,6 +7,19 @@
         :circular="true" indicator indicatorMode="dot" indicatorActiveColor="#4A90D9"></u-swiper>
     </view>
 
+    <!-- 中部导航栏（金刚区） -->
+    <view class="nav-wrap" v-if="navList.length > 0">
+      <view class="nav-item" v-for="(item, index) in navList" :key="item.id"
+        :style="{ animationDelay: (index * 0.05) + 's' }"
+        @click="goNav(item)" hover-class="nav-item-hover">
+        <view class="nav-icon">
+          <image v-if="item.image" :src="item.image" mode="aspectFit" class="nav-icon-img" />
+          <u-icon v-else name="grid" size="46" color="#4A90D9" />
+        </view>
+        <text class="nav-title">{{ item.title }}</text>
+      </view>
+    </view>
+
     <!-- 搜索栏 -->
     <view class="search-wrap">
       <u-search v-model="search" placeholder="搜索商品名称 / 编号" :show-action="false" bg-color="#fff" shape="round"
@@ -75,7 +88,7 @@
 
 <script>
 import GoodsActionSheet from '../../components/GoodsActionSheet.vue'
-import { goodsApi, bannerApi, cartApi } from '../../api'
+import { goodsApi, bannerApi, navApi, cartApi } from '../../api'
 import { getToken } from '../../api/request'
 
 let categoriesCache = null
@@ -87,6 +100,7 @@ export default {
       list: [],
       categories: [],
       bannerList: [],
+      navList: [],
       cateId: 0,
       search: '',
       page: 1,
@@ -113,6 +127,7 @@ export default {
   },
   onLoad() {
     this.loadBanner()
+    this.loadNav()
     this.loadCategories()
     this.loadData()
   },
@@ -132,6 +147,15 @@ export default {
       try {
         const res = await bannerApi.index()
         this.bannerList = (res.list || []).map(i => ({
+          ...i,
+          image: this.$img(i.image),
+        }))
+      } catch (_) { }
+    },
+    async loadNav() {
+      try {
+        const res = await navApi.index()
+        this.navList = (res.list || []).map(i => ({
           ...i,
           image: this.$img(i.image),
         }))
@@ -162,13 +186,11 @@ export default {
         this.page = 1
         this.list = []
       }
+      const params = { page: this.page, limit: 20 }
+      if (this.cateId) params.category_id = this.cateId
+      if (this.search) params.keyword = this.search
       try {
-        const res = await goodsApi.index({
-          page: this.page,
-          limit: 20,
-          category_id: this.cateId || undefined,
-          search: this.search || undefined,
-        })
+        const res = await goodsApi.index(params)
         // 竞态保护：忽略过时响应
         if (reqId !== this.requestVersion) return
         if (append) {
@@ -197,7 +219,19 @@ export default {
     onSearch() { this.loadData() },
     onClear() { this.search = ''; this.loadData() },
     goDetail(id) { uni.navigateTo({ url: '/pages/goods/detail?id=' + id }) },
-    addToCart(item) {
+    // 中部导航跳转（tabBar 页用 switchTab，其余用 navigateTo）
+    goNav(item) {
+      if (item.link_type === 'none' || !item.link_url) return
+      let url = item.link_url
+      if (url.indexOf('/') !== 0) url = '/' + url
+      const tabbarPaths = ['/pages/index/index', '/pages/cart/cart', '/pages/order/list', '/pages/user/info']
+      if (tabbarPaths.indexOf(url) >= 0) {
+        uni.switchTab({ url })
+      } else {
+        uni.navigateTo({ url })
+      }
+    },
+    async addToCart(item) {
       if (!getToken()) {
         // #ifdef MP-WEIXIN
         uni.navigateTo({ url: '/pages/user/login' })
@@ -207,13 +241,16 @@ export default {
         // #endif
         return
       }
+      // 先加载规格数据，再打开弹窗，确保打开时默认规格已就绪
       this.sheetItem = item
       this.sheetDetail = null
-      this.showSheet = true
-      // 异步加载商品详情（含多规格）
-      goodsApi.detail(item.id).then(res => {
+      try {
+        const res = await goodsApi.detail(item.id)
         this.sheetDetail = res
-      }).catch(() => { })
+        this.showSheet = true
+      } catch (e) {
+        uni.showToast({ title: e, icon: 'none' })
+      }
     },
     // 组件事件：加入订货单
     async onSheetAddToCart(payload) {
@@ -253,6 +290,73 @@ export default {
 /* 轮播图 */
 .banner-wrap {
   padding: 20rpx 20rpx 0;
+}
+
+/* 中部导航栏（金刚区，4个一行，超出换行） */
+.nav-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 20rpx 20rpx 0;
+  padding: 28rpx 8rpx 12rpx;
+  background: #fff;
+  border-radius: 24rpx;
+  box-shadow: 0 6rpx 20rpx rgba(74, 144, 217, 0.06);
+}
+
+.nav-item {
+  width: 25%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8rpx 0 18rpx;
+  border-radius: 18rpx;
+  animation: nav-fade 0.5s ease backwards;
+}
+
+.nav-item-hover {
+  background: #f2f7fe;
+  transform: scale(0.94);
+}
+
+.nav-icon {
+  width: 92rpx;
+  height: 92rpx;
+  border-radius: 26rpx;
+  background: linear-gradient(150deg, #eef5ff 0%, #e6eefb 100%);
+  border: 1rpx solid #e3ecf9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14rpx;
+  overflow: hidden;
+}
+
+.nav-icon-img {
+  width: 74rpx;
+  height: 74rpx;
+}
+
+.nav-title {
+  font-size: 24rpx;
+  color: #3a4252;
+  font-weight: 500;
+  max-width: 96%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+@keyframes nav-fade {
+  from {
+    opacity: 0;
+    transform: translateY(20rpx);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* 搜索栏 */

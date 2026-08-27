@@ -15,7 +15,7 @@
                     </script>
 
                     <form class="layui-form layui-search" id="layui-search">
-                        
+
                         <div class="layui-input-inline">
                             <input type="text" name="men_code" id="men_code" autocomplete="off" placeholder="{:__('Men_code')}" class="layui-input">
                         </div>
@@ -24,6 +24,14 @@
                         </div>
                         <div class="layui-input-inline">
                             <input type="text" name="phone" id="phone" autocomplete="off" placeholder="{:__('Phone')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="type" id="type" placeholder="{:__('Type')}" class="layui-input">
+                                <option value="">请选择{:__('Type')}</option>
+                                {foreach name="typeList" item="vo" key="k"}
+                                <option value="{$k}">{$vo}</option>
+                                {/foreach}
+                            </select>
                         </div>
                         <div class="layui-input-inline">
                             <select name="status" id="status" placeholder="{:__('Status')}" class="layui-input">
@@ -39,8 +47,8 @@
                          </div>
                     </form>
                     <table id="table" class="table table-striped table-bordered table-hover table-nowrap"
-                           data-operate-edit="{:$auth->check('staff_member/edit')}" 
-                           data-operate-del="{:$auth->check('staff_member/del')}" 
+                           data-operate-edit="{:$auth->check('staff_member/edit')}"
+                           data-operate-del="{:$auth->check('staff_member/del')}"
                            width="100%" lay-filter="table">
                     </table>
                 </div>

@@ -153,6 +153,94 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
             Controller.api.bindevent();
         },
 
+        chosebom: function () {
+            layui.config({
+                base: '/assets/addons/kuerp/layui/module/'
+            }).extend({
+                tableMerge: 'tableMerge'
+            });
+
+            layui.use(['table', 'upload', 'form', 'tableMerge'], function () {
+                var table = layui.table;
+                upload = layui.upload;
+                tableMerge = layui.tableMerge;
+
+                table.render({
+                    elem: '#table'
+                    , url: 'kuerp/goods_bom/index'
+                    , parseData: function (res) {
+                        return {
+                            "code": 0,
+                            "msg": '',
+                            "count": res.total,
+                            "data": res.rows
+                        };
+                    }
+                    , toolbar: '#btnToolbar'
+                    , page: true
+                    , cellMinWidth: 100
+                    , cols: [[
+                        { type: 'radio', merge: ['id'] },
+                        { field: 'bom_name', title: __('Bom_name'), merge: ['id'] },
+                        { field: 'pname', title: __('Parent_goods'), merge: ['id'] },
+                        { field: 'pcode', title: __('Goods_code'), merge: ['id'] },
+                        { field: 'name', title: __('Child_goods_name') },
+                        { field: 'code', title: __('Goods_code') },
+                        { field: 'number', title: __('Child_number') },
+                        { field: 'remark', title: __('Remark') }
+                    ]],
+                    done: function () {
+                        tableMerge.render(this)
+                    }
+                });
+
+                table.on('toolbar(table)', function (obj) {
+                    if (obj.event === 'sure') {
+                        var checkStatus = table.checkStatus(obj.config.id);
+                        var data = checkStatus.data;
+                        if (data.length < 1) {
+                            Toastr.error('请选择BOM模板！');
+                            return;
+                        }
+                        var ids = [];
+                        $(data).each(function (k, v) {
+                            ids.push({ id: v.id });
+                        });
+                        Fast.api.close(ids);
+                    }
+                });
+
+                $(document).on('click', '#cancel', function () {
+                    Fast.api.close();
+                });
+
+                $('#search').on('click', function () {
+                    table.reload('table', {
+                        where: {
+                            filter: JSON.stringify(getSearch()),
+                            op: JSON.stringify(getOp())
+                        },
+                        page: { curr: 1 }
+                    });
+                });
+
+                function getSearch() {
+                    var search = {};
+                    var bom_name = $('#bom_name').val();
+                    if (bom_name != '') {
+                        search.bom_name = bom_name;
+                    }
+                    return search;
+                }
+                function getOp() {
+                    var op = {};
+                    op.bom_name = 'LIKE';
+                    return op;
+                }
+            });
+            Controller.api.bindevent();
+        },
+
         add: function () {
             initGoodsBomForm();
             Controller.api.bindevent();

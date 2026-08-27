@@ -1,6 +1,8 @@
 {include file="kuerp/common/menu" /}
 <div class="">
+    {if condition="$auth->check($nowmenu.'/printpage')==1"}
     <a href="{:url('kuerp/process/printpage', ['ids' => $row.id])}" target="_blank" class="layui-btn layui-icon-btn layui-btn-sm layui-btn-normal fright" style="margin-right: 10px;"><i class="layui-icon">&#xe65a;</i> {:__('Print_page')}</a>
+    {/if}
 </div>
 <div style="clear: both;"></div>
 <form id="edit-form" class="form-horizontal process_form" role="form" data-toggle="validator" method="POST" action="">

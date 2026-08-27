@@ -14,7 +14,7 @@ use think\Session;
  */
 class Process extends Backend
 {
-    protected $noNeedRight = ['getunit', 'getinfo', 'printpage', 'outbound', 'canceloutbound'];
+    protected $noNeedRight = ['getunit', 'getinfo'];
 
     /**
      * Process模型对象

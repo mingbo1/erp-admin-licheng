@@ -108,7 +108,8 @@
                     </th>
                     <th>{:__('Goods_note')}</th><th class="goods_attr_sd">{:__('Goods_attr')}</th><th>{:__('Goods_unit')}</th><th>{:__('Stores_id')}</th><th>库位</th><th>{:__('Allow_stock')}</th>
                     <th class="goods_batch_sd">批次</th><th class="goods_batch_sd">生产日期</th><th class="goods_batch_sd">保质期(天)</th><th class="goods_batch_sd">有效期至</th>
-                    <th>{:__('Number')}</th><th>{:__('Default_unit')}</th><th>{:__('Basic_nmber')}</th>
+                    <th>{:__('Number')}</th><th>{:__('Default_unit')}</th>
+                    <!-- <th>{:__('Basic_nmber')}</th> -->
                     <th class="hidden">{:__('Purchase_money')}</th><th>{:__('Remark')}</th><th>{:__('Sales_order_id')}</th>
                 </tr>
 
@@ -163,7 +164,8 @@
 
                     <td><div><input type="number" name="row[number][]" class="number number_decimal number_decimal"><input type="hidden" class="period_period" name="row[period_period][]" value=''></div></td>
                     <td><div><input type="text" readonly class="default_unit"><input type="hidden" name="row[default_unit][]" class="default_unit_id"></div></td>
-                    <td><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly></div></td>
+                    <!-- <td><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly></div></td> -->
+                     <input type="hidden" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly>
                     <input type="hidden" name="row[unit_price][]" class="unit_price price_decimal">
                     <input type="hidden" name="row[tax_included][]" class="tax_included price_decimal">
                     <input type="hidden" name="row[discount][]" class="discount">
@@ -239,7 +241,8 @@
 
                     <td><div><input type="number" name="row[number][]" value="{$info.number|htmlentities}" class="number number_decimal"><input type="hidden" class="period_period" name="row[period_period][]" value='{$info.serial|default=""}'></div></td>
                     <td><div><input type="text" readonly class="default_unit" value="{$unit_name|default=''}"><input type="hidden" value="{$info.default_unit|htmlentities}" name="row[default_unit][]" class="default_unit_id"></div></td>
-                    <td><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" value="{$info.basic_nmber|htmlentities}" readonly></div></td>
+                    <!-- <td><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" value="{$info.basic_nmber|htmlentities}" readonly></div></td> -->
+                     <input type="hidden" name="row[basic_nmber][]" class="basic_nmber number_decimal" value="{$info.basic_nmber|htmlentities}" readonly>
                     <input type="hidden" name="row[unit_price][]" class="unit_price price_decimal" value="{$info.unit_price|htmlentities}">
                     <input type="hidden" name="row[tax_included][]" class="tax_included price_decimal" value="{$info.tax_included|htmlentities}">
                     <input type="hidden" name="row[discount][]" class="discount" value="{$info.discount|htmlentities}">
@@ -306,7 +309,8 @@
 
                     <td><div><input type="number" name="row[number][]" class="number number_decimal number_decimal"><input type="hidden" class="period_period" name="row[period_period][]" value=''></div></td>
                     <td><div><input type="text" readonly class="default_unit"><input type="hidden" name="row[default_unit][]" class="default_unit_id"></div></td>
-                    <td><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly></div></td>
+                    <!-- <td><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly></div></td> -->
+                     <input type="hidden" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly>
                     <input type="hidden" name="row[unit_price][]" class="unit_price price_decimal">
                     <input type="hidden" name="row[tax_included][]" class="tax_included price_decimal">
                     <input type="hidden" name="row[discount][]" class="discount">

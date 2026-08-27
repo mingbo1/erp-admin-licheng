@@ -34,8 +34,8 @@ class Admin extends Validate
      * 验证场景
      */
     protected $scene = [
-        'add'  => ['username', 'email', 'nickname', 'password', 'mobile'],
-        'edit' => ['username', 'email', 'nickname', 'password', 'mobile'],
+        'add'  => ['username', 'nickname', 'password', 'mobile'],
+        'edit' => ['username', 'nickname', 'password', 'mobile'],
     ];
 
     public function __construct(array $rules = [], $message = [], $field = [])
@@ -44,7 +44,6 @@ class Admin extends Validate
             'username' => __('Username'),
             'nickname' => __('Nickname'),
             'password' => __('Password'),
-            'email'    => __('Email'),
             'mobile'   => __('Mobile'),
         ];
         $this->message = array_merge($this->message, [

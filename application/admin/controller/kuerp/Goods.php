@@ -12,6 +12,8 @@ use PhpOffice\PhpSpreadsheet\Reader\Xls;
 use PhpOffice\PhpSpreadsheet\Reader\Csv;
 use think\Loader;
 use fast\Tree;
+use think\Config;
+
 /**
  * 商品管理
  *
@@ -165,8 +167,13 @@ class Goods extends Backend
                 $allRow = $currentSheet->getHighestRow(); //取得一共有多少行
                 $maxColumnNumber = Coordinate::columnIndexFromString($allColumn);
 
+                // 跳过前14行说明，第14行为标题行，第15行为字段头，第16行开始为数据
+                $titleRow = 14;    // 标题行（仓库名等）
+                $headerRow = 15;   // 字段头行（列名）
+                $dataStartRow = 16; // 数据开始行
+
                 $titles = [];
-                for ($currentRow = 1; $currentRow <= 1; $currentRow++) {
+                for ($currentRow = $titleRow; $currentRow <= $titleRow; $currentRow++) {
                     for ($currentColumn = 1; $currentColumn <= $maxColumnNumber; $currentColumn++) {
                         $val = (string)$currentSheet->getCellByColumnAndRow($currentColumn, $currentRow)->getValue();
                         $titles[] = $val;
@@ -175,13 +182,11 @@ class Goods extends Backend
 
 
                 $fields = [];
-                for ($currentRow = 2; $currentRow <= 2; $currentRow++) {
+                for ($currentRow = $headerRow; $currentRow <= $headerRow; $currentRow++) {
                     for ($currentColumn = 1; $currentColumn <= $maxColumnNumber; $currentColumn++) {
                         $val = (string)$currentSheet->getCellByColumnAndRow($currentColumn, $currentRow)->getValue();
                         $val = str_replace('*','',$val);
-                        if(!empty($val)){
-                            $fields[] = $val;
-                        }
+                        $fields[] = $val;
                     }
                 }
 
@@ -194,7 +199,7 @@ class Goods extends Backend
                     }
                 }
 
-                for ($currentRow = 3; $currentRow <= $allRow; $currentRow++) {
+                for ($currentRow = $dataStartRow; $currentRow <= $allRow; $currentRow++) {
                     $values = [];
                     for ($currentColumn = 1; $currentColumn <= $maxColumnNumber; $currentColumn++) {
                         $val = (string)$currentSheet->getCellByColumnAndRow($currentColumn, $currentRow)->getValue();
@@ -203,6 +208,7 @@ class Goods extends Backend
                     $row = array_combine($fields, $values);
                     $insert[] = $row;
                 }
+
             } catch (Exception $exception) {
                 $this->error($exception->getMessage());
             }
@@ -505,9 +511,9 @@ class Goods extends Backend
                     $unit = explode('/',$insert_v['计量单位']);
                     $market_sell_price = explode('/',$insert_v['零售价']);
                     $wholesale_price = explode('/',$insert_v['批发价']);
-                    $vip_price = explode('/',$insert_v['会员价']);
-                    $discount = explode('/',$insert_v['折扣率一']);
-                    $discount2 = explode('/',$insert_v['折扣率二']);
+                    $vip_price = explode('/',$insert_v['会员价'] ?? '');
+                    $discount = explode('/',$insert_v['折扣率一'] ?? '');
+                    $discount2 = explode('/',$insert_v['折扣率二'] ?? '');
                     $purchase = explode('/',$insert_v['预计采购价']);
 
                     foreach ($unit as $unit_k=>$unit_v){
@@ -566,6 +572,8 @@ class Goods extends Backend
                         'goods_name'            => $insert_v['商品名称'],
                         'goods_type_id'         => isset($catelist[$nowcate[sizeof($nowcate)-1]])?$catelist[$nowcate[sizeof($nowcate)-1]]:0,
                         'goods_specification_id'=> $insert_v['规格型号'],
+                        'vendor_name'           => isset($insert_v['厂商'])?$insert_v['厂商']:'',
+                        'packaging'             => isset($insert_v['封装'])?$insert_v['封装']:'',
                         'manager_warehouse_id'  => isset($stores_list[$insert_v['首选仓库']])?$stores_list[$insert_v['首选仓库']]:0,
                         'unit_id'               => strpos($insert_v['计量单位'],'/') !== false?$insert_v['unit_info'][$unit[0]]:$insert_v['unit_info'][$insert_v['计量单位']],
                         'note'                  => $insert_v['备注'],
@@ -625,17 +633,17 @@ class Goods extends Backend
                             $unit = explode('/',$insert[$nowsp]['计量单位']);
                             $market_sell_price = explode('/',$insert[$nowsp]['零售价']);
                             $wholesale_price = explode('/',$insert[$nowsp]['批发价']);
-                            $vip_price = explode('/',$insert[$nowsp]['会员价']);
-                            $discount = explode('/',$insert[$nowsp]['折扣率一']);
-                            $discount2 = explode('/',$insert[$nowsp]['折扣率二']);
+                            $vip_price = explode('/',$insert[$nowsp]['会员价'] ?? '');
+                            $discount = explode('/',$insert[$nowsp]['折扣率一'] ?? '');
+                            $discount2 = explode('/',$insert[$nowsp]['折扣率二'] ?? '');
                             $purchase = explode('/',$insert[$nowsp]['预计采购价']);
                         }else{
                             $unit = explode('/',$insert[$nowsp]['计量单位']);
                             $market_sell_price = explode('/',$insert_v['零售价']);
                             $wholesale_price = explode('/',$insert_v['批发价']);
-                            $vip_price = explode('/',$insert_v['会员价']);
-                            $discount = explode('/',$insert_v['折扣率一']);
-                            $discount2 = explode('/',$insert_v['折扣率二']);
+                            $vip_price = explode('/',$insert_v['会员价'] ?? '');
+                            $discount = explode('/',$insert_v['折扣率一'] ?? '');
+                            $discount2 = explode('/',$insert_v['折扣率二'] ?? '');
                             $purchase = explode('/',$insert_v['预计采购价']);
                         }
 

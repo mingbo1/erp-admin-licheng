@@ -67,6 +67,11 @@ export const bannerApi = {
   index: () => get('/addons/kuerp/api.banner/index'),
 }
 
+// 首页中部导航
+export const navApi = {
+  index: () => get('/addons/kuerp/api.nav/index'),
+}
+
 // 商品
 export const goodsApi = {
   index: (params) => get('/addons/kuerp/api.goods/index', params),

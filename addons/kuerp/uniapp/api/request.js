@@ -23,6 +23,15 @@ async function request(url, options = {}) {
   const method = options.method || 'GET'
   let data = options.data || {}
 
+  // 过滤掉 undefined / null 参数，避免 URL 中出现 ?xxx=undefined
+  const filtered = {}
+  Object.keys(data).forEach((k) => {
+    if (data[k] !== undefined && data[k] !== null) {
+      filtered[k] = data[k]
+    }
+  })
+  data = filtered
+
   // 自动附加 token
   const t = getToken()
   if (t) {

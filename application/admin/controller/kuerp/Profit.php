@@ -13,6 +13,7 @@ use think\Session;
  */
 class Profit extends Backend
 {
+    protected $noNeedRight = ['getprofit'];
     protected $model = null;
 
     public function _initialize()

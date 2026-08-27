@@ -447,6 +447,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 //选择客户
                 $(document).on("change", "#customers_id", function(){
                     var customers_id = $(this).val();
+                    // 自动填充收货地址
                     $.ajax( {
                         url: "kuerp/goods_sales/getReceivingAddress",
                         type: "POST",
@@ -455,6 +456,23 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         },
                         success: function(res){
                             $('#c-receiving_address').val(res);
+                        }
+                    });
+                    // 自动填充客户绑定的销售员
+                    $.ajax( {
+                        url: "kuerp/goods_sales_order/getCustomerSaleUser",
+                        type: "POST",
+                        data:{
+                            'customers_id':customers_id,
+                        },
+                        success: function(res){
+                            var data = JSON.parse(res);
+                            if (data.staff_member_id && data.staff_member_id > 0) {
+                                $('#Sale_user').val(data.staff_member_id);
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.log('getCustomerSaleUser error:', status, error);
                         }
                     });
                 });

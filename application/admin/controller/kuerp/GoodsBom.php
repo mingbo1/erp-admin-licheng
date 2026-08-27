@@ -12,7 +12,7 @@ use think\Db;
  */
 class GoodsBom extends Backend
 {
-    protected $noNeedRight = ['getbomdetail', 'chosegoods'];
+    protected $noNeedRight = ['getbomdetail', 'chosegoods', 'chosebom'];
     /**
      * GoodsBom模型对象
      * @var \app\admin\model\kuerp\GoodsBom
@@ -408,15 +408,23 @@ class GoodsBom extends Backend
         $parent = Db::name('kuerp_goods_bom_info')->alias('a')
             ->join('kuerp_goods g', 'g.id=a.goods_id')
             ->where(['a.bom_id' => $id, 'a.type' => '1'])
-            ->field('a.*,g.goods_name as parent_name,g.product_type')
+            ->field('a.*,g.goods_name as parent_name,g.product_type,g.manager_warehouse_id')
             ->find();
         // 子商品
         $children = Db::name('kuerp_goods_bom_info')->alias('a')
             ->join('kuerp_goods g', 'g.id=a.goods_id')
             ->where(['a.bom_id' => $id, 'a.type' => '2'])
-            ->field('a.*,g.goods_name as goods_name,g.product_type,g.inventory')
+            ->field('a.*,g.goods_name as goods_name,g.product_type,g.inventory,g.manager_warehouse_id')
             ->select();
-        $this->success('', ['bom' => $bom, 'parent' => $parent, 'children' => $children]);
+        $this->success('', '', ['bom' => $bom, 'parent' => $parent, 'children' => $children]);
+    }
+
+    /**
+     * BOM模板选择页（供组装单等单据选择BOM作为模板）
+     */
+    public function chosebom()
+    {
+        return $this->view->fetch();
     }
 
     /**

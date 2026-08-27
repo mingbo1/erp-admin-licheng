@@ -14,7 +14,7 @@ use think\Session;
  */
 class GoodsPurchaseOrder extends Backend
 {
-    protected $noNeedRight = ['checkexchange','checkpurchase'];
+    protected $noNeedRight = ['checkexchange','checkpurchase','checksuppliercount','batchgeneratepurchase','generatebysupplier'];
     /**
      * GoodsPurchaseOrder模型对象
      * @var \app\admin\model\kuerp\GoodsPurchaseOrder
@@ -74,6 +74,25 @@ class GoodsPurchaseOrder extends Backend
                 return $this->selectpage();
             }
             list($where, $sort, $order, $offset, $limit) = $this->buildparams();
+            // 供应商搜索适配明细表：在明细中模糊匹配供应商
+            $filter = $this->request->request('filter');
+            if (!empty($filter)) {
+                $filterArr = json_decode($filter, true);
+                if (isset($filterArr['supplyer_code']) && !empty($filterArr['supplyer_code'])) {
+                    $supplierFilter = $filterArr['supplyer_code'];
+                    $matchedCodes = Db::name('kuerp_goods_purchase_order_info')
+                        ->where(['supplyer_code' => $supplierFilter])
+                        ->distinct('purchase_code')
+                        ->column('purchase_code');
+                    if (!empty($matchedCodes)) {
+                        $where['purchase_code'] = ['in', $matchedCodes];
+                    } else {
+                        $where['purchase_code'] = ['in', ['']]; // 无匹配结果
+                    }
+                    // 移除原始where中的supplyer_code条件（buildparams可能已添加）
+                    unset($where['supplyer_code']);
+                }
+            }
             $sort = 'purchase_time';$order='DESC';
             $list = $this->model
                 ->with(['suppliers','preparation','examine','secondExamine'])
@@ -106,6 +125,22 @@ class GoodsPurchaseOrder extends Backend
                 }
                 $list[$list_k]['purchase_id'] = implode(',',$purchase_codes);
                 $list[$list_k]['purchase_list'] = $purchase_list;
+
+                // 查询该订单涉及的所有供应商（从明细表）
+                $supplyerCodes = Db::name('kuerp_goods_purchase_order_info')
+                    ->where(['purchase_code' => $list_v['purchase_code']])
+                    ->where('supplyer_code', '<>', '')
+                    ->distinct('supplyer_code')
+                    ->column('supplyer_code');
+                if (!empty($supplyerCodes)) {
+                    $suppliersInfo = Db::name('kuerp_suppliers')
+                        ->where(['supplyer_code' => ['in', $supplyerCodes]])
+                        ->field('supplyer_code, supplyer_name')
+                        ->select();
+                    $list[$list_k]['supplier_list'] = $suppliersInfo;
+                } else {
+                    $list[$list_k]['supplier_list'] = [];
+                }
             }
 
             $result = array("total" => $list->total(), "rows" => $list->items());
@@ -135,6 +170,7 @@ class GoodsPurchaseOrder extends Backend
 
                 $data = [];
                 $number = 0;$all_money = 0;$tax_money=0;
+                $rowSupplierCodes = [];
                 foreach ($params['goods_code'] as $k=>$v){
                     if(!empty($v)){//有产品编号
                         $number+=$params['number'][$k];
@@ -151,12 +187,19 @@ class GoodsPurchaseOrder extends Backend
                             $this->error('请选择商品属性');
                         }
 
+                        // 行级供应商：优先取行级值，fallback 到表头值
+                        $lineSupplier = isset($params['row_supplyer_code'][$k]) ? $params['row_supplyer_code'][$k] : '';
+                        if (empty($lineSupplier)) {
+                            $lineSupplier = $params['supplyer_code'] ?? '';
+                        }
+                        $rowSupplierCodes[] = $lineSupplier;
+
                         $data[] = [
                             'purchase_code'     =>  $params['purchase_code'],
                             'purchase_type'     =>  $params['purchase_type'],
                             'purchase_time'     =>  strtotime($params['purchase_time']),
                             'delivery_time'     =>  strtotime($params['delivery_time']),
-                            'supplyer_code'     =>  $params['supplyer_code'],//供应商
+                            'supplyer_code'     =>  $lineSupplier,//行级供应商
 
                             'goods_code'        =>  $v,//商品信息
                             'goods_note'        =>  $params['goods_note'][$k],
@@ -205,12 +248,16 @@ class GoodsPurchaseOrder extends Backend
                             break;
                         }
                     }
+                    // 计算表头供应商：单一供应商时自动填充，多供应商时留空
+                    $uniqueSuppliers = array_unique(array_filter($rowSupplierCodes));
+                    $headerSupplierCode = count($uniqueSuppliers) === 1 ? reset($uniqueSuppliers) : '';
                     $row = [
                         'purchase_code'     =>  $params['purchase_code'],
                         'purchase_type'     =>  $params['purchase_type'],
                         'purchase_time'     =>  strtotime($params['purchase_time']),
                         'delivery_time'     =>  strtotime($params['delivery_time']),
-                        'supplyer_code'     =>  $params['supplyer_code'],//供应商
+                        'supplyer_code'     =>  $headerSupplierCode,
+                        'supplier_count'    =>  count($uniqueSuppliers),
                         'sales_order_id'    =>  $mainSalesOrderId,
                         'number'            =>  $number,
                         'all_money'         =>  $all_money,
@@ -403,6 +450,32 @@ class GoodsPurchaseOrder extends Backend
                     }
                 }
 
+                // 批量读取零件的默认供应商
+                $partGoodsCodes = array_column($partMap, 'goods_code');
+                $goodsSupplierMap = [];
+                if (!empty($partGoodsCodes)) {
+                    $goodsData = Db::name('kuerp_goods')
+                        ->where(['goods_code' => ['in', $partGoodsCodes]])
+                        ->field('goods_code, supplier_id')
+                        ->select();
+                    $supplierIds = array_unique(array_filter(array_column($goodsData, 'supplier_id')));
+                    $supplierCodeMap = [];
+                    if (!empty($supplierIds)) {
+                        $suppliers = Db::name('kuerp_suppliers')
+                            ->where(['id' => ['in', $supplierIds]])
+                            ->field('id, supplyer_code')
+                            ->select();
+                        foreach ($suppliers as $s) {
+                            $supplierCodeMap[$s['id']] = $s['supplyer_code'];
+                        }
+                    }
+                    foreach ($goodsData as $gd) {
+                        if (!empty($gd['supplier_id']) && isset($supplierCodeMap[$gd['supplier_id']])) {
+                            $goodsSupplierMap[$gd['goods_code']] = $supplierCodeMap[$gd['supplier_id']];
+                        }
+                    }
+                }
+
                 foreach ($partMap as $p) {
                     $scheduleBomGoods[] = [
                         'goods_code' => $p['goods_code'],
@@ -410,10 +483,11 @@ class GoodsPurchaseOrder extends Backend
                         'number' => round($p['number'], $numberDecimal),
                         'stores_id' => $p['stores_id'],
                         'unit_id' => $p['unit_id'],
+                        'supplyer_code' => isset($goodsSupplierMap[$p['goods_code']]) ? $goodsSupplierMap[$p['goods_code']] : '',
                     ];
                 }
 
-                // 默认供应商从排期客户的反推？不，购货订单要选供应商，这里留空让用户选
+                // 从商品资料自动读取默认供应商，留空行让用户手动补选
                 // 传递销货订单号用于关联
                 if (!empty($salesOrderCode)) {
                     $scheduleSalesOrderId = $salesOrderCode;
@@ -487,6 +561,7 @@ class GoodsPurchaseOrder extends Backend
 
                 $data = [];
                 $number = 0;$all_money = 0;$tax_money=0;
+                $rowSupplierCodes = [];
                 foreach ($params['goods_code'] as $k=>$v){
                     if(!empty($v)){//有产品编号
                         $number+=$params['number'][$k];
@@ -504,12 +579,19 @@ class GoodsPurchaseOrder extends Backend
                             $this->error('请选择商品属性');
                         }
 
+                        // 行级供应商：优先取行级值，fallback 到表头值
+                        $lineSupplier = isset($params['row_supplyer_code'][$k]) ? $params['row_supplyer_code'][$k] : '';
+                        if (empty($lineSupplier)) {
+                            $lineSupplier = $params['supplyer_code'] ?? '';
+                        }
+                        $rowSupplierCodes[] = $lineSupplier;
+
                         $data[] = [
                             'purchase_code'     =>  $params['purchase_code'],
                             'purchase_type'     =>  $params['purchase_type'],
                             'purchase_time'     =>  strtotime($params['purchase_time']),
                             'delivery_time'     =>  strtotime($params['delivery_time']),
-                            'supplyer_code'     =>  $params['supplyer_code'],//供应商
+                            'supplyer_code'     =>  $lineSupplier,//行级供应商
 
                             'goods_code'        =>  $v,//商品信息
                             'goods_note'        =>  $params['goods_note'][$k],
@@ -559,12 +641,16 @@ class GoodsPurchaseOrder extends Backend
                             break;
                         }
                     }
+                    // 计算表头供应商：单一供应商时自动填充，多供应商时留空
+                    $uniqueSuppliers = array_unique(array_filter($rowSupplierCodes));
+                    $headerSupplierCode = count($uniqueSuppliers) === 1 ? reset($uniqueSuppliers) : '';
                     $rowdata = [
                         'purchase_code'     =>  $params['purchase_code'],
                         'purchase_type'     =>  $params['purchase_type'],
                         'purchase_time'     =>  strtotime($params['purchase_time']),
                         'delivery_time'     =>  strtotime($params['delivery_time']),
-                        'supplyer_code'     =>  $params['supplyer_code'],//供应商
+                        'supplyer_code'     =>  $headerSupplierCode,
+                        'supplier_count'    =>  count($uniqueSuppliers),
                         'sales_order_id'    =>  $mainSalesOrderId,
                         'number'            =>  $number,
                         'all_money'         =>  $all_money,
@@ -667,6 +753,55 @@ class GoodsPurchaseOrder extends Backend
         }
         $this->view->assign("purchase_info", $purchase_info);
         $this->assignconfig("purchase_id", $row['id']);
+
+        // 按供应商分组，查询每个分组的购货单生成状态，并收集各行数据
+        $supplierGroups = [];
+        foreach ($purchase_info as $info) {
+            $sc = !empty($info['supplyer_code']) ? $info['supplyer_code'] : '未指定供应商';
+            if (!isset($supplierGroups[$sc])) {
+                $supplierName = '';
+                if (!empty($info['supplyer_code'])) {
+                    $supplierName = Db::name('kuerp_suppliers')
+                        ->where(['supplyer_code' => $info['supplyer_code']])
+                        ->value('supplyer_name');
+                }
+                $supplierGroups[$sc] = [
+                    'supplyer_code' => $info['supplyer_code'],
+                    'supplyer_name' => $supplierName ?: $sc,
+                    'goods_count' => 0,
+                    'generated' => false,
+                    'purchase_code' => '',
+                    'purchase_id' => 0,
+                    'total_money'  => 0,
+                    'items'        => [],
+                ];
+            }
+            $supplierGroups[$sc]['goods_count']++;
+            $supplierGroups[$sc]['total_money'] += (float)($info['money_tax_price'] ?? 0);
+            $supplierGroups[$sc]['items'][] = $info;
+
+            // 检查该行是否已生成购货单
+            $purordInfo = Db::name('kuerp_goods_purord_info')
+                ->where(['order_id' => $info['id']])
+                ->find();
+            if (!empty($purordInfo)) {
+                $purchaseInfo = Db::name('kuerp_goods_purchase_info')
+                    ->where(['id' => $purordInfo['purchase_id']])
+                    ->field('purchase_code')
+                    ->find();
+                if (!empty($purchaseInfo)) {
+                    $supplierGroups[$sc]['generated'] = true;
+                    $supplierGroups[$sc]['purchase_code'] = $purchaseInfo['purchase_code'];
+                    // 查询购货单主表ID，用于"查看购货单"链接跳转
+                    $purchaseHeaderId = Db::name('kuerp_goods_purchase')
+                        ->where(['purchase_code' => $purchaseInfo['purchase_code']])
+                        ->value('id');
+                    $supplierGroups[$sc]['purchase_id'] = $purchaseHeaderId ?: 0;
+                }
+            }
+        }
+        $this->view->assign("supplierGroups", $supplierGroups);
+        $this->assignconfig("supplierGroups", $supplierGroups);
 
         //查询原始单据
         $enclosure_id = Db::name('kuerp_enclosure_log')->where(['order_id'=>$ids,'type'=>'1'])->column('enclosure_id');
@@ -955,6 +1090,472 @@ class GoodsPurchaseOrder extends Backend
         }else{
             $this->error('二次审核失败');
         }
+    }
+
+    // 检测供应商数量（用于前端判断是否需要弹窗）
+    public function checkSupplierCount(){
+        $order_id = isset($_POST['order_id']) ? trim($_POST['order_id']) : 0;
+        if (empty($order_id)) {
+            $this->error('参数错误');
+        }
+        $order = Db::name('kuerp_goods_purchase_order')->where(['id' => $order_id])
+            ->field('purchase_code, supplyer_code, supplier_count')
+            ->find();
+        if (empty($order)) {
+            $this->error('参数错误');
+        }
+        // 从明细表统计供应商
+        $supplyerCodes = Db::name('kuerp_goods_purchase_order_info')
+            ->where(['purchase_code' => $order['purchase_code']])
+            ->where('supplyer_code', '<>', '')
+            ->distinct('supplyer_code')
+            ->column('supplyer_code');
+        $supplierCount = count($supplyerCodes);
+
+        // 构建分组摘要
+        $groups = [];
+        if ($supplierCount > 1) {
+            foreach ($supplyerCodes as $sc) {
+                $items = Db::name('kuerp_goods_purchase_order_info')
+                    ->where(['purchase_code' => $order['purchase_code'], 'supplyer_code' => $sc])
+                    ->select();
+                $itemCount = count($items);
+                $totalMoney = 0;
+                foreach ($items as $item) {
+                    $totalMoney += (float)$item['all_money'];
+                }
+                $supplierName = Db::name('kuerp_suppliers')
+                    ->where(['supplyer_code' => $sc])
+                    ->value('supplyer_name');
+                $groups[] = [
+                    'supplyer_code' => $sc,
+                    'supplyer_name' => $supplierName ?: $sc,
+                    'item_count' => $itemCount,
+                    'total_money' => round($totalMoney, 2),
+                ];
+            }
+        }
+        $this->success('', ['supplier_count' => $supplierCount, 'groups' => $groups]);
+    }
+
+    // 按供应商分组批量生成购货单
+    public function batchGeneratePurchase(){
+        $order_id = isset($_POST['order_id']) ? intval($_POST['order_id']) : 0;
+        if (empty($order_id)) {
+            $this->error('参数错误');
+        }
+
+        $order = Db::name('kuerp_goods_purchase_order')->where(['id' => $order_id])->find();
+        if (!$order) {
+            $this->error('订单不存在');
+        }
+        if ($order['examine_status'] != '1') {
+            $this->error('订单未审核，不可生成购货单');
+        }
+
+        $lines = Db::name('kuerp_goods_purchase_order_info')
+            ->where(['purchase_code' => $order['purchase_code']])
+            ->select();
+
+        // 过滤已全部转换的行
+        $lines = array_filter($lines, function($line) {
+            $converted = Db::name('kuerp_goods_purord_info')
+                ->where(['order_id' => $line['id']])
+                ->sum('number');
+            return ($line['number'] - $converted) > 0;
+        });
+
+        if (empty($lines)) {
+            $this->error('此购货订单已全部生成购货单');
+        }
+
+        // 按供应商分组
+        $groups = [];
+        foreach ($lines as $line) {
+            $sc = !empty($line['supplyer_code']) ? $line['supplyer_code'] : '未指定供应商';
+            $groups[$sc][] = $line;
+        }
+
+        // 单供应商 → 返回重定向URL（走原来流程）
+        if (count($groups) <= 1) {
+            $this->success('', ['redirect' => true, 'url' => "kuerp/goods_purchase/add?ids={$order_id}"]);
+            return;
+        }
+
+        // 多供应商 → 批量生成
+        $results = [];
+        Db::startTrans();
+        try {
+            // 订单全部明细价税合计与表头优惠，用于按组占比分摊优惠金额
+            $orderTotalMoneyTaxPrice = (float)Db::name('kuerp_goods_purchase_order_info')
+                ->where(['purchase_code' => $order['purchase_code']])
+                ->sum('money_tax_price');
+            $orderPreferentialRate = (float)($order['preferential_rate'] ?? 0);
+            $orderPreferentialMoney = (float)($order['preferential_money'] ?? 0);
+
+            foreach ($groups as $supplierCode => $items) {
+                $purchaseCode = \addons\kuerp\library\Goods::getCodes('', 8);
+
+                $totalNumber = 0;
+                $totalAllMoney = 0;
+                $totalTaxMoney = 0;
+                $totalMoneyTaxPrice = 0;
+
+                $detailData = [];
+                foreach ($items as $item) {
+                    $remaining = $item['number'] - Db::name('kuerp_goods_purord_info')
+                        ->where(['order_id' => $item['id']])
+                        ->sum('number');
+                    if ($remaining <= 0) continue;
+
+                    // 按剩余数量占订单数量的比例缩放金额（订单明细的 all_money/tax_money/money_tax_price 均已含行折扣）
+                    $ratio = $item['number'] > 0 ? ($remaining / $item['number']) : 0;
+                    $totalNumber += $remaining;
+                    $lineAllMoney = round($item['all_money'] * $ratio, 2);
+                    $totalAllMoney += $lineAllMoney;
+                    $lineTaxMoney = round($item['tax_money'] * $ratio, 2);
+                    $totalTaxMoney += $lineTaxMoney;
+                    $lineMoneyTaxPrice = round($item['money_tax_price'] * $ratio, 2);
+                    $totalMoneyTaxPrice += $lineMoneyTaxPrice;
+                    $lineDisMoney = round($item['dis_money'] * $ratio, 2);
+
+                    $detailData[] = [
+                        'purchase_code'     => $purchaseCode,
+                        'supplyer_code'     => $supplierCode,
+                        'goods_code'        => $item['goods_code'],
+                        'goods_unit'        => $item['goods_unit'],
+                        'stores_id'         => $item['stores_id'],
+                        'number'            => $remaining,
+                        'default_unit'      => $item['default_unit'],
+                        'basic_nmber'       => $item['basic_nmber'],
+                        'unit_price'        => $item['unit_price'],
+                        'tax_included'      => $item['tax_included'],
+                        'discount'          => $item['discount'],
+                        'dis_money'         => $lineDisMoney,
+                        'all_money'         => $lineAllMoney,
+                        'tax_rate'          => $item['tax_rate'],
+                        'tax_money'         => $lineTaxMoney,
+                        'money_tax_price'   => $lineMoneyTaxPrice,
+                        'preferential_rate' => $item['preferential_rate'],
+                        'preferential_money'=> $item['preferential_money'],
+                        'order_info_id'     => $item['id'],
+                        'purchase_order_id' => $order['purchase_code'],
+                        'sales_order_id'    => $item['sales_order_id'],
+                        'goods_attr'        => $item['goods_attr'],
+                        'goods_note'        => $item['goods_note'],
+                        'allow_stock'       => $item['allow_stock'],
+                        'purchase_time'     => $item['purchase_time'],
+                        'delivery_time'     => $item['delivery_time'],
+                        'remark'            => $item['remark'],
+                        'preparation_id'    => $this->auth->id,
+                        'operation_id'      => $this->auth->id,
+                        'createtime'        => time(),
+                        'updatetime'        => time(),
+                    ];
+                }
+
+                // 获取真实的supplyer_code（处理"未指定供应商"的情况）
+                $realSupplierCode = $supplierCode === '未指定供应商' ? '' : $supplierCode;
+
+                // 表头优惠金额按本组价税合计占比分摊
+                $groupPreferential = 0;
+                if ($orderTotalMoneyTaxPrice > 0 && $orderPreferentialMoney > 0) {
+                    $groupPreferential = round($orderPreferentialMoney * ($totalMoneyTaxPrice / $orderTotalMoneyTaxPrice), 2);
+                }
+                // 实付金额 = 本组价税合计 - 本组分摊优惠
+                $realMoney = round($totalMoneyTaxPrice - $groupPreferential, 2);
+
+                // 生成购货单默认未付款，本次欠款 = 实付金额；总欠款 = 本次欠款 + 供应商已有欠款
+                $giveAccount = Db::name('kuerp_suppliers')->where(['supplyer_code' => $realSupplierCode])->value('need_give_account');
+                $giveAccount = $giveAccount ? (float)$giveAccount : 0;
+
+                // 插入购货单主表
+                $purchaseMainId = Db::name('kuerp_goods_purchase')->insertGetId([
+                    'purchase_code'     => $purchaseCode,
+                    'purchase_type'     => $order['purchase_type'],
+                    'purchase_time'     => time(),
+                    'delivery_time'     => $order['delivery_time'],
+                    'supplyer_code'     => $realSupplierCode,
+                    'number'            => $totalNumber,
+                    'all_money'         => $totalAllMoney,
+                    'tax_money'         => $totalTaxMoney,
+                    'preferential_rate' => $orderPreferentialRate,
+                    'preferential_money'=> $groupPreferential,
+                    'real_money'        => $realMoney,
+                    'arrears'           => $realMoney,
+                    'all_arrears'       => round($realMoney + $giveAccount, 2),
+                    'pay_money'         => 0,
+                    'purchase_order_id' => $order['purchase_code'],
+                    'sales_order_id'    => $order['sales_order_id'],
+                    'preparation_id'    => $this->auth->id,
+                    'operation_id'      => $this->auth->id,
+                    'pay_status'        => '0',
+                    'examine_status'    => '0',
+                    'createtime'        => time(),
+                    'updatetime'        => time(),
+                ]);
+
+                // 插入购货单明细
+                foreach ($detailData as $dv) {
+                    $orderInfoId = $dv['order_info_id'];
+                    unset($dv['order_info_id']);
+                    $detailId = Db::name('kuerp_goods_purchase_info')->insertGetId($dv);
+                    if (!empty($orderInfoId)) {
+                        Db::name('kuerp_goods_purord_info')->insert([
+                            'order_id'        => $orderInfoId,
+                            'purchase_id'     => $detailId,
+                            'number'          => $dv['number'],
+                            'all_money'       => $dv['all_money'],
+                            'tax_rate'        => $dv['tax_rate'],
+                            'tax_money'       => $dv['tax_money'],
+                            'money_tax_price' => $dv['money_tax_price'],
+                            'status'          => '0',
+                        ]);
+                    }
+                }
+
+                // 插入 purord 关联
+                Db::name('kuerp_goods_purord')->insert([
+                    'order_id'    => $order_id,
+                    'purchase_id' => $purchaseMainId,
+                ]);
+
+                // 写入销货订单日志
+                if (!empty($order['sales_order_id'])) {
+                    \app\admin\model\kuerp\GoodsSalesOrderLog::writeLogByCode(
+                        $order['sales_order_id'],
+                        '生成购货单',
+                        "生成购货单：{$purchaseCode}（供应商：{$realSupplierCode}）",
+                        'purchase',
+                        $purchaseMainId
+                    );
+                }
+
+                $results[] = [
+                    'purchase_code' => $purchaseCode,
+                    'supplier_code' => $realSupplierCode,
+                    'item_count'    => count($detailData),
+                ];
+            }
+
+            // 更新订单表头
+            Db::name('kuerp_goods_purchase_order')->where(['id' => $order_id])->update([
+                'supplier_count' => count($groups),
+            ]);
+
+            Db::commit();
+        } catch (\Exception $e) {
+            Db::rollback();
+            $this->error('生成购货单失败：' . $e->getMessage());
+        }
+
+        $this->success('成功生成' . count($results) . '个购货单', ['results' => $results]);
+    }
+
+    // 按单个供应商生成购货单
+    public function generateBySupplier(){
+        $order_id = isset($_POST['order_id']) ? intval($_POST['order_id']) : 0;
+        $supplyer_code = isset($_POST['supplyer_code']) ? trim($_POST['supplyer_code']) : '';
+
+        if (empty($order_id)) {
+            $this->error('参数错误');
+        }
+
+        $order = Db::name('kuerp_goods_purchase_order')->where(['id' => $order_id])->find();
+        if (!$order) {
+            $this->error('订单不存在');
+        }
+        if ($order['examine_status'] != '1') {
+            $this->error('订单未审核，不可生成购货单');
+        }
+
+        // 查询该供应商的订单明细行
+        $lines = Db::name('kuerp_goods_purchase_order_info')
+            ->where(['purchase_code' => $order['purchase_code']])
+            ->where(function($query) use ($supplyer_code) {
+                if (!empty($supplyer_code)) {
+                    $query->where(['supplyer_code' => $supplyer_code]);
+                } else {
+                    $query->where('supplyer_code', '=', '')->whereOr('supplyer_code', 'is', null);
+                }
+            })
+            ->select();
+
+        if (empty($lines)) {
+            $this->error('该供应商没有可生成购货单的商品');
+        }
+
+        // 过滤已全部转换的行
+        $lines = array_filter($lines, function($line) {
+            $converted = Db::name('kuerp_goods_purord_info')
+                ->where(['order_id' => $line['id']])
+                ->sum('number');
+            return ($line['number'] - $converted) > 0;
+        });
+
+        if (empty($lines)) {
+            $this->error('该供应商的商品已全部生成购货单');
+        }
+
+        $purchaseCode = \addons\kuerp\library\Goods::getCodes('', 8);
+        $totalNumber = 0;
+        $totalAllMoney = 0;
+        $totalTaxMoney = 0;
+        $totalMoneyTaxPrice = 0;
+
+        // 订单全部明细价税合计与表头优惠，用于按占比分摊优惠金额
+        $orderTotalMoneyTaxPrice = (float)Db::name('kuerp_goods_purchase_order_info')
+            ->where(['purchase_code' => $order['purchase_code']])
+            ->sum('money_tax_price');
+        $orderPreferentialRate = (float)($order['preferential_rate'] ?? 0);
+        $orderPreferentialMoney = (float)($order['preferential_money'] ?? 0);
+
+        $detailData = [];
+        foreach ($lines as $item) {
+            $remaining = $item['number'] - Db::name('kuerp_goods_purord_info')
+                ->where(['order_id' => $item['id']])
+                ->sum('number');
+            if ($remaining <= 0) continue;
+
+            // 按剩余数量占订单数量的比例缩放金额（订单明细的 all_money/tax_money/money_tax_price 均已含行折扣）
+            $ratio = $item['number'] > 0 ? ($remaining / $item['number']) : 0;
+            $totalNumber += $remaining;
+            $lineAllMoney = round($item['all_money'] * $ratio, 2);
+            $totalAllMoney += $lineAllMoney;
+            $lineTaxMoney = round($item['tax_money'] * $ratio, 2);
+            $totalTaxMoney += $lineTaxMoney;
+            $lineMoneyTaxPrice = round($item['money_tax_price'] * $ratio, 2);
+            $totalMoneyTaxPrice += $lineMoneyTaxPrice;
+            $lineDisMoney = round($item['dis_money'] * $ratio, 2);
+
+            $detailData[] = [
+                'purchase_code'     => $purchaseCode,
+                'supplyer_code'     => $supplyer_code,
+                'goods_code'        => $item['goods_code'],
+                'goods_unit'        => $item['goods_unit'],
+                'stores_id'         => $item['stores_id'],
+                'number'            => $remaining,
+                'default_unit'      => $item['default_unit'],
+                'basic_nmber'       => $item['basic_nmber'],
+                'unit_price'        => $item['unit_price'],
+                'tax_included'      => $item['tax_included'],
+                'discount'          => $item['discount'],
+                'dis_money'         => $lineDisMoney,
+                'all_money'         => $lineAllMoney,
+                'tax_rate'          => $item['tax_rate'],
+                'tax_money'         => $lineTaxMoney,
+                'money_tax_price'   => $lineMoneyTaxPrice,
+                'preferential_rate' => $item['preferential_rate'],
+                'preferential_money'=> $item['preferential_money'],
+                'order_info_id'     => $item['id'],
+                'purchase_order_id' => $order['purchase_code'],
+                'sales_order_id'    => $item['sales_order_id'],
+                'goods_attr'        => $item['goods_attr'],
+                'goods_note'        => $item['goods_note'],
+                'allow_stock'       => $item['allow_stock'],
+                'purchase_time'     => $item['purchase_time'],
+                'delivery_time'     => $item['delivery_time'],
+                'remark'            => $item['remark'],
+                'preparation_id'    => $this->auth->id,
+                'operation_id'      => $this->auth->id,
+                'createtime'        => time(),
+                'updatetime'        => time(),
+            ];
+        }
+
+        if (empty($detailData)) {
+            $this->error('没有可生成的数据');
+        }
+
+        // 表头优惠金额按本组价税合计占比分摊
+        $groupPreferential = 0;
+        if ($orderTotalMoneyTaxPrice > 0 && $orderPreferentialMoney > 0) {
+            $groupPreferential = round($orderPreferentialMoney * ($totalMoneyTaxPrice / $orderTotalMoneyTaxPrice), 2);
+        }
+        // 实付金额 = 本组价税合计 - 本组分摊优惠
+        $realMoney = round($totalMoneyTaxPrice - $groupPreferential, 2);
+
+        // 生成购货单默认未付款，本次欠款 = 实付金额；总欠款 = 本次欠款 + 供应商已有欠款
+        $giveAccount = Db::name('kuerp_suppliers')->where(['supplyer_code' => $supplyer_code])->value('need_give_account');
+        $giveAccount = $giveAccount ? (float)$giveAccount : 0;
+
+        Db::startTrans();
+        try {
+            $purchaseMainId = Db::name('kuerp_goods_purchase')->insertGetId([
+                'purchase_code'     => $purchaseCode,
+                'purchase_type'     => $order['purchase_type'],
+                'purchase_time'     => time(),
+                'delivery_time'     => $order['delivery_time'],
+                'supplyer_code'     => $supplyer_code,
+                'number'            => $totalNumber,
+                'all_money'         => $totalAllMoney,
+                'tax_money'         => $totalTaxMoney,
+                'preferential_rate' => $orderPreferentialRate,
+                'preferential_money'=> $groupPreferential,
+                'real_money'        => $realMoney,
+                'arrears'           => $realMoney,
+                'all_arrears'       => round($realMoney + $giveAccount, 2),
+                'pay_money'         => 0,
+                'purchase_order_id' => $order['purchase_code'],
+                'sales_order_id'    => $order['sales_order_id'],
+                'preparation_id'    => $this->auth->id,
+                'operation_id'      => $this->auth->id,
+                'pay_status'        => '0',
+                'examine_status'    => '0',
+                'createtime'        => time(),
+                'updatetime'        => time(),
+            ]);
+
+            foreach ($detailData as $dv) {
+                $orderInfoId = $dv['order_info_id'];
+                unset($dv['order_info_id']);
+                $detailId = Db::name('kuerp_goods_purchase_info')->insertGetId($dv);
+                if (!empty($orderInfoId)) {
+                    Db::name('kuerp_goods_purord_info')->insert([
+                        'order_id'        => $orderInfoId,
+                        'purchase_id'     => $detailId,
+                        'number'          => $dv['number'],
+                        'all_money'       => $dv['all_money'],
+                        'tax_rate'        => $dv['tax_rate'],
+                        'tax_money'       => $dv['tax_money'],
+                        'money_tax_price' => $dv['money_tax_price'],
+                        'status'          => '0',
+                    ]);
+                }
+            }
+
+            Db::name('kuerp_goods_purord')->insert([
+                'order_id'    => $order_id,
+                'purchase_id' => $purchaseMainId,
+            ]);
+
+            // 更新订单表头供应商计数
+            $allSuppliers = Db::name('kuerp_goods_purchase_order_info')
+                ->where(['purchase_code' => $order['purchase_code']])
+                ->where('supplyer_code', '<>', '')
+                ->distinct('supplyer_code')
+                ->column('supplyer_code');
+            Db::name('kuerp_goods_purchase_order')->where(['id' => $order_id])->update([
+                'supplier_count' => count($allSuppliers) ?: 1,
+            ]);
+
+            if (!empty($order['sales_order_id'])) {
+                \app\admin\model\kuerp\GoodsSalesOrderLog::writeLogByCode(
+                    $order['sales_order_id'],
+                    '生成购货单',
+                    "生成购货单：{$purchaseCode}（供应商：{$supplyer_code}）",
+                    'purchase',
+                    $purchaseMainId
+                );
+            }
+
+            Db::commit();
+        } catch (\Exception $e) {
+            Db::rollback();
+            $this->error('生成购货单失败：' . $e->getMessage());
+        }
+
+        $this->success('成功生成购货单：' . $purchaseCode);
     }
 
     //检测可生成购货单

@@ -149,11 +149,12 @@ export default {
   watch: {
     value(val) {
       if (val) {
-        // 每次打开弹窗重置数量，规格保持上次选择或自动选第一个
+        // 每次打开弹窗重置数量，并重新初始化规格选择
         this.quantity = 1
-        if (!this.initialised) {
-          this.initSelection()
-        }
+        this.initialised = false
+        this.selectedAuxIds = []
+        this.selectedUnitIdx = 0
+        this.initSelection()
       }
     },
     attrs: {
@@ -167,7 +168,13 @@ export default {
   },
   methods: {
     initSelection() {
-      if (this.selectedAuxIds.length === 0 && this.attrs.length > 0) {
+      // 规格数据未就绪时暂不标记完成，等 attrs watcher 触发后重试
+      // （index 页面先开弹窗再异步加载数据，首次调用时 attrs 为空）
+      if (this.attrs.length === 0) {
+        this.emitSpecChange()
+        return
+      }
+      if (this.selectedAuxIds.length === 0) {
         const skuWithStock = this.attrs.find(a => (a.stock || 0) > 0)
         const target = skuWithStock || this.attrs[0]
         if (target && target.aux_value_ids && target.aux_value_ids.length > 0) {

@@ -49,6 +49,18 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     ,toolbar: '#thisToolbar' //开启头部工具栏，并为其绑定左侧模板
                     ,page: true
                     ,cellMinWidth: 100 //全局定义常规单元格的最小宽度，layui 2.2.1 新增
+                    // 已催收的销货单整行显示浅红色背景（主表体 + 固定列）
+                    ,done: function (res, curr, count) {
+                        if (res && res.data) {
+                            var tableElem = $(this.elem).next();
+                            res.data.forEach(function (item, index) {
+                                if (item.dunning_count > 0) {
+                                    tableElem.find('.layui-table-body tbody tr[data-index="' + index + '"]')
+                                        .css('background-color', '#ffe3e3');
+                                }
+                            });
+                        }
+                    }
                     ,cols: [[
                         {checkbox: true},
                         {field: 'purchase_time', title: __('Purchase_time'),templet: function (d) {
@@ -108,8 +120,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'note', title: __('Note')},
                         {fixed: 'right', title:__('Operate'), templet: function(d){
                                 var html = '';
-                                // 审核通过且未全部收款才显示催收按钮
-                                if(d.examine_status == 1 && d.pay_status != 1){
+                                // 有催收权限，且审核通过且未全部收款才显示催收按钮
+                                if(Config.dunning_right && d.examine_status == 1 && d.pay_status != 1){
                                     var btnClass = (d.dunning_count > 0) ? 'layui-btn-danger' : 'layui-btn-warm';
                                     html += '<a class="layui-btn layui-btn-xs ' + btnClass + '" lay-event="dunning">催收</a>';
                                 }
@@ -824,6 +836,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 //选择客户
                 $(document).on("change", "#customers_id", function(){
                     var customers_id = $(this).val();
+                    // 自动填充收货地址
                     $.ajax( {
                         url: "kuerp/goods_sales/getReceivingAddress",
                         type: "POST",
@@ -832,6 +845,20 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         },
                         success: function(res){
                             $('#c-receiving_address').val(res);
+                        }
+                    });
+                    // 自动填充客户绑定的销售员
+                    $.ajax( {
+                        url: "kuerp/goods_sales/getCustomerSaleUser",
+                        type: "POST",
+                        data:{
+                            'customers_id':customers_id,
+                        },
+                        success: function(res){
+                            var data = JSON.parse(res);
+                            if (data.staff_member_id && data.staff_member_id > 0) {
+                                $('#Sale_user').val(data.staff_member_id);
+                            }
                         }
                     });
                 });

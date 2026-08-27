@@ -2125,7 +2125,20 @@ class GoodsPurchase extends Backend
                 }
             }
         }
-        return json_encode(['unit'=>$data,'attr'=>$goods_attr,'goods'=>$row]);
+        // 查询商品绑定的默认供应商
+        $supplier = null;
+        $goodsSupplier = Db::name('kuerp_goods')
+            ->where(['id' => $goods_id])
+            ->field('supplier_id')
+            ->find();
+        if (!empty($goodsSupplier['supplier_id'])) {
+            $supplier = Db::name('kuerp_suppliers')
+                ->where(['id' => $goodsSupplier['supplier_id']])
+                ->field('id, supplyer_code, supplyer_name')
+                ->find();
+        }
+
+        return json_encode(['unit'=>$data,'attr'=>$goods_attr,'goods'=>$row,'supplier'=>$supplier]);
     }
     public function formatInfo(){
         $data = input();

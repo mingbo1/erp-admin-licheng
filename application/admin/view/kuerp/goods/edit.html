@@ -40,6 +40,24 @@
     <div class="row">
         <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
             <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">厂商:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-vendor_name" class="form-control" name="row[vendor_name]" type="text" value="{$row.vendor_name|htmlentities}" placeholder="厂商">
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">封装:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-packaging" class="form-control" name="row[packaging]" type="text" value="{$row.packaging|htmlentities}" placeholder="封装">
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
                 <label class="control-label col-xs-12 col-sm-3">{:__('Goods_type_id')}:</label>
                 <div class="col-xs-12 col-sm-8">
                     {:build_select('row[goods_type_id]', $categorylist, $row['goods_type_id'], ['class'=>'form-control selectpicker', 'data-size'=>'10', 'id'=>'c-goods_type_id', 'data-rule'=>'required'])}
@@ -132,7 +150,7 @@
     </div>
     </div>
     <!--多计量单位开关-->
-    <div class="row">
+    <!-- <div class="row">
         <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6" style="margin-left: 12.5%">
             <div class="form-group">
                 <div class="col-xs-12 col-sm-12">
@@ -144,7 +162,7 @@
                 </div>
             </div>
         </div>
-    </div>
+    </div> -->
     <div class="row more_unit" {if condition="$row.more_unit!=1"}style="display: none"{/if}>
     <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
         <div class="form-group">

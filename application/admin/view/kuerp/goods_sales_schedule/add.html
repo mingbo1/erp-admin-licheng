@@ -76,7 +76,8 @@
                     </th>
                     <th>{:__('Goods_note')}</th><th class="goods_attr_sd">{:__('Goods_attr')}</th><th>{:__('Goods_unit')}</th><th>{:__('Stores_id')}</th><th>{:__('Allow_stock')}</th>
                     <th class="goods_batch_sd">批次</th><th class="goods_batch_sd">生产日期</th><th class="goods_batch_sd">保质期(天)</th><th class="goods_batch_sd">有效期至</th>
-                    <th>{:__('Number')}</th><th>{:__('Default_unit')}</th><th>{:__('Basic_nmber')}</th>
+                    <th>{:__('Number')}</th><th>{:__('Default_unit')}</th>
+<!--                    <th>{:__('Basic_nmber')}</th>-->
                     <th>{:__('Remark')}</th>
                 </tr>
 
@@ -130,7 +131,8 @@
 
                     <td><div><input type="number" name="row[number][]" class="number number_decimal number_decimal"><input type="hidden" class="period_period" name="row[period_period][]"></div></td>
                     <td><div><input type="text" readonly class="default_unit"><input type="hidden" name="row[default_unit][]" class="default_unit_id"></div></td>
-                    <td><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly></div></td>
+<!--                    <td><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly></div></td>-->
+                    <input type="hidden" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly>
                     <td><div><input type="text" name="row[remark][]" class="remark"></div></td>
                 </tr>
 
@@ -185,7 +187,8 @@
 
                     <td><div><input type="number" name="row[number][]" class="number number_decimal number_decimal"><input type="hidden" class="period_period" name="row[period_period][]"></div></td>
                     <td><div><input type="text" readonly class="default_unit"><input type="hidden" name="row[default_unit][]" class="default_unit_id"></div></td>
-                    <td><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly></div></td>
+<!--                    <td><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly></div></td>-->
+                    <input type="hidden" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly>
                     <td><div><input type="text" name="row[remark][]" class="remark"></div></td>
                 </tr>
                 {php}}{/php}
