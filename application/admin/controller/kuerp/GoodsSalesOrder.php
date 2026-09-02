@@ -613,11 +613,19 @@ class GoodsSalesOrder extends Backend
         }
         $this->assignconfig("purchase_type", $row['purchase_type']);
 
-        //审核禁止输入
-        $examine_set= Db::name('kuerp_sets')->where(['name'=>'examine'])->value('is_checked');
-        if($examine_set==1 && $row['examine_status']==1){
-            $this->assign('exclass','hiddens');
+        //已生成销货单/退货单的订单禁止修改，表单只读展示（与edit保存时的校验保持一致）
+        $has_sales_doc = 0;
+        if($row['purchase_type']==1){
+            $doc_id = Db::name('kuerp_goods_saleord')->where(['order_id'=>$ids])->column('purchase_id');
+        }else{
+            $doc_id = Db::name('kuerp_goods_saleexc')->where(['purchase_id'=>$ids])->column('exchange_id');
         }
+        if(!empty($doc_id)){
+            $has_sales_doc = 1;
+            $this->assign('exclass','hiddens');
+            $this->assign('has_sales_doc', 1);
+        }
+        $this->assignconfig("has_sales_doc", $has_sales_doc);
         $this->assignconfig("examine_status", $row['examine_status']);
 
         // 查询操作日志列表

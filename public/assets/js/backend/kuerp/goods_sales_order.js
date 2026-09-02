@@ -398,13 +398,13 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     });
                 });
 
-                //设置审核的单据不可编辑
+                //设置审核的单据不可编辑（已生成销货单/退货单的订单同样只读）
                 var set = Config.set;
                 var examine = parseInt(set.examine.is_checked);
                 if(isNaN(examine)){
                     examine = 0;
                 }
-                if(examine==1 && Config.examine_status==1){
+                if((examine==1 && Config.examine_status==1) || Config.has_sales_doc==1){
                     $('input').attr('disabled','true');
                     $('select').attr('disabled','true');
                     $('textarea').attr('disabled','true');
