@@ -22,6 +22,13 @@
     }
 </style>
 {/if}
+<!-- 商品多单位功能暂未启用：隐藏单据表格中“基本单位/基本数量”列（仅隐藏展示，字段与逻辑代码均保留）。
+     以后需要启用商品多单位时，删除下方这段样式即可恢复显示 -->
+<style>
+    .goods_multi_unit_sd{
+        display: none;
+    }
+</style>
 
 <script type="text/html" id="recycleDemo">
     <div class="layui-btn-container">

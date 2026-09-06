@@ -487,12 +487,6 @@ class Goods extends Backend
             foreach ($insert as $insert_k=>$insert_v){
                 if(!empty($insert_v['商品编号'])){
 
-                    if(!isset($insert_v['预计采购价']) || empty($insert_v['预计采购价'])){
-                        $this->error('请输入商品预计采购价');
-                    }
-                    if(!isset($insert_v['零售价']) || empty($insert_v['零售价'])){
-                        $this->error('请输入商品零售价');
-                    }
                     if(!isset($insert_v['计量单位']) || empty($insert_v['计量单位'])){
                         $this->error('请输入商品计量单位');
                     }

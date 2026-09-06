@@ -45,13 +45,13 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                     return '';
                                 }
                             }},
-                        {field: 'unit_conversion', title: __('Unit_conversion'),templet: function (d) {
-                                if(d.unit_conversion){
-                                    return d.unit_conversion;
-                                }else{
-                                    return '';
-                                }
-                            }},
+                        // {field: 'unit_conversion', title: __('Unit_conversion'),templet: function (d) {
+                        //         if(d.unit_conversion){
+                        //             return d.unit_conversion;
+                        //         }else{
+                        //             return '';
+                        //         }
+                        //     }},
                         {field: 'basic_nmber', title: __('Basic_nmber'),templet: function (d) {
                                 if(d.unit_conversion){
                                     return d.basic_nmber;
@@ -59,8 +59,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                     return '';
                                 }
                             }},
-                        {field: 'u_name', title: __('Default_unit')},
-                        {field: 'i_number', title: __('Basic_nmber')},
+                        // {field: 'u_name', title: __('Default_unit')},
+                        // {field: 'i_number', title: __('Basic_nmber')},
                         {field: 'unit_price', title: __('Unit_price')},
                         {field: 'all_money', title: __('All_money')},
                         {field: 'purchase_money', title: __('Purchase_money')},

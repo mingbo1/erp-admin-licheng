@@ -4,6 +4,10 @@ namespace app\admin\controller\kuerp;
 
 use app\common\controller\Backend;
 use think\Db;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Reader\Xlsx;
+use PhpOffice\PhpSpreadsheet\Reader\Xls;
+use PhpOffice\PhpSpreadsheet\Reader\Csv;
 
 /**
  * 商品BOM模板
@@ -12,7 +16,7 @@ use think\Db;
  */
 class GoodsBom extends Backend
 {
-    protected $noNeedRight = ['getbomdetail', 'chosegoods', 'chosebom'];
+    protected $noNeedRight = ['getbomdetail', 'chosegoods', 'chosebom', 'preview', 'matchGoods', 'createGoods', 'createBom'];
     /**
      * GoodsBom模型对象
      * @var \app\admin\model\kuerp\GoodsBom
@@ -443,6 +447,592 @@ class GoodsBom extends Backend
             ->field('id,goods_code,goods_name,product_type,unit_id')
             ->limit(50)
             ->select();
-        $this->success('', $list);
+        $this->success('', null, $list);
+    }
+
+    // ============================================================
+    // BOM Excel 导入（含匹配预览）
+    // ============================================================
+
+    /**
+     * 导入页（GET渲染视图）
+     */
+    public function import()
+    {
+        $unit = Db::name('kuerp_unit')->where(['type' => '1'])->field('id,name')->select();
+        $goodsType = Db::name('kuerp_goods_type')->where(['status' => '1'])->field('id,supplier_type_name')->select();
+        $suppliers = Db::name('kuerp_suppliers')->where(['status' => 1])->field('id,supplyer_name')->select();
+        $stores = Db::name('kuerp_stores')->where(['status' => '1'])->field('id,name')->select();
+        $this->assignconfig('import_units', $unit);
+        $this->assignconfig('import_goods_types', $goodsType);
+        $this->assignconfig('import_suppliers', $suppliers);
+        $this->assignconfig('import_stores', $stores);
+        return $this->view->fetch();
+    }
+
+    /**
+     * 解析上传的Excel并返回匹配预览数据（POST）
+     */
+    public function preview()
+    {
+        $file = $this->request->request('file');
+        if (!$file) {
+            $this->error('请选择上传文件');
+        }
+        $filePath = ROOT_PATH . DS . 'public' . DS . $file;
+        if (!is_file($filePath)) {
+            $this->error('文件不存在');
+        }
+        $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        if (!in_array($ext, ['csv', 'xls', 'xlsx'])) {
+            $this->error('文件格式不支持，仅支持 xlsx / xls / csv');
+        }
+
+        try {
+            $parsed = $this->parseBomExcel($filePath);
+        } catch (\Exception $e) {
+            $this->error('解析失败：' . $e->getMessage());
+        }
+
+        $parent = $parsed['parent'];
+        $children = $parsed['children'];
+
+        // 父商品必须已存在（按商品编号精确匹配）
+        if ($parent['goods_code'] === '') {
+            $this->error('父级商品编号为空，请检查模板');
+        }
+        $parentGoods = Db::name('kuerp_goods')
+            ->where(['goods_code' => $parent['goods_code'], 'status' => '1'])
+            ->field('id,goods_code,goods_name,product_type,unit_id')
+            ->find();
+        if (empty($parentGoods)) {
+            $this->error('父商品[' . $parent['goods_code'] . ']不存在，请先在货品管理中创建该商品后再导入');
+        }
+
+        // 重复BOM校验：同一父商品只允许一个模板
+        $exist = Db::name('kuerp_goods_bom')->where(['goods_id' => $parentGoods['id']])->find();
+        if ($exist) {
+            $this->error('父商品[' . $parentGoods['goods_code'] . ']已存在BOM模板，请先删除原模板后再导入');
+        }
+
+        // 子商品匹配
+        $childrenResult = [];
+        foreach ($children as $child) {
+            $match = $this->matchGoodsRow($child['spec'], $child['vendor'], $child['packaging']);
+            $childrenResult[] = [
+                'name'          => $child['name'],
+                'spec'          => $child['spec'],
+                'vendor'        => $child['vendor'],
+                'packaging'     => $child['packaging'],
+                'number'        => $child['number'],
+                'status'        => $match['status'],
+                'default_goods' => $match['default_goods'],
+                'candidates'    => $match['candidates'],
+            ];
+        }
+
+        $data = [
+            'bom_name' => $parentGoods['goods_name'] . 'BOM',
+            'parent' => [
+                'goods_id'     => $parentGoods['id'],
+                'goods_code'   => $parentGoods['goods_code'],
+                'goods_name'   => $parentGoods['goods_name'],
+                'product_type' => $parentGoods['product_type'],
+                'excel_name'   => $parent['name'],
+                'spec'         => $parent['spec'],
+                'vendor'       => $parent['vendor'],
+                'packaging'    => $parent['packaging'],
+            ],
+            'children' => $childrenResult,
+        ];
+        // 注意：success($msg, $url, $data) 数据在第3参，不可直接传数组到第2参
+        $this->success('', null, $data);
+    }
+
+    /**
+     * 刷新/搜索子商品匹配候选（POST）
+     * 用于“替换”弹窗搜索、以及“新增”商品后的刷新
+     */
+    public function matchGoods()
+    {
+        $spec = $this->request->post('spec');
+        $vendor = $this->request->post('vendor');
+        $packaging = $this->request->post('packaging');
+        $keyword = $this->request->post('keyword');
+        $result = $this->matchGoodsRow($spec, $vendor, $packaging, $keyword);
+        $this->success('', null, $result);
+    }
+
+    /**
+     * 批量刷新子商品匹配候选（POST rows=[{spec,vendor,packaging},...]）
+     * 预览页"刷新匹配"一次请求返回所有行，避免逐行发请求
+     */
+    public function matchGoodsBatch()
+    {
+        $rows = $this->request->post('rows/a');
+        $results = [];
+        if (is_array($rows)) {
+            foreach ($rows as $r) {
+                $results[] = $this->matchGoodsRow(
+                    isset($r['spec']) ? $r['spec'] : '',
+                    isset($r['vendor']) ? $r['vendor'] : '',
+                    isset($r['packaging']) ? $r['packaging'] : '',
+                    ''
+                );
+            }
+        }
+        $this->success('', null, $results);
+    }
+
+    /**
+     * 快速新建商品（导入弹窗内调用）
+     */
+    public function createGoods()
+    {
+        $goods_name = trim((string)$this->request->post('goods_name'));
+        $spec = trim((string)$this->request->post('goods_specification_id'));
+        $vendor = trim((string)$this->request->post('vendor_name'));
+        $packaging = trim((string)$this->request->post('packaging'));
+        $product_type = (string)$this->request->post('product_type', 'part');
+        $unit_id = (int)$this->request->post('unit_id');
+        $goods_type_id = (int)$this->request->post('goods_type_id');
+        $supplier_id = (int)$this->request->post('supplier_id');
+        $manager_warehouse_id = (int)$this->request->post('manager_warehouse_id');
+
+        if ($goods_name === '') {
+            $this->error('商品名称不能为空');
+        }
+        if (!in_array($product_type, ['part', 'semi_finished', 'finished'])) {
+            $product_type = 'part';
+        }
+        if ($unit_id <= 0) {
+            $this->error('请选择计量单位');
+        }
+        if (!Db::name('kuerp_unit')->where(['id' => $unit_id])->find()) {
+            $this->error('计量单位不存在');
+        }
+
+        // 生成商品编号（沿用货品管理的编码规则）
+        $code = \addons\kuerp\library\Goods::getCodes('', 6);
+        if (!$code || Db::name('kuerp_goods')->where(['goods_code' => $code])->find()) {
+            $code = 'SP' . str_pad((string)mt_rand(10000, 99999), 5, '0', STR_PAD_LEFT);
+            $i = 0;
+            while (Db::name('kuerp_goods')->where(['goods_code' => $code])->find() && $i < 10) {
+                $code = 'SP' . str_pad((string)mt_rand(10000, 99999), 5, '0', STR_PAD_LEFT);
+                $i++;
+            }
+        }
+
+        $data = [
+            'admin_id'                => $this->auth->id,
+            'goods_code'              => $code,
+            'goods_name'              => $goods_name,
+            'goods_barcode'           => '',
+            'goods_specification_id'  => $spec,
+            'goods_type_id'           => $goods_type_id,
+            'location_id'             => 0,
+            'supplier_id'             => $supplier_id,
+            'product_type'            => $product_type,
+            'manager_warehouse_id'    => $manager_warehouse_id,
+            'unit_id'                 => $unit_id,
+            'more_unit'               => '2',
+            'more_unit_id'            => 0,
+            'market_sell_price'       => 0,
+            'wholesale_price'         => 0,
+            'vip_price'               => 0,
+            'discount'                => 0,
+            'discount2'               => 0,
+            'purchase'                => 0,
+            'inventory'               => 0,
+            'more_attribute'          => '0',
+            'attribute_id'            => '',
+            'note'                    => '',
+            'vendor_name'             => $vendor,
+            'packaging'               => $packaging,
+            'is_offten'               => '0',
+            'stock_warning'           => '0',
+            'min_stock'               => 0,
+            'max_stock'               => 0,
+            'branch'                  => '0',
+            'warehousing'             => 0,
+            'warehouse'               => 0,
+            'period'                  => 0,
+            'unit_cost'               => 0,
+            'price'                   => 0,
+            'period_status'           => '0',
+            'status'                  => '1',
+            'is_edit'                 => '1',
+            'auxiliary'               => 0,
+            'batch'                   => 0,
+            'shelf_life'              => 0,
+            'early_warning'           => 0,
+            'serial'                  => 0,
+            'tag'                     => 'sale',
+            'sale_number'             => 0,
+            'is_show'                 => 1,
+            'createtime'              => time(),
+            'updatetime'              => time(),
+        ];
+
+        Db::startTrans();
+        try {
+            $goodsId = Db::name('kuerp_goods')->insertGetId($data);
+            Db::commit();
+        } catch (\Exception $e) {
+            Db::rollback();
+            $this->error('创建失败：' . $e->getMessage());
+        }
+        $this->success('创建成功', null, [
+            'goods_id'              => $goodsId,
+            'goods_code'            => $code,
+            'goods_name'            => $goods_name,
+            'product_type'          => $product_type,
+            'unit_id'               => $unit_id,
+            'goods_specification_id' => $spec,
+            'vendor_name'           => $vendor,
+            'packaging'             => $packaging,
+        ]);
+    }
+
+    /**
+     * 确认导入（最终入库，POST）
+     */
+    public function createBom()
+    {
+        $bom_name = trim((string)$this->request->post('bom_name'));
+        $parentGoodsId = (int)$this->request->post('parent_goods_id');
+        $children = $this->request->post('children/a');
+
+        if ($bom_name === '') {
+            $this->error('模板名称不能为空');
+        }
+        if ($parentGoodsId <= 0) {
+            $this->error('缺少父商品');
+        }
+        if (empty($children) || !is_array($children)) {
+            $this->error('至少需要一个子商品');
+        }
+
+        $parentGoods = Db::name('kuerp_goods')->where(['id' => $parentGoodsId])->field('id,goods_code,goods_name')->find();
+        if (empty($parentGoods)) {
+            $this->error('父商品不存在');
+        }
+
+        // 重复导入校验
+        $exist = Db::name('kuerp_goods_bom')->where(['goods_id' => $parentGoodsId])->find();
+        if ($exist) {
+            $this->error('父商品[' . $parentGoods['goods_code'] . ']已存在BOM模板，请先删除原模板后再导入');
+        }
+
+        Db::startTrans();
+        try {
+            $bomId = Db::name('kuerp_goods_bom')->insertGetId([
+                'admin_id'    => $this->auth->id,
+                'bom_name'    => $bom_name,
+                'goods_id'    => $parentGoods['id'],
+                'goods_code'  => $parentGoods['goods_code'],
+                'remark'      => '',
+                'createtime'  => time(),
+                'updatetime'  => time(),
+            ]);
+
+            // 父商品行 (type=1, number固定1)
+            Db::name('kuerp_goods_bom_info')->insert([
+                'admin_id'    => $this->auth->id,
+                'bom_id'      => $bomId,
+                'type'        => '1',
+                'goods_id'    => $parentGoods['id'],
+                'goods_code'  => $parentGoods['goods_code'],
+                'goods_name'  => $parentGoods['goods_name'],
+                'unit_id'     => 0,
+                'number'      => 1,
+                'remark'      => '',
+                'createtime'  => time(),
+                'updatetime'  => time(),
+            ]);
+
+            // 子商品行 (type=2)
+            foreach ($children as $child) {
+                if (empty($child['goods_id']) || empty($child['number'])) {
+                    continue;
+                }
+                $childGoods = Db::name('kuerp_goods')->where(['id' => $child['goods_id']])->field('id,goods_code,goods_name,unit_id')->find();
+                if (empty($childGoods)) {
+                    continue;
+                }
+                Db::name('kuerp_goods_bom_info')->insert([
+                    'admin_id'    => $this->auth->id,
+                    'bom_id'      => $bomId,
+                    'type'        => '2',
+                    'goods_id'    => $childGoods['id'],
+                    'goods_code'  => $childGoods['goods_code'],
+                    'goods_name'  => $childGoods['goods_name'],
+                    'unit_id'     => $childGoods['unit_id'],
+                    'number'      => (float)$child['number'],
+                    'remark'      => '',
+                    'createtime'  => time(),
+                    'updatetime'  => time(),
+                ]);
+            }
+
+            Db::commit();
+        } catch (\Exception $e) {
+            Db::rollback();
+            $this->error('导入失败：' . $e->getMessage());
+        }
+        $this->success('导入成功', null, $bomId);
+    }
+
+    /**
+     * 解析BOM导入Excel
+     * 模板结构：说明行 → “父级商品”段（表头+1行数据） → “子级商品”段（表头+多行数据）
+     */
+    private function parseBomExcel($filePath)
+    {
+        $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        if ($ext === 'csv') {
+            $reader = new Csv();
+        } elseif ($ext === 'xls') {
+            $reader = new Xls();
+        } else {
+            $reader = new Xlsx();
+        }
+
+        $spreadsheet = $reader->load($filePath);
+        $sheet = $spreadsheet->getSheet(0);
+        $highestRow = $sheet->getHighestDataRow();
+        $highestCol = Coordinate::columnIndexFromString($sheet->getHighestDataColumn());
+
+        // 读取所有行（0-based列索引）
+        $rows = [];
+        for ($r = 1; $r <= $highestRow; $r++) {
+            $cells = [];
+            for ($c = 1; $c <= $highestCol; $c++) {
+                $val = $sheet->getCellByColumnAndRow($c, $r)->getValue();
+                $cells[] = is_null($val) ? '' : trim((string)$val);
+            }
+            $rows[$r] = $cells;
+        }
+
+        $parentLabelRow = $this->findLabelRow($rows, '父级商品');
+        $childLabelRow = $this->findLabelRow($rows, '子级商品');
+        if (!$parentLabelRow || !$childLabelRow) {
+            throw new \Exception('模板格式不正确，未找到"父级商品/子级商品"段落');
+        }
+
+        $parentHeader = $this->buildHeaderMap(isset($rows[$parentLabelRow + 1]) ? $rows[$parentLabelRow + 1] : []);
+        $childHeader = $this->buildHeaderMap(isset($rows[$childLabelRow + 1]) ? $rows[$childLabelRow + 1] : []);
+
+        // 父级数据：段落标签后第2行
+        $parentRow = isset($rows[$parentLabelRow + 2]) ? $rows[$parentLabelRow + 2] : [];
+        $parent = [
+            'goods_code' => $this->mapCell($parentHeader, $parentRow, '商品编号'),
+            'name'       => $this->mapCell($parentHeader, $parentRow, '名称'),
+            'spec'       => $this->mapCell($parentHeader, $parentRow, '规格'),
+            'vendor'     => $this->mapCell($parentHeader, $parentRow, '制造商'),
+            'packaging'  => $this->mapCell($parentHeader, $parentRow, '封装'),
+            'number'     => $this->mapCell($parentHeader, $parentRow, '数量'),
+        ];
+
+        // 子级数据
+        $children = [];
+        for ($r = $childLabelRow + 2; $r <= $highestRow; $r++) {
+            $cells = isset($rows[$r]) ? $rows[$r] : [];
+            $name = $this->mapCell($childHeader, $cells, '名称');
+            $spec = $this->mapCell($childHeader, $cells, '规格');
+            $vendor = $this->mapCell($childHeader, $cells, '制造商');
+            $packaging = $this->mapCell($childHeader, $cells, '封装');
+            $number = $this->mapCell($childHeader, $cells, '数量');
+            if ($name === '' && $spec === '' && $vendor === '' && $packaging === '') {
+                continue; // 跳过空行
+            }
+            $children[] = [
+                'name'      => $name,
+                'spec'      => $spec,
+                'vendor'    => $vendor,
+                'packaging' => $packaging,
+                'number'    => is_numeric($number) ? (float)$number : 1,
+            ];
+        }
+
+        if (empty($children)) {
+            throw new \Exception('模板中未填写子级商品');
+        }
+
+        return ['parent' => $parent, 'children' => $children];
+    }
+
+    /**
+     * 按规格/厂商/封装三参数匹配商品，返回状态与候选
+     * @param string $spec      规格
+     * @param string $vendor    厂商
+     * @param string $packaging 封装
+     * @param string $keyword   可选搜索关键字（“替换”弹窗搜索时传入）
+     * @return array ['status'=>'matched|pending|failed','default_goods'=>array|null,'candidates'=>array]
+     */
+    private function matchGoodsRow($spec, $vendor, $packaging, $keyword = '')
+    {
+        $spec = trim((string)$spec);
+        $vendor = trim((string)$vendor);
+        $packaging = trim((string)$packaging);
+        $keyword = trim((string)$keyword);
+
+        $goodsWhere = [
+            'status'       => '1',
+            'product_type' => ['in', ['part', 'semi_finished']],
+        ];
+
+        // 候选池：三参数任一 LIKE 匹配
+        $whereOr = [];
+        if ($spec !== '') {
+            $whereOr[] = ['goods_specification_id', 'like', '%' . $spec . '%'];
+        }
+        if ($vendor !== '') {
+            $whereOr[] = ['vendor_name', 'like', '%' . $vendor . '%'];
+        }
+        if ($packaging !== '') {
+            $whereOr[] = ['packaging', 'like', '%' . $packaging . '%'];
+        }
+
+        $list = [];
+        if (!empty($whereOr)) {
+            $list = Db::name('kuerp_goods')
+                ->where($goodsWhere)
+                ->where(function ($query) use ($whereOr) {
+                    // 注意：不能直接 whereOr($whereOr) 传三元组数组，
+                    // TP5 会按数字键批量查询导致"查询表达式错误"，
+                    // 须在闭包内链式调用 where/whereOr
+                    foreach ($whereOr as $i => $cond) {
+                        if ($i === 0) {
+                            $query->where($cond[0], $cond[1], $cond[2]);
+                        } else {
+                            $query->whereOr($cond[0], $cond[1], $cond[2]);
+                        }
+                    }
+                })
+                ->limit(100)
+                ->select();
+        }
+
+        // 关键字搜索补充候选
+        if ($keyword !== '') {
+            $kwList = Db::name('kuerp_goods')
+                ->where($goodsWhere)
+                ->where('goods_code|goods_name|goods_specification_id', 'like', '%' . $keyword . '%')
+                ->limit(100)
+                ->select();
+            $tmp = [];
+            foreach ($list as $g) {
+                $tmp[$g['id']] = $g;
+            }
+            foreach ($kwList as $g) {
+                $tmp[$g['id']] = $g;
+            }
+            $list = array_values($tmp);
+        }
+
+        // 逐个计算匹配字段
+        $candidates = [];
+        foreach ($list as $g) {
+            $matched = [];
+            if ($spec !== '' && $this->normStr($g['goods_specification_id']) === $this->normStr($spec)) {
+                $matched[] = 'spec';
+            }
+            if ($vendor !== '' && $this->normStr($g['vendor_name']) === $this->normStr($vendor)) {
+                $matched[] = 'vendor';
+            }
+            if ($packaging !== '' && $this->normStr($g['packaging']) === $this->normStr($packaging)) {
+                $matched[] = 'packaging';
+            }
+            if (empty($matched)) {
+                continue;
+            }
+            $candidates[] = [
+                'goods_id'              => $g['id'],
+                'goods_code'            => $g['goods_code'],
+                'goods_name'            => $g['goods_name'],
+                'goods_specification_id'=> $g['goods_specification_id'],
+                'vendor_name'           => $g['vendor_name'],
+                'packaging'             => $g['packaging'],
+                'product_type'          => $g['product_type'],
+                'unit_id'               => $g['unit_id'],
+                'matched_fields'        => $matched,
+                'match_count'           => count($matched),
+            ];
+        }
+
+        // 排序：匹配数多优先，id小优先
+        usort($candidates, function ($a, $b) {
+            if ($b['match_count'] != $a['match_count']) {
+                return $b['match_count'] - $a['match_count'];
+            }
+            return $a['goods_id'] - $b['goods_id'];
+        });
+
+        $status = 'failed';
+        $default = null;
+        if (!empty($candidates)) {
+            $best = $candidates[0];
+            if ($best['match_count'] === 3) {
+                $status = 'matched';
+            } elseif ($best['match_count'] >= 1) {
+                $status = 'pending';
+            }
+            $default = $best;
+        }
+
+        return [
+            'status'        => $status,
+            'default_goods' => $default,
+            'candidates'    => array_slice($candidates, 0, 20),
+        ];
+    }
+
+    /**
+     * 定位段落标签所在行（如“父级商品”“子级商品”）
+     */
+    private function findLabelRow($rows, $label)
+    {
+        foreach ($rows as $r => $cells) {
+            foreach ($cells as $cell) {
+                if (trim((string)$cell) === $label) {
+                    return $r;
+                }
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * 表头行 → [中文列名 => 0-based列索引] 映射
+     */
+    private function buildHeaderMap($headerRow)
+    {
+        $map = [];
+        foreach ($headerRow as $idx => $val) {
+            if ($val !== '') {
+                $map[$val] = $idx;
+            }
+        }
+        return $map;
+    }
+
+    /**
+     * 取某单元格值（按表头映射）
+     */
+    private function mapCell($headerMap, $rowCells, $colName)
+    {
+        if (isset($headerMap[$colName]) && isset($rowCells[$headerMap[$colName]])) {
+            return trim((string)$rowCells[$headerMap[$colName]]);
+        }
+        return '';
+    }
+
+    /**
+     * 规格/厂商/封装 归一化比较：小写 + 去空白
+     */
+    private function normStr($s)
+    {
+        return preg_replace('/\s+/u', '', mb_strtolower(trim((string)$s)));
     }
 }

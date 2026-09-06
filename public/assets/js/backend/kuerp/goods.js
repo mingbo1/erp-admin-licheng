@@ -24,8 +24,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                     ,cols: [[
                         {checkbox: true},
                         {field: 'goods_code', title: __('Goods_code'), operate: 'LIKE'},
-                        {field: 'goods_name', title: __('Goods_name'), operate: 'LIKE'},
-                        {field: 'goods_barcode', title: __('Goods_barcode'), operate: 'LIKE'},
+                        {field: 'goods_name', title: __('Goods_name'), operate: 'LIKE', width: 200},
+                        {field: 'goods_specification_id', title: __('Goods_specification_id'), width: 180},
+                        {field: 'packaging', title: '封装', width: 150},
+                        {field: 'vendor_name', title: '厂商'},
                         {field: 'goods_type_id', title: __('Goods_type_id'),templet: function (d) {
                                 if(d.goodstype.supplier_type_name!=null){
                                     return d.goodstype.supplier_type_name;
@@ -68,14 +70,6 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                                 return "<a href='javascript:;'><img src="+d.goods_image+" style='width:50px;height:50px;'></a>";
                             }},
                         {field: 'inventory', title: __('Inventory')},
-                        {field: 'is_offten', title: __('Is_offten'),templet: function (d) {
-                                if(d.is_offten==0){
-                                    return __('Is_offten 0');
-                                }
-                                if(d.is_offten==1){
-                                    return __('Is_offten 1');
-                                }
-                            }},
                         {field: 'status', title: __('Status'),templet: function (d) {
                                 if(d.status==1){
                                     return '<input type="checkbox" data-id="'+d.id+'" checked="" name="open" lay-skin="switch" lay-filter="switchList" lay-text="上架|下架">'
@@ -276,9 +270,17 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                     if(goods_name!=''){
                         search.goods_name = goods_name;
                     }
-                    var goods_barcode = $('#goods_barcode').val();
-                    if(goods_barcode!=''){
-                        search.goods_barcode = goods_barcode;
+                    var goods_specification_id = $('#goods_specification_id').val();
+                    if(goods_specification_id!=''){
+                        search.goods_specification_id = goods_specification_id;
+                    }
+                    var packaging = $('#packaging').val();
+                    if(packaging!=''){
+                        search.packaging = packaging;
+                    }
+                    var vendor_name = $('#vendor_name').val();
+                    if(vendor_name!=''){
+                        search.vendor_name = vendor_name;
                     }
                     var status = $('#status').val();
                     if(status!=''){
@@ -302,7 +304,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                     var op = {};
                     op.goods_code = 'LIKE';
                     op.goods_name = 'LIKE';
-                    op.goods_barcode = 'LIKE';
+                    op.goods_specification_id = 'LIKE';
+                    op.packaging = 'LIKE';
+                    op.vendor_name = 'LIKE';
                     op.product_type = '=';
                     return op;
                 }

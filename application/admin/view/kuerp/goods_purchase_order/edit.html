@@ -73,7 +73,7 @@
                         </span>
                     </th>
                     <th>{:__('Goods_note')}</th><th class="goods_attr_sd">{:__('Goods_attr')}</th><th>{:__('Goods_unit')}</th><th>{:__('Stores_id')}</th><th>{:__('Supplyer_code')}</th><th>{:__('Allow_stock')}</th>
-                    <th>{:__('Number')}</th><th>{:__('Default_unit')}</th><th>{:__('Basic_nmber')}</th><th>{:__('Unit_price')}</th><th class="goods_tax_sd">{:__('Tax_included')}</th>
+                    <th>{:__('Number')}</th><th class="goods_multi_unit_sd">{:__('Default_unit')}</th><th class="goods_multi_unit_sd">{:__('Basic_nmber')}</th><th>{:__('Unit_price')}</th><th class="goods_tax_sd">{:__('Tax_included')}</th>
                     <!-- <th>{:__('Discount')}</th>
                     <th>{:__('Dis_money')}</th> -->
                     <th>{:__('All_money')}</th><th class="goods_tax_sd">{:__('Tax_rate')}</th>
@@ -125,8 +125,8 @@
                 </td>
                 <td><div><input type="number" name="row[allow_stock][]" class="allow_stock" readonly></div></td>
                     <td><div><input type="number" name="row[number][]" class="number number_decimal"></div></td>
-                    <td><div><input type="text" readonly class="default_unit"><input type="hidden" name="row[default_unit][]" class="default_unit_id"></div></td>
-                    <td><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly></div></td>
+                    <td class="goods_multi_unit_sd"><div><input type="text" readonly class="default_unit"><input type="hidden" name="row[default_unit][]" class="default_unit_id"></div></td>
+                    <td class="goods_multi_unit_sd"><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly></div></td>
                     <td><div><input type="number" name="row[unit_price][]" class="unit_price price_decimal"></div></td>
                     <td class="goods_tax_sd"><div><input type="number" name="row[tax_included][]" class="tax_included price_decimal"></div></td>
                     <!-- <td><div><input type="number" name="row[discount][]" class="discount"></div></td>
@@ -221,8 +221,8 @@
                 </td>
                 <td><div><input type="number" name="row[allow_stock][]" value="{$info.allow_stock|htmlentities}" class="allow_stock" readonly></div></td>
                     <td><div><input type="number" name="row[number][]" value="{$info.number|htmlentities}" class="number number_decimal"></div></td>
-                    <td><div><input type="text" readonly class="default_unit" value="{$unit_name|default=''}"><input type="hidden" value="{$info.default_unit|htmlentities}" name="row[default_unit][]" class="default_unit_id"></div></td>
-                    <td><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" value="{$info.basic_nmber|htmlentities}" readonly></div></td>
+                    <td class="goods_multi_unit_sd"><div><input type="text" readonly class="default_unit" value="{$unit_name|default=''}"><input type="hidden" value="{$info.default_unit|htmlentities}" name="row[default_unit][]" class="default_unit_id"></div></td>
+                    <td class="goods_multi_unit_sd"><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" value="{$info.basic_nmber|htmlentities}" readonly></div></td>
                     <td><div><input type="number" name="row[unit_price][]" class="unit_price price_decimal" value="{$info.unit_price|htmlentities}"></div></td>
                     <td class="goods_tax_sd"><div><input type="number" name="row[tax_included][]" class="tax_included price_decimal" value="{$info.tax_included|htmlentities}"></div></td>
                     <!-- <td><div><input type="number" name="row[discount][]" class="discount" value="{$info.discount|htmlentities}"></div></td>
@@ -285,8 +285,8 @@
                 </td>
                 <td><div><input type="number" name="row[allow_stock][]" class="allow_stock" readonly></div></td>
                     <td><div><input type="number" name="row[number][]" class="number number_decimal"></div></td>
-                    <td><div><input type="text" readonly class="default_unit"><input type="hidden" name="row[default_unit][]" class="default_unit_id"></div></td>
-                    <td><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly></div></td>
+                    <td class="goods_multi_unit_sd"><div><input type="text" readonly class="default_unit"><input type="hidden" name="row[default_unit][]" class="default_unit_id"></div></td>
+                    <td class="goods_multi_unit_sd"><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly></div></td>
                     <td><div><input type="number" name="row[unit_price][]" class="unit_price price_decimal"></div></td>
                     <td class="goods_tax_sd"><div><input type="number" name="row[tax_included][]" class="tax_included price_decimal"></div></td>
                     <!-- <td><div><input type="number" name="row[discount][]" class="discount"></div></td>

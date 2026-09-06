@@ -374,6 +374,7 @@ class Kuerp extends Addons
                                 ['name'=>'kuerp/goods_bom/add','title'=>'添加','icon'=>'fa fa-circle-o','ismenu'=>'0','weigh'=>'0'],
                                 ['name'=>'kuerp/goods_bom/edit','title'=>'编辑','icon'=>'fa fa-circle-o','ismenu'=>'0','weigh'=>'0'],
                                 ['name'=>'kuerp/goods_bom/del','title'=>'删除','icon'=>'fa fa-circle-o','ismenu'=>'0','weigh'=>'0'],
+                                ['name'=>'kuerp/goods_bom/import','title'=>'导入','icon'=>'fa fa-circle-o','ismenu'=>'0','weigh'=>'0'],
                                 ['name'=>'kuerp/goods_bom/getbomdetail','title'=>'获取BOM详情','icon'=>'fa fa-circle-o','ismenu'=>'0','weigh'=>'0'],
                                 ['name'=>'kuerp/goods_bom/chosegoods','title'=>'搜索商品','icon'=>'fa fa-circle-o','ismenu'=>'0','weigh'=>'0'],
                                 ['name'=>'kuerp/goods_bom/chosebom','title'=>'选择BOM模板','icon'=>'fa fa-circle-o','ismenu'=>'0','weigh'=>'0'],

@@ -45,6 +45,14 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'preparation_id', title: __('Preparation_id'),templet: function (d) {
                                 return d.preparation.username;
                             }},
+                        {field: 'check_status', title: __('Check_status'),templet: function (d) {
+                                if(d.check_status==0){
+                                    return __('Check_status 0');
+                                }
+                                if(d.check_status==1){
+                                    return __('Check_status 1');
+                                }
+                            }},
                         {field: 'delivery_time', title: __('Delivery_time'),templet: function (d) {
                                 return layui.util.toDateString(d.delivery_time*1000,"yyyy-MM-dd");
                             },width:110},
@@ -178,6 +186,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     var preparation_id = $('#preparation_id').val();
                     if(preparation_id!=''){
                         search.preparation_id = preparation_id;
+                    }
+                    var check_status = $('#check_status').val();
+                    if(check_status!=''){
+                        search.check_status = check_status;
                     }
                     return search;
                 }

@@ -60,20 +60,20 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                     return '';
                                 }
                             }},
-                        {field: 'unit_conversion', title: __('Unit_conversion'),templet: function (d) {
-                                if(d.unit_conversion){
-                                    return d.unit_conversion;
-                                }else{
-                                    return '';
-                                }
-                            }},
-                        {field: 'basic_nmber', title: '副单位数',templet: function (d) {
-                                if(d.unit_conversion){
-                                    return d.basic_nmber;
-                                }else{
-                                    return '';
-                                }
-                            }},
+                        // {field: 'unit_conversion', title: __('Unit_conversion'),templet: function (d) {
+                        //         if(d.unit_conversion){
+                        //             return d.unit_conversion;
+                        //         }else{
+                        //             return '';
+                        //         }
+                        //     }},
+                        // {field: 'basic_nmber', title: '副单位数',templet: function (d) {
+                        //         if(d.unit_conversion){
+                        //             return d.basic_nmber;
+                        //         }else{
+                        //             return '';
+                        //         }
+                        //     }},
                         {field: 'u_name', title: __('Default_unit')},
                         {field: 'i_number', title: __('Basic_nmber'),totalRow:true},
                         {field: 'unit_price', title: __('Unit_price'),totalRow:true},

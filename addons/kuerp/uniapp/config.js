@@ -4,7 +4,7 @@
 // 小程序真机上线必须用 HTTPS 域名并在微信后台加入 request 合法域名；
 // 当前 http://erp.licheng.test 仅用于本地调试（开发者工具需勾选"不校验合法域名"）。
 // const apiDomain = 'http://erp.licheng.test'
-const apiDomain = 'https://dyerp.boyuekeke.top'
+const apiDomain = 'https://dyerp.dayanjishu.com'
 
 export default {
   baseUrl: apiDomain,

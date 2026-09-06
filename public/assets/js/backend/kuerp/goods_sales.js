@@ -291,6 +291,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     if(pay_status!=''){
                         search.pay_status = pay_status;
                     }
+                    var check_status = $('#check_status').val();
+                    if(check_status!=''){
+                        search.check_status = check_status;
+                    }
                     var examine_status = $('#examine_status').val();
                     if(examine_status!=''){
                         search.examine_status = examine_status;

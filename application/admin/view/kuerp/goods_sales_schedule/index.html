@@ -8,7 +8,7 @@
                     <script type="text/html" id="thisToolbar">
                         <div class="layui-btn-container">
                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-cyan btn-refresh" lay-event="refresh"><i class="layui-icon">&#xe669;</i> {:__('Refresh')}</button>
-                            <button class="layui-btn layui-icon-btn layui-btn-sm" lay-event="add"><i class="layui-icon">&#xe654;</i> {:__('Add')}</button>
+                            <!-- <button class="layui-btn layui-icon-btn layui-btn-sm" lay-event="add"><i class="layui-icon">&#xe654;</i> {:__('Add')}</button> -->
                             <button class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger" lay-event="delAll"><i class="layui-icon">&#xe640;</i> {:__('Delete')}</button>
                             {if condition="isset($set['examine']['is_checked']) && $set['examine']['is_checked']==1"}
                             <button class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger fright" lay-event="counter_f"><i class="layui-icon">&#xe6c9;</i> 反对单</button>
@@ -40,6 +40,13 @@
                                 {foreach name="adminList" item="vo"}
                                 <option value="{$vo.id}">{$vo.username}</option>
                                 {/foreach}
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="check_status" id="check_status" placeholder="{:__('Check_status')}" class="layui-input">
+                                <option value="">请选择{:__('Check_status')}</option>
+                                <option value="0">{:__('Check_status 0')}</option>
+                                <option value="1">{:__('Check_status 1')}</option>
                             </select>
                         </div>
                         <div class="layui-input-inline " style="width: 90px">

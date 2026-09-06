@@ -116,8 +116,11 @@ class Suppliers extends Backend
                 $allColumn = $currentSheet->getHighestDataColumn(); //取得最大的列号
                 $allRow = $currentSheet->getHighestRow(); //取得一共有多少行
                 $maxColumnNumber = Coordinate::columnIndexFromString($allColumn);
+                // 跳过前14行说明，第15行为表头，第16行开始为数据（与客户导入模板结构一致）
+                $headerRow = 15;    // 表头所在行
+                $dataStartRow = 16; // 数据开始行
                 $fields = [];
-                for ($currentRow = 2; $currentRow <= 2; $currentRow++) {
+                for ($currentRow = $headerRow; $currentRow <= $headerRow; $currentRow++) {
                     for ($currentColumn = 1; $currentColumn <= $maxColumnNumber; $currentColumn++) {
                         $val = (string)$currentSheet->getCellByColumnAndRow($currentColumn, $currentRow)->getValue();
                         $val = str_replace('*','',$val);
@@ -125,7 +128,7 @@ class Suppliers extends Backend
                     }
                 }
 
-                for ($currentRow = 3; $currentRow <= $allRow; $currentRow++) {
+                for ($currentRow = $dataStartRow; $currentRow <= $allRow; $currentRow++) {
                     $values = [];
                     for ($currentColumn = 1; $currentColumn <= $maxColumnNumber; $currentColumn++) {
                         $val = (string)$currentSheet->getCellByColumnAndRow($currentColumn, $currentRow)->getValue();
@@ -167,8 +170,17 @@ class Suppliers extends Backend
             $params = [];
             $nowsp = '';
             $supplyer_code = [];
+            $auto_code = ''; // 供应商编号自动生成起点（为空则查询库内最大编号+1）
             foreach ($insert as $insert_k=>$insert_v){
-                if(!empty($insert_v['供应商编号']) && !empty($insert_v['供应商名称'])){
+                if(!empty($insert_v['供应商名称'])){
+                    // 供应商编号为空时自动生成，与手动新增供应商编号规则一致
+                    if(empty($insert_v['供应商编号'])){
+                        $auto_code = ($auto_code==='') ? \addons\kuerp\library\Goods::getCodes('',2) : \addons\kuerp\library\Goods::getCodes($auto_code,2);
+                        if(empty($auto_code)){
+                            $this->error('供应商编号自动生成失败，请检查编号规则配置');
+                        }
+                        $insert_v['供应商编号'] = $auto_code;
+                    }
                     $nowsp = $insert_k;
                     if(in_array($insert_v['供应商编号'],$supplyer_code)){
                         $this->error('导入失败，供应商编号'.$insert_v['供应商编号'].'重复');
@@ -182,7 +194,12 @@ class Suppliers extends Backend
                         'opening_payable'   => $insert_v['期初应付款'],
                         'opening_prepayment'=> $insert_v['期初预付款'],
                         'need_give_account' => round(((float)$insert_v['期初应付款']-(float)$insert_v['期初预付款']),2),
-                        'vat_rate'          => $insert_v['增值税税率'],
+                        // 增值税税率清洗: 模板填"13%"这种带百分号文本，列是double(15,4) unsigned，
+                        // 直接入库会报 1265 Data truncated 警告。去掉%转数字(13=13%，与手动新增语义一致)，
+                        // 空值保留''由下方unset逻辑跳过。
+                        'vat_rate'          => ($insert_v['增值税税率']!=='' && $insert_v['增值税税率']!==null)
+                                                ? (float)str_replace('%','',(string)$insert_v['增值税税率'])
+                                                : '',
                         'identification'    => $insert_v['纳税人识别号'],
                         'deposit_bank'      => $insert_v['开户银行'],
                         'bank_number'       => $insert_v['银行账号'],
