@@ -4,7 +4,7 @@ return [
     'Goods_code'                   => '商品编号',
     'Goods_name'                   => '商品名称',
     'Goods_barcode'                => '商品条码',
-    'Goods_specification_id'       => '规格型号',
+    'Goods_specification_id'       => '型号',
     'Goods_type_id'                => '商品类别',
     'Manager_warehouse_id'         => '首选仓库',
     'Unit'                         => '计量单位',

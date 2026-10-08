@@ -82,7 +82,7 @@ class Allocation extends Backend
                 ->order($sort, $order)
                 ->paginate($limit);
             foreach ($list as $row) {
-                $row->getRelation('admin')->visible(['username']);
+                $row->getRelation('admin')->visible(['nickname']);
             }
 
             $store = Db::name('kuerp_stores')->column('name','id');
@@ -98,9 +98,9 @@ class Allocation extends Backend
                     ->where(['ai.allocation_id'=>$list_v['id']])
                     ->field('gt.supplier_type_name as type_name,g.goods_name,ai.goods_note,ai.number,u.name as unit_name,ai.remarks as remark,ai.stores_out,ai.stores_enter')
                     ->select();
-                $list_v['preparation_id'] = Db::name('admin')->where(['id'=>$list_v['preparation_id']])->value('username');
-                $list_v['operation_id']   = Db::name('admin')->where(['id'=>$list_v['operation_id']])->value('username');
-                $list_v['examine_id']   = Db::name('admin')->where(['id'=>$list_v['examine_id']])->value('username');
+                $list_v['preparation_id'] = Db::name('admin')->where(['id'=>$list_v['preparation_id']])->value('nickname');
+                $list_v['operation_id']   = Db::name('admin')->where(['id'=>$list_v['operation_id']])->value('nickname');
+                $list_v['examine_id']   = Db::name('admin')->where(['id'=>$list_v['examine_id']])->value('nickname');
                 foreach ($info as $k=>$v){
                     $v['stores_out'] = isset($store[$v['stores_out']])?$store[$v['stores_out']]:'';
                     $v['stores_enter'] = isset($store[$v['stores_enter']])?$store[$v['stores_enter']]:'';
@@ -441,9 +441,9 @@ class Allocation extends Backend
             $this->error(__('No Results were found'));
         }
         // 制单人
-        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('username');
+        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('nickname');
         // 审核人
-        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('username');
+        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('nickname');
 
         // 获取调拨单详情
         $info_list = Db::name('kuerp_allocation_info')
@@ -1225,11 +1225,11 @@ class Allocation extends Backend
     public function getUnit($goods_code='',$store='',$attr='',$goods_id=''){
         if($goods_code){
             $row = Db::name('kuerp_goods')->where(['goods_code'=>$goods_code])
-                ->field('id,note,market_sell_price,wholesale_price,vip_price,discount,discount2,batch,serial,id,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life')
+                ->field('id,note,market_sell_price,wholesale_price,vip_price,discount,discount2,batch,serial,id,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,goods_specification_id,vendor_name,packaging')
                 ->find();
         }else{
             $row = Db::name('kuerp_goods')->where(['id'=>$goods_id])
-                ->field('id,note,market_sell_price,wholesale_price,vip_price,discount,discount2,batch,serial,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life')
+                ->field('id,note,market_sell_price,wholesale_price,vip_price,discount,discount2,batch,serial,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,goods_specification_id,vendor_name,packaging')
                 ->find();
         }
         $goods_id = isset($row['id'])?$row['id']:0;

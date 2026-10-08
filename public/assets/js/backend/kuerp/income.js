@@ -48,15 +48,15 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'money', title: __('Money'), operate:'BETWEEN'},
                         {field: 'pay_money', title: __('Pay_money'), operate:'BETWEEN'},
                         {field: 'preparation_id', title: __('Preparation_id'),templet:function (d) {
-                                if(d.admin.username!=null){
-                                    return d.admin.username;
+                                if(d.admin.nickname!=null){
+                                    return d.admin.nickname;
                                 }else{
                                     return '';
                                 }
                             }},
                         {field: 'examine_id', title: __('Examine_id'),templet:function (d) {
-                                if(d.examine.username!=null){
-                                    return d.examine.username;
+                                if(d.examine.nickname!=null){
+                                    return d.examine.nickname;
                                 }else{
                                     return '';
                                 }

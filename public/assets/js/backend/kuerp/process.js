@@ -55,10 +55,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 return '<span style="color:green">' + __('In_status 2') + '</span>';
                             }},
                         { field: 'preparation_id', title: __('Preparation_id'), templet: function (d) {
-                                return d.preparation ? d.preparation.username : '';
+                                return d.preparation ? d.preparation.nickname : '';
                             }},
                         { field: 'examine_id', title: __('Examine_id'), templet: function (d) {
-                                if (d.examine && d.examine.username != null) { return d.examine.username; }
+                                if (d.examine && d.examine.nickname != null) { return d.examine.nickname; }
                                 return '';
                             }, hide: hideStatus },
                         { field: 'remark', title: __('Remark') },
@@ -364,11 +364,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 success: function (res) {
                                     if (res.total > 0) {
                                         var html = '<div class="chose_goods_box" style="left:' + left + 'px;top: ' + top + 'px;">\n' +
-                                            '<table><tr><th>商品编号</th><th>商品名称</th><th>规格型号</th><th>计量单位</th><th>商品类别</th><th>库存数量</th><th>备注</th></tr>\n';
+                                            '<table><tr><th>商品编号</th><th>商品名称</th><th>型号</th><th>规格2/厂商</th><th>规格3/封装</th><th>计量单位</th><th>商品类别</th><th>库存数量</th><th>备注</th></tr>\n';
                                         var max = res.total > 5 ? 5 : res.total;
                                         for (var a = 0; a < max; a++) {
                                             var v = res.rows[a];
-                                            html += '<tr class="chose_goods_tr" data-code="' + v.goods_code + '" data-name="' + v.goods_name + '" data-note="' + v.note + '" data-store="' + v.manager_warehouse_id + '" data-type="out"><td>' + v.goods_code + '</td><td>' + v.goods_name + '</td><td>' + (v.goods_specification_id || '') + '</td><td>' + (v.unit ? v.unit.name : '') + '</td><td>' + (v.goods_type ? v.goods_type.name : '') + '</td><td>' + v.stock + '</td><td>' + (v.note || '') + '</td></tr>';
+                                            html += '<tr class="chose_goods_tr" data-code="' + v.goods_code + '" data-name="' + v.goods_name + '" data-note="' + v.note + '" data-store="' + v.manager_warehouse_id + '" data-type="out"><td>' + v.goods_code + '</td><td>' + v.goods_name + '</td><td>' + (v.goods_specification_id || '') + '</td><td>' + (v.vendor_name || '') + '</td><td>' + (v.packaging || '') + '</td><td>' + (v.unit ? v.unit.name : '') + '</td><td>' + (v.goods_type ? v.goods_type.name : '') + '</td><td>' + v.stock + '</td><td>' + (v.note || '') + '</td></tr>';
                                         }
                                         html += '</table></div>';
                                         $('.chose_goods_boxs').html(html);
@@ -431,11 +431,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 success: function (res) {
                                     if (res.total > 0) {
                                         var html = '<div class="chose_goods_box" style="left:' + left + 'px;top: ' + top + 'px;">\n' +
-                                            '<table><tr><th>商品编号</th><th>商品名称</th><th>规格型号</th><th>计量单位</th><th>商品类别</th><th>库存数量</th><th>备注</th></tr>\n';
+                                            '<table><tr><th>商品编号</th><th>商品名称</th><th>型号</th><th>规格2/厂商</th><th>规格3/封装</th><th>计量单位</th><th>商品类别</th><th>库存数量</th><th>备注</th></tr>\n';
                                         var max = res.total > 5 ? 5 : res.total;
                                         for (var a = 0; a < max; a++) {
                                             var v = res.rows[a];
-                                            html += '<tr class="chose_goods_tr" data-code="' + v.goods_code + '" data-name="' + v.goods_name + '" data-note="' + v.note + '" data-store="' + v.manager_warehouse_id + '" data-type="in"><td>' + v.goods_code + '</td><td>' + v.goods_name + '</td><td>' + (v.goods_specification_id || '') + '</td><td>' + (v.unit ? v.unit.name : '') + '</td><td>' + (v.goods_type ? v.goods_type.name : '') + '</td><td>' + v.stock + '</td><td>' + (v.note || '') + '</td></tr>';
+                                            html += '<tr class="chose_goods_tr" data-code="' + v.goods_code + '" data-name="' + v.goods_name + '" data-note="' + v.note + '" data-store="' + v.manager_warehouse_id + '" data-type="in"><td>' + v.goods_code + '</td><td>' + v.goods_name + '</td><td>' + (v.goods_specification_id || '') + '</td><td>' + (v.vendor_name || '') + '</td><td>' + (v.packaging || '') + '</td><td>' + (v.unit ? v.unit.name : '') + '</td><td>' + (v.goods_type ? v.goods_type.name : '') + '</td><td>' + v.stock + '</td><td>' + (v.note || '') + '</td></tr>';
                                         }
                                         html += '</table></div>';
                                         $('.chose_goods_boxs').html(html);
@@ -595,6 +595,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             success: function (res) {
                                 res = JSON.parse(res);
                                 goods = res;
+                                obj.find('.goods_specification_id').val(goods.goods.goods_specification_id || '');
+                                obj.find('.vendor_name').val(goods.goods.vendor_name || '');
+                                obj.find('.packaging').val(goods.goods.packaging || '');
                                 if (type == 'out') {
                                     if (goods.goods.batch == 1) { obj.find('.guarantee').val(goods.goods.shelf_life); }
                                 }

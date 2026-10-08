@@ -45,7 +45,7 @@ return [
     'In_product'        => '入库成品',
     'Process_detail'    => '外协订单详情',
     'Print'             => '打印',
-    'Goods_note'        => '规格型号',
+    'Goods_note'        => '型号',
     'Unit_name'         => '单位名称',
     'Stores_name'       => '仓库名称',
     'Process_fee'               => '加工费',

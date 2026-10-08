@@ -85,10 +85,10 @@ class GoodsPurchase extends Backend
 
             foreach ($list as $row) {
                 $row->getRelation('suppliers')->visible(['supplyer_code','supplyer_name']);
-                $row->getRelation('preparation')->visible(['username']);
-                $row->getRelation('examine')->visible(['username']);
+                $row->getRelation('preparation')->visible(['nickname']);
+                $row->getRelation('examine')->visible(['nickname']);
                 if ($row->getRelation('secondExamine')) {
-                    $row->getRelation('secondExamine')->visible(['username']);
+                    $row->getRelation('secondExamine')->visible(['nickname']);
                 }
             }
             foreach ($list as $list_k=>$list_v){
@@ -1982,11 +1982,11 @@ class GoodsPurchase extends Backend
         $taxes= Db::name('kuerp_sets')->where(['name'=>'price_taxes'])->value('is_checked');
 
         if($goods_code){
-            $row = Db::name('kuerp_goods')->where(['goods_code'=>$goods_code])->field('batch,serial,id,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,warehousing,warehouse')->find();
+            $row = Db::name('kuerp_goods')->where(['goods_code'=>$goods_code])->field('batch,serial,id,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,warehousing,warehouse,goods_specification_id,vendor_name,packaging')->find();
             $goods_id = isset($row['id'])?$row['id']:0;
         }else{
             $goods_id = isset($_POST['goods_id'])?$_POST['goods_id']:0;
-            $row = Db::name('kuerp_goods')->where(['id'=>$goods_id])->field('batch,serial,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,warehousing,warehouse')->find();
+            $row = Db::name('kuerp_goods')->where(['id'=>$goods_id])->field('batch,serial,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,warehousing,warehouse,goods_specification_id,vendor_name,packaging')->find();
         }
         if(empty($row)){
             return [];
@@ -2495,9 +2495,9 @@ class GoodsPurchase extends Backend
         $supplyer_name = Db::name('kuerp_suppliers')->where(['supplyer_code' => $row['supplyer_code']])->value('supplyer_name');
         $row['supplyer_name'] = $supplyer_name ? $supplyer_name : '';
         // 制单人
-        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('username');
+        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('nickname');
         // 审核人
-        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('username');
+        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('nickname');
 
         // 购货单详情
         $purchase_info = Db::name('kuerp_goods_purchase_info')->where(['purchase_code' => $row['purchase_code']])->select();

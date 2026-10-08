@@ -70,7 +70,7 @@ class Adjustment extends Backend
 
             foreach ($list as $row) {
                 
-                $row->getRelation('admin')->visible(['username']);
+                $row->getRelation('admin')->visible(['nickname']);
             }
 
             $result = array("total" => $list->total(), "rows" => $list->items());

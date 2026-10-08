@@ -7,8 +7,12 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 var table = layui.table;
                 upload = layui.upload;
 
+                //表格固定高度：表头/合计行常驻，横向滚动条固定在可视区底部，页面不再整页滚动。
+                //'full-xx' 会在窗口缩放时自动重算高度；xx = 表格顶部距页面顶端的高度 + 表格下方内边距(15+15+2)
+                var tableGap = Math.ceil($('#table').offset().top) + 32;
                 table.render({
                     elem: '#table'
+                    ,height: 'full-' + tableGap
                     ,url:'kuerp/replenishment/index'
                     ,parseData: function(res){ //res 即为原始返回的数据
                         return {
@@ -22,9 +26,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     ,defaultToolbar:[]
                     ,cellMinWidth: 100 //全局定义常规单元格的最小宽度，layui 2.2.1 新增
                     ,cols: [[
-                        {checkbox: true,},
-                        {field: 'goods_name', title: __('商品'),width:140},
-                        {field: 'attr_name', title: __('属性')},
+                        {checkbox: true, fixed: 'left',},
+                        {field: 'goods_name', title: __('商品'),width:140, fixed: 'left'},
+                        {field: 'attr_name', title: __('属性'), hide: window.KUERP_AUXILIARY_DISABLED === true},
                         {field: 'unit_name', title: __('单位')},
                         {field: 'number', title: __('销售在订量')},
                         {field: 'stock', title: __('库存余额')},
@@ -32,6 +36,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'min_stock', title: __('最低库存')},
                         {field: 'now_buy_number', title: __('建议采购量'),width:140},
                     ]]
+                });
+
+                //窗口尺寸变化时重算表格高度（兜底，layui 对 'full-' 高度本身也会自适应）
+                $(window).on('resize', function () {
+                    table.resize('table');
                 });
 
                 //头工具栏事件

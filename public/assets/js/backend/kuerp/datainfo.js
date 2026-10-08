@@ -150,8 +150,12 @@ define(['jquery', 'bootstrap', 'backend', 'addtabs', 'table', 'echarts', 'echart
                     data: goodsList
                 });
 
+                //表格固定高度：表头/合计行常驻，横向滚动条固定在可视区底部，页面不再整页滚动。
+                //'full-xx' 会在窗口缩放时自动重算高度；xx = 表格顶部距页面顶端的高度 + 表格下方内边距(15+15+2)
+                var tableGap = Math.ceil($('#table').offset().top) + 32;
                 table.render({
                     elem: '#table'
+                    ,height: 'full-' + tableGap
                     ,url:'kuerp/datainfo/stockworing'
                     ,parseData: function(res){ //res 即为原始返回的数据
                         return {
@@ -164,15 +168,15 @@ define(['jquery', 'bootstrap', 'backend', 'addtabs', 'table', 'echarts', 'echart
                     ,toolbar: '#thisToolbar' //开启头部工具栏，并为其绑定左侧模板
                     ,cellMinWidth: 100 //全局定义常规单元格的最小宽度，layui 2.2.1 新增
                     ,cols: [[
-                        {field: 'goods_type_id', title: __('商品分类'),templet: function (d) {
+                        {field: 'goods_type_id', title: __('商品分类'), fixed: 'left',templet: function (d) {
                                 if(d.goodstype.supplier_type_name!=undefined){
                                     return d.goodstype.supplier_type_name;
                                 }else{
                                     return '';
                                 }
                             }},
-                        {field: 'goods_code', title: __('商品编号')},
-                        {field: 'goods_name', title: __('商品名称')},
+                        {field: 'goods_code', title: __('商品编号'), fixed: 'left'},
+                        {field: 'goods_name', title: __('商品名称'), fixed: 'left'},
                         {field: 'goods_barcode', title: __('商品条码')},
                         {field: 'goods_image', title: __('商品图片'), operate: false,templet: function (d) {
                                 return "<a href='javascript:;'><img src="+d.goods_image+"></a>";
@@ -210,6 +214,11 @@ define(['jquery', 'bootstrap', 'backend', 'addtabs', 'table', 'echarts', 'echart
                             }
                         });
                     }
+                });
+
+                //窗口尺寸变化时重算表格高度（兜底，layui 对 'full-' 高度本身也会自适应）
+                $(window).on('resize', function () {
+                    table.resize('table');
                 });
 
                 //头工具栏事件

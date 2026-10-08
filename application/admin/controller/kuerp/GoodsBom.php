@@ -16,7 +16,7 @@ use PhpOffice\PhpSpreadsheet\Reader\Csv;
  */
 class GoodsBom extends Backend
 {
-    protected $noNeedRight = ['getbomdetail', 'chosegoods', 'chosebom', 'preview', 'matchGoods', 'createGoods', 'createBom'];
+    protected $noNeedRight = ['getbomdetail', 'chosegoods', 'chosebom', 'preview', 'matchGoods', 'createGoods', 'createBom', 'printpage'];
     /**
      * GoodsBom模型对象
      * @var \app\admin\model\kuerp\GoodsBom
@@ -56,7 +56,7 @@ class GoodsBom extends Backend
                 ->paginate($limit);
 
             foreach ($list as $row) {
-                $row->getRelation('admin')->visible(['username']);
+                $row->getRelation('admin')->visible(['nickname']);
             }
             $lists = [];
             foreach ($list as $list_k => $list_v) {
@@ -349,18 +349,24 @@ class GoodsBom extends Backend
         foreach ($bomInfo as $info) {
             if ($info['type'] == '1') {
                 $parent = $info;
-                // 补全父商品的 product_type
-                $parentGoods = Db::name('kuerp_goods')->where(['id' => $info['goods_id']])->field('goods_name,product_type')->find();
+                // 补全父商品的 product_type、型号/厂商/封装
+                $parentGoods = Db::name('kuerp_goods')->where(['id' => $info['goods_id']])->field('goods_name,product_type,goods_specification_id,vendor_name,packaging')->find();
                 if ($parentGoods) {
                     $parent['goods_name'] = $parentGoods['goods_name'];
                     $parent['product_type'] = $parentGoods['product_type'];
+                    $parent['goods_specification_id'] = $parentGoods['goods_specification_id'];
+                    $parent['vendor_name'] = $parentGoods['vendor_name'];
+                    $parent['packaging'] = $parentGoods['packaging'];
                 }
             } else {
                 // 获取子商品信息用于回显
-                $goods = Db::name('kuerp_goods')->where(['id' => $info['goods_id']])->field('goods_name,product_type,unit_id')->find();
+                $goods = Db::name('kuerp_goods')->where(['id' => $info['goods_id']])->field('goods_name,product_type,unit_id,goods_specification_id,vendor_name,packaging')->find();
                 $info['goods_name_display'] = $goods ? $goods['goods_name'] : '';
                 $info['product_type'] = $goods ? $goods['product_type'] : '';
                 $info['unit_id'] = $info['unit_id'] ?: ($goods ? $goods['unit_id'] : 0);
+                $info['goods_specification_id'] = $goods ? $goods['goods_specification_id'] : '';
+                $info['vendor_name'] = $goods ? $goods['vendor_name'] : '';
+                $info['packaging'] = $goods ? $goods['packaging'] : '';
                 $childList[] = $info;
             }
         }
@@ -394,6 +400,44 @@ class GoodsBom extends Backend
             $this->error('删除失败：' . $e->getMessage());
         }
         $this->success('删除成功');
+    }
+
+    /**
+     * 打印BOM模板（父商品显示在头部）
+     */
+    public function printpage($ids = null)
+    {
+        $row = $this->model->get($ids);
+        if (!$row) {
+            $this->error(__('No Results were found'));
+        }
+        // 父商品行 (type=1)
+        $parent = Db::name('kuerp_goods_bom_info')->alias('a')
+            ->join('kuerp_goods g', 'g.id=a.goods_id')
+            ->where(['a.bom_id' => $ids, 'a.type' => '1'])
+            ->field('a.number,g.goods_name,g.goods_code,g.goods_specification_id,g.vendor_name,g.packaging,g.unit_id as goods_unit_id,a.unit_id')
+            ->find();
+        if ($parent) {
+            $unitId = $parent['unit_id'] > 0 ? $parent['unit_id'] : $parent['goods_unit_id'];
+            $parent['unit_name'] = Db::name('kuerp_unit')->where(['id' => $unitId])->value('name');
+        }
+        // 子件行 (type=2)
+        $children = Db::name('kuerp_goods_bom_info')->alias('a')
+            ->join('kuerp_goods g', 'g.id=a.goods_id')
+            ->where(['a.bom_id' => $ids, 'a.type' => '2'])
+            ->field('a.number,a.remark,g.goods_name,g.goods_code,g.goods_specification_id,g.unit_id as goods_unit_id,a.unit_id')
+            ->select();
+        foreach ($children as $k => $v) {
+            $unitId = $v['unit_id'] > 0 ? $v['unit_id'] : $v['goods_unit_id'];
+            $children[$k]['unit_name'] = Db::name('kuerp_unit')->where(['id' => $unitId])->value('name');
+        }
+        // 创建人
+        $row['admin_name'] = Db::name('admin')->where(['id' => $row['admin_id']])->value('nickname');
+
+        $this->view->assign('row', $row);
+        $this->view->assign('parent', $parent);
+        $this->view->assign('children', $children);
+        return $this->view->fetch();
     }
 
     /**
@@ -828,20 +872,20 @@ class GoodsBom extends Backend
         $parent = [
             'goods_code' => $this->mapCell($parentHeader, $parentRow, '商品编号'),
             'name'       => $this->mapCell($parentHeader, $parentRow, '名称'),
-            'spec'       => $this->mapCell($parentHeader, $parentRow, '规格'),
-            'vendor'     => $this->mapCell($parentHeader, $parentRow, '制造商'),
-            'packaging'  => $this->mapCell($parentHeader, $parentRow, '封装'),
+            'spec'       => $this->mapCellAny($parentHeader, $parentRow, ['型号', '规格']),
+            'vendor'     => $this->mapCellAny($parentHeader, $parentRow, ['规格2/厂商', '制造商', '厂商', '规格2']),
+            'packaging'  => $this->mapCellAny($parentHeader, $parentRow, ['规格3/封装', '规格3/封存', '封装', '规格3']),
             'number'     => $this->mapCell($parentHeader, $parentRow, '数量'),
         ];
 
-        // 子级数据
+        // 子级数据（注意：模板中 型号/厂商/封装 列存在新旧多种表头，须按别名取列）
         $children = [];
         for ($r = $childLabelRow + 2; $r <= $highestRow; $r++) {
             $cells = isset($rows[$r]) ? $rows[$r] : [];
             $name = $this->mapCell($childHeader, $cells, '名称');
-            $spec = $this->mapCell($childHeader, $cells, '规格');
-            $vendor = $this->mapCell($childHeader, $cells, '制造商');
-            $packaging = $this->mapCell($childHeader, $cells, '封装');
+            $spec = $this->mapCellAny($childHeader, $cells, ['型号', '规格']);
+            $vendor = $this->mapCellAny($childHeader, $cells, ['规格2/厂商', '制造商', '厂商', '规格2']);
+            $packaging = $this->mapCellAny($childHeader, $cells, ['规格3/封装', '规格3/封存', '封装', '规格3']);
             $number = $this->mapCell($childHeader, $cells, '数量');
             if ($name === '' && $spec === '' && $vendor === '' && $packaging === '') {
                 continue; // 跳过空行
@@ -863,8 +907,11 @@ class GoodsBom extends Backend
     }
 
     /**
-     * 按规格/厂商/封装三参数匹配商品，返回状态与候选
-     * @param string $spec      规格
+     * 按 型号/厂商/封装 三参数匹配商品，返回状态与候选
+     * 匹配口径：三项完全一致才算匹配成功，其中“双方均为空”也视为一致；
+     * 即 填1项另2项双方均空、或填2项1项双方均空，均算匹配成功；
+     * 任一项不一致（空对有值、或值不等）则不算匹配成功，仅作为候选供人工选择
+     * @param string $spec      型号
      * @param string $vendor    厂商
      * @param string $packaging 封装
      * @param string $keyword   可选搜索关键字（“替换”弹窗搜索时传入）
@@ -914,6 +961,35 @@ class GoodsBom extends Backend
                 ->select();
         }
 
+        // 完全一致候选单独精确查询：
+        // 上面的候选池是三参数任一 LIKE 且 limit(100)，当“封装=插件”这类宽条件
+        // 命中行数超过100时，真正的完全一致商品可能被截断在池外，
+        // 导致明明三项完全一致却显示匹配失败。故按“非空项精确相等、空项双方均空”再查一次。
+        $exactQuery = Db::name('kuerp_goods')->where($goodsWhere);
+        $triple = [
+            [$spec, 'goods_specification_id'],
+            [$vendor, 'vendor_name'],
+            [$packaging, 'packaging'],
+        ];
+        foreach ($triple as $cond) {
+            list($val, $field) = $cond;
+            if ($val !== '') {
+                $exactQuery->where($field, '=', $val);
+            } else {
+                $exactQuery->where(function ($query) use ($field) {
+                    $query->where($field, 'null')->whereOr($field, '');
+                });
+            }
+        }
+        $exactList = $exactQuery->select();
+        if (!empty($exactList)) {
+            $tmp = [];
+            foreach (array_merge($exactList, $list) as $g) {
+                $tmp[$g['id']] = $g;
+            }
+            $list = array_values($tmp);
+        }
+
         // 关键字搜索补充候选
         if ($keyword !== '') {
             $kwList = Db::name('kuerp_goods')
@@ -932,20 +1008,32 @@ class GoodsBom extends Backend
         }
 
         // 逐个计算匹配字段
+        // 匹配口径：三项参数完全一致才算匹配成功，其中“双方均为空格”也视为一致；
+        // 任一项不一致（一侧为空另一侧有值，或均非空但不相等）则整体不算匹配成功。
+        // 部分相同的商品仍进入候选列表，供“替换”弹窗人工选择。
         $candidates = [];
         foreach ($list as $g) {
-            $matched = [];
-            if ($spec !== '' && $this->normStr($g['goods_specification_id']) === $this->normStr($spec)) {
-                $matched[] = 'spec';
-            }
-            if ($vendor !== '' && $this->normStr($g['vendor_name']) === $this->normStr($vendor)) {
-                $matched[] = 'vendor';
-            }
-            if ($packaging !== '' && $this->normStr($g['packaging']) === $this->normStr($packaging)) {
-                $matched[] = 'packaging';
+            $matched = [];      // 真实匹配项（两侧均非空且相等）
+            $blankAgree = 0;    // 一致项中“两侧均为空”的数量
+            $disagree = false;  // 是否存在不一致项
+            $pairs = [
+                [$spec,      $g['goods_specification_id'], 'spec'],
+                [$vendor,    $g['vendor_name'],            'vendor'],
+                [$packaging, $g['packaging'],              'packaging'],
+            ];
+            foreach ($pairs as $pair) {
+                $excelVal = $this->normStr($pair[0]);
+                $goodsVal = $this->normStr($pair[1]);
+                if ($excelVal === '' && $goodsVal === '') {
+                    $blankAgree++; // 双方均为空 → 视为一致
+                } elseif ($excelVal !== '' && $goodsVal !== '' && $excelVal === $goodsVal) {
+                    $matched[] = $pair[2]; // 双方均非空且相等 → 真实匹配
+                } else {
+                    $disagree = true; // 一侧空一侧有值，或均非空但不等 → 不一致
+                }
             }
             if (empty($matched)) {
-                continue;
+                continue; // 无任何真实匹配依据（如三项均为空格对空格），不作为候选
             }
             $candidates[] = [
                 'goods_id'              => $g['id'],
@@ -958,27 +1046,40 @@ class GoodsBom extends Backend
                 'unit_id'               => $g['unit_id'],
                 'matched_fields'        => $matched,
                 'match_count'           => count($matched),
+                'blank_agree'           => $blankAgree,
+                'full_match'            => !$disagree && ($blankAgree + count($matched)) === 3,
             ];
         }
 
-        // 排序：匹配数多优先，id小优先
+        // 排序：完全一致优先 → 真实匹配数多优先 → id小优先
         usort($candidates, function ($a, $b) {
+            if ($b['full_match'] != $a['full_match']) {
+                return $b['full_match'] - $a['full_match'];
+            }
             if ($b['match_count'] != $a['match_count']) {
                 return $b['match_count'] - $a['match_count'];
             }
             return $a['goods_id'] - $b['goods_id'];
         });
 
+        // 状态判定：
+        // - matched 自动匹配：有且仅有一个“完全一致”候选（三项全部一致，空格对空格也算一致，
+        //   且至少一项真实匹配；如 填1项+另2项双方均空、填2项+1项双方均空）。
+        //   多个完全一致（库中存在重复商品）时不自动匹配，须人工“替换”挑选。
+        // - pending 待确定：有相似候选但无唯一完全一致项，须人工选择或“新增”。
+        // - failed  匹配失败：无任何候选。
+        $fullCandidates = array_values(array_filter($candidates, function ($c) {
+            return !empty($c['full_match']);
+        }));
+
         $status = 'failed';
         $default = null;
         if (!empty($candidates)) {
-            $best = $candidates[0];
-            if ($best['match_count'] === 3) {
+            $status = 'pending';
+            if (count($fullCandidates) === 1) {
                 $status = 'matched';
-            } elseif ($best['match_count'] >= 1) {
-                $status = 'pending';
+                $default = $fullCandidates[0];
             }
-            $default = $best;
         }
 
         return [
@@ -1029,7 +1130,21 @@ class GoodsBom extends Backend
     }
 
     /**
-     * 规格/厂商/封装 归一化比较：小写 + 去空白
+     * 取某单元格值（按表头映射，支持多个候选列名，取第一个在表头中存在的列）
+     * 不同模板中“型号”列可能是 型号 / 规格，“厂商”列可能是 厂商 / 制造商 / 规格2/厂商，“封装”列可能是 封装 / 规格3/封装
+     */
+    private function mapCellAny($headerMap, $rowCells, array $colNames)
+    {
+        foreach ($colNames as $colName) {
+            if (isset($headerMap[$colName])) {
+                return isset($rowCells[$headerMap[$colName]]) ? trim((string)$rowCells[$headerMap[$colName]]) : '';
+            }
+        }
+        return '';
+    }
+
+    /**
+     * 型号/厂商/封装 归一化比较：小写 + 去空白
      */
     private function normStr($s)
     {

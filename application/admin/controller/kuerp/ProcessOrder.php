@@ -76,9 +76,9 @@ class ProcessOrder extends Backend
 
             foreach ($list as $row) {
                 $row->getRelation('suppliers')->visible(['supplyer_code', 'supplyer_name']);
-                $row->getRelation('preparation')->visible(['username']);
+                $row->getRelation('preparation')->visible(['nickname']);
                 if ($row->getRelation('examine')) {
-                    $row->getRelation('examine')->visible(['username']);
+                    $row->getRelation('examine')->visible(['nickname']);
                 }
             }
             foreach ($list as $list_k => $list_v) {
@@ -1204,8 +1204,8 @@ class ProcessOrder extends Backend
         $row['supplyer_name'] = $supplier ? $supplier['supplyer_name'] : '';
 
         // 制单人 / 审核人
-        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('username');
-        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('username');
+        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('nickname');
+        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('nickname');
 
         // 明细（出库原材料 type=1 + 入库成品 type=2）
         $info_list = Db::name('kuerp_process_info')->alias('a')

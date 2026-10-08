@@ -26,7 +26,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'checkdate', title: __('结账日期')},
                         {field: 'createtime', title: __('操作时间')},
                         {field: 'preparation_id', title: __('操作员'),templet: function (d) {
-                                return d.preparation.username;
+                                return d.preparation.nickname;
                             }},
                     ]]
                 });

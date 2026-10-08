@@ -37,7 +37,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         { field: 'code', title: __('Goods_code') },
                         { field: 'number', title: __('Child_number') },
                         { field: 'remark', title: __('Remark') },
-                        { fixed: 'right', title: __('Operate'), toolbar: '#barDemo', merge: ['id'], width: 150 }
+                        { fixed: 'right', title: __('Operate'), toolbar: '#barDemoBom', merge: ['id'], width: 190 }
                     ]],
                     done: function () {
                         tableMerge.render(this)
@@ -126,7 +126,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             }
                         );
                     } else if (obj.event === 'edit') {
-                        Fast.api.open("kuerp/goods_bom/edit?ids=" + data.id, "编辑BOM模板");
+                        Fast.api.open("kuerp/goods_bom/edit?ids=" + data.id, "编辑BOM模板", { area: ['90%', '75%'] });
+                    } else if (obj.event === 'print') {
+                        Fast.api.open("kuerp/goods_bom/printpage?ids=" + data.id, "打印BOM模板", { area: ['90%', '75%'] });
                     }
                 });
 
@@ -329,9 +331,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             row.chosen = row.chosen || row.default_goods;
                         } else if (st == 'pending') {
                             stHtml = '<span class="label label-warning">待确定</span>';
+                            // 无默认建议（仅规格等单项匹配，空值不算匹配）时不显示“忽略”，须人工替换/新增
                             actions = '<button type="button" class="btn btn-xs btn-info btn-replace" data-idx="' + i + '">替换</button> ' +
-                                '<button type="button" class="btn btn-xs btn-success btn-create" data-idx="' + i + '">新增</button> ' +
-                                '<button type="button" class="btn btn-xs btn-default btn-ignore" data-idx="' + i + '">忽略</button>';
+                                '<button type="button" class="btn btn-xs btn-success btn-create" data-idx="' + i + '">新增</button>' +
+                                (row.default_goods ? ' <button type="button" class="btn btn-xs btn-default btn-ignore" data-idx="' + i + '">忽略</button>' : '');
                         } else {
                             stHtml = '<span class="label label-danger">匹配失败</span>';
                             actions = '<button type="button" class="btn btn-xs btn-info btn-replace" data-idx="' + i + '">替换</button> ' +
@@ -527,7 +530,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         html = '<div class="text-center text-muted" style="padding:30px;">未找到相似商品，可点击"新增"创建新商品</div>';
                     } else {
                         html = '<table class="table table-bordered table-hover table-condensed" style="margin-bottom:0;">' +
-                            '<thead><tr><th>商品编号</th><th>商品名称</th><th>规格</th><th>厂商</th><th>封装</th><th>类型</th><th>匹配</th><th style="width:60px;"></th></tr></thead><tbody>';
+                            '<thead><tr><th>商品编号</th><th>商品名称</th><th>型号</th><th>规格2/厂商</th><th>规格3/封装</th><th>类型</th><th>匹配</th><th style="width:60px;"></th></tr></thead><tbody>';
                         $.each(candidates, function (k, g) {
                             var typeLabel = g.product_type == 'finished' ? '成品' : (g.product_type == 'semi_finished' ? '半成品' : '零件');
                             html += '<tr>' +
@@ -537,7 +540,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 '<td>' + escHtml(g.vendor_name) + '</td>' +
                                 '<td>' + escHtml(g.packaging) + '</td>' +
                                 '<td>' + typeLabel + '</td>' +
-                                '<td>' + (g.match_count || 0) + '/3</td>' +
+                                '<td>' + (g.full_match ? '<span class="text-success">完全一致</span> ' : '') + (g.match_count || 0) + '/3</td>' +
                                 '<td><button type="button" class="btn btn-xs btn-primary btn-pick" data-gid="' + g.goods_id + '" data-code="' + escAttr(g.goods_code) + '" data-name="' + escAttr(g.goods_name) + '">选择</button></td>' +
                                 '</tr>';
                         });
@@ -567,9 +570,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
 
                     var content = '<form id="quick-create-form" class="form-horizontal" style="padding:15px;">' +
                         '<div class="form-group"><label class="col-sm-3 control-label">商品名称 *</label><div class="col-sm-8"><input type="text" class="form-control" name="goods_name" value="' + escAttr(row.name) + '"></div></div>' +
-                        '<div class="form-group"><label class="col-sm-3 control-label">规格</label><div class="col-sm-8"><input type="text" class="form-control" name="goods_specification_id" value="' + escAttr(row.spec) + '"></div></div>' +
-                        '<div class="form-group"><label class="col-sm-3 control-label">厂商</label><div class="col-sm-8"><input type="text" class="form-control" name="vendor_name" value="' + escAttr(row.vendor) + '"></div></div>' +
-                        '<div class="form-group"><label class="col-sm-3 control-label">封装</label><div class="col-sm-8"><input type="text" class="form-control" name="packaging" value="' + escAttr(row.packaging) + '"></div></div>' +
+                        '<div class="form-group"><label class="col-sm-3 control-label">型号</label><div class="col-sm-8"><input type="text" class="form-control" name="goods_specification_id" value="' + escAttr(row.spec) + '"></div></div>' +
+                        '<div class="form-group"><label class="col-sm-3 control-label">规格2/厂商</label><div class="col-sm-8"><input type="text" class="form-control" name="vendor_name" value="' + escAttr(row.vendor) + '"></div></div>' +
+                        '<div class="form-group"><label class="col-sm-3 control-label">规格3/封装</label><div class="col-sm-8"><input type="text" class="form-control" name="packaging" value="' + escAttr(row.packaging) + '"></div></div>' +
                         '<div class="form-group"><label class="col-sm-3 control-label">商品类型</label><div class="col-sm-8"><select class="form-control" name="product_type"><option value="part">零件</option><option value="semi_finished">半成品</option></select></div></div>' +
                         '<div class="form-group"><label class="col-sm-3 control-label">计量单位 *</label><div class="col-sm-8"><select class="form-control" name="unit_id"><option value="">请选择</option>' + unitOptions + '</select></div></div>' +
                         '<div class="form-group"><label class="col-sm-3 control-label">商品类别</label><div class="col-sm-8"><select class="form-control" name="goods_type_id"><option value="0">默认</option>' + typeOptions + '</select></div></div>' +
@@ -766,11 +769,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 success: function (res) {
                     if (res.rows && res.rows.length > 0) {
                         var html = '<div class="chose_goods_box" style="left:' + pos.left + 'px;top: ' + (pos.top + 35) + 'px;">\n' +
-                            '<table class="table table-bordered"><thead><tr><th>商品编号</th><th>商品名称</th><th>规格</th><th>单位</th><th>类型</th><th>库存</th></tr></thead><tbody>';
+                            '<table class="table table-bordered"><thead><tr><th style="width:110px;">商品编号</th><th>商品名称</th><th style="width:110px;">型号</th><th style="width:120px;">规格2/厂商</th><th style="width:120px;">规格3/封装</th><th style="width:80px;">单位</th><th style="width:70px;">类型</th><th style="width:80px;">库存</th></tr></thead><tbody>';
                         $(res.rows).each(function (k, v) {
                             var typeLabel = v.product_type == 'finished' ? '成品' : (v.product_type == 'semi_finished' ? '半成品' : '零件');
-                            html += '<tr class="chose_goods_tr" data-code="' + v.goods_code + '" data-id="' + v.id + '" data-name="' + v.goods_name + '" data-type="' + v.product_type + '" data-unit="' + v.unit_id + '">' +
-                                '<td>' + v.goods_code + '</td><td>' + v.goods_name + '</td><td>' + (v.goods_specification_id || '') + '</td><td>' + (v.unit ? v.unit.name : '') + '</td><td>' + typeLabel + '</td><td>' + (v.stock || 0) + '</td></tr>';
+                            html += '<tr class="chose_goods_tr" data-code="' + v.goods_code + '" data-id="' + v.id + '" data-name="' + v.goods_name + '" data-spec="' + (v.goods_specification_id || '') + '" data-vendor="' + (v.vendor_name || '') + '" data-pack="' + (v.packaging || '') + '" data-type="' + v.product_type + '" data-unit="' + v.unit_id + '">' +
+                                '<td>' + v.goods_code + '</td><td>' + v.goods_name + '</td><td>' + (v.goods_specification_id || '') + '</td><td>' + (v.vendor_name || '') + '</td><td>' + (v.packaging || '') + '</td><td>' + (v.unit ? v.unit.name : '') + '</td><td>' + typeLabel + '</td><td>' + (v.stock || 0) + '</td></tr>';
                         });
                         html += '</tbody></table></div>';
                         $('.chose_goods_boxs').html(html);
@@ -797,11 +800,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 success: function (res) {
                     if (res.rows && res.rows.length > 0) {
                         var html = '<div class="chose_goods_box" style="left:' + pos.left + 'px;top: ' + (pos.top + 35) + 'px;">\n' +
-                            '<table class="table table-bordered"><thead><tr><th>商品编号</th><th>商品名称</th><th>规格</th><th>单位</th><th>类型</th><th>库存</th></tr></thead><tbody>';
+                            '<table class="table table-bordered"><thead><tr><th style="width:110px;">商品编号</th><th>商品名称</th><th style="width:110px;">型号</th><th style="width:120px;">规格2/厂商</th><th style="width:120px;">规格3/封装</th><th style="width:80px;">单位</th><th style="width:70px;">类型</th><th style="width:80px;">库存</th></tr></thead><tbody>';
                         $(res.rows).each(function (k, v) {
                             var typeLabel = v.product_type == 'finished' ? '成品' : (v.product_type == 'semi_finished' ? '半成品' : '零件');
-                            html += '<tr class="chose_goods_tr" data-code="' + v.goods_code + '" data-id="' + v.id + '" data-name="' + v.goods_name + '" data-type="' + v.product_type + '" data-unit="' + v.unit_id + '">' +
-                                '<td>' + v.goods_code + '</td><td>' + v.goods_name + '</td><td>' + (v.goods_specification_id || '') + '</td><td>' + (v.unit ? v.unit.name : '') + '</td><td>' + typeLabel + '</td><td>' + (v.stock || 0) + '</td></tr>';
+                            html += '<tr class="chose_goods_tr" data-code="' + v.goods_code + '" data-id="' + v.id + '" data-name="' + v.goods_name + '" data-spec="' + (v.goods_specification_id || '') + '" data-vendor="' + (v.vendor_name || '') + '" data-pack="' + (v.packaging || '') + '" data-type="' + v.product_type + '" data-unit="' + v.unit_id + '">' +
+                                '<td>' + v.goods_code + '</td><td>' + v.goods_name + '</td><td>' + (v.goods_specification_id || '') + '</td><td>' + (v.vendor_name || '') + '</td><td>' + (v.packaging || '') + '</td><td>' + (v.unit ? v.unit.name : '') + '</td><td>' + typeLabel + '</td><td>' + (v.stock || 0) + '</td></tr>';
                         });
                         html += '</tbody></table></div>';
                         $('.chose_goods_boxs').html(html);
@@ -817,6 +820,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
             var code = $(this).data('code');
             var id = $(this).data('id');
             var name = $(this).data('name');
+            var spec = $(this).data('spec');
+            var vendor = $(this).data('vendor');
+            var pack = $(this).data('pack');
             var type = $(this).data('type');
             var unit = $(this).data('unit');
 
@@ -825,7 +831,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
             if (targetInput.length > 0) {
                 var obj = targetInput.parents('tr');
                 // 包装成 getUnit 兼容格式 {goods: {...}}
-                var wrapData = { goods: { id: id, goods_code: code, goods_name: name, product_type: type, unit_id: unit } };
+                var wrapData = { goods: { id: id, goods_code: code, goods_name: name, goods_specification_id: spec, vendor_name: vendor, packaging: pack, product_type: type, unit_id: unit } };
                 if (targetInput.hasClass('goods_names')) {
                     fillParentGoods(obj, wrapData);
                 } else {
@@ -866,6 +872,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
         obj.find('.goods_code').val(code);
         obj.find('.goods_id').val(g.id);
         obj.find('.goods_names').val(code + ' ' + name);
+        obj.find('.goods_specification_id').val(g.goods_specification_id || '');
+        obj.find('.vendor_name').val(g.vendor_name || '');
+        obj.find('.packaging').val(g.packaging || '');
 
         var typeLabel = '';
         if (g.product_type == 'finished') typeLabel = '成品';
@@ -882,6 +891,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
         obj.find('.goods_code').val(code);
         obj.find('.goods_id').val(g.id);
         obj.find('.goods_name').val(code + ' ' + name);
+        obj.find('.goods_specification_id').val(g.goods_specification_id || '');
+        obj.find('.vendor_name').val(g.vendor_name || '');
+        obj.find('.packaging').val(g.packaging || '');
 
         var typeLabel = '';
         if (g.product_type == 'finished') typeLabel = '成品';

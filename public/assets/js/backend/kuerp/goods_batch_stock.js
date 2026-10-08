@@ -23,8 +23,12 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     data: goodsList
                 });
 
+                //表格固定高度：表头/合计行常驻，横向滚动条固定在可视区底部，页面不再整页滚动。
+                //'full-xx' 会在窗口缩放时自动重算高度；xx = 表格顶部距页面顶端的高度 + 表格下方内边距(15+15+2)
+                var tableGap = Math.ceil($('#table').offset().top) + 32;
                 table.render({
                     elem: '#table'
+                    ,height: 'full-' + tableGap
                     ,url:'kuerp/goods_batch_stock/index'
                     ,parseData: function(res){ //res 即为原始返回的数据
                         return {
@@ -39,9 +43,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     ,totalRow: true
                     ,cellMinWidth: 100 //全局定义常规单元格的最小宽度，layui 2.2.1 新增
                     ,cols: [[
-                        {field: 'goods_code', title: __('商品编号')},
-                        {field: 'goods_name', title: __('商品名称')},
-                        {field: 'goods_spec', title: __('规格型号')},
+                        {field: 'goods_code', title: __('商品编号'), fixed: 'left'},
+                        {field: 'goods_name', title: __('商品名称'), fixed: 'left'},
+                        {field: 'goods_spec', title: '型号'},
                         {field: 'unit_name', title: __('单位')},
                         {field: 'unitconversion', title: __('副单位')},
                         {field: 'store_name', title: __('仓库'),totalRow:'合计'},
@@ -56,6 +60,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     done: function(res, curr, count){
                         this.elem.next().find('.layui-table-total td[data-field="stock"] .layui-table-cell').text(res.stock_all);
                     }
+                });
+
+                //窗口尺寸变化时重算表格高度（兜底，layui 对 'full-' 高度本身也会自适应）
+                $(window).on('resize', function () {
+                    table.resize('table');
                 });
 
                 upload.render({

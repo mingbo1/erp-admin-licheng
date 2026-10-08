@@ -63,7 +63,7 @@ class InventorySerial extends Backend
 
             foreach ($list as $row) {
 
-                $row->getRelation('admin')->visible(['username']);
+                $row->getRelation('admin')->visible(['nickname']);
             }
             foreach ($list as $list_k=>$list_v){
                 $result = '';
@@ -197,7 +197,7 @@ class InventorySerial extends Backend
             ->select();
 
         foreach ($list as $list_k=>$list_v){
-            $goods = Db::name('kuerp_goods')->where(['goods_code'=>$list_v['goods_code']])->field('id,goods_name,goods_code,note,goods_type_id,goods_specification_id,unit_id')->find();
+            $goods = Db::name('kuerp_goods')->where(['goods_code'=>$list_v['goods_code']])->field('id,goods_name,goods_code,note,goods_type_id,goods_specification_id,vendor_name,packaging,unit_id')->find();
             $goods_type = Db::name('kuerp_goods_type')->where(['id'=>$goods['goods_type_id']])->field('id,supplier_type_name')->find();
             $stores = Db::name('kuerp_stores')->where(['id'=>$list_v['stores_id']])->field('id,name')->find();
             $list[$list_k]['goods'] = $goods;
@@ -334,7 +334,7 @@ class InventorySerial extends Backend
         }
         $list = Db::name('kuerp_inventory_serial_info')->where($where)->where(['purchase_code'=>$row['purchase_code']])->select();
         foreach ($list as $list_k=>$list_v){
-            $goods = Db::name('kuerp_goods')->where(['id'=>$list_v['goods_id']])->field('id,goods_name,goods_code,note,goods_type_id,goods_specification_id,unit_id')->find();
+            $goods = Db::name('kuerp_goods')->where(['id'=>$list_v['goods_id']])->field('id,goods_name,goods_code,note,goods_type_id,goods_specification_id,vendor_name,packaging,unit_id')->find();
             $goods_type = Db::name('kuerp_goods_type')->where(['id'=>$goods['goods_type_id']])->field('id,supplier_type_name')->find();
             $stores = Db::name('kuerp_stores')->where(['id'=>$list_v['stores_id']])->field('id,name')->find();
             $list[$list_k]['goods'] = $goods;

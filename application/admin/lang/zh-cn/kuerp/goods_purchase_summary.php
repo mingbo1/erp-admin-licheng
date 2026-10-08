@@ -50,6 +50,6 @@ return [
     'Deletetime'         => '删除时间',
     'Goods.goods_name'   => '商品名称',
     'Supplier_type_name' => '商品分类',
-    'Goods_specification_id'=>'规格型号',
+    'Goods_specification_id'=> '型号',
     'Unit_conversion'    => '副单位',
 ];

@@ -28,7 +28,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'goods_id', title: __('Goods_id')},
                         {field: 'goods_code', title: __('Goods_code'), operate: 'LIKE'},
                         {field: 'stores_id', title: __('Stores_id')},
-                        {field: 'attribute_id', title: __('Attribute_id'), operate: 'LIKE'},
+                        {field: 'attribute_id', title: __('Attribute_id'), operate: 'LIKE', hide: window.KUERP_AUXILIARY_DISABLED === true},
                         {field: 'serial', title: __('Serial'), operate: 'LIKE'},
                         {field: 'status', title: __('Status'),templet: function (d) {
                             if(d.status==1){

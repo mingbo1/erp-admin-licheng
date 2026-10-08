@@ -40,6 +40,9 @@ class Assemble extends Backend
 
         $this->view->assign("goodsList", $this->model->getGoodsList());
         $this->assignconfig("goodsList", $this->model->getGoodsList());
+
+        //一键生成采购单按钮权限（fa_auth_rule: kuerp/assemble/setdata）
+        $this->view->assign("canShortagePurchase", $this->auth->check('kuerp/assemble/setdata', $this->auth->id));
     }
 
     /**
@@ -73,7 +76,7 @@ class Assemble extends Backend
 
             foreach ($list as $row) {
 
-                $row->getRelation('admin')->visible(['username']);
+                $row->getRelation('admin')->visible(['nickname']);
             }
             $lists = [];
             foreach ($list as $list_k=>$list_v){
@@ -96,9 +99,9 @@ class Assemble extends Backend
                 }
                 $p_info['unit_name'] = Db::name('kuerp_unit')->where(['id'=>$p_info['goods_unit']])->value('name');
 
-                $preparation = Db::name('admin')->where(['id'=>$list_v['preparation_id']])->value('username');
+                $preparation = Db::name('admin')->where(['id'=>$list_v['preparation_id']])->value('nickname');
                 if($list_v['examine_id']){
-                    $examine = Db::name('admin')->where(['id'=>$list_v['examine_id']])->value('username');
+                    $examine = Db::name('admin')->where(['id'=>$list_v['examine_id']])->value('nickname');
                     $examine_time = date('Y-m-d',$list_v['examine_time']);
                 }else{
                     $examine = '';
@@ -548,7 +551,7 @@ class Assemble extends Backend
                             ->where([
                                 'a.bom_id'      => $bom['id'],
                                 'a.type'        => '2',
-                                'g.product_type'=> 'part',
+                                'g.product_type'=> ['in', ['part', 'semi_finished']],
                             ])
                             ->field('a.goods_id, a.goods_code, a.number as bom_number, g.goods_name, g.unit_id, g.manager_warehouse_id')
                             ->select();
@@ -1002,8 +1005,28 @@ class Assemble extends Backend
             $this->assign('exclass','hiddens');
         }
         $this->assignconfig("examine_status", $row['examine_status']);
+        $this->assignconfig("assembleSalesOrderId", isset($row['sales_order_id']) ? $row['sales_order_id'] : '');
 
         return $this->view->fetch();
+    }
+    /**
+     * 一键生成采购单：暂存子件缺口数量，供 goods_purchase_order/add?type=1 预填
+     */
+    public function setdata(){
+        $params = $this->request->post("row/a");
+        if ($params) {
+            if($params[0]){
+                $params = json_decode($params[0],true);
+            }else{
+                $params = [];
+            }
+            if(empty($params)){
+                $this->error('参数错误');
+            }else{
+                Session::set('GoodsPurchaseOrder',serialize($params));
+                $this->success();
+            }
+        }
     }
     /**
      * 删除
@@ -2901,9 +2924,9 @@ class Assemble extends Backend
             $this->error(__('No Results were found'));
         }
         // 制单人
-        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('username');
+        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('nickname');
         // 审核人
-        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('username');
+        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('nickname');
 
         // 获取组装单详情(组合件 type=1 和 子件 type=2)
         $assemble_info = Db::name('kuerp_assemble_info')

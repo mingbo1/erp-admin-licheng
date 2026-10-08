@@ -71,8 +71,8 @@ class GoodsSalesSchedule extends Backend
 
             foreach ($list as $row) {
                 $row->getRelation('customers')->visible(['customer_name']);
-                $row->getRelation('preparation')->visible(['username']);
-                $row->getRelation('examine')->visible(['username']);
+                $row->getRelation('preparation')->visible(['nickname']);
+                $row->getRelation('examine')->visible(['nickname']);
                 if ($row->getRelation('staffmember')) {
                     $row->getRelation('staffmember')->visible(['name']);
                 }
@@ -488,11 +488,11 @@ class GoodsSalesSchedule extends Backend
      */
     public function getUnit($goods_code='',$store='',$attr=''){
         if($goods_code){
-            $row = Db::name('kuerp_goods')->where(['goods_code'=>$goods_code])->field('batch,serial,id,auxiliary,unit_id,more_unit,more_unit_id,goods_code,manager_warehouse_id,shelf_life,warehousing,warehouse')->find();
+            $row = Db::name('kuerp_goods')->where(['goods_code'=>$goods_code])->field('batch,serial,id,auxiliary,unit_id,more_unit,more_unit_id,goods_code,manager_warehouse_id,shelf_life,warehousing,warehouse,goods_specification_id,vendor_name,packaging')->find();
             $goods_id = isset($row['id'])?$row['id']:0;
         }else{
             $goods_id = isset($_POST['goods_id'])?$_POST['goods_id']:0;
-            $row = Db::name('kuerp_goods')->where(['id'=>$goods_id])->field('batch,serial,auxiliary,unit_id,more_unit,more_unit_id,goods_code,manager_warehouse_id,shelf_life,warehousing,warehouse')->find();
+            $row = Db::name('kuerp_goods')->where(['id'=>$goods_id])->field('batch,serial,auxiliary,unit_id,more_unit,more_unit_id,goods_code,manager_warehouse_id,shelf_life,warehousing,warehouse,goods_specification_id,vendor_name,packaging')->find();
         }
         if(empty($row)){
             return [];
@@ -758,8 +758,8 @@ class GoodsSalesSchedule extends Backend
         }
         $customer_name = Db::name('kuerp_customers')->where(['id' => $row['customers_id']])->value('customer_name');
         $row['customer_name'] = $customer_name ? $customer_name : '';
-        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('username');
-        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('username');
+        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('nickname');
+        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('nickname');
 
         $purchase_info = Db::name('kuerp_goods_sales_info')->where(['purchase_code' => $row['purchase_code']])->select();
         foreach ($purchase_info as $k => $v) {
@@ -1023,13 +1023,13 @@ class GoodsSalesSchedule extends Backend
             if (empty($bomList)) continue;
 
             foreach ($bomList as $bom) {
-                // 获取BOM子商品（type=2），且只取零件类型
+                // 获取BOM子商品（type=2），取零件和半成品类型
                 $children = Db::name('kuerp_goods_bom_info')->alias('a')
                     ->join('kuerp_goods g', 'g.id=a.goods_id')
                     ->where([
                         'a.bom_id' => $bom['id'],
                         'a.type' => '2',
-                        'g.product_type' => 'part',
+                        'g.product_type' => ['in', ['part', 'semi_finished']],
                     ])
                     ->field('a.goods_id, a.goods_code, a.number as bom_number, g.goods_name, g.unit_id')
                     ->select();

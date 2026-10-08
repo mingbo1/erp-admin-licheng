@@ -128,7 +128,7 @@ class Salesprofit extends Backend
 
             foreach ($list as $row) {
                 $row->getRelation('customers')->visible(['customer_name']);
-                $row->getRelation('preparation')->visible(['username']);
+                $row->getRelation('preparation')->visible(['nickname']);
                 $row->getRelation('staffmember')->visible(['name']);
             }
 

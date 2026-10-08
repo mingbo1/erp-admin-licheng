@@ -70,7 +70,7 @@ class Split extends Backend
 
             foreach ($list as $row) {
 
-                $row->getRelation('admin')->visible(['username']);
+                $row->getRelation('admin')->visible(['nickname']);
             }
             $lists = [];
             foreach ($list as $list_k=>$list_v){
@@ -93,9 +93,9 @@ class Split extends Backend
                 }
                 $p_info['unit_name'] = Db::name('kuerp_unit')->where(['id'=>$p_info['goods_unit']])->value('name');
 
-                $preparation = Db::name('admin')->where(['id'=>$list_v['preparation_id']])->value('username');
+                $preparation = Db::name('admin')->where(['id'=>$list_v['preparation_id']])->value('nickname');
                 if($list_v['examine_id']){
-                    $examine = Db::name('admin')->where(['id'=>$list_v['examine_id']])->value('username');
+                    $examine = Db::name('admin')->where(['id'=>$list_v['examine_id']])->value('nickname');
                     $examine_time = date('Y-m-d',$list_v['examine_time']);
                 }else{
                     $examine = '';

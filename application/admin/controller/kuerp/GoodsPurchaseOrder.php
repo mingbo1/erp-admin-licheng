@@ -73,25 +73,22 @@ class GoodsPurchaseOrder extends Backend
             if ($this->request->request('keyField')) {
                 return $this->selectpage();
             }
+            // 供应商搜索适配明细表：主表无supplyer_code字段，先从filter中移除，改由明细表匹配订单号
+            $filterArr = (array)json_decode($this->request->request('filter', ''), true);
+            $supplierFilter = '';
+            if (!empty($filterArr['supplyer_code'])) {
+                $supplierFilter = $filterArr['supplyer_code'];
+                unset($filterArr['supplyer_code']);
+                $this->request->get(['filter' => json_encode($filterArr)]);
+            }
             list($where, $sort, $order, $offset, $limit) = $this->buildparams();
-            // 供应商搜索适配明细表：在明细中模糊匹配供应商
-            $filter = $this->request->request('filter');
-            if (!empty($filter)) {
-                $filterArr = json_decode($filter, true);
-                if (isset($filterArr['supplyer_code']) && !empty($filterArr['supplyer_code'])) {
-                    $supplierFilter = $filterArr['supplyer_code'];
-                    $matchedCodes = Db::name('kuerp_goods_purchase_order_info')
-                        ->where(['supplyer_code' => $supplierFilter])
-                        ->distinct('purchase_code')
-                        ->column('purchase_code');
-                    if (!empty($matchedCodes)) {
-                        $where['purchase_code'] = ['in', $matchedCodes];
-                    } else {
-                        $where['purchase_code'] = ['in', ['']]; // 无匹配结果
-                    }
-                    // 移除原始where中的supplyer_code条件（buildparams可能已添加）
-                    unset($where['supplyer_code']);
-                }
+            // 按明细表匹配供应商对应的订单号（buildparams返回的$where是闭包，不能直接赋值，需追加到查询链上）
+            if ($supplierFilter !== '') {
+                $matchedCodes = Db::name('kuerp_goods_purchase_order_info')
+                    ->where(['supplyer_code' => $supplierFilter])
+                    ->distinct('purchase_code')
+                    ->column('purchase_code');
+                $this->model->where('purchase_code', 'in', $matchedCodes ?: ['']); // 无匹配结果
             }
             $sort = 'purchase_time';$order='DESC';
             $list = $this->model
@@ -103,10 +100,10 @@ class GoodsPurchaseOrder extends Backend
 
             foreach ($list as $row) {
                 $row->getRelation('suppliers')->visible(['supplyer_code','supplyer_name']);
-                $row->getRelation('preparation')->visible(['username']);
-                $row->getRelation('examine')->visible(['username']);
+                $row->getRelation('preparation')->visible(['nickname']);
+                $row->getRelation('examine')->visible(['nickname']);
                 if ($row->getRelation('secondExamine')) {
-                    $row->getRelation('secondExamine')->visible(['username']);
+                    $row->getRelation('secondExamine')->visible(['nickname']);
                 }
             }
             foreach ($list as $list_k=>$list_v){

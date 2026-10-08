@@ -400,7 +400,19 @@ mysql -uroot -proot -D erp_licheng < addons/kuerp/migration_add_goods_lock.sql
 
 ### 7.5 BOM子件过滤
 
-只取 `product_type='part'`（零件）的子件。`finished`（成品）和 `semi_finished`（半成品）不参与计算。这在 `kuerp_goods_bom_info` JOIN `kuerp_goods` 时过滤。
+BOM零件需求列表（`GoodsSalesSchedule::getBomRequirement()`）和「生成组装单」预填（`Assemble.php`）取 `product_type IN ('part','semi_finished')`（零件+半成品）的子件，仅 `finished`（成品）不参与计算。注意：「生成采购订单」（`GoodsPurchaseOrder.php`）的预填仍只取 `product_type='part'`。过滤都在 `kuerp_goods_bom_info` JOIN `kuerp_goods` 时完成。
+
+### 7.6 商品属性(goods_attr)与库存 attribute_id
+
+- 单据行的 `goods_attr` = `fa_kuerp_goods_attr` 行ID；库存表 `attribute_id` 用同一套ID过滤（采购入库写入时一致，见 `GoodsSales.php` examine）。
+- **初始化导入的库存 `attribute_id=NULL`**，所以无辅助属性商品的单据行属性必须留空：`GoodsPurchase::getUnit()` 对无属性商品也返回一条 `attr_name=''` 的纯单位行，若前端自动选中它（旧代码 `attrarr[0].id`），单据行会带上单位行ID，审核出库按 `attribute_id=单位行ID` 查库存必然查不到 → 误报"库存不足"（编辑页可用库存也显示0）。
+- `assemble.js` / `goods_purchase_order.js` / `goods_purchase_order_plan.js` 已修复：只自动选中 `attr_name` 非空的辅助属性行。服务端"请选择商品属性"校验仅对 `auxiliary==1` 的商品生效，属性留空是合法的。
+
+### 7.7 组装单"一键生成采购单"
+
+组装单 add/edit 页"子件"标题旁的 [一键生成采购单] 按钮（已审核单据上仍可点：bindevent 的"审核的单据不可编辑"块统一 `$('.btn').attr('disabled')` 后对 `.shortage_purchase` 单独 removeAttr 恢复）：遍历 `#assemble_table_c` 子件行，缺口 = `number`(需求数量) − `allow_stock`(可用库存)，缺口>0 的行（同商品+属性+仓库合并）经 `Assemble::setdata()` 存入 `Session('GoodsPurchaseOrder')`，然后 `parent.Fast.api.open("kuerp/goods_purchase_order/add?type=1")` 预填。这与补货模块(`Replenishment::setdata`)共用同一 Session key 和 `type=1` 预填链路（`GoodsPurchaseOrder::add()` 读 Session → `assignconfig("list")` → `initlist()` 填行），行上的 `purchase_code` 字段写入购货行 `sales_order_id`（组装单关联的销货订单号，edit 页无 `.sales_order_id` 隐藏域，从 `Config.assembleSalesOrderId` 取）。全部子件库存充足时提示且不打开采购页。
+
+权限：`setdata` **不在** `$noNeedRight`，受 `fa_auth_rule` 规则 `kuerp/assemble/setdata`（pid=组装单菜单）控制（见 `migration_add_assemble_setdata_auth_rule.sql`）；`Assemble::_initialize` 里 `$this->auth->check()` 结果 assign 为 `canShortagePurchase`，add/edit 视图用 `{if $canShortagePurchase}` 包住按钮，后端同步校验。超管（rules=`*`）始终可见，其他角色需在 角色管理→组装单 勾选"一键生成采购单"。
 
 ---
 
@@ -435,3 +447,48 @@ mysql -uroot -proot -D erp_licheng < addons/kuerp/migration_add_goods_lock.sql
 其他销货订单 B (XHDD...002) 的组装单:
     看到零件a可用库存: 1500 - 1000(被XHDD001锁) = 500
 ```
+
+---
+
+# 下拉框关键字搜索增强（select-enhancer）
+
+> 涉及文件：`public/assets/js/backend/kuerp/select-enhancer.js`（新增）、
+> `application/admin/view/kuerp/common/menu.html`、`public/assets/addons/kuerp/css/kuerp.css`（该目录 gitignore，随文件树部署）
+
+## 目标
+
+kuerp 后台全部原生 `<select>`（约 648 个）转为 bootstrap-select 并默认开启关键字搜索。
+仅 kuerp 模块生效，不动 FastAdmin 核心页面。
+
+## 加载入口
+
+`kuerp/common/menu.html`（每个 kuerp 页面都 include）里的内联脚本：轮询等
+`Config.jsname` 出现后 `require(['backend/kuerp/select-enhancer'])`，仅当
+`Config.jsname` 以 `backend/kuerp` 开头时加载。
+
+不放进 `require-backend.js` 的模块钩子里——生产环境 `app_debug=false` 加载的是
+`require-backend.min.js`（压缩产物），改源码不生效。
+
+## 关键机制
+
+| 机制 | 说明 |
+|------|------|
+| 全局默认 | `$.fn.selectpicker.defaults` 设 `liveSearch/liveSearchStyle:'contains'/size:10/noneSelectedText:''`；单元素加 `data-live-search="false"` 可关闭 |
+| 动态元素 | `MutationObserver`(childList/subtree/attributes:disabled) 转换动态插入的 select、刷新被重填选项的下拉框 |
+| 值变化 | 劫持 `$.fn.val` 写入路径，对已转换的 select 延后 `refresh`（`.html(新选项)` 紧跟 `.val(x)` 也能一次刷新到位） |
+| class 复制 | 插件 `setStyle()` 会把 select 的 class 复制到包裹层，导致 `.find('.goods_unit').val()` 读到包裹层空值；monkey-patch `setStyle` 移除业务 class（保留 form-control / col-*） |
+| `.layui-form` | 列表页搜索栏的 select 由 layui 的 form 模块自行渲染，**不转换**，改为打 `lay-search` 属性开启 layui 自带搜索（模块加载即标记；若 layui 已渲染且标题框 `readonly`，用 `layui.form.render('select')` 重渲染兜底） |
+| 菜单容器 | `.list{overflow:auto}` 与 `.layui-layer-content{overflow:auto}` 会裁切菜单：弹层内的 select → `container` 取最近的 `.layui-layer`（既逃出裁切、又留在弹层之上；挂 body 会被弹层 z-index 19891014 盖住）；弹层外的 `.list` → `container:'body'`；其余保持默认 |
+| 已有 selectpicker | 视图里 `class="selectpicker"` 的下拉由 form.js 在 bindevent 时初始化，若早于本模块则没有搜索框，`upgradeExistingPickers()` 重建补上 |
+
+## 注意
+
+- 序列号互斥（`allocation.js` 的 `check_serial_option()`）只能禁用「被**其它行**选走」的 option：
+  禁用本行已选中的 option 会让 jQuery `.val()` / `serialize()` / 原生表单提交都丢掉该值。
+- `noneSelectedText:''`：`<option value=""></option>` 这类空值选项保持与原生一致的空白显示，
+  否则 bootstrap-select 会填上"没有选中任何项"。
+- 表格内下拉按钮必须 `margin:0`：`.list .btn{margin:auto 8px}`（kuerp.css 顶部，为表格里其他按钮设的）会命中
+  bootstrap-select 的 `btn` 切换按钮——按钮 `width:100%` 再加左 8px 外边距，左侧空 8px、右侧溢出单元格 8px，
+  盖住相邻「可用库存」列的数字。kuerp.css 已在 `.list .bootstrap-select>.btn` 归零该 margin，勿删。
+- 换新库版本时注意 `$.fn.selectpicker.Constructor.BootstrapVersion = '3'`（与 `require-form.js:105` 一致），
+  未设置时插件按 Bootstrap 4 分支渲染会出错。

@@ -1,4 +1,7 @@
 <link rel="stylesheet" href="__CDN__/assets/css/bootstrap.min.css" media="all">
+{if condition="isset($set['auxiliary']['is_checked']) && $set['auxiliary']['is_checked']!=1"}
+<style>.goods_attr_sd{display:none;}</style>
+{/if}
 <style>
     .summary-wrap { padding: 20px; background: #fff; }
     .summary-title { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
@@ -15,7 +18,7 @@
 
 <div class="summary-wrap">
     <div class="summary-title"><i class="fa fa-list"></i> 采购汇总</div>
-    <div class="summary-subtitle">已选择采购单，按商品+属性+仓库汇总</div>
+    <div class="summary-subtitle">已选择采购单，按商品+仓库汇总</div>
 
     <table class="table table-bordered table-hover summary-table">
         <thead>
@@ -23,7 +26,7 @@
                 <th>供应商类别</th>
                 <th>商品编号</th>
                 <th>商品名称</th>
-                <th>规格型号</th>
+                <th class="goods_attr_sd">型号</th>
                 <th>仓库</th>
                 <th>单位换算</th>
                 <th>副单位数</th>
@@ -44,7 +47,7 @@
                 <td class="left">{$row.supplier_type_name|default=''}</td>
                 <td>{$row.goods_code}</td>
                 <td class="left">{$row.goods_name|default=''}</td>
-                <td>{if !empty($row.attr_name)}{$row.attr_name}{else}{$row.goods_specification_id|default=''}{/if}</td>
+                <td class="goods_attr_sd">{if !empty($row.attr_name)}{$row.attr_name}{else}{$row.goods_specification_id|default=''}{/if}</td>
                 <td>{$row.s_name|default=''}</td>
                 <td>
                     {if !empty($row.unit_conversion)}

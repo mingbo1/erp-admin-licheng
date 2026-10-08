@@ -65,7 +65,7 @@ class SplitTemp extends Backend
                 ->paginate($limit);
 
             foreach ($list as $row) {
-                $row->getRelation('admin')->visible(['username']);
+                $row->getRelation('admin')->visible(['nickname']);
             }
             $lists = [];
             foreach ($list as $list_k=>$list_v){

@@ -50,7 +50,7 @@
                 <tr>
                     <th>选择</th>
                     <th>商品</th>
-                    <th class="goods_attr_sd">{:__('Goods_attr')}</th>
+                    <th>型号</th><th>规格2/厂商</th><th>规格3/封装</th><th class="goods_attr_sd">{:__('Goods_attr')}</th>
                     <th>{:__('Goods_unit')}</th>
                     <th>{:__('Stores_id')}</th>
                     <th>{:__('Allow_stock')}</th>
@@ -73,6 +73,7 @@
                             <input type="text" class="ipt goods_names" value="{$info.goods_code} {$info.goods_name}">
                         </div>
                     </td>
+                    <td><div><input type="text" class="goods_specification_id" readonly></div></td><td><div><input type="text" class="vendor_name" readonly></div></td><td><div><input type="text" class="packaging" readonly></div></td>
                     <td class="goods_attr_sd">
                         <div>
                             <select name="row[goods_attr][]" class="form-control goods_attr">
@@ -141,6 +142,7 @@
                             <input type="text" class="ipt goods_names">
                         </div>
                     </td>
+                    <td><div><input type="text" class="goods_specification_id" readonly></div></td><td><div><input type="text" class="vendor_name" readonly></div></td><td><div><input type="text" class="packaging" readonly></div></td>
                     <td class="goods_attr_sd">
                         <div>
                             <select name="row[goods_attr][]" class="form-control goods_attr">
@@ -203,7 +205,7 @@
                 <tr>
                     <th>选择</th>
                     <th>商品</th>
-                    <th class="goods_attr_sd">{:__('Goods_attr')}</th>
+                    <th>型号</th><th>规格2/厂商</th><th>规格3/封装</th><th class="goods_attr_sd">{:__('Goods_attr')}</th>
                     <th>{:__('Goods_unit')}</th>
                     <th>{:__('Stores_id')}</th>
                     <th>{:__('Number')}</th>
@@ -221,6 +223,7 @@
                             <input type="text" class="ipt goods_name" value="{$info.goods_code} {$info.goods_name}">
                         </div>
                     </td>
+                    <td><div><input type="text" class="goods_specification_id" readonly></div></td><td><div><input type="text" class="vendor_name" readonly></div></td><td><div><input type="text" class="packaging" readonly></div></td>
                     <td class="goods_attr_sd">
                         <div>
                             <select name="row[goods_attr][]" class="form-control goods_attr">
@@ -280,6 +283,7 @@
                             <input type="text" class="ipt goods_name">
                         </div>
                     </td>
+                    <td><div><input type="text" class="goods_specification_id" readonly></div></td><td><div><input type="text" class="vendor_name" readonly></div></td><td><div><input type="text" class="packaging" readonly></div></td>
                     <td class="goods_attr_sd">
                         <div>
                             <select name="row[goods_attr][]" class="form-control goods_attr">

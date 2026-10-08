@@ -361,6 +361,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                                 var thisobj = $('.goods_id'+vp.goods_id+'_'+vp.goods_attr);
                                             }
                                             thisobj.find('.goods_code').val(vp.goods.goods_code);
+                                            thisobj.find('.goods_specification_id').val(vp.goods.goods_specification_id || '');
+                                            thisobj.find('.vendor_name').val(vp.goods.vendor_name || '');
+                                            thisobj.find('.packaging').val(vp.goods.packaging || '');
                                             thisobj.find('.goods_name').val(vp.goods.goods_code+' '+vp.goods.goods_name);
                                             $(vp.unit).each(function (k,v) {
                                                 if(v.is_default==1){
@@ -414,7 +417,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                     var html = '<div class="chose_goods_box" style="left:'+left+'px;top: '+top+'px;">\n' +
                                         '                            <table>\n' +
                                         '                                <tr>\n' +
-                                        '                                    <th>商品编号</th><th>商品名称</th><th>规格型号</th><th>计量单位</th><th>商品类别</th><th>库存数量</th><th>备注</th>\n' +
+                                        '                                    <th>商品编号</th><th>商品名称</th><th>型号</th><th>规格2/厂商</th><th>规格3/封装</th><th>计量单位</th><th>商品类别</th><th>库存数量</th><th>备注</th>\n' +
                                         '                                </tr>\n';
                                     max = 5;
                                     if(res.total>5){
@@ -424,7 +427,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                     }
                                     for (var a=0;a<max;a++){
                                         v = res.rows[a];
-                                        html += '<tr class="chose_goods_tr" data-code="'+v.goods_code+'" data-name="'+v.goods_name+'" data-note="'+v.note+'" data-store="'+v.manager_warehouse_id+'"><td>'+v.goods_code+'</td><td>'+v.goods_name+'</td><td>'+v.goods_specification_id+'</td><td>'+v.unit.name+'</td><td>'+v.goods_type.name+'</td><td>'+v.stock+'</td><td>'+v.note+'</td></tr>';
+                                        html += '<tr class="chose_goods_tr" data-code="'+v.goods_code+'" data-name="'+v.goods_name+'" data-note="'+v.note+'" data-store="'+v.manager_warehouse_id+'"><td>'+v.goods_code+'</td><td>'+v.goods_name+'</td><td>'+v.goods_specification_id+'</td><td>'+(v.vendor_name||'')+'</td><td>'+(v.packaging||'')+'</td><td>'+v.unit.name+'</td><td>'+v.goods_type.name+'</td><td>'+v.stock+'</td><td>'+v.note+'</td></tr>';
                                     }
                                     html += '                            </table>\n' +
                                         '                        </div>';

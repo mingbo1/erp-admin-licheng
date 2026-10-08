@@ -29,8 +29,12 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 var jsObjects = JSON.parse(rowspanstr2);    //转换为json对象
 
                 var store_str = [jsObject,jsObjects];
+                //表格固定高度：表头/合计行常驻，横向滚动条固定在可视区底部，页面不再整页滚动。
+                //'full-xx' 会在窗口缩放时自动重算高度；xx = 表格顶部距页面顶端的高度 + 表格下方内边距(15+15+2)
+                var tableGap = Math.ceil($('#table').offset().top) + 32;
                 table.render({
                     elem: '#table'
+                    ,height: 'full-' + tableGap
                     ,url:'kuerp/goods_stock/index'
                     ,parseData: function(res){ //res 即为原始返回的数据
                         return {
@@ -52,6 +56,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             obj.find('.layui-table-total td[data-field="unit_price'+v.id+'"] .layui-table-cell').text(v.unit_price_count);
                         })
                     }
+                });
+
+                //窗口尺寸变化时重算表格高度（兜底，layui 对 'full-' 高度本身也会自适应）
+                $(window).on('resize', function () {
+                    table.resize('table');
                 });
 
                 upload.render({

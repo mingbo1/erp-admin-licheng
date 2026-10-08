@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <title>{:__('Assemble_detail')} - {$row.purchase_code|htmlentities}</title>
+    {if condition="isset($set['auxiliary']['is_checked']) && $set['auxiliary']['is_checked']!=1"}
+    <style>.goods_attr_sd{display:none;}</style>
+    {/if}
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: "Microsoft YaHei", "SimSun", Arial, sans-serif; font-size: 14px; color: #333; padding: 20px; }
@@ -52,7 +55,7 @@
                 <th>序号</th>
                 <th>{:__('Goods_code')}</th>
                 <th>{:__('Goods_name')}</th>
-                <th>{:__('Goods_attr')}</th>
+                <th class="goods_attr_sd">{:__('Goods_attr')}</th>
                 <th>{:__('Goods_unit')}</th>
                 <th>{:__('Stores_name')}</th>
                 <th>{:__('Number')}</th>
@@ -68,7 +71,7 @@
                 <td>{$idx}</td>
                 <td>{$info.goods_code|htmlentities}</td>
                 <td class="left">{$info.goods_name|htmlentities}</td>
-                <td>{$info.attr_name|default=''}</td>
+                <td class="goods_attr_sd">{$info.attr_name|default=''}</td>
                 <td>{$info.unit_name|default=''}</td>
                 <td>{$info.stores_name|htmlentities}</td>
                 <td class="right">{$info.number|htmlentities}</td>
@@ -87,7 +90,7 @@
                 <th>序号</th>
                 <th>{:__('Goods_code')}</th>
                 <th>{:__('Goods_name')}</th>
-                <th>{:__('Goods_attr')}</th>
+                <th class="goods_attr_sd">{:__('Goods_attr')}</th>
                 <th>{:__('Goods_unit')}</th>
                 <th>{:__('Stores_name')}</th>
                 <th>{:__('Number')}</th>
@@ -103,7 +106,7 @@
                 <td>{$idx}</td>
                 <td>{$info.goods_code|htmlentities}</td>
                 <td class="left">{$info.goods_name|htmlentities}</td>
-                <td>{$info.attr_name|default=''}</td>
+                <td class="goods_attr_sd">{$info.attr_name|default=''}</td>
                 <td>{$info.unit_name|default=''}</td>
                 <td>{$info.stores_name|htmlentities}</td>
                 <td class="right">{$info.number|htmlentities}</td>

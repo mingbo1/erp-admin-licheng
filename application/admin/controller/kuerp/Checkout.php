@@ -60,7 +60,7 @@ class Checkout extends Backend
                 ->paginate($limit);
 
             foreach ($list as $row) {
-                $row->getRelation('preparation')->visible(['username']);
+                $row->getRelation('preparation')->visible(['nickname']);
             }
 
             foreach ($list as $list_k=>$list_v){

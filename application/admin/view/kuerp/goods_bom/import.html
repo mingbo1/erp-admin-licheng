@@ -27,7 +27,7 @@
                     <span class="mid-wrap-tit">导入说明</span>
                     <p class="import-tip">1）父级商品编号必填，父级商品必须已在货品管理中创建；</p>
                     <p class="import-tip">2）子级商品至少填写一行，一行表示一个子级商品；</p>
-                    <p class="import-tip">3）子级商品按"规格/制造商/封装"三参数自动匹配，可替换、新增、忽略；</p>
+                    <p class="import-tip">3）子级商品按"规格/规格2(厂商)/规格3(封装)"三参数匹配，三项完全一致才算匹配成功（双方均为空也视为一致）；部分相同须人工"替换"选择或"新增"；</p>
                     <p class="import-tip">4）同一父商品只能存在一个BOM模板。</p>
                 </div>
                 <p style="margin-top:20px;">
@@ -67,9 +67,9 @@
                     <tr>
                         <th style="width:130px;">商品编号</th>
                         <th>名称</th>
-                        <th>规格</th>
-                        <th>厂商</th>
-                        <th>封装</th>
+                        <th>型号</th>
+                        <th>规格2/厂商</th>
+                        <th>规格3/封装</th>
                         <th style="width:90px;">状态</th>
                     </tr>
                     </thead>
@@ -93,9 +93,9 @@
                     <tr>
                         <th style="width:40px;">#</th>
                         <th>名称</th>
-                        <th>规格</th>
-                        <th>厂商</th>
-                        <th>封装</th>
+                        <th>型号</th>
+                        <th>规格2/厂商</th>
+                        <th>规格3/封装</th>
                         <th style="width:70px;">数量</th>
                         <th style="width:80px;">状态</th>
                         <th>匹配商品</th>
@@ -121,13 +121,13 @@
                 <tr>
                     <th style="width:70px;">名称</th>
                     <td id="ri-name"></td>
-                    <th style="width:70px;">规格</th>
+                    <th style="width:70px;">型号</th>
                     <td id="ri-spec"></td>
                 </tr>
                 <tr>
-                    <th>厂商</th>
+                    <th>规格2/厂商</th>
                     <td id="ri-vendor"></td>
-                    <th>封装</th>
+                    <th>规格3/封装</th>
                     <td id="ri-packaging"></td>
                 </tr>
                 <tr>
@@ -139,7 +139,7 @@
             </table>
             <div style="margin-bottom:10px;">
                 <div class="input-group">
-                    <input type="text" id="replace-search" class="form-control" placeholder="搜索商品编号 / 名称 / 规格">
+                    <input type="text" id="replace-search" class="form-control" placeholder="搜索商品编号 / 名称 / 型号">
                     <span class="input-group-btn">
                         <button type="button" id="btn-refresh-match" class="btn btn-primary"><i class="fa fa-refresh"></i> 刷新匹配</button>
                     </span>

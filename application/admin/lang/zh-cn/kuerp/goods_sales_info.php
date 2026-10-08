@@ -54,7 +54,7 @@ return [
     'Goods_name'              => '商品名称',
 
     'Goods_barcode'          => '商品条码',
-    'Goods_specification_id' => '规格型号',
+    'Goods_specification_id' => '型号',
     'Unitname'               => '单位',
     'Storesname'             => '仓库',
     'Note'                   => '整单备注',

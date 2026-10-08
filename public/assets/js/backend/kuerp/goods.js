@@ -26,8 +26,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                         {field: 'goods_code', title: __('Goods_code'), operate: 'LIKE'},
                         {field: 'goods_name', title: __('Goods_name'), operate: 'LIKE', width: 200},
                         {field: 'goods_specification_id', title: __('Goods_specification_id'), width: 180},
-                        {field: 'packaging', title: '封装', width: 150},
-                        {field: 'vendor_name', title: '厂商'},
+                        {field: 'vendor_name', title: '规格2/厂商'},
+                        {field: 'packaging', title: '规格3/封装', width: 150},
                         {field: 'goods_type_id', title: __('Goods_type_id'),templet: function (d) {
                                 if(d.goodstype.supplier_type_name!=null){
                                     return d.goodstype.supplier_type_name;
@@ -464,13 +464,15 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                     ,cellMinWidth: 100 //全局定义常规单元格的最小宽度，layui 2.2.1 新增
                     ,cols: [[
                         {checkbox: true},
-                        {field: 'goods_image', title: __('Goods_image'), operate: false,templet: function (d) {
-                                return "<a href='javascript:;'><img src="+d.goods_image+"></a>";
+                        {field: 'goods_code', title: __('Goods_code'), minWidth: 110, hide: true},
+                        {field: 'id', title: 'ID', minWidth: 80},
+                        {field: 'goods_name', title: __('Goods_name'), minWidth: 220, templet: function (d) {
+                                // 商品名称完整展示，过长换行
+                                return '<div style="white-space:normal;word-break:break-all;line-height:18px;padding:2px 0;" title="' + d.goods_name + '">' + d.goods_name + '</div>';
                             }},
-                        {field: 'goods_code', title: __('Goods_code')},
-                        {field: 'attr_code', title: __('属性编号')},
-                        {field: 'goods_name', title: __('Goods_name')},
-                        {field: 'goods_specification_id', title: __('规格型号')},
+                        {field: 'goods_specification_id', title: '型号', minWidth: 110},
+                        {field: 'vendor_name', title: '规格2/厂商', minWidth: 120},
+                        {field: 'packaging', title: '规格3/封装', minWidth: 120},
                         {field: 'goods_type_id', title: __('Goods_type_id'),templet: function (d) {
                                 if(d.goods_type==null){
                                     return '';
@@ -491,7 +493,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                                     return '';
                                 }
                             }},
-                        {field: 'attr_name', title: __('商品属性')},
+                        {field: 'attr_name', title: __('商品属性'), hide: true},
                         {field: 'unit', title: __('Unit'),templet: function (d) {
                                 if(d.unit==null){
                                     return '';
@@ -549,7 +551,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                         $.each(tableIds,function (k,v) {
                             var exitsStatus = false;
                             $.each(lists,function (k2,v2) {
-                                if(listsArr[v-1].id+'-'+listsArr[v-1].goods_attr === v2['id']+'-'+v2['goods_attr']){
+                                if(v === v2['id']+'-'+v2['goods_attr']){
                                     exitsStatus = true;
                                 }
                             });
@@ -603,7 +605,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                     $.each(tableIds,function (k,v) {
                         var exitsStatus = false;
                         $.each(lists,function (k2,v2) {
-                            if(listsArr[v-1].id===v2['id']){
+                            if(v === v2['id']+'-'+v2['goods_attr']){
                                 exitsStatus = true;
                             }
                         });
@@ -731,6 +733,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                                     "plugins": ["checkbox", "types"],
                                     "core": {
                                         'check_callback': true,
+                                        // 数据直接传入时 jstree 默认用 Worker 解析，压缩版在 Worker 内会抛
+                                        // ReferenceError，导致分类树渲染失败，这里改为主线程解析
+                                        "worker": false,
                                         "data": data
                                     }
                                 });
@@ -1659,6 +1664,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                     "plugins": ["checkbox", "types"],
                     "core": {
                         'check_callback': true,
+                        "worker": false,
                         "data": content
                     }
                 });

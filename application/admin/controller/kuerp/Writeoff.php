@@ -70,7 +70,7 @@ class Writeoff extends Backend
 
             foreach ($list as $row) {
 
-                $row->getRelation('admin')->visible(['username']);
+                $row->getRelation('admin')->visible(['nickname']);
             }
             foreach ($list as $list_k=>$list_v){
                 if(isset($list_v['print_num']) && empty($list_v['print_num'])){
@@ -89,8 +89,8 @@ class Writeoff extends Backend
                     $list[$list_k]['suppliers_id'] = Db::name('kuerp_suppliers')->where(['id'=>$list_v['suppliers_id']])->value('supplyer_name');
                 }
 
-                $list[$list_k]['preparation_id'] = Db::name('admin')->where(['id'=>$list_v['preparation_id']])->value('username');
-                $list[$list_k]['examine_id'] = Db::name('admin')->where(['id'=>$list_v['examine_id']])->value('username');
+                $list[$list_k]['preparation_id'] = Db::name('admin')->where(['id'=>$list_v['preparation_id']])->value('nickname');
+                $list[$list_k]['examine_id'] = Db::name('admin')->where(['id'=>$list_v['examine_id']])->value('nickname');
             }
 
             $result = array("total" => $list->total(), "rows" => $list->items());

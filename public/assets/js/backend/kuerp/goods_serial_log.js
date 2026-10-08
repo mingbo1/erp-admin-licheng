@@ -47,7 +47,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {checkbox: true},
                         {field: 'goods_code', title: __('商品编号')},
                         {field: 'goods_name', title: __('商品名称')},
-                        {field: 'goods_spec', title: __('规格型号')},
+                        {field: 'goods_spec', title: '型号'},
                         {field: 'serial', title: __('Serial'),},
                         {field: 'store_name', title: __('仓库')},
                         {field: 'createtime', title: __('日期'),templet: function (d) {

@@ -312,6 +312,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     $('select').attr('disabled','true');
                     $('textarea').attr('disabled','true');
                     $('.btn').attr('disabled','true');
+                    //一键生成采购单在已审核单据上仍可使用
+                    $('.shortage_purchase').removeAttr('disabled');
                 }
 
                 //数量格式化
@@ -930,6 +932,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                         $(goods).each(function (kp,vp) {
                                             var thisobj = obj;
                                             thisobj.find('.goods_code').val(vp.goods.goods_code);
+                                            thisobj.find('.goods_specification_id').val(vp.goods.goods_specification_id || '');
+                                            thisobj.find('.vendor_name').val(vp.goods.vendor_name || '');
+                                            thisobj.find('.packaging').val(vp.goods.packaging || '');
                                             thisobj.find('.goods_names').val(vp.goods.goods_code+' '+vp.goods.goods_name);
                                             $(vp.unit).each(function (k,v) {
                                                 if(v.is_default==1){
@@ -996,6 +1001,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                                 var thisobj = $('.goods_id'+vp.goods_id+'_'+vp.goods_attr);
                                             }
                                             thisobj.find('.goods_code').val(vp.goods.goods_code);
+                                            thisobj.find('.goods_specification_id').val(vp.goods.goods_specification_id || '');
+                                            thisobj.find('.vendor_name').val(vp.goods.vendor_name || '');
+                                            thisobj.find('.packaging').val(vp.goods.packaging || '');
                                             thisobj.find('.goods_name').val(vp.goods.goods_code+' '+vp.goods.goods_name);
                                             $(vp.unit).each(function (k,v) {
                                                 if(v.is_default==1){
@@ -1078,7 +1086,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                     var html = '<div class="chose_goods_box" style="left:'+left+'px;top: '+top+'px;">\n' +
                                         '                            <table>\n' +
                                         '                                <tr>\n' +
-                                        '                                    <th>商品编号</th><th>商品名称</th><th>规格型号</th><th>计量单位</th><th>商品类别</th><th>库存数量</th><th>备注</th>\n' +
+                                        '                                    <th>商品编号</th><th>商品名称</th><th>型号</th><th>规格2/厂商</th><th>规格3/封装</th><th>计量单位</th><th>商品类别</th><th>库存数量</th><th>备注</th>\n' +
                                         '                                </tr>\n';
                                     max = 5;
                                     if(res.total>5){
@@ -1088,7 +1096,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                     }
                                     for (var a=0;a<max;a++){
                                         v = res.rows[a];
-                                        html += '<tr class="chose_goods_tr" data-code="'+v.goods_code+'" data-name="'+v.goods_name+'" data-note="'+v.note+'" data-store="'+v.manager_warehouse_id+'"><td>'+v.goods_code+'</td><td>'+v.goods_name+'</td><td>'+v.goods_specification_id+'</td><td>'+v.unit.name+'</td><td>'+v.goods_type.name+'</td><td>'+v.stock+'</td><td>'+v.note+'</td></tr>';
+                                        html += '<tr class="chose_goods_tr" data-code="'+v.goods_code+'" data-name="'+v.goods_name+'" data-note="'+v.note+'" data-store="'+v.manager_warehouse_id+'"><td>'+v.goods_code+'</td><td>'+v.goods_name+'</td><td>'+v.goods_specification_id+'</td><td>'+(v.vendor_name||'')+'</td><td>'+(v.packaging||'')+'</td><td>'+v.unit.name+'</td><td>'+v.goods_type.name+'</td><td>'+v.stock+'</td><td>'+v.note+'</td></tr>';
                                     }
                                     html += '                            </table>\n' +
                                         '                        </div>';
@@ -1117,7 +1125,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                     var html = '<div class="chose_goods_box" style="left:'+left+'px;top: '+top+'px;">\n' +
                                         '                            <table>\n' +
                                         '                                <tr>\n' +
-                                        '                                    <th>商品编号</th><th>商品名称</th><th>规格型号</th><th>计量单位</th><th>商品类别</th><th>库存数量</th><th>备注</th>\n' +
+                                        '                                    <th>商品编号</th><th>商品名称</th><th>型号</th><th>规格2/厂商</th><th>规格3/封装</th><th>计量单位</th><th>商品类别</th><th>库存数量</th><th>备注</th>\n' +
                                         '                                </tr>\n';
                                     max = 5;
                                     if(res.total>5){
@@ -1127,7 +1135,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                     }
                                     for (var a=0;a<max;a++){
                                         v = res.rows[a];
-                                        html += '<tr class="chose_goods_tr" data-code="'+v.goods_code+'" data-name="'+v.goods_name+'" data-note="'+v.note+'" data-store="'+v.manager_warehouse_id+'"><td>'+v.goods_code+'</td><td>'+v.goods_name+'</td><td>'+v.goods_specification_id+'</td><td>'+v.unit.name+'</td><td>'+v.goods_type.name+'</td><td>'+v.stock+'</td><td>'+v.note+'</td></tr>';
+                                        html += '<tr class="chose_goods_tr" data-code="'+v.goods_code+'" data-name="'+v.goods_name+'" data-note="'+v.note+'" data-store="'+v.manager_warehouse_id+'"><td>'+v.goods_code+'</td><td>'+v.goods_name+'</td><td>'+v.goods_specification_id+'</td><td>'+(v.vendor_name||'')+'</td><td>'+(v.packaging||'')+'</td><td>'+v.unit.name+'</td><td>'+v.goods_type.name+'</td><td>'+v.stock+'</td><td>'+v.note+'</td></tr>';
                                     }
                                     html += '                            </table>\n' +
                                         '                        </div>';
@@ -1187,6 +1195,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         success: function(res){
                             res = JSON.parse(res);
                             goods=res;
+                            obj.find('.goods_specification_id').val(goods.goods.goods_specification_id || '');
+                            obj.find('.vendor_name').val(goods.goods.vendor_name || '');
+                            obj.find('.packaging').val(goods.goods.packaging || '');
                             $(goods.unit).each(function (k,v) {
                                 if(v.id==goods_unit){
                                     obj.find('.allow_stock').val(v.stock);
@@ -1215,6 +1226,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         success: function(res){
                             res = JSON.parse(res);
                             goods=res;
+                            obj.find('.goods_specification_id').val(goods.goods.goods_specification_id || '');
+                            obj.find('.vendor_name').val(goods.goods.vendor_name || '');
+                            obj.find('.packaging').val(goods.goods.packaging || '');
                             $(goods.unit).each(function (k,v) {
                                 if(v.id==goods_unit){
                                     obj.find('.allow_stock').val(v.stock);
@@ -1243,6 +1257,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         success: function(res){
                             res = JSON.parse(res);
                             goods=res;
+                            obj.find('.goods_specification_id').val(goods.goods.goods_specification_id || '');
+                            obj.find('.vendor_name').val(goods.goods.vendor_name || '');
+                            obj.find('.packaging').val(goods.goods.packaging || '');
                             $(goods.unit).each(function (k,v) {
                                 if(v.id==goods_unit){
                                     obj.find('.allow_stock').val(v.stock);
@@ -1346,6 +1363,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         success: function(res){
                             res = JSON.parse(res);
                             goods=res;
+                            obj.find('.goods_specification_id').val(goods.goods.goods_specification_id || '');
+                            obj.find('.vendor_name').val(goods.goods.vendor_name || '');
+                            obj.find('.packaging').val(goods.goods.packaging || '');
                             if(goods.goods.batch==1){
                                 obj.find('input[name="row[batch][]"]').attr('placeholder','SN');
                             }
@@ -1369,8 +1389,17 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             if(attr!=''){
                                 obj.find('.goods_attr').val(attr);
                             }else if(attrarr && attrarr.length > 0){
-                                // 没有指定属性时，自动选中第一个属性（避免辅助属性商品提交时报"请选择商品属性"）
-                                obj.find('.goods_attr').val(attrarr[0].id);
+                                // 没有指定属性时，自动选中第一个辅助属性（避免辅助属性商品提交时报"请选择商品属性"）
+                                // 无辅助属性商品的attr_name为空(纯单位行)：不自动选中，否则单位行ID会被当作attribute_id过滤库存，审核出库时查不到库存
+                                var firstAttrRow = null;
+                                $(attrarr).each(function (k, v) {
+                                    if (firstAttrRow === null && v.attr_name) {
+                                        firstAttrRow = v;
+                                    }
+                                });
+                                if (firstAttrRow !== null) {
+                                    obj.find('.goods_attr').val(firstAttrRow.id);
+                                }
                             }
                             if(store!=''){
                                 obj.find('.stores_id').val(store);
@@ -1507,6 +1536,83 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 })
                             }
                         }});
+                });
+
+                //一键生成采购单：子件可用库存不足时，按缺口数量（需求数量-可用库存）预填购货订单
+                $(document).on("click", ".shortage_purchase", function(){
+                    var set = Config.set;
+                    var number_decimal = parseInt(set.number_decimal.value);
+                    if(isNaN(number_decimal)){
+                        number_decimal = 1;
+                    }
+                    var salesOrderId = '';
+                    if($('.sales_order_id').length > 0 && $('.sales_order_id').val()){
+                        salesOrderId = $('.sales_order_id').val();
+                    }else if(Config.assembleSalesOrderId){
+                        salesOrderId = Config.assembleSalesOrderId;
+                    }
+                    var shortageMap = {};
+                    var shortageArr = [];
+                    $('#assemble_table_c tr').each(function () {
+                        var tr = $(this);
+                        if(tr.find('.goods_code').length == 0 || !tr.is(':visible')){
+                            return;//表头行/隐藏模板行
+                        }
+                        var goods_code = $.trim(tr.find('.goods_code').val() || '');
+                        if(goods_code == ''){
+                            return;
+                        }
+                        var number = parseFloat(tr.find('.number').val());
+                        var allow_stock = parseFloat(tr.find('.allow_stock').val());
+                        if(isNaN(number)){
+                            number = 0;
+                        }
+                        if(isNaN(allow_stock)){
+                            allow_stock = 0;
+                        }
+                        var shortage = parseFloat((number - allow_stock).toFixed(number_decimal));
+                        if(shortage <= 0){
+                            return;//库存足够，无需采购
+                        }
+                        var attr = tr.find('.goods_attr').val() || '';
+                        var stores_id = tr.find('.stores_id').val() || '';
+                        //同一商品+属性+仓库的多行缺口合并
+                        var key = goods_code + '_' + attr + '_' + stores_id;
+                        if(shortageMap[key]){
+                            shortageMap[key].now_buy_number = parseFloat((shortageMap[key].now_buy_number + shortage).toFixed(number_decimal));
+                        }else{
+                            shortageMap[key] = {
+                                'goods_code': goods_code,
+                                'goods_attr': attr,
+                                'goods_unit': '',
+                                'stores_id': stores_id,
+                                'now_buy_number': shortage,
+                                'buy_price': '',
+                                'purchase_code': salesOrderId
+                            };
+                            shortageArr.push(shortageMap[key]);
+                        }
+                    });
+                    if(shortageArr.length == 0){
+                        Toastr.error('子件库存充足，无需生成采购单');
+                        return false;
+                    }
+                    var arrstr = arrayToJsonString(shortageArr);
+                    $.ajax({
+                        url: "kuerp/assemble/setdata",
+                        type: "POST",
+                        data: {'row': arrstr},
+                        success: function(res){
+                            if(res.code==1){
+                                parent.Fast.api.open("kuerp/goods_purchase_order/add?type=1", "生成采购单", {area:['90%','75%']});
+                            }else{
+                                Toastr.error(res.msg);
+                            }
+                        },
+                        error: function(){
+                            Toastr.error('网络错误！');
+                        }
+                    });
                 });
 
                 //使用BOM模版

@@ -135,7 +135,7 @@ class Inventory extends Backend
             $purchase_time = time();
             $invertory = 0;$profit = 0;
             foreach ($insert as $insert_k=>$insert_v){
-                if(!isset($insert_v['仓库']) || !isset($insert_v['商品类别']) || !isset($insert_v['商品编号']) || !isset($insert_v['商品名称']) || !isset($insert_v['属性编号']) || !isset($insert_v['属性名称']) || !isset($insert_v['规格型号']) || !isset($insert_v['单位']) || !isset($insert_v['系统库存']) || !isset($insert_v['盘点库存']) || !isset($insert_v['商品条码'])){
+                if(!isset($insert_v['仓库']) || !isset($insert_v['商品类别']) || !isset($insert_v['商品编号']) || !isset($insert_v['商品名称']) || !isset($insert_v['属性编号']) || !isset($insert_v['属性名称']) || (!isset($insert_v['规格型号']) && !isset($insert_v['型号'])) || !isset($insert_v['单位']) || !isset($insert_v['系统库存']) || !isset($insert_v['盘点库存']) || !isset($insert_v['商品条码'])){
                     $this->error('表格格式错误');
                 }
                 if($insert_v['系统库存']===''){
@@ -274,7 +274,7 @@ class Inventory extends Backend
 
             foreach ($list as $row) {
                 
-                $row->getRelation('admin')->visible(['username']);
+                $row->getRelation('admin')->visible(['nickname']);
             }
             foreach ($list as $list_k=>$list_v){
                 $result = '';
@@ -406,7 +406,7 @@ class Inventory extends Backend
             ->select();
 
         foreach ($list as $list_k=>$list_v){
-            $goods = Db::name('kuerp_goods')->where(['goods_code'=>$list_v['goods_code']])->field('id,goods_name,goods_code,note,goods_type_id,goods_specification_id,unit_id')->find();
+            $goods = Db::name('kuerp_goods')->where(['goods_code'=>$list_v['goods_code']])->field('id,goods_name,goods_code,note,goods_type_id,goods_specification_id,vendor_name,packaging,unit_id')->find();
             $goods_type = Db::name('kuerp_goods_type')->where(['id'=>$goods['goods_type_id']])->field('id,supplier_type_name')->find();
             $stores = Db::name('kuerp_stores')->where(['id'=>$list_v['stores_id']])->field('id,name')->find();
             $list[$list_k]['goods'] = $goods;
@@ -551,7 +551,7 @@ class Inventory extends Backend
         }
         $list = Db::name('kuerp_inventory_info')->where($where)->where(['purchase_code'=>$row['purchase_code']])->select();
         foreach ($list as $list_k=>$list_v){
-            $goods = Db::name('kuerp_goods')->where(['id'=>$list_v['goods_id']])->field('id,goods_name,goods_code,note,goods_type_id,goods_specification_id,unit_id')->find();
+            $goods = Db::name('kuerp_goods')->where(['id'=>$list_v['goods_id']])->field('id,goods_name,goods_code,note,goods_type_id,goods_specification_id,vendor_name,packaging,unit_id')->find();
             $goods_type = Db::name('kuerp_goods_type')->where(['id'=>$goods['goods_type_id']])->field('id,supplier_type_name')->find();
             $stores = Db::name('kuerp_stores')->where(['id'=>$list_v['stores_id']])->field('id,name')->find();
             $list[$list_k]['goods'] = $goods;
@@ -632,7 +632,7 @@ class Inventory extends Backend
             ->select();
 
         foreach ($list as $list_k=>$list_v){
-            $goods = Db::name('kuerp_goods')->where(['goods_code'=>$list_v['goods_code']])->field('id,goods_barcode,goods_name,goods_code,note,goods_type_id,goods_specification_id,unit_id')->find();
+            $goods = Db::name('kuerp_goods')->where(['goods_code'=>$list_v['goods_code']])->field('id,goods_barcode,goods_name,goods_code,note,goods_type_id,goods_specification_id,vendor_name,packaging,unit_id')->find();
             $goods_type = Db::name('kuerp_goods_type')->where(['id'=>$goods['goods_type_id']])->field('id,supplier_type_name')->find();
             $stores = Db::name('kuerp_stores')->where(['id'=>$list_v['stores_id']])->field('id,name')->find();
             $list[$list_k]['goods'] = $goods;
@@ -687,7 +687,7 @@ class Inventory extends Backend
         $sheet->getCell('D1')->setValue('商品名称');
         $sheet->getCell('E1')->setValue('属性编号');
         $sheet->getCell('F1')->setValue('属性名称');
-        $sheet->getCell('G1')->setValue('规格型号');
+        $sheet->getCell('G1')->setValue('型号');
         $sheet->getCell('H1')->setValue('单位');
         $sheet->getCell('I1')->setValue('系统库存');
         $sheet->getCell('J1')->setValue('盘点库存');

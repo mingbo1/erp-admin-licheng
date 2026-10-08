@@ -114,6 +114,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form'], function ($, undefin
                 var row = '<tr data-id="' + id + '">';
                 row += '<td>' + code + '</td>';
                 row += '<td>' + name + '</td>';
+                row += '<td>' + (tr.data('spec') || '') + '</td>';
+                row += '<td>' + (tr.data('vendor') || '') + '</td>';
+                row += '<td>' + (tr.data('pack') || '') + '</td>';
                 row += '<td>' + unit + '</td>';
                 row += '<td><input type="number" name="goods[' + id + '][quantity]" class="form-control input-sm goods-qty" value="1" min="0.01" step="0.01" style="width:100px"></td>';
                 row += '<td><input type="number" name="goods[' + id + '][unit_price]" class="form-control input-sm goods-price" value="' + price + '" min="0" step="0.01" style="width:100px"></td>';

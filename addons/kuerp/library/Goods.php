@@ -29,6 +29,12 @@ class Goods
             }
             $setList[$set_v['name']] = $set_v;
         }
+        // 【商品属性功能全局关闭】隐藏商品属性(辅助属性)相关UI;代码保留、数据库不动。
+        // 恢复功能:删除本 if 块即可(getSetData 是全部 kuerp 页面 $set 的唯一来源,
+        // menu.html 的 .goods_attr_sd 隐藏CSS / window.KUERP_AUXILIARY_DISABLED 标记 / 商品页辅助属性块均由此驱动)。
+        if (isset($setList['auxiliary'])) {
+            $setList['auxiliary']['is_checked'] = 0;
+        }
         $controllername = Loader::parseName(request()->controller());
         $controllername = str_replace(".","/",$controllername);
         return ['setList'=>$setList,'nowmenu'=>$controllername];

@@ -43,7 +43,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'admin_id', title: __('Admin_id')},
                         {field: 'goods_id', title: __('Goods_id')},
                         {field: 'goods_code', title: __('Goods_code'), operate: 'LIKE'},
-                        {field: 'attribute_id', title: __('Attribute_id'), operate: 'LIKE'},
+                        {field: 'attribute_id', title: __('Attribute_id'), operate: 'LIKE', hide: window.KUERP_AUXILIARY_DISABLED === true},
                         {field: 'stores_id', title: __('Stores_id')},
                         {field: 'batch_name', title: __('Batch_name'), operate: 'LIKE'},
                         {field: 'manufacture', title: __('Manufacture')},

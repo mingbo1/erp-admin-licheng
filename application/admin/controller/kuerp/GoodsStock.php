@@ -54,10 +54,11 @@ class GoodsStock extends Backend
             ['field'=>'cost_money','title'=>'成本','totalRow'=>true]
         ];
         $rowspan = [
-            ['field'=>'goods_code','title'=>'商品编号','rowspan'=>2,'totalRow'=>'合计'],
-            ['field'=>'goods_name','title'=>'商品名称','rowspan'=>2,'width'=>'120'],
+            //fixed:'left' 冻结商品编号/名称列：列多横向滚动时始终可见（layui 2.8+ 复杂表头支持固定列）
+            ['field'=>'goods_code','title'=>'商品编号','rowspan'=>2,'totalRow'=>'合计','fixed'=>'left'],
+            ['field'=>'goods_name','title'=>'商品名称','rowspan'=>2,'width'=>'120','fixed'=>'left'],
             ['field'=>'type_name','title'=>'商品类别','rowspan'=>2],
-            ['field'=>'goods_specification_id','title'=>'规格型号','rowspan'=>2],
+            ['field'=>'goods_specification_id','title'=>'型号','rowspan'=>2],
             ['field'=>'note','title'=>'商品备注','rowspan'=>2],
             ['field'=>'unit_name','title'=>'单位','rowspan'=>2],
             ['field'=>'unitconversion','title'=>'副单位','rowspan'=>2],

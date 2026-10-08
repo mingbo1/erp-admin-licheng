@@ -45,7 +45,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'goods_code', title: __('商品编号'), rowspan: 2},
                         {field: 'goods_name', title: __('商品名称'), rowspan: 2,width:120},
                         {field: 'goods_barcode', title: __('商品条码'), rowspan: 2},
-                        {field: 'goods_spec', title: __('规格型号'), rowspan: 2},
+                        {field: 'goods_spec', title: '型号', rowspan: 2},
                         {field: 'note', title: __('商品备注'), rowspan: 2},
                         {field: 'purchase_time', title: __('Purchase_time'),templet: function (d) {
                                 if(d.purchase_time!=null){

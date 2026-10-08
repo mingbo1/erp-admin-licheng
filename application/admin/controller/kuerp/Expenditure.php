@@ -77,8 +77,8 @@ class Expenditure extends Backend
                 ->paginate($limit);
 
             foreach ($list as $row) {
-                $row->getRelation('examine')->visible(['username']);
-                $row->getRelation('admin')->visible(['username']);
+                $row->getRelation('examine')->visible(['nickname']);
+                $row->getRelation('admin')->visible(['nickname']);
                 $row->getRelation('suppliers')->visible(['supplyer_name']);
             }
             foreach ($list as $list_k=>$list_v){

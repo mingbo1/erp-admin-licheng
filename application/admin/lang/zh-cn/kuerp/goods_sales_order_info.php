@@ -56,6 +56,6 @@ return [
     'S_name'                  => '供应商',
     'R_name'                  => '仓库',
     'Goods.goods_name'        => '商品名称',
-    'Goods_specification_id'  => '规格型号',
+    'Goods_specification_id'  => '型号',
     'Unitname'                => '单位',
 ];

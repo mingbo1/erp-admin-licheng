@@ -25,4 +25,5 @@ return [
     'At_least_one_child'   => '至少需要一个子商品',
     'Product_type'         => '商品类型',
     'Goods_unit'           => '单位',
+    'Print'                => '打印',
 ];

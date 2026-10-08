@@ -43,8 +43,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 }
                             }},
                         {field: 'preparation_id', title: __('Preparation_id'),templet: function (d) {
-                                if(d.preparation.username!=null){
-                                    return d.preparation.username;
+                                if(d.preparation.nickname!=null){
+                                    return d.preparation.nickname;
                                 }else{
                                     return '';
                                 }

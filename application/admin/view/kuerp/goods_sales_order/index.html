@@ -73,6 +73,14 @@
                                 <option value="miniapp">{:__('Source miniapp')}</option>
                             </select>
                         </div>
+                        <div class="layui-input-inline">
+                            <select name="sale_user" id="sale_user" placeholder="{:__('Sale_user')}" class="layui-input">
+                                <option value="">请选择{:__('Sale_user')}</option>
+                                {foreach name="saleList" item="vo"}
+                                <option value="{$vo.id}">{$vo.name}</option>
+                                {/foreach}
+                            </select>
+                        </div>
                         <div class="layui-input-inline " style="width: 90px">
                             <button class="layui-btn layui-btn-sm" type="button" id="search" data-type="reload">
                                  <i class="layui-icon"></i> {:__('Search')}

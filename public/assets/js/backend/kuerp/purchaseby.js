@@ -7,8 +7,12 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 var table = layui.table;
                 upload = layui.upload;
 
+                //表格固定高度：表头/合计行常驻，横向滚动条固定在可视区底部，页面不再整页滚动。
+                //'full-xx' 会在窗口缩放时自动重算高度；xx = 表格顶部距页面顶端的高度 + 表格下方内边距(15+15+2)
+                var tableGap = Math.ceil($('#table').offset().top) + 32;
                 table.render({
                     elem: '#table'
+                    ,height: 'full-' + tableGap
                     ,url:'kuerp/purchaseby/index'
                     ,parseData: function(res){ //res 即为原始返回的数据
                         return {
@@ -28,7 +32,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'sales_code', title: __('实际出入库数量'),colspan:8},
                         {field: 'sales_code', title: __('本次采购信息'),colspan:2},
                     ],[
-                        {field: 'attr_name', title: __('属性')},
+                        {field: 'attr_name', title: __('属性'), hide: window.KUERP_AUXILIARY_DISABLED === true},
                         {field: 'unit_name', title: __('单位')},
                         {field: 'number', title: __('数量')},
                         {field: 'stores_name', title: __('仓库')},
@@ -49,6 +53,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'now_buy_number', title: __('本次采购数量'),width:140,edit:'number'},
                         {field: 'buy_price', title: __('本次采购价格'),width:140,edit:'number'},
                     ]]
+                });
+
+                //窗口尺寸变化时重算表格高度（兜底，layui 对 'full-' 高度本身也会自适应）
+                $(window).on('resize', function () {
+                    table.resize('table');
                 });
 
                 //头工具栏事件

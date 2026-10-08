@@ -56,6 +56,7 @@
                 <th>序号</th>
                 <th>{:__('Goods_code')}</th>
                 <th>{:__('Goods_name')}</th>
+                <th>型号</th><th>品号</th><th>功率</th>
                 <th>{:__('Goods_note')}</th>
                 <th>{:__('Unit_name')}</th>
                 <th>{:__('Stores_name')}</th>
@@ -73,6 +74,9 @@
                 <td>{$k+1}</td>
                 <td>{$info.goods_code|htmlentities}</td>
                 <td class="left">{$info.goods_name|htmlentities}</td>
+                <td>{$info.goods_specification_id|htmlentities}</td>
+                <td>{$info.vendor_name|htmlentities}</td>
+                <td>{$info.packaging|htmlentities}</td>
                 <td class="left">{$info.goods_note|htmlentities}</td>
                 <td>{$info.unit_name|htmlentities}</td>
                 <td>{$info.stores_name|htmlentities}</td>
@@ -83,12 +87,12 @@
             </tr>
             {/foreach}
             {if condition="empty($purchase_info)"}
-            <tr><td colspan="10">无明细数据</td></tr>
+            <tr><td colspan="13">无明细数据</td></tr>
             {/if}
         </tbody>
         <tfoot>
             <tr>
-                <th colspan="6">合计</th>
+                <th colspan="9">合计</th>
                 <th class="right">{$total_number}</th>
                 <th></th>
                 <th class="right">{$total_money}</th>

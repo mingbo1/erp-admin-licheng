@@ -186,7 +186,7 @@ class Api
     }
 
     /**
-     * 返回封装后的 API 数据到客户端
+     * 返回规格3/封装后的 API 数据到客户端
      * @access protected
      * @param mixed  $msg    提示信息
      * @param mixed  $data   要返回的数据

@@ -65,7 +65,7 @@ class Cost extends Backend
                 ->paginate($limit);
 
             foreach ($list as $row) {
-                $row->getRelation('admin')->visible(['username']);
+                $row->getRelation('admin')->visible(['nickname']);
             }
             $suppliers = Db::name('kuerp_suppliers')->column('supplyer_name','id');
             $customer = Db::name('kuerp_customers')->column('customer_name','id');

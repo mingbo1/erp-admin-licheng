@@ -40,17 +40,17 @@
     <div class="row">
         <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
             <div class="form-group">
-                <label class="control-label col-xs-12 col-sm-3">厂商:</label>
+                <label class="control-label col-xs-12 col-sm-3">规格2/厂商:</label>
                 <div class="col-xs-12 col-sm-8">
-                    <input id="c-vendor_name" class="form-control" name="row[vendor_name]" type="text" value="{$row.vendor_name|htmlentities}" placeholder="厂商">
+                    <input id="c-vendor_name" class="form-control" name="row[vendor_name]" type="text" value="{$row.vendor_name|htmlentities}" placeholder="规格2/厂商">
                 </div>
             </div>
         </div>
         <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
             <div class="form-group">
-                <label class="control-label col-xs-12 col-sm-3">封装:</label>
+                <label class="control-label col-xs-12 col-sm-3">规格3/封装:</label>
                 <div class="col-xs-12 col-sm-8">
-                    <input id="c-packaging" class="form-control" name="row[packaging]" type="text" value="{$row.packaging|htmlentities}" placeholder="封装">
+                    <input id="c-packaging" class="form-control" name="row[packaging]" type="text" value="{$row.packaging|htmlentities}" placeholder="规格3/封装">
                 </div>
             </div>
         </div>
@@ -393,7 +393,7 @@
         <label class="control-label col-xs-12 col-sm-2" style="max-width: 12.5%">{:__('Goods_image')}:</label>
         <div class="col-xs-12 col-sm-8">
             <div class="input-group">
-                <input id="c-goods_image" data-rule="required" class="form-control" size="50" name="row[goods_image]" type="text" value="{$row.goods_image|htmlentities}" placeholder="{:__('Goods_image')}">
+                <input id="c-goods_image" class="form-control" size="50" name="row[goods_image]" type="text" value="{$row.goods_image|htmlentities}" placeholder="{:__('Goods_image')}">
                 <div class="input-group-addon no-border no-padding">
                     <span><button type="button" id="faupload-goods_image" class="btn btn-danger faupload" data-input-id="c-goods_image" data-mimetype="image/gif,image/jpeg,image/png,image/jpg,image/bmp" data-multiple="false" data-preview-id="p-goods_image"><i class="fa fa-upload"></i> {:__('Upload')}</button></span>
                     <span><button type="button" id="fachoose-goods_image" class="btn btn-primary fachoose" data-input-id="c-goods_image" data-mimetype="image/*" data-multiple="false"><i class="fa fa-list"></i> {:__('Choose')}</button></span>

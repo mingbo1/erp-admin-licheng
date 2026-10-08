@@ -1,12 +1,33 @@
 <link rel="stylesheet" href="__CDN__/assets/addons/kuerp/layui/css/layui.css"  media="all">
 <link rel="stylesheet" href="__CDN__/assets/addons/kuerp/css/kuerp.css"  media="all">
 <script src="__CDN__/assets/addons/kuerp/js/xm-select.js" type="application/javascript"></script>
+<script type="text/javascript">
+// 下拉框搜索增强：所有原生 select 转 bootstrap-select 并带关键字搜索（详见
+// assets/js/backend/kuerp/select-enhancer.js）。放在这里是为了不依赖 require-backend.js 的
+// 模块钩子——生产环境 app_debug=false 加载的是 require-backend.min.js（压缩产物），改动只在源码里。
+// Config.jsname 由 require-backend(.min).js 注入，等它出现后加载，其余模块路径(baseUrl/paths)也已就绪。
+(function () {
+    var tries = 0;
+    (function wait() {
+        if (window.require && window.Config && Config.jsname) {
+            if (Config.jsname.indexOf('backend/kuerp') === 0) {
+                require(['backend/kuerp/select-enhancer'], function () {}, function () {});
+            }
+            return;
+        }
+        if (++tries < 400) {
+            setTimeout(wait, 25);
+        }
+    })();
+})();
+</script>
 {if condition="isset($set['auxiliary']['is_checked']) && $set['auxiliary']['is_checked']!=1"}
 <style>
     .goods_attr_sd{
         display: none;
     }
 </style>
+<script>window.KUERP_AUXILIARY_DISABLED = true;</script>
 {/if}
 {if condition="isset($set['taxes']['is_checked']) && $set['taxes']['is_checked']!=1"}
 <style>
@@ -53,4 +74,112 @@
 <script type="text/html" id="recycleBtn">
     <a class="layui-btn layui-btn-xs layui-bg-blue {if condition="$auth->check($nowmenu.'/reduction')!=1"}hiddens{/if}" lay-event="reduction">还原</a>
     <a class="layui-btn layui-btn-danger layui-btn-xs {if condition="$auth->check($nowmenu.'/del')!=1"}hiddens{/if}" lay-event="realdel">删除</a>
+</script><script>
+    /* 单据商品列表：商品名称输入框按内容自动加宽，超长名称完整展示（宽度不足时由表格横向滚动） */
+    function kuerpGoodsNameWidth(t) {
+        if (!t || !t.classList || !t.classList.contains('ipt')) { return; }
+        var box = t.closest ? t.closest('.goods_code_box') : null;
+        if (!box) { return; }
+        var len = (t.value || '').length;
+        var w = 240 + Math.max(0, len - 26) * 12;
+        if (w > 1000) { w = 1000; }
+        if (w > 240) { t.style.width = w + 'px'; }
+    }
+    document.addEventListener('input', function (e) { kuerpGoodsNameWidth(e.target); });
+    document.addEventListener('DOMContentLoaded', function () {
+        var inputs = document.querySelectorAll('.goods_code_box .ipt');
+        for (var i = 0; i < inputs.length; i++) { kuerpGoodsNameWidth(inputs[i]); }
+    });
+</script>
+<script>
+    /* 单据编辑页回显：按商品编号从 Config.goodsList 补填 型号/厂商/封装 只读列（新增行由各表单 changeGoods 填充） */
+    document.addEventListener('DOMContentLoaded', function () {
+        if (typeof Config === 'undefined' || !Config.goodsList || !Config.goodsList.length) { return; }
+        if (!document.querySelector('.goods_specification_id')) { return; }
+        var map = {};
+        for (var i = 0; i < Config.goodsList.length; i++) {
+            map[Config.goodsList[i].goods_code] = Config.goodsList[i];
+        }
+        var codes = document.querySelectorAll('tr .goods_code');
+        for (var j = 0; j < codes.length; j++) {
+            var tr = codes[j].closest('tr');
+            if (!tr) { continue; }
+            var spec = tr.querySelector('.goods_specification_id');
+            if (!spec || spec.value) { continue; }
+            var g = map[codes[j].value];
+            if (!g) { continue; }
+            spec.value = g.goods_specification_id || '';
+            var vn = tr.querySelector('.vendor_name');
+            if (vn) { vn.value = g.vendor_name || ''; }
+            var pk = tr.querySelector('.packaging');
+            if (pk) { pk.value = g.packaging || ''; }
+        }
+    });
+</script>
+<script>
+    /* 选择商品后父页面需要回查单位/价格（远程库较慢，单次约3秒），这里给出加载提示与失败提示，
+       否则用户会以为"确定后没有回显" */
+    (function () {
+        var loadingIndex = null, timer = null, bound = false, pending = 0;
+        function isGoodsFill(url) {
+            return !!url && /kuerp\/(goods|goods_[a-z_]+)\/(get(Sale)?Unit|formatInfo2?)/.test(url);
+        }
+        function getLayer() {
+            var w = window;
+            while (w) {
+                if (w.layer && w.layer.load) { return w.layer; }
+                if (w === w.parent) { break; }
+                w = w.parent;
+            }
+            return null;
+        }
+        function showLoading() {
+            var l = getLayer();
+            if (l && loadingIndex === null) { loadingIndex = l.load(2); }
+        }
+        function hideLoading() {
+            if (timer) { clearTimeout(timer); timer = null; }
+            if (loadingIndex !== null) {
+                var l = getLayer();
+                if (l) { l.close(loadingIndex); }
+                loadingIndex = null;
+            }
+        }
+        function toastr(msg) {
+            var w = window;
+            while (w) {
+                if (w.Toastr && w.Toastr.error) { w.Toastr.error(msg); return; }
+                if (w === w.parent) { break; }
+                w = w.parent;
+            }
+        }
+        function bind() {
+            if (bound) { return; }
+            var $ = window.jQuery;
+            if (!$ || !$.fn || !$.fn.ajaxSend) {
+                if ((bind.tries = (bind.tries || 0) + 1) < 100) { setTimeout(bind, 100); }
+                return;
+            }
+            bound = true;
+            $(document).ajaxSend(function (e, xhr, opt) {
+                if (!isGoodsFill(opt.url)) { return; }
+                pending++;
+                if (timer) { clearTimeout(timer); }
+                //300毫秒内返回就不显示提示，避免闪烁
+                timer = setTimeout(function () { timer = null; if (pending > 0) { showLoading(); } }, 300);
+            });
+            $(document).ajaxComplete(function (e, xhr, opt) {
+                if (!isGoodsFill(opt.url)) { return; }
+                pending = pending > 0 ? pending - 1 : 0;
+                if (pending === 0) { hideLoading(); }
+            });
+            $(document).ajaxError(function (e, xhr, opt) {
+                if (!isGoodsFill(opt.url)) { return; }
+                pending = pending > 0 ? pending - 1 : 0;
+                hideLoading();
+                toastr('商品信息加载失败，请重试或减少选择数量');
+            });
+        }
+        bind();
+    })();
 </script>

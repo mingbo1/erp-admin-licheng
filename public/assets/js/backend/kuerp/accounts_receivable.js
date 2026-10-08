@@ -7,8 +7,12 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 var table = layui.table;
                 upload = layui.upload;
 
+                //表格固定高度：表头/合计行常驻，横向滚动条固定在可视区底部，页面不再整页滚动。
+                //'full-xx' 会在窗口缩放时自动重算高度；xx = 表格顶部距页面顶端的高度 + 表格下方内边距(15+15+2)
+                var tableGap = Math.ceil($('#table').offset().top) + 32;
                 table.render({
                     elem: '#table'
+                    ,height: 'full-' + tableGap
                     ,url:'kuerp/accounts_receivable/index'
                     ,parseData: function(res){ //res 即为原始返回的数据
                         return {
@@ -25,8 +29,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     ,totalRow: true
                     ,cellMinWidth: 100 //全局定义常规单元格的最小宽度，layui 2.2.1 新增
                     ,cols: [[
-                        {checkbox: true},
-                        {field: 'customer_name', title: __('Customers.customer_name')},
+                        {checkbox: true, fixed: 'left'},
+                        {field: 'customer_name', title: __('Customers.customer_name'), fixed: 'left'},
                         {field: 'purchase_time', title: __('Purchase_time'),width: 130},
                         {field: 'purchase_code', title: __('Purchase_code'),width: 150,'totalRow':'合计'},
                         {field: 'business_type', title: __('Business_type'),templet: function (d) {
@@ -62,6 +66,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         obj.find('.layui-table-total td[data-field="advance"] .layui-table-cell').text(res.all_advance);
                         obj.find('.layui-table-total td[data-field="balance"] .layui-table-cell').text(res.all_balance);
                     }
+                });
+
+                //窗口尺寸变化时重算表格高度（兜底，layui 对 'full-' 高度本身也会自适应）
+                $(window).on('resize', function () {
+                    table.resize('table');
                 });
 
                 //头工具栏事件

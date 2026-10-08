@@ -65,6 +65,14 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'all_money', title: __('All_money'),templet: function (d) {
                                 return (d.all_money-(-d.tax_money)).toFixed(price_decimal);
                             }},
+                        {field: 'examine_status', title: __('Examine_status'),hide:hideStatus,templet: function (d) {
+                                if(d.examine_status==0){
+                                    return '<span style="color:orange">'+__('Examine_status 0')+'</span>';
+                                }
+                                if(d.examine_status==1){
+                                    return '<span style="color:green">'+__('Examine_status 1')+'</span>';
+                                }
+                            }},
                         {field: 'delivery_time', title: __('Delivery_time'),templet: function (d) {
                                 return layui.util.toDateString(d.delivery_time*1000,"yyyy-MM-dd");
                             },width:110},
@@ -86,11 +94,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 }
                             }},
                         {field: 'preparation_id', title: __('Preparation_id'),templet: function (d) {
-                                return d.preparation.username;
+                                return d.preparation.nickname;
                             }},
                         {field: 'examine_id', title: __('Examine_id'),templet: function (d) {
-                                if(d.examine.username!=null){
-                                    return d.examine.username;
+                                if(d.examine.nickname!=null){
+                                    return d.examine.nickname;
                                 }else{
                                     return '';
                                 }
@@ -105,8 +113,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 }
                             },hide:hideStatus},
                         {field: 'second_examine_id', title: __('Second_examine_id'),templet: function (d) {
-                                if(d.secondexamine && d.secondexamine.username!=null){
-                                    return d.secondexamine.username;
+                                if(d.secondexamine && d.secondexamine.nickname!=null){
+                                    return d.secondexamine.nickname;
                                 }else{
                                     return '';
                                 }
@@ -279,6 +287,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     if(source!=''){
                         search.source = source;
                     }
+                    var sale_user = $('#sale_user').val();
+                    if(sale_user!=''){
+                        search.sale_user = sale_user;
+                    }
                     var purchase_time = $('#purchase_time').val();
                     if(purchase_time!=''){
                         search.purchase_time = purchase_time;
@@ -289,6 +301,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     var op = {};
                     op.purchase_code = 'LIKE';
                     op.purchase_time = 'RANGE';
+                    op.sale_user = '=';
                     return op;
                 }
             });
@@ -467,7 +480,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         },
                         success: function(res){
                             var data = JSON.parse(res);
-                            if (data.staff_member_id && data.staff_member_id > 0) {
+                            // 本账号已绑定销售员时保持自动填充的自己，不因选择客户而覆盖
+                            if (data.staff_member_id && data.staff_member_id > 0 && !Config.currentSaleUserId) {
                                 $('#Sale_user').val(data.staff_member_id);
                             }
                         },
@@ -572,6 +586,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         success: function(res){
                             res = JSON.parse(res);
                             goods=res;
+                            // 型号/厂商/封装展示
+                            obj.find('.goods_specification_id').val(goods.goods.goods_specification_id || '');
+                            obj.find('.vendor_name').val(goods.goods.vendor_name || '');
+                            obj.find('.packaging').val(goods.goods.packaging || '');
                             if(goods.goods.batch==1){
                                 obj.find('.guarantee').val(goods.goods.shelf_life);
                             }
@@ -734,6 +752,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                             }
                                             thisobj.find('.goods_code').val(vp.goods.goods_code);
                                             thisobj.find('.goods_name').val(vp.goods.goods_code+' '+vp.goods.goods_name);
+                                            // 型号/厂商/封装展示（无默认单位时changeGoods不触发，这里直接赋值）
+                                            thisobj.find('.goods_specification_id').val(vp.goods.goods_specification_id || '');
+                                            thisobj.find('.vendor_name').val(vp.goods.vendor_name || '');
+                                            thisobj.find('.packaging').val(vp.goods.packaging || '');
                                             thisobj.find('.goods_note').val(vp.note);
                                             $(vp.unit).each(function (k,v) {
                                                 if(v.is_default==1){
@@ -750,17 +772,13 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     changeWidth()
                 });
                 function changeWidth() {
-                    allwidth = 165;
+                    var allwidth = 280;
                     var goods_code = document.getElementsByClassName("goods_name");
                     $(goods_code).each(function (k,v) {
                         if(goods_code[k].value!=''){
-                            iCount = goods_code[k].value.replace(/[^/u0000\-/u00ff]/g,"aa");
-                            width = iCount.length*9;
-                            if(width<165){
-                                width = 165;
-                            }else if(width>250){
-                                width = iCount.length*8;
-                            }
+                            // 中文按14px、英文/数字按7px估算，保证商品名称完整显示
+                            var cjkLen = (goods_code[k].value.match(/[^\x00-\xff]/g) || []).length;
+                            var width = cjkLen*14 + (goods_code[k].value.length - cjkLen)*7 + 30;
                             if(width>allwidth){
                                 allwidth = width;
                             }
@@ -769,6 +787,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     $(goods_code).each(function (k,v) {
                         goods_code[k].style.width = allwidth+'px';
                     });
+                }
+                //页面载入时按已有商品名称初始化列宽
+                if($('#sale_order_table').length>0){
+                    changeWidth();
                 }
                 var tableobj;
                 $(document).on("input", ".goods_name", function(){
@@ -789,7 +811,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                     var html = '<div class="chose_goods_box" style="left:'+left+'px;top: '+top+'px;">\n' +
                                         '                            <table>\n' +
                                         '                                <tr>\n' +
-                                        '                                    <th>商品编号</th><th>商品名称</th><th>规格型号</th><th>计量单位</th><th>商品类别</th><th>库存数量</th><th>备注</th>\n' +
+                                        '                                    <th>商品编号</th><th>商品名称</th><th>型号</th><th>品号</th><th>功率</th><th>计量单位</th><th>商品类别</th><th>库存数量</th><th>备注</th>\n' +
                                         '                                </tr>\n';
                                     max = 5;
                                     if(res.total>5){
@@ -799,7 +821,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                     }
                                     for (var a=0;a<max;a++){
                                         v = res.rows[a];
-                                        html += '<tr class="chose_goods_tr" data-code="'+v.goods_code+'" data-name="'+v.goods_name+'" data-note="'+v.note+'" data-store="'+v.manager_warehouse_id+'"><td>'+v.goods_code+'</td><td>'+v.goods_name+'</td><td>'+v.goods_specification_id+'</td><td>'+v.unit.name+'</td><td>'+v.goods_type.name+'</td><td>'+v.stock+'</td><td>'+v.note+'</td></tr>';
+                                        html += '<tr class="chose_goods_tr" data-code="'+v.goods_code+'" data-name="'+v.goods_name+'" data-note="'+v.note+'" data-store="'+v.manager_warehouse_id+'"><td>'+v.goods_code+'</td><td>'+v.goods_name+'</td><td>'+v.goods_specification_id+'</td><td>'+(v.vendor_name||'')+'</td><td>'+(v.packaging||'')+'</td><td>'+v.unit.name+'</td><td>'+v.goods_type.name+'</td><td>'+v.stock+'</td><td>'+v.note+'</td></tr>';
                                     }
                                     html += '                            </table>\n' +
                                         '                        </div>';

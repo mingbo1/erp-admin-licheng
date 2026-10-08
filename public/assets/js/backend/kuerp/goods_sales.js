@@ -85,11 +85,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 return (d.real_money).toFixed(price_decimal);
                             }},
                         {field: 'preparation_id', title: __('Preparation_id'),templet: function (d) {
-                                return d.preparation.username;
+                                return d.preparation.nickname;
                             }},
                         {field: 'examine_id', title: __('Examine_id'),templet: function (d) {
-                                if(d.examine.username!=null){
-                                    return d.examine.username;
+                                if(d.examine.nickname!=null){
+                                    return d.examine.nickname;
                                 }else{
                                     return '';
                                 }
@@ -968,6 +968,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             if(goods.goods.batch==1){
                                 obj.find('.guarantee').val(goods.goods.shelf_life);
                             }
+                            obj.find('.goods_specification_id').val(goods.goods.goods_specification_id || '');
+                            obj.find('.vendor_name').val(goods.goods.vendor_name || '');
+                            obj.find('.packaging').val(goods.goods.packaging || '');
                             if(number==''){
                                 number = 1;
                             }else{
@@ -1224,7 +1227,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                     var html = '<div class="chose_goods_box" style="left:'+left+'px;top: '+top+'px;">\n' +
                                         '                            <table>\n' +
                                         '                                <tr>\n' +
-                                        '                                    <th>商品编号</th><th>商品名称</th><th>规格型号</th><th>计量单位</th><th>商品类别</th><th>库存数量</th><th>备注</th>\n' +
+                                        '                                    <th>商品编号</th><th>商品名称</th><th>型号</th><th>品号</th><th>功率</th><th>计量单位</th><th>商品类别</th><th>库存数量</th><th>备注</th>\n' +
                                         '                                </tr>\n';
                                     max = 5;
                                     if(res.total>5){
@@ -1234,7 +1237,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                     }
                                     for (var a=0;a<max;a++){
                                         v = res.rows[a];
-                                        html += '<tr class="chose_goods_tr" data-code="'+v.goods_code+'" data-name="'+v.goods_name+'" data-note="'+v.note+'" data-store="'+v.manager_warehouse_id+'"><td>'+v.goods_code+'</td><td>'+v.goods_name+'</td><td>'+v.goods_specification_id+'</td><td>'+v.unit.name+'</td><td>'+v.goods_type.name+'</td><td>'+v.stock+'</td><td>'+v.note+'</td></tr>';
+                                        html += '<tr class="chose_goods_tr" data-code="'+v.goods_code+'" data-name="'+v.goods_name+'" data-note="'+v.note+'" data-store="'+v.manager_warehouse_id+'"><td>'+v.goods_code+'</td><td>'+v.goods_name+'</td><td>'+v.goods_specification_id+'</td><td>'+(v.vendor_name||'')+'</td><td>'+(v.packaging||'')+'</td><td>'+v.unit.name+'</td><td>'+v.goods_type.name+'</td><td>'+v.stock+'</td><td>'+v.note+'</td></tr>';
                                     }
                                     html += '                            </table>\n' +
                                         '                        </div>';

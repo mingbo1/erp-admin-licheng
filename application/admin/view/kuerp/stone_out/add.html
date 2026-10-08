@@ -42,6 +42,7 @@
                     <tr>
                         <th>{:__('商品编码')}</th>
                         <th>{:__('商品名称')}</th>
+                        <th>型号</th><th>规格2/厂商</th><th>规格3/封装</th>
                         <th>{:__('单位')}</th>
                         <th>{:__('数量')}</th>
                         <th>{:__('单价')}</th>
@@ -52,7 +53,7 @@
                 <tbody></tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="5" class="text-right">{:__('合计')}:</td>
+                        <td colspan="8" class="text-right">{:__('合计')}:</td>
                         <td><strong id="total-amount">0.00</strong></td>
                         <td></td>
                     </tr>
@@ -67,6 +68,10 @@
         </div>
     </div>
 </form>
+<style>
+    /* 商品名称过长换行展示 */
+    #goods-table td:nth-child(2), #goods-select-table td:nth-child(2){word-break:break-all;}
+</style>
 
 <!-- 选择商品弹窗 -->
 <div class="modal fade" id="goods-modal" tabindex="-1" role="dialog">
@@ -85,6 +90,7 @@
                         <tr>
                             <th>{:__('商品编码')}</th>
                             <th>{:__('商品名称')}</th>
+                            <th>型号</th><th>规格2/厂商</th><th>规格3/封装</th>
                             <th>{:__('单位')}</th>
                             <th>{:__('参考单价')}</th>
                             <th>{:__('库存')}</th>
@@ -93,9 +99,12 @@
                     </thead>
                     <tbody>
                         {volist name="goodsList" id="vo"}
-                        <tr data-id="{$vo.id}" data-code="{$vo.goods_code}" data-name="{$vo.goods_name}" data-unit="{$vo.unit_name}" data-price="{$vo.price}">
+                        <tr data-id="{$vo.id}" data-code="{$vo.goods_code}" data-name="{$vo.goods_name}" data-unit="{$vo.unit_name}" data-price="{$vo.price}" data-spec="{$vo.goods_specification_id}" data-vendor="{$vo.vendor_name}" data-pack="{$vo.packaging}">
                             <td>{$vo.goods_code}</td>
                             <td>{$vo.goods_name}</td>
+                            <td>{$vo.goods_specification_id}</td>
+                            <td>{$vo.vendor_name}</td>
+                            <td>{$vo.packaging}</td>
                             <td>{$vo.unit_name}</td>
                             <td>{$vo.price}</td>
                             <td>{$vo.stock}</td>

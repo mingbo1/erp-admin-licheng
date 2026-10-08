@@ -179,7 +179,7 @@ class StoneIn extends Backend
         // 商品列表（用于弹窗选择）
         $goodsList = Db::name('kuerp_goods')
             ->where('status', 1)
-            ->field('id,goods_code,goods_name,goods_image,unit_id,purchase as price')
+            ->field('id,goods_code,goods_name,goods_image,goods_specification_id,vendor_name,packaging,unit_id,purchase as price')
             ->select();
         foreach ($goodsList as &$g) {
             $unitName = Db::name('kuerp_unit')->where('id', $g['unit_id'])->value('name');

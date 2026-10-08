@@ -77,7 +77,7 @@
                         <h5 style="font-weight: bold;">出库原材料</h5>
                         <table class="table table-striped table-bordered">
                             <tr>
-                                <th>商品编号</th><th>商品名称</th><th>规格</th><th>单位</th>
+                                <th>商品编号</th><th>商品名称</th><th class="goods_attr_sd">型号</th><th>单位</th>
                                 <th>仓库</th><th>数量</th><th>单价</th><th>金额</th><th>批次</th>
                             </tr>
                             {foreach name="info_list" item="vo"}
@@ -85,7 +85,7 @@
                             <tr>
                                 <td>{$vo.goods_code}</td>
                                 <td>{$vo.goods_name}</td>
-                                <td>{$vo.goods_attr_name|default='-'}</td>
+                                <td class="goods_attr_sd">{$vo.goods_attr_name|default='-'}</td>
                                 <td>{$vo.goods_unit_name|default='-'}</td>
                                 <td>{$vo.store_name|default='-'}</td>
                                 <td style="text-align:right">{$vo.number}</td>
@@ -103,7 +103,7 @@
                         <h5 style="font-weight: bold;">入库成品 <small>（计划数 / 已入库 / 入库成本）</small></h5>
                         <table class="table table-striped table-bordered">
                             <tr>
-                                <th>商品编号</th><th>商品名称</th><th>规格</th><th>单位</th>
+                                <th>商品编号</th><th>商品名称</th><th class="goods_attr_sd">型号</th><th>单位</th>
                                 <th>仓库</th><th>计划数</th><th>已入库</th><th>单位成本</th><th>成本金额</th>
                             </tr>
                             {foreach name="info_list" item="vo"}
@@ -111,7 +111,7 @@
                             <tr>
                                 <td>{$vo.goods_code}</td>
                                 <td>{$vo.goods_name}</td>
-                                <td>{$vo.goods_attr_name|default='-'}</td>
+                                <td class="goods_attr_sd">{$vo.goods_attr_name|default='-'}</td>
                                 <td>{$vo.goods_unit_name|default='-'}</td>
                                 <td>{$vo.store_name|default='-'}</td>
                                 <td style="text-align:right">{$vo.number}</td>

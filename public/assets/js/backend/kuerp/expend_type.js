@@ -7,8 +7,12 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 var table = layui.table;
                 upload = layui.upload;
 
+                //表格固定高度：表头/合计行常驻，横向滚动条固定在可视区底部，页面不再整页滚动。
+                //'full-xx' 会在窗口缩放时自动重算高度；xx = 表格顶部距页面顶端的高度 + 表格下方内边距(15+15+2)
+                var tableGap = Math.ceil($('#table').offset().top) + 32;
                 table.render({
                     elem: '#table'
+                    ,height: 'full-' + tableGap
                     ,url:'kuerp/expend_type/index'
                     ,parseData: function(res){ //res 即为原始返回的数据
                         return {
@@ -21,8 +25,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     ,toolbar: '#thisToolbar' //开启头部工具栏，并为其绑定左侧模板
                     ,cellMinWidth: 80 //全局定义常规单元格的最小宽度，layui 2.2.1 新增
                     ,cols: [[
-                        {checkbox: true},
-                        {field: 'title', title: __('Name'), operate: 'LIKE'},
+                        {checkbox: true, fixed: 'left'},
+                        {field: 'title', title: __('Name'), operate: 'LIKE', fixed: 'left'},
                         {field: 'image', title: __('Image'), operate: false,templet: function (d) {
                                 return "<a href='javascript:;'><img src="+d.image+"></a>";
                             }},
@@ -38,6 +42,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             }},
                         {fixed: 'right', title:__('Operate'), toolbar: '#barDemo', width:150}
                     ]]
+                });
+
+                //窗口尺寸变化时重算表格高度（兜底，layui 对 'full-' 高度本身也会自适应）
+                $(window).on('resize', function () {
+                    table.resize('table');
                 });
 
                 layui.form.on('switch(switchList)', function (obj) {

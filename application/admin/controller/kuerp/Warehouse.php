@@ -71,8 +71,8 @@ class Warehouse extends Backend
                 ->paginate($limit);
 
             foreach ($list as $row) {
-                $row->getRelation('examine')->visible(['username']);
-                $row->getRelation('admin')->visible(['username']);
+                $row->getRelation('examine')->visible(['nickname']);
+                $row->getRelation('admin')->visible(['nickname']);
                 $row->getRelation('customers')->visible(['customer_name']);
             }
             foreach ($list as $list_k=>$list_v){
@@ -1130,9 +1130,9 @@ class Warehouse extends Backend
         $customer_name = Db::name('kuerp_customers')->where(['id' => $row['customers_id']])->value('customer_name');
         $row['customer_name'] = $customer_name ? $customer_name : '';
         // 制单人
-        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('username');
+        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('nickname');
         // 审核人
-        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('username');
+        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('nickname');
 
         // 出库单详情
         $info = Db::name('kuerp_warehouse_info')->where(['purchase_code' => $row['purchase_code']])->select();

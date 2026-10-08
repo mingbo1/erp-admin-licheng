@@ -70,8 +70,8 @@ class Warehousing extends Backend
 
             foreach ($list as $row) {
                 $row->getRelation('suppliers')->visible(['supplyer_name']);
-                $row->getRelation('admin')->visible(['username']);
-                $row->getRelation('examine')->visible(['username']);
+                $row->getRelation('admin')->visible(['nickname']);
+                $row->getRelation('examine')->visible(['nickname']);
             }
             foreach ($list as $list_k=>$list_v){
                 if(isset($list_v['print_num']) && empty($list_v['print_num'])){
@@ -1247,9 +1247,9 @@ class Warehousing extends Backend
         $supplier = Db::name('kuerp_suppliers')->where(['id' => $row['suppliers_id']])->find();
         $row['supplyer_name'] = isset($supplier['supplyer_name']) ? $supplier['supplyer_name'] : '';
         // 制单人
-        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('username');
+        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('nickname');
         // 审核人
-        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('username');
+        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('nickname');
 
         // 入库单详情
         $info = Db::name('kuerp_warehousing_info')->where(['purchase_code' => $row['purchase_code']])->select();

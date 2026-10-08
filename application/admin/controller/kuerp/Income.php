@@ -79,8 +79,8 @@ class Income extends Backend
             foreach ($list as $row) {
                 
                 $row->getRelation('customers')->visible(['customer_name']);
-				$row->getRelation('admin')->visible(['username']);
-                $row->getRelation('examine')->visible(['username']);
+				$row->getRelation('admin')->visible(['nickname']);
+                $row->getRelation('examine')->visible(['nickname']);
             }
             foreach ($list as $list_k=>$list_v){
                 if(isset($list_v['print_num']) && empty($list_v['print_num'])){

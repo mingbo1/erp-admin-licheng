@@ -42,7 +42,7 @@
                             </span>
                         </span>
                     </th>
-                    <th>{:__('Goods_note')}</th><th class="goods_attr_sd">{:__('Goods_attr')}</th><th>{:__('Goods_unit')}</th>
+                    <th>型号</th><th>规格2/厂商</th><th>规格3/封装</th><th>{:__('Goods_note')}</th><th class="goods_attr_sd">{:__('Goods_attr')}</th><th>{:__('Goods_unit')}</th>
                     <th class="goods_batch_sd">批次</th><th class="goods_batch_sd">生产日期</th><th class="goods_batch_sd">保质期(天)</th><th class="goods_batch_sd">有效期至</th>
                     <th>{:__('Number')}</th><th>{:__('Stores_out')}</th><th>{:__('Stores_enter')}</th><th>{:__('Allow_stock')}</th><th>{:__('Remark')}</th>
                 </tr>
@@ -56,6 +56,7 @@
                             <input type="text" class="ipt goods_name">
                         </div>
                     </td>
+                    <td><div><input type="text" class="goods_specification_id" readonly></div></td><td><div><input type="text" class="vendor_name" readonly></div></td><td><div><input type="text" class="packaging" readonly></div></td>
                     <td><div><input type="text" name="row[goods_note][]" class="goods_note" readonly></div></td>
                     <td class="goods_attr_sd">
                         <div>
@@ -122,6 +123,7 @@
                             {/foreach}
                         </div>
                     </td>
+                    <td><div><input type="text" class="goods_specification_id" readonly></div></td><td><div><input type="text" class="vendor_name" readonly></div></td><td><div><input type="text" class="packaging" readonly></div></td>
                     <td><div><input type="text" name="row[goods_note][]" class="goods_note" value="{$info.goods_note|htmlentities}" readonly></div></td>
                     <td class="goods_attr_sd">
                         <div>
@@ -194,6 +196,7 @@
                             <input type="text" class="ipt goods_name">
                         </div>
                     </td>
+                    <td><div><input type="text" class="goods_specification_id" readonly></div></td><td><div><input type="text" class="vendor_name" readonly></div></td><td><div><input type="text" class="packaging" readonly></div></td>
                     <td><div><input type="text" name="row[goods_note][]" class="goods_note" readonly></div></td>
                     <td class="goods_attr_sd">
                         <div>

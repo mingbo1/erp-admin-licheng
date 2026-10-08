@@ -199,6 +199,14 @@ class Goods extends Backend
                     }
                 }
 
+                // 兼容新旧模板表头：型号/厂商/封装(新) → 规格型号/规格2/厂商/规格3/封装(旧)
+                $headerAlias = ['型号' => '规格型号', '厂商' => '规格2/厂商', '封装' => '规格3/封装'];
+                foreach ($fields as $fields_k => $fields_v) {
+                    if (isset($headerAlias[$fields_v])) {
+                        $fields[$fields_k] = $headerAlias[$fields_v];
+                    }
+                }
+
                 for ($currentRow = $dataStartRow; $currentRow <= $allRow; $currentRow++) {
                     $values = [];
                     for ($currentColumn = 1; $currentColumn <= $maxColumnNumber; $currentColumn++) {
@@ -566,8 +574,8 @@ class Goods extends Backend
                         'goods_name'            => $insert_v['商品名称'],
                         'goods_type_id'         => isset($catelist[$nowcate[sizeof($nowcate)-1]])?$catelist[$nowcate[sizeof($nowcate)-1]]:0,
                         'goods_specification_id'=> $insert_v['规格型号'],
-                        'vendor_name'           => isset($insert_v['厂商'])?$insert_v['厂商']:'',
-                        'packaging'             => isset($insert_v['封装'])?$insert_v['封装']:'',
+                        'vendor_name'           => isset($insert_v['规格2/厂商'])?$insert_v['规格2/厂商']:'',
+                        'packaging'             => isset($insert_v['规格3/封装'])?$insert_v['规格3/封装']:'',
                         'manager_warehouse_id'  => isset($stores_list[$insert_v['首选仓库']])?$stores_list[$insert_v['首选仓库']]:0,
                         'unit_id'               => strpos($insert_v['计量单位'],'/') !== false?$insert_v['unit_info'][$unit[0]]:$insert_v['unit_info'][$insert_v['计量单位']],
                         'note'                  => $insert_v['备注'],
@@ -2680,9 +2688,15 @@ class Goods extends Backend
     //树形商品分类
     public function gettype(){
         $goods_type = Db::name('kuerp_goods_type')->field('id,supplier_type_name as title,pid')->select();
+        //先收集全部节点ID，父级不存在（脏数据）的节点挂到根节点，避免树渲染失败
+        $ids = [];
+        foreach ($goods_type as $k => $v) {
+            $ids[(int)$v['id']] = true;
+        }
         $nodeList = [];
         foreach ($goods_type as $k => $v) {
-            $nodeList[] = array('id' => $v['id'], 'parent' => $v['pid'] ? $v['pid'] : '#', 'text' => __($v['title']), 'type' => 'menu', 'state' => false);
+            $pid = (int)$v['pid'];
+            $nodeList[] = array('id' => $v['id'], 'parent' => ($pid && isset($ids[$pid])) ? $pid : '#', 'text' => __($v['title']), 'type' => 'menu', 'state' => false);
         }
         $this->success('', null, $nodeList);
     }
@@ -2703,55 +2717,143 @@ class Goods extends Backend
 
         $input = input();
         $whereData = json_decode($input['where'],true);
+        if(!is_array($whereData)){
+            return json_encode([]);
+        }
+        //远程库单条SQL约0.3秒，循环内逐条查询会导致多选商品时超时（前端 JSON.parse 失败、商品不回显），
+        //因此这里按商品ID一次性预取全部数据
+        $req_goods_ids = [];
+        foreach ($whereData as $where_v){
+            if(!empty($where_v['goods_id'])){
+                $req_goods_ids[] = $where_v['goods_id'];
+            }
+        }
+        $req_goods_ids = array_values(array_unique($req_goods_ids));
+        $goodsMap = [];
+        $goodsAttrMap = [];
+        $convMap = [];
+        $goodsPriceMap = [];
+        $stockByGoods = [];
+        $stockByAttr = [];
+        $unitNameMap = [];
+        if($req_goods_ids){
+            $goodsRows = Db::name('kuerp_goods')->where(['id'=>['in',$req_goods_ids]])
+                ->field('manager_warehouse_id,goods_name,market_sell_price,wholesale_price,vip_price,discount,discount2,batch,serial,id,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,product_type,location_id,goods_specification_id,vendor_name,packaging')
+                ->select();
+            foreach ($goodsRows as $goodsRow){
+                $goodsMap[$goodsRow['id']] = $goodsRow;
+            }
+            //商品属性
+            $attrRows = Db::name('kuerp_goods_attr')->where(['goods_id'=>['in',$req_goods_ids]])->select();
+            $comb_ids = [];
+            foreach ($attrRows as $attrRow){
+                $goodsAttrMap[$attrRow['goods_id']][] = $attrRow;
+                if(!empty($attrRow['attribute_id'])){
+                    $comb_ids[] = $attrRow['attribute_id'];
+                }
+            }
+            $combMap = $comb_ids ? Db::name('kuerp_aux_combination')->where(['id'=>['in',array_values(array_unique($comb_ids))]])->column('attr_ids','id') : [];
+            $auxiliary = Db::name('kuerp_auxiliary')->where(['status'=>1])->column('name','id');
+            foreach ($goodsAttrMap as $attr_goods_id=>$attrList){
+                foreach ($attrList as $attr_k=>$attrRow){
+                    $goodsAttrMap[$attr_goods_id][$attr_k]['attr_ids'] = [];
+                    $goodsAttrMap[$attr_goods_id][$attr_k]['attr_name'] = '';
+                    if(!empty($combMap[$attrRow['attribute_id']])){
+                        $aux_combination = $combMap[$attrRow['attribute_id']];
+                        $goodsAttrMap[$attr_goods_id][$attr_k]['attr_id'] = $aux_combination;
+                        $aux_combination = explode('&',$aux_combination);
+                        $goodsAttrMap[$attr_goods_id][$attr_k]['attr_ids'] = $aux_combination;
+                        foreach ($aux_combination as $aux_combination_k=>$aux_combination_v){
+                            $aux_combination[$aux_combination_k] = isset($auxiliary[$aux_combination_v]) ? $auxiliary[$aux_combination_v] : '';
+                        }
+                        $aux_combination = implode('/',$aux_combination);
+                        $goodsAttrMap[$attr_goods_id][$attr_k]['attr_name'] = $aux_combination;
+                    }
+                }
+            }
+            //库存（原逻辑：未指定属性时取该商品第一条记录，指定属性时取该属性的记录）
+            $stockRows = Db::name('kuerp_goods_stock')->where(['goods_id'=>['in',$req_goods_ids]])->field('goods_id,attribute_id,stock')->select();
+            foreach ($stockRows as $stockRow){
+                if(!isset($stockByGoods[$stockRow['goods_id']])){
+                    $stockByGoods[$stockRow['goods_id']] = $stockRow['stock'];
+                }
+                if(!isset($stockByAttr[$stockRow['goods_id'].'#'.$stockRow['attribute_id']])){
+                    $stockByAttr[$stockRow['goods_id'].'#'.$stockRow['attribute_id']] = $stockRow['stock'];
+                }
+            }
+            //多单位商品：副单位换算关系与价格
+            $main_unit_ids = [];
+            $multi_goods_ids = [];
+            foreach ($goodsMap as $goodsRow){
+                if($goodsRow['more_unit']==1){
+                    $multi_goods_ids[] = $goodsRow['id'];
+                    if(!empty($goodsRow['unit_id'])){
+                        $main_unit_ids[] = $goodsRow['unit_id'];
+                    }
+                }
+            }
+            $main_unit_ids = array_values(array_unique($main_unit_ids));
+            if($main_unit_ids){
+                $convRows = Db::name('kuerp_unit_conversion')->alias('uc')
+                    ->join('kuerp_unit u','u.id=uc.vice_unit')
+                    ->where(['uc.main_unit'=>['in',$main_unit_ids]])
+                    ->order('uc.advance_rate','ASC')
+                    ->field('uc.vice_unit,u.name,u.id,uc.advance_rate,uc.main_unit')
+                    ->select();
+                foreach ($convRows as $convRow){
+                    $convMap[$convRow['main_unit']][] = $convRow;
+                }
+            }
+            //单位名称
+            $all_unit_ids = [];
+            foreach ($goodsMap as $goodsRow){
+                if(!empty($goodsRow['unit_id'])){
+                    $all_unit_ids[] = $goodsRow['unit_id'];
+                }
+                if(isset($convMap[$goodsRow['unit_id']])){
+                    foreach ($convMap[$goodsRow['unit_id']] as $convRow){
+                        $all_unit_ids[] = $convRow['id'];
+                    }
+                }
+            }
+            $all_unit_ids = array_values(array_unique($all_unit_ids));
+            if($all_unit_ids){
+                $unitNameMap = Db::name('kuerp_unit')->where(['id'=>['in',$all_unit_ids]])->column('name','id');
+            }
+            if($multi_goods_ids && $all_unit_ids){
+                $priceRows = Db::name('kuerp_goods_price')->where(['unit'=>['in',$all_unit_ids],'goods_id'=>['in',$multi_goods_ids]])->select();
+                foreach ($priceRows as $priceRow){
+                    $goodsPriceMap[$priceRow['goods_id']][] = $priceRow;
+                }
+            }
+        }
+        //税率设置（固定数据，只查一次）
+        $set_taxes = Db::name('kuerp_sets')->where(['name'=>'taxes'])->field('value,is_checked')->find();
 
         foreach ($whereData as $goods_list_k=>$goods_list_v){
-            $row = Db::name('kuerp_goods')->where(['id'=>$goods_list_v['goods_id']])
-                ->field('manager_warehouse_id,goods_name,market_sell_price,wholesale_price,vip_price,discount,discount2,batch,serial,id,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,product_type,location_id')
-                ->find();
-            $goods_id = isset($row['id'])?$row['id']:0;
+            $goods_id = isset($goods_list_v['goods_id']) ? $goods_list_v['goods_id'] : 0;
+            $row = isset($goodsMap[$goods_id]) ? $goodsMap[$goods_id] : [];
 
             $field = 'market_sell_price';
 
-            $auxiliary = Db::name('kuerp_auxiliary')->where(['status'=>1])->column('name','id');
-            $goods_attr = Db::name('kuerp_goods_attr')->where(['goods_id'=>$goods_id])->select();
-            foreach ($goods_attr as $goods_attr_k=>$goods_attr_v){
-                $aux_combination = Db::name('kuerp_aux_combination')->where(['id'=>$goods_attr_v['attribute_id']])->value('attr_ids');
-                $goods_attr[$goods_attr_k]['attr_ids'] = [];
-                $goods_attr[$goods_attr_k]['attr_name'] = '';
-                if($aux_combination){
-                    $goods_attr[$goods_attr_k]['attr_id'] = $aux_combination;
-                    $aux_combination = explode('&',$aux_combination);
-                    $goods_attr[$goods_attr_k]['attr_ids'] = $aux_combination;
-                    foreach ($aux_combination as $aux_combination_k=>$aux_combination_v){
-                        $aux_combination[$aux_combination_k] = $auxiliary[$aux_combination_v];
-                    }
-                    $aux_combination = implode('/',$aux_combination);
-                    $goods_attr[$goods_attr_k]['attr_name'] = $aux_combination;
-                }
-            }
+            $goods_attr = isset($goodsAttrMap[$goods_id]) ? $goodsAttrMap[$goods_id] : [];
 
-
-            $where = [];
-            $where['goods_id'] = $goods_id;
             if(!empty($goods_list_v['goods_attr'])){
-                $where['attribute_id'] = $goods_list_v['goods_attr'];
+                $stock_key = $goods_id.'#'.$goods_list_v['goods_attr'];
+                $stock = isset($stockByAttr[$stock_key]) ? $stockByAttr[$stock_key] : null;
+            }else{
+                $stock = isset($stockByGoods[$goods_id]) ? $stockByGoods[$goods_id] : null;
             }
-            $stock = Db::name('kuerp_goods_stock')->where($where)->value('stock');
             if(isset($goods_price)){
                 unset($goods_price);
             }
-            if($row['more_unit']==1){
-                $unit = Db::name('kuerp_unit_conversion')->alias('uc')
-                    ->join('kuerp_unit u','u.id=uc.vice_unit')
-                    ->where(['uc.main_unit'=>$row['unit_id']])
-                    ->order('uc.advance_rate','ASC')
-                    ->field('uc.vice_unit,u.name,u.id,uc.advance_rate')
-                    ->select();
+            if(isset($row['more_unit']) && $row['more_unit']==1){
+                $unit = isset($convMap[$row['unit_id']]) ? $convMap[$row['unit_id']] : [];
                 $unit_ids = [$row['unit_id']];
                 foreach ($unit as $unit_k=>$unit_v){
                     $unit_ids[] = $unit_v['id'];
                 }
-                $goods_price = Db::name('kuerp_goods_price')->where(['unit'=>['in',$unit_ids],'goods_id'=>$goods_id])->select();
+                $goods_price = isset($goodsPriceMap[$goods_id]) ? $goodsPriceMap[$goods_id] : [];
                 foreach ($goods_price as $goods_price_k=>$goods_price_v){
                     foreach ($unit as $unit_k=>$unit_v){
                         if($goods_price_v['unit']==$row['unit_id']){
@@ -2762,9 +2864,14 @@ class Goods extends Backend
                     }
                 }
             }else{
-                $unit_ids = [$row['unit_id']];
+                $unit_ids = isset($row['unit_id']) ? [$row['unit_id']] : [];
             }
-            $unit = Db::name('kuerp_unit')->where(['id'=>['in',$unit_ids]])->field('id,name')->select();
+            $unit = [];
+            foreach ($unit_ids as $unit_ids_k=>$unit_ids_v){
+                if(isset($unitNameMap[$unit_ids_v])){
+                    $unit[] = array('id'=>$unit_ids_v,'name'=>$unitNameMap[$unit_ids_v]);
+                }
+            }
             foreach ($unit as $unit_k=>$unit_v){
                 if(isset($goods_price)){
                     foreach ($goods_price as $goods_price_k=>$goods_price_v){
@@ -2804,7 +2911,7 @@ class Goods extends Backend
                     }
                 }
             }
-            $set= Db::name('kuerp_sets')->where(['name'=>'taxes'])->field('value,is_checked')->find();
+            $set = $set_taxes;
             foreach ($unit as $unit_k=>$unit_v){
                 $tax = $set['value'];
                 if(isset($set['is_checked']) && isset($set['value']) && $set['is_checked']==1){
@@ -2862,6 +2969,9 @@ class Goods extends Backend
 
         $input = input();
         $whereData = json_decode($input['where'],true);
+        if(!is_array($whereData)){
+            return json_encode([]);
+        }
 
         $field = 'market_sell_price';
         if($customers_id){
@@ -2888,50 +2998,137 @@ class Goods extends Backend
                 }
             }
         }
-        foreach ($whereData as $goods_list_k=>$goods_list_v){
-            $row = Db::name('kuerp_goods')->where(['id'=>$goods_list_v['goods_id']])
-                ->field('id,goods_name,market_sell_price,wholesale_price,vip_price,discount,discount2,batch,serial,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life')
-                ->find();
-            $goods_id = isset($row['id'])?$row['id']:0;
-
-            $auxiliary = Db::name('kuerp_auxiliary')->where(['status'=>1])->column('name','id');
-            $goods_attr = Db::name('kuerp_goods_attr')->where(['goods_id'=>$goods_id])->select();
-            foreach ($goods_attr as $goods_attr_k=>$goods_attr_v){
-                $aux_combination = Db::name('kuerp_aux_combination')->where(['id'=>$goods_attr_v['attribute_id']])->value('attr_ids');
-                $goods_attr[$goods_attr_k]['attr_ids'] = [];
-                $goods_attr[$goods_attr_k]['attr_name'] = '';
-                if($aux_combination){
-                    $goods_attr[$goods_attr_k]['attr_id'] = $aux_combination;
-                    $aux_combination = explode('&',$aux_combination);
-                    $goods_attr[$goods_attr_k]['attr_ids'] = $aux_combination;
-                    foreach ($aux_combination as $aux_combination_k=>$aux_combination_v){
-                        $aux_combination[$aux_combination_k] = $auxiliary[$aux_combination_v];
-                    }
-                    $aux_combination = implode('/',$aux_combination);
-                    $goods_attr[$goods_attr_k]['attr_name'] = $aux_combination;
+        //远程库单条SQL约0.3秒，循环内逐条查询会导致多选商品时超时（前端 JSON.parse 失败、商品不回显），
+        //因此这里按商品ID一次性预取全部数据
+        $req_goods_ids = [];
+        foreach ($whereData as $where_v){
+            if(!empty($where_v['goods_id'])){
+                $req_goods_ids[] = $where_v['goods_id'];
+            }
+        }
+        $req_goods_ids = array_values(array_unique($req_goods_ids));
+        $goodsMap = [];
+        $goodsAttrMap = [];
+        $convMap = [];
+        $goodsPriceMap = [];
+        $stockByGoods = [];
+        $stockByAttr = [];
+        $unitNameMap = [];
+        if($req_goods_ids){
+            $goodsRows = Db::name('kuerp_goods')->where(['id'=>['in',$req_goods_ids]])
+                ->field('id,goods_name,market_sell_price,wholesale_price,vip_price,discount,discount2,batch,serial,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,goods_specification_id,vendor_name,packaging')
+                ->select();
+            foreach ($goodsRows as $goodsRow){
+                $goodsMap[$goodsRow['id']] = $goodsRow;
+            }
+            //商品属性
+            $attrRows = Db::name('kuerp_goods_attr')->where(['goods_id'=>['in',$req_goods_ids]])->select();
+            $comb_ids = [];
+            foreach ($attrRows as $attrRow){
+                $goodsAttrMap[$attrRow['goods_id']][] = $attrRow;
+                if(!empty($attrRow['attribute_id'])){
+                    $comb_ids[] = $attrRow['attribute_id'];
                 }
             }
-
-
-            $where = [];
-            $where['goods_id'] = $goods_id;
-            $where['stores_id'] = $row['manager_warehouse_id'];
-            if(!empty($goods_list_v['goods_attr'])){
-                $where['attribute_id'] = $goods_list_v['goods_attr'];
+            $combMap = $comb_ids ? Db::name('kuerp_aux_combination')->where(['id'=>['in',array_values(array_unique($comb_ids))]])->column('attr_ids','id') : [];
+            $auxiliary = Db::name('kuerp_auxiliary')->where(['status'=>1])->column('name','id');
+            foreach ($goodsAttrMap as $attr_goods_id=>$attrList){
+                foreach ($attrList as $attr_k=>$attrRow){
+                    $goodsAttrMap[$attr_goods_id][$attr_k]['attr_ids'] = [];
+                    $goodsAttrMap[$attr_goods_id][$attr_k]['attr_name'] = '';
+                    if(!empty($combMap[$attrRow['attribute_id']])){
+                        $aux_combination = $combMap[$attrRow['attribute_id']];
+                        $goodsAttrMap[$attr_goods_id][$attr_k]['attr_id'] = $aux_combination;
+                        $aux_combination = explode('&',$aux_combination);
+                        $goodsAttrMap[$attr_goods_id][$attr_k]['attr_ids'] = $aux_combination;
+                        foreach ($aux_combination as $aux_combination_k=>$aux_combination_v){
+                            $aux_combination[$aux_combination_k] = isset($auxiliary[$aux_combination_v]) ? $auxiliary[$aux_combination_v] : '';
+                        }
+                        $aux_combination = implode('/',$aux_combination);
+                        $goodsAttrMap[$attr_goods_id][$attr_k]['attr_name'] = $aux_combination;
+                    }
+                }
             }
-            $stock = Db::name('kuerp_goods_stock')->where($where)->value('stock');
-            if($row['more_unit']==1){
-                $unit = Db::name('kuerp_unit_conversion')->alias('uc')
+            //库存（原逻辑：未指定属性时取该商品该仓库第一条记录，指定属性时取该属性的记录）
+            $stockRows = Db::name('kuerp_goods_stock')->where(['goods_id'=>['in',$req_goods_ids]])->field('goods_id,stores_id,attribute_id,stock')->select();
+            foreach ($stockRows as $stockRow){
+                if(!isset($stockByGoods[$stockRow['goods_id'].'#'.$stockRow['stores_id']])){
+                    $stockByGoods[$stockRow['goods_id'].'#'.$stockRow['stores_id']] = $stockRow['stock'];
+                }
+                if(!isset($stockByAttr[$stockRow['goods_id'].'#'.$stockRow['stores_id'].'#'.$stockRow['attribute_id']])){
+                    $stockByAttr[$stockRow['goods_id'].'#'.$stockRow['stores_id'].'#'.$stockRow['attribute_id']] = $stockRow['stock'];
+                }
+            }
+            //多单位商品：副单位换算关系与价格
+            $main_unit_ids = [];
+            $multi_goods_ids = [];
+            foreach ($goodsMap as $goodsRow){
+                if($goodsRow['more_unit']==1){
+                    $multi_goods_ids[] = $goodsRow['id'];
+                    if(!empty($goodsRow['unit_id'])){
+                        $main_unit_ids[] = $goodsRow['unit_id'];
+                    }
+                }
+            }
+            $main_unit_ids = array_values(array_unique($main_unit_ids));
+            if($main_unit_ids){
+                $convRows = Db::name('kuerp_unit_conversion')->alias('uc')
                     ->join('kuerp_unit u','u.id=uc.vice_unit')
-                    ->where(['uc.main_unit'=>$row['unit_id']])
+                    ->where(['uc.main_unit'=>['in',$main_unit_ids]])
                     ->order('uc.advance_rate','ASC')
-                    ->field('uc.vice_unit,u.name,u.id,uc.advance_rate')
+                    ->field('uc.vice_unit,u.name,u.id,uc.advance_rate,uc.main_unit')
                     ->select();
+                foreach ($convRows as $convRow){
+                    $convMap[$convRow['main_unit']][] = $convRow;
+                }
+            }
+            //单位名称
+            $all_unit_ids = [];
+            foreach ($goodsMap as $goodsRow){
+                if(!empty($goodsRow['unit_id'])){
+                    $all_unit_ids[] = $goodsRow['unit_id'];
+                }
+                if(isset($convMap[$goodsRow['unit_id']])){
+                    foreach ($convMap[$goodsRow['unit_id']] as $convRow){
+                        $all_unit_ids[] = $convRow['id'];
+                    }
+                }
+            }
+            $all_unit_ids = array_values(array_unique($all_unit_ids));
+            if($all_unit_ids){
+                $unitNameMap = Db::name('kuerp_unit')->where(['id'=>['in',$all_unit_ids]])->column('name','id');
+            }
+            if($multi_goods_ids && $all_unit_ids){
+                $priceRows = Db::name('kuerp_goods_price')->where(['unit'=>['in',$all_unit_ids],'goods_id'=>['in',$multi_goods_ids]])->select();
+                foreach ($priceRows as $priceRow){
+                    $goodsPriceMap[$priceRow['goods_id']][] = $priceRow;
+                }
+            }
+        }
+        //税率设置（固定数据，只查一次）
+        $set_taxes = Db::name('kuerp_sets')->where(['name'=>'taxes'])->field('value,is_checked')->find();
+
+        foreach ($whereData as $goods_list_k=>$goods_list_v){
+            $goods_id = isset($goods_list_v['goods_id']) ? $goods_list_v['goods_id'] : 0;
+            $row = isset($goodsMap[$goods_id]) ? $goodsMap[$goods_id] : [];
+
+            $goods_attr = isset($goodsAttrMap[$goods_id]) ? $goodsAttrMap[$goods_id] : [];
+
+            $row_stores = isset($row['manager_warehouse_id']) ? $row['manager_warehouse_id'] : '';
+            if(!empty($goods_list_v['goods_attr'])){
+                $stock_key = $goods_id.'#'.$row_stores.'#'.$goods_list_v['goods_attr'];
+                $stock = isset($stockByAttr[$stock_key]) ? $stockByAttr[$stock_key] : null;
+            }else{
+                $stock_key = $goods_id.'#'.$row_stores;
+                $stock = isset($stockByGoods[$stock_key]) ? $stockByGoods[$stock_key] : null;
+            }
+            if(isset($row['more_unit']) && $row['more_unit']==1){
+                $unit = isset($convMap[$row['unit_id']]) ? $convMap[$row['unit_id']] : [];
                 $unit_ids = [$row['unit_id']];
                 foreach ($unit as $unit_k=>$unit_v){
                     $unit_ids[] = $unit_v['id'];
                 }
-                $goods_price = Db::name('kuerp_goods_price')->where(['unit'=>['in',$unit_ids],'goods_id'=>$goods_id])->select();
+                $goods_price = isset($goodsPriceMap[$goods_id]) ? $goodsPriceMap[$goods_id] : [];
                 foreach ($goods_price as $goods_price_k=>$goods_price_v){
                     foreach ($unit as $unit_k=>$unit_v){
                         if($goods_price_v['unit']==$row['unit_id']){
@@ -2942,9 +3139,14 @@ class Goods extends Backend
                     }
                 }
             }else{
-                $unit_ids = [$row['unit_id']];
+                $unit_ids = isset($row['unit_id']) ? [$row['unit_id']] : [];
             }
-            $unit = Db::name('kuerp_unit')->where(['id'=>['in',$unit_ids]])->field('id,name')->select();
+            $unit = [];
+            foreach ($unit_ids as $unit_ids_k=>$unit_ids_v){
+                if(isset($unitNameMap[$unit_ids_v])){
+                    $unit[] = array('id'=>$unit_ids_v,'name'=>$unitNameMap[$unit_ids_v]);
+                }
+            }
             foreach ($unit as $unit_k=>$unit_v){
                 if(isset($goods_price)){
                     foreach ($goods_price as $goods_price_k=>$goods_price_v){
@@ -2985,7 +3187,7 @@ class Goods extends Backend
                 }
             }
 
-            $set= Db::name('kuerp_sets')->where(['name'=>'taxes'])->field('value,is_checked')->find();
+            $set = $set_taxes;
             foreach ($unit as $unit_k=>$unit_v){
                 $tax = $set['value'];
                 if(isset($set['is_checked']) && isset($set['value']) && $set['is_checked']==1){

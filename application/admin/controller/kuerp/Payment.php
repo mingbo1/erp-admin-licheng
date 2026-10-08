@@ -65,7 +65,7 @@ class Payment extends Backend
                 ->paginate($limit);
 
             foreach ($list as $row) {
-                $row->getRelation('admin')->visible(['username']);
+                $row->getRelation('admin')->visible(['nickname']);
                 $row->getRelation('staffmember')->visible(['name']);
             }
             $lists = [];
@@ -77,8 +77,8 @@ class Payment extends Backend
                 }
                 $customers = Db::name('kuerp_suppliers')->where(['id'=>$list_v['customers_id']])->value('supplyer_name');
                 $staff_member = Db::name('kuerp_staff_member')->where(['id'=>$list_v['staff_member_id']])->value('name');
-                $preparation = Db::name('admin')->where(['id'=>$list_v['preparation_id']])->value('username');
-                $examine = Db::name('admin')->where(['id'=>$list_v['examine_id']])->value('username');
+                $preparation = Db::name('admin')->where(['id'=>$list_v['preparation_id']])->value('nickname');
+                $examine = Db::name('admin')->where(['id'=>$list_v['examine_id']])->value('nickname');
 
                 $account = Db::name('kuerp_payment_account')->alias('co')
                     ->join('kuerp_accounts a','a.id=co.accounts_id')

@@ -14,7 +14,7 @@ class GoodsPurchase
         $set= (new \addons\kuerp\model\Sets())->where(['name'=>'taxes'])->field('value,is_checked')->find();
         $taxes= (new \addons\kuerp\model\Sets())->where(['name'=>'price_taxes'])->value('is_checked');
 
-        $row = (new \addons\kuerp\model\Goods())->where(['goods_code'=>$goods_code])->field('batch,serial,id,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,warehousing,warehouse')->find();
+        $row = (new \addons\kuerp\model\Goods())->where(['goods_code'=>$goods_code])->field('batch,serial,id,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,warehousing,warehouse,goods_specification_id,vendor_name,packaging')->find();
         $goods_id = isset($row['id'])?$row['id']:0;
         if(empty($row)){
             return [];

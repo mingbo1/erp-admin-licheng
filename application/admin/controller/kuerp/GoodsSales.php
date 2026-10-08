@@ -128,10 +128,10 @@ class GoodsSales extends Backend
 
             foreach ($list as $row) {
                 $row->getRelation('customers')->visible(['customer_name']);
-                $row->getRelation('preparation')->visible(['username']);
-                $row->getRelation('examine')->visible(['username']);
+                $row->getRelation('preparation')->visible(['nickname']);
+                $row->getRelation('examine')->visible(['nickname']);
                 if ($row->getRelation('secondExamine')) {
-                    $row->getRelation('secondExamine')->visible(['username']);
+                    $row->getRelation('secondExamine')->visible(['nickname']);
                 }
             }
             // 收集交货时间为空的销货订单号，批量查询订单的交货时间
@@ -1093,7 +1093,7 @@ class GoodsSales extends Backend
             ->order('id', 'desc')
             ->select();
         foreach ($dunningList as $dk => $dv) {
-            $admin = Db::name('admin')->where('id', $dv['admin_id'])->value('username');
+            $admin = Db::name('admin')->where('id', $dv['admin_id'])->value('nickname');
             $dunningList[$dk]['admin_username'] = $admin ?: '';
         }
         $this->view->assign('dunningList', $dunningList);
@@ -1104,7 +1104,7 @@ class GoodsSales extends Backend
             ->order('id', 'desc')
             ->select();
         foreach ($logList as $lk => $lv) {
-            $admin = Db::name('admin')->where('id', $lv['admin_id'])->value('username');
+            $admin = Db::name('admin')->where('id', $lv['admin_id'])->value('nickname');
             $logList[$lk]['admin_username'] = $admin ?: '';
         }
         $this->view->assign('logList', $logList);
@@ -2517,13 +2517,13 @@ class GoodsSales extends Backend
 
         if($goods_code){
             $row = Db::name('kuerp_goods')->where(['goods_code'=>$goods_code])
-                ->field('market_sell_price,wholesale_price,vip_price,discount,discount2,batch,serial,id,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,warehousing,warehouse')
+                ->field('market_sell_price,wholesale_price,vip_price,discount,discount2,batch,serial,id,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,warehousing,warehouse,goods_specification_id,vendor_name,packaging')
                 ->find();
             $goods_id = isset($row['id'])?$row['id']:0;
         }else{
             $goods_id = isset($_POST['goods_id'])?$_POST['goods_id']:0;
             $row = Db::name('kuerp_goods')->where(['id'=>$goods_id])
-                ->field('market_sell_price,wholesale_price,vip_price,discount,discount2,batch,serial,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,warehousing,warehouse')
+                ->field('market_sell_price,wholesale_price,vip_price,discount,discount2,batch,serial,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,warehousing,warehouse,goods_specification_id,vendor_name,packaging')
                 ->find();
         }
         if(empty($row)){
@@ -3018,16 +3018,20 @@ class GoodsSales extends Backend
         $customer_name = Db::name('kuerp_customers')->where(['id' => $row['customers_id']])->value('customer_name');
         $row['customer_name'] = $customer_name ? $customer_name : '';
         // 制单人
-        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('username');
+        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('nickname');
         // 审核人
-        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('username');
+        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('nickname');
         // 销售员
         $row['sale_user_name'] = Db::name('kuerp_staff_member')->where(['id' => $row['sale_user']])->value('name');
 
         // 销货单详情
         $purchase_info = Db::name('kuerp_goods_sales_info')->where(['purchase_code' => $row['purchase_code']])->select();
         foreach ($purchase_info as $k => $v) {
-            $purchase_info[$k]['goods_name'] = Db::name('kuerp_goods')->where(['goods_code' => $v['goods_code']])->value('goods_name');
+            $goods = Db::name('kuerp_goods')->where(['goods_code' => $v['goods_code']])->field('goods_name,goods_specification_id,vendor_name,packaging')->find();
+            $purchase_info[$k]['goods_name'] = isset($goods['goods_name']) ? $goods['goods_name'] : '';
+            $purchase_info[$k]['goods_specification_id'] = isset($goods['goods_specification_id']) ? $goods['goods_specification_id'] : '';
+            $purchase_info[$k]['vendor_name'] = isset($goods['vendor_name']) ? $goods['vendor_name'] : '';
+            $purchase_info[$k]['packaging'] = isset($goods['packaging']) ? $goods['packaging'] : '';
             $purchase_info[$k]['stores_name'] = Db::name('kuerp_stores')->where(['id' => $v['stores_id']])->value('name');
             $purchase_info[$k]['unit_name'] = Db::name('kuerp_unit')->where(['id' => $v['goods_unit']])->value('name');
         }

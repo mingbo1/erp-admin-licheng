@@ -48,10 +48,10 @@ class GoodsPurchaseStorage extends GoodsPurchase
 
             foreach ($list as $row) {
                 $row->getRelation('suppliers')->visible(['supplyer_code','supplyer_name']);
-                $row->getRelation('preparation')->visible(['username']);
-                $row->getRelation('examine')->visible(['username']);
+                $row->getRelation('preparation')->visible(['nickname']);
+                $row->getRelation('examine')->visible(['nickname']);
                 if ($row->getRelation('secondExamine')) {
-                    $row->getRelation('secondExamine')->visible(['username']);
+                    $row->getRelation('secondExamine')->visible(['nickname']);
                 }
             }
             foreach ($list as $list_k=>$list_v){
@@ -88,9 +88,9 @@ class GoodsPurchaseStorage extends GoodsPurchase
         $supplyer_name = Db::name('kuerp_suppliers')->where(['supplyer_code' => $row['supplyer_code']])->value('supplyer_name');
         $row['supplyer_name'] = $supplyer_name ? $supplyer_name : '';
         // 制单人
-        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('username');
+        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('nickname');
         // 审核人
-        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('username');
+        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('nickname');
 
         // 购货单详情（含采购数量/已入库/待入库/库位）
         $purchase_info = Db::name('kuerp_goods_purchase_info')->where(['purchase_code' => $row['purchase_code']])->select();
@@ -174,9 +174,9 @@ class GoodsPurchaseStorage extends GoodsPurchase
         $supplyer_name = Db::name('kuerp_suppliers')->where(['supplyer_code' => $row['supplyer_code']])->value('supplyer_name');
         $row['supplyer_name'] = $supplyer_name ? $supplyer_name : '';
         // 制单人
-        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('username');
+        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('nickname');
         // 审核人
-        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('username');
+        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('nickname');
 
         // 购货单详情（含采购数量/已入库/待入库/库位）
         $purchase_info = Db::name('kuerp_goods_purchase_info')->where(['purchase_code' => $row['purchase_code']])->select();
@@ -544,7 +544,7 @@ class GoodsPurchaseStorage extends GoodsPurchase
         // GET: 显示入库表单（含采购数量/已入库/待入库）
         $supplyer_name = Db::name('kuerp_suppliers')->where(['supplyer_code' => $row['supplyer_code']])->value('supplyer_name');
         $row['supplyer_name'] = $supplyer_name ? $supplyer_name : '';
-        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('username');
+        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('nickname');
 
         $purchase_info = Db::name('kuerp_goods_purchase_info')->where(['purchase_code' => $row['purchase_code']])->select();
         // 预加载商品信息和库位

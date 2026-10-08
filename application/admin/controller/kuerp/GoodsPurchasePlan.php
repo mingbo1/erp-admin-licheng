@@ -66,8 +66,8 @@ class GoodsPurchasePlan extends Backend
 
             foreach ($list as $row) {
                 $row->getRelation('suppliers')->visible(['supplyer_code','supplyer_name']);
-                $row->getRelation('preparation')->visible(['username']);
-                $row->getRelation('examine')->visible(['username']);
+                $row->getRelation('preparation')->visible(['nickname']);
+                $row->getRelation('examine')->visible(['nickname']);
             }
             foreach ($list as $list_k=>$list_v){
                 if(isset($list_v['print_num']) && empty($list_v['print_num'])){
@@ -556,11 +556,11 @@ class GoodsPurchasePlan extends Backend
     //获取单位价格信息
     public function getUnit($goods_code='',$store='',$attr='',$supplyer_code=''){
         if($goods_code){
-            $row = Db::name('kuerp_goods')->where(['goods_code'=>$goods_code])->field('batch,serial,id,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,warehousing,warehouse')->find();
+            $row = Db::name('kuerp_goods')->where(['goods_code'=>$goods_code])->field('batch,serial,id,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,warehousing,warehouse,goods_specification_id,vendor_name,packaging')->find();
             $goods_id = isset($row['id'])?$row['id']:0;
         }else{
             $goods_id = isset($_POST['goods_id'])?$_POST['goods_id']:0;
-            $row = Db::name('kuerp_goods')->where(['id'=>$goods_id])->field('batch,serial,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,warehousing,warehouse')->find();
+            $row = Db::name('kuerp_goods')->where(['id'=>$goods_id])->field('batch,serial,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,warehousing,warehouse,goods_specification_id,vendor_name,packaging')->find();
         }
         if(empty($row)){
             return [];
@@ -773,9 +773,9 @@ class GoodsPurchasePlan extends Backend
         $supplyer_name = Db::name('kuerp_suppliers')->where(['supplyer_code' => $row['supplyer_code']])->value('supplyer_name');
         $row['supplyer_name'] = $supplyer_name ? $supplyer_name : '';
         // 制单人
-        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('username');
+        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('nickname');
         // 审核人
-        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('username');
+        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('nickname');
 
         // 采购计划详情
         $purchase_info = Db::name('kuerp_goods_purchase_info')->where(['purchase_code' => $row['purchase_code']])->select();

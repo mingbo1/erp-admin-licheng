@@ -11973,7 +11973,7 @@ var pleaseSetTranspileDependencies = {},
 
 // 全局挂载引入http相关请求拦截插件
 
-// 路由封装
+// 路由规格3/封装
 
 // 颜色渐变相关,colorGradient-颜色渐变,hexToRgb-十六进制颜色转rgb颜色,rgbToHex-rgb转十六进制
 
@@ -22737,7 +22737,7 @@ var _default2 = exports.default = {
       type: String,
       default: uni.$u.props.cell.url
     },
-    // 链接跳转的方式，内部使用的是uView封装的route方法，可能会进行拦截操作
+    // 链接跳转的方式，内部使用的是uView规格3/封装的route方法，可能会进行拦截操作
     linkType: {
       type: String,
       default: uni.$u.props.cell.linkType

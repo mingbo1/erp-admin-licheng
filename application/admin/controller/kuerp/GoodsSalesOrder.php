@@ -117,10 +117,11 @@ class GoodsSalesOrder extends Backend
 
             foreach ($list as $row) {
                 $row->getRelation('customers')->visible(['customer_name']);
-                $row->getRelation('preparation')->visible(['username']);
-                $row->getRelation('examine')->visible(['username']);
+                // 制单人/审核人/二审人展示管理员昵称（中文姓名）
+                $row->getRelation('preparation')->visible(['nickname']);
+                $row->getRelation('examine')->visible(['nickname']);
                 if ($row->getRelation('secondExamine')) {
-                    $row->getRelation('secondExamine')->visible(['username']);
+                    $row->getRelation('secondExamine')->visible(['nickname']);
                 }
             }
             foreach ($list as $list_k=>$list_v){
@@ -349,6 +350,10 @@ class GoodsSalesOrder extends Backend
         $sale_user = '';
         if($last_read){
             $sale_user = Db::name('kuerp_goods_sales_order')->order('id','DESC')->value('sale_user');
+        }
+        // 录单自动填充本账号绑定的销售员（下拉仍可手动修改）
+        if (!empty($this->currentSaleUserId)) {
+            $sale_user = $this->currentSaleUserId;
         }
         $this->view->assign("sale_user", $sale_user);
 
@@ -580,6 +585,9 @@ class GoodsSalesOrder extends Backend
         // 批量查询动态库存
         $goodsCodes = array_column($purchase_info, 'goods_code');
         $goodsIdMap = $goodsCodes ? Db::name('kuerp_goods')->where(['goods_code' => ['in', $goodsCodes]])->column('id', 'goods_code') : [];
+        // 商品 型号/厂商/封装 展示字段
+        $goodsSpecMap = $goodsCodes ? Db::name('kuerp_goods')->where(['goods_code' => ['in', $goodsCodes]])
+            ->column('goods_specification_id,vendor_name,packaging', 'goods_code') : [];
         $stockItems = [];
         foreach ($purchase_info as $v) {
             $gid = isset($goodsIdMap[$v['goods_code']]) ? $goodsIdMap[$v['goods_code']] : 0;
@@ -592,6 +600,10 @@ class GoodsSalesOrder extends Backend
             $gid = isset($goodsIdMap[$purchase_info_v['goods_code']]) ? $goodsIdMap[$purchase_info_v['goods_code']] : 0;
             $key = $gid . '-' . (int)$purchase_info_v['stores_id'] . '-' . (int)$purchase_info_v['goods_attr'];
             $purchase_info[$purchase_info_k]['allow_stock'] = isset($stockMap[$key]) ? $stockMap[$key] : 0;
+            $spec = isset($goodsSpecMap[$purchase_info_v['goods_code']]) ? $goodsSpecMap[$purchase_info_v['goods_code']] : [];
+            $purchase_info[$purchase_info_k]['goods_specification_id'] = isset($spec['goods_specification_id']) ? $spec['goods_specification_id'] : '';
+            $purchase_info[$purchase_info_k]['vendor_name'] = isset($spec['vendor_name']) ? $spec['vendor_name'] : '';
+            $purchase_info[$purchase_info_k]['packaging'] = isset($spec['packaging']) ? $spec['packaging'] : '';
         }
         $this->view->assign("purchase_info", $purchase_info);
         $this->assignconfig("purchase_id", $row['id']);
@@ -636,7 +648,7 @@ class GoodsSalesOrder extends Backend
         $adminIds = array_unique(array_column($logList, 'admin_id'));
         $adminMap = [];
         if (!empty($adminIds)) {
-            $admins = Db::name('admin')->where('id', 'in', $adminIds)->column('username', 'id');
+            $admins = Db::name('admin')->where('id', 'in', $adminIds)->column('nickname', 'id');
             foreach ($admins as $aid => $auser) {
                 $adminMap[$aid] = $auser;
             }

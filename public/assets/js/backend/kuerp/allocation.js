@@ -367,6 +367,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         success: function(res){
                             res = JSON.parse(res);
                             goods=res;
+                            obj.find('.goods_specification_id').val(goods.goods.goods_specification_id || '');
+                            obj.find('.vendor_name').val(goods.goods.vendor_name || '');
+                            obj.find('.packaging').val(goods.goods.packaging || '');
                             obj.find('.allow_stock').val(goods.goods.stock);
                         }
                     })
@@ -386,6 +389,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         success: function(res){
                             res = JSON.parse(res);
                             goods=res;
+                            obj.find('.goods_specification_id').val(goods.goods.goods_specification_id || '');
+                            obj.find('.vendor_name').val(goods.goods.vendor_name || '');
+                            obj.find('.packaging').val(goods.goods.packaging || '');
                             obj.find('.allow_stock').val(goods.goods.stock);
                         }
                     })
@@ -488,13 +494,27 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     });
                 }
                 function check_serial_option() {
-                    for (var b=0;b<list.length;b++){
-                        var serial = list[b].serial;
-                        $('.stock_serial_'+serial).show();
-                    }
+                    // 一个序列号只能被一行选中：把已被其它行选走的序列号在本行禁用。
+                    // 不能禁用本行自己选中的那个（原先的做法），被选中的 option 一旦 disabled，
+                    // jQuery .val()/serialize() 与原生表单提交都会丢掉该值，序列号会被清空。
+                    var chosen = [];
                     $('select[name="stock[serial][]"]').each(function(){
-                        var serial = $(this).val();
-                        $('.stock_serial_'+serial).hide();
+                        var val = $(this).val();
+                        if (val) {
+                            chosen.push(val);
+                        }
+                    });
+                    $('select[name="stock[serial][]"]').each(function(){
+                        var own = $(this).val();
+                        for (var b=0;b<list.length;b++){
+                            var serial = list[b].serial;
+                            $(this).find('option.stock_serial_'+serial)
+                                .prop('disabled', chosen.indexOf(serial) > -1 && serial !== own);
+                        }
+                        // 下拉框已转为 bootstrap-select，需刷新才能反映 option 的禁用状态
+                        if ($(this).data('selectpicker')) {
+                            $(this).selectpicker('refresh');
+                        }
                     });
                 }
                 function period_period_init() {
@@ -581,6 +601,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         success: function(res){
                             res = JSON.parse(res);
                             goods=res;
+                            obj.find('.goods_specification_id').val(goods.goods.goods_specification_id || '');
+                            obj.find('.vendor_name').val(goods.goods.vendor_name || '');
+                            obj.find('.packaging').val(goods.goods.packaging || '');
                             if(goods.goods.batch==1){
                                 obj.find('input[name="row[batch][]"]').attr('placeholder','SN');
                             }
@@ -772,6 +795,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                                 var thisobj = $('.goods_id'+vp.goods_id+'_'+vp.goods_attr);
                                             }
                                             thisobj.find('.goods_code').val(vp.goods.goods_code);
+                                            thisobj.find('.goods_specification_id').val(vp.goods.goods_specification_id || '');
+                                            thisobj.find('.vendor_name').val(vp.goods.vendor_name || '');
+                                            thisobj.find('.packaging').val(vp.goods.packaging || '');
                                             thisobj.find('.goods_name').val(vp.goods.goods_code+' '+vp.goods.goods_name);
                                             thisobj.find('.goods_note').val(vp.note);
                                             $(vp.unit).each(function (k,v) {
@@ -828,7 +854,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                     var html = '<div class="chose_goods_box" style="left:'+left+'px;top: '+top+'px;">\n' +
                                         '                            <table>\n' +
                                         '                                <tr>\n' +
-                                        '                                    <th>商品编号</th><th>商品名称</th><th>规格型号</th><th>计量单位</th><th>商品类别</th><th>库存数量</th><th>备注</th>\n' +
+                                        '                                    <th>商品编号</th><th>商品名称</th><th>型号</th><th>规格2/厂商</th><th>规格3/封装</th><th>计量单位</th><th>商品类别</th><th>库存数量</th><th>备注</th>\n' +
                                         '                                </tr>\n';
                                     max = 5;
                                     if(res.total>5){
@@ -838,7 +864,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                     }
                                     for (var a=0;a<max;a++){
                                         v = res.rows[a];
-                                        html += '<tr class="chose_goods_tr" data-code="'+v.goods_code+'" data-name="'+v.goods_name+'" data-note="'+v.note+'" data-store="'+v.manager_warehouse_id+'"><td>'+v.goods_code+'</td><td>'+v.goods_name+'</td><td>'+v.goods_specification_id+'</td><td>'+v.unit.name+'</td><td>'+v.goods_type.name+'</td><td>'+v.stock+'</td><td>'+v.note+'</td></tr>';
+                                        html += '<tr class="chose_goods_tr" data-code="'+v.goods_code+'" data-name="'+v.goods_name+'" data-note="'+v.note+'" data-store="'+v.manager_warehouse_id+'"><td>'+v.goods_code+'</td><td>'+v.goods_name+'</td><td>'+v.goods_specification_id+'</td><td>'+(v.vendor_name||'')+'</td><td>'+(v.packaging||'')+'</td><td>'+v.unit.name+'</td><td>'+v.goods_type.name+'</td><td>'+v.stock+'</td><td>'+v.note+'</td></tr>';
                                     }
                                     html += '                            </table>\n' +
                                         '                        </div>';
@@ -878,6 +904,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         success: function(res){
                             res = JSON.parse(res);
                             goods=res;
+                            obj.find('.goods_specification_id').val(goods.goods.goods_specification_id || '');
+                            obj.find('.vendor_name').val(goods.goods.vendor_name || '');
+                            obj.find('.packaging').val(goods.goods.packaging || '');
                             $(goods.unit).each(function (k,v) {
                                 if(v.id==goods_unit){
                                     obj.find('.allow_stock').val(v.stock);

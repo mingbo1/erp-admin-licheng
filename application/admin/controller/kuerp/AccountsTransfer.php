@@ -67,10 +67,10 @@ class AccountsTransfer extends Backend
 
             foreach ($list as $row) {
 
-                $row->getRelation('admin')->visible(['username']);
+                $row->getRelation('admin')->visible(['nickname']);
             }
             $accounts = Db::name('kuerp_accounts')->column('account_name','id');
-            $admin    = Db::name('admin')->column('username','id');
+            $admin    = Db::name('admin')->column('nickname','id');
 
             $lists = [];
             foreach ($list as $list_k=>$list_v){
