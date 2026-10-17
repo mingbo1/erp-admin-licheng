@@ -74,11 +74,11 @@
                             </span>
                         </span>
                     </th>
-                    <th>型号</th><th>品号</th><th>功率</th><th>{:__('Goods_note')}</th><th class="goods_attr_sd">{:__('Goods_attr')}</th><th>{:__('Goods_unit')}</th><th>{:__('Stores_id')}</th><th>{:__('Allow_stock')}</th>
+                    <th>型号</th><th class="goods_attr_sd">{:__('Goods_attr')}</th><th>{:__('Goods_unit')}</th><th>{:__('Allow_stock')}</th>
                     <th class="goods_batch_sd">批次</th><th class="goods_batch_sd">生产日期</th><th class="goods_batch_sd">保质期(天)</th><th class="goods_batch_sd">有效期至</th>
                     <th>{:__('Number')}</th><th>{:__('Default_unit')}</th>
 <!--                    <th>{:__('Basic_nmber')}</th>-->
-                    <th>{:__('Remark')}</th>
+                    <th>品号与功率</th><th>生产备注</th>
                 </tr>
 
                 <tr style="display: none;">
@@ -90,8 +90,13 @@
                             <input type="text" class="ipt goods_name">
                         </div>
                     </td>
-                    <td><div><input type="text" class="goods_specification_id" readonly></div></td><td><div><input type="text" class="vendor_name" readonly></div></td><td><div><input type="text" class="packaging" readonly></div></td>
-                    <td><div><input type="text" name="row[goods_note][]" class="goods_note" readonly></div></td>
+                    <td><div><input type="text" class="goods_specification_id" readonly></div><div data-select-enhance="skip" style="display:none"><select name="row[stores_id][]" class="form-control stores_id">
+                                <option value=""></option>
+                                {foreach name="storesList" item="vo"}
+                                <option value="{$vo.id}">{$vo.name}</option>
+                                {/foreach}
+                            </select></div></td>
+                    <input type="hidden" name="row[goods_note][]" class="goods_note">
                     <td class="goods_attr_sd">
                         <div>
                             <select name="row[goods_attr][]" class="form-control goods_attr">
@@ -106,16 +111,7 @@
                             </select>
                         </div>
                     </td>
-                    <td>
-                        <div>
-                            <select name="row[stores_id][]" class="form-control stores_id">
-                                <option value=""></option>
-                                {foreach name="storesList" item="vo"}
-                                <option value="{$vo.id}">{$vo.name}</option>
-                                {/foreach}
-                            </select>
-                        </div>
-                    </td>
+                    
                     <td><div><input type="number" name="row[allow_stock][]" class="allow_stock" readonly></div></td>
 
                     <td class="goods_batch_sd">
@@ -134,7 +130,7 @@
                     <td><div><input type="text" readonly class="default_unit"><input type="hidden" name="row[default_unit][]" class="default_unit_id"></div></td>
 <!--                    <td><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly></div></td>-->
                     <input type="hidden" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly>
-                    <td><div><input type="text" name="row[remark][]" class="remark"></div></td>
+                    <td><div><input type="text" name="row[remark][]" class="remark"></div></td><td><div><input type="text" name="row[production_remark][]" class="production_remark"></div></td>
                 </tr>
 
                 {php}for($a=0;$a<4;$a++){ {/php}
@@ -147,8 +143,13 @@
                             <input type="text" class="ipt goods_name">
                         </div>
                     </td>
-                    <td><div><input type="text" class="goods_specification_id" readonly></div></td><td><div><input type="text" class="vendor_name" readonly></div></td><td><div><input type="text" class="packaging" readonly></div></td>
-                    <td><div><input type="text" name="row[goods_note][]" class="goods_note" readonly></div></td>
+                    <td><div><input type="text" class="goods_specification_id" readonly></div><div data-select-enhance="skip" style="display:none"><select name="row[stores_id][]" class="form-control stores_id">
+                                <option value=""></option>
+                                {foreach name="storesList" item="vo"}
+                                <option value="{$vo.id}">{$vo.name}</option>
+                                {/foreach}
+                            </select></div></td>
+                    <input type="hidden" name="row[goods_note][]" class="goods_note">
                     <td class="goods_attr_sd">
                         <div>
                             <select name="row[goods_attr][]" class="form-control goods_attr">
@@ -163,16 +164,7 @@
                             </select>
                         </div>
                     </td>
-                    <td>
-                        <div>
-                            <select name="row[stores_id][]" class="form-control stores_id">
-                                <option value=""></option>
-                                {foreach name="storesList" item="vo"}
-                                <option value="{$vo.id}">{$vo.name}</option>
-                                {/foreach}
-                            </select>
-                        </div>
-                    </td>
+                    
                     <td><div><input type="number" name="row[allow_stock][]" class="allow_stock" readonly></div></td>
 
                     <td class="goods_batch_sd">
@@ -191,7 +183,7 @@
                     <td><div><input type="text" readonly class="default_unit"><input type="hidden" name="row[default_unit][]" class="default_unit_id"></div></td>
 <!--                    <td><div><input type="text" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly></div></td>-->
                     <input type="hidden" name="row[basic_nmber][]" class="basic_nmber number_decimal" readonly>
-                    <td><div><input type="text" name="row[remark][]" class="remark"></div></td>
+                    <td><div><input type="text" name="row[remark][]" class="remark"></div></td><td><div><input type="text" name="row[production_remark][]" class="production_remark"></div></td>
                 </tr>
                 {php}}{/php}
             </table>

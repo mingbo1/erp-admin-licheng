@@ -50,4 +50,6 @@ return [
     'Product_type semi_finished'  => '半成品',
     'Product_type part'           => '零件',
     'Location_id'                 => '商品库位',
+
+    'Frequent_customers'          => '常用客户',
 ];

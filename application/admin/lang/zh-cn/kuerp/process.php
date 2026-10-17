@@ -47,8 +47,14 @@ return [
     'Cancel_outbound'   => '取消出库',
     'Outbound_status'   => '出库状态',
     'Outbound_status 0' => '未出库',
-    'Outbound_status 1' => '已出库',
+    'Outbound_status 1' => '部分出库',
+    'Outbound_status 2' => '全部出库',
     'Outbound_time'     => '出库时间',
+
+    'Inbound_examine_status'    => '入库成品审核',
+    'Inbound_examine_status 0'  => '未审核',
+    'Inbound_examine_status 1'  => '已审核',
+    'Inbound_examine_time'      => '入库成品审核时间',
 
     'Print'             => '打印',
     'Goods_note'        => '型号',

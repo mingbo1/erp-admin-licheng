@@ -214,6 +214,7 @@ class GoodsSalesOrder extends Backend
                             'dis_money'         =>  (float)$params['dis_money'][$k],
                             'all_money'         =>  (float)$params['all_money'][$k],
                             'remark'            =>  $params['remark'][$k],
+                            'production_remark' =>  isset($params['production_remark'][$k]) ? $params['production_remark'][$k] : '',
 
                             'preferential_rate' =>  (float)$params['preferential_rate'],
                             'preferential_money'=>  (float)$params['preferential_money'],
@@ -465,6 +466,7 @@ class GoodsSalesOrder extends Backend
                             'dis_money'         =>  (float)$params['dis_money'][$k],
                             'all_money'         =>  (float)$params['all_money'][$k],
                             'remark'            =>  $params['remark'][$k],
+                            'production_remark' =>  isset($params['production_remark'][$k]) ? $params['production_remark'][$k] : '',
 
                             'preferential_rate' =>  (float)$params['preferential_rate'],
                             'preferential_money'=>  (float)$params['preferential_money'],
@@ -841,7 +843,7 @@ class GoodsSalesOrder extends Backend
                 $this->error('审核失败');
             }
         }else{
-            $list = $this->model->where(['id'=>['in',$ids],'examine_status'=>'1'])->field('id,purchase_id,purchase_time')->select();
+            $list = $this->model->where(['id'=>['in',$ids],'examine_status'=>'1'])->field('id,purchase_code,purchase_time,examine_id,second_examine_id,second_examine_status')->select();
             foreach ($list as $list_k=>$list_v){
                 $checkout = (new \addons\kuerp\library\Checkout())->checkOutTime($list_v['purchase_time']);
                 if($checkout!==true){
@@ -854,16 +856,22 @@ class GoodsSalesOrder extends Backend
                 }
                 $this->error('请选择需要反审核的数据');
             }
+            // 预检：已生成销货单/退货单的订单，仅自动二审（审核人=二审人，审核时金额未超阈值自动完成二审）的
+            // 允许审核人直接反审核，系统级联反审核并删除其生成的销货单/退货单；手动二审的订单维持原限制。
             foreach ($list as $list_k=>$list_v){
-                $purchase_id = Db::name('kuerp_goods_saleord')->where(['order_id'=>$list_v['id']])->column('purchase_id');
-                if(!empty($purchase_id)){
-                    if($examine_set!=1){
-                        return ['status'=>0,'msg'=>'不能操作已生成销货单的数据'];
-                    }
-                    $this->error('不能反审核已生成销货单的数据');
+                $sale_ids = Db::name('kuerp_goods_saleord')->where(['order_id'=>$list_v['id']])->column('purchase_id');
+                $exchange_ids = Db::name('kuerp_goods_saleexc')->where(['purchase_id'=>$list_v['id'],'type'=>'1'])->column('exchange_id');
+                if(empty($sale_ids) && empty($exchange_ids)){
+                    continue;
                 }
-                $purchase_id = Db::name('kuerp_goods_saleexc')->where(['purchase_id'=>$list_v['id'],'type'=>'1'])->column('exchange_id');
-                if(!empty($purchase_id)){
+                $isAutoSecond = ($list_v['second_examine_status']==1 && $list_v['examine_id']>0 && $list_v['examine_id']==$list_v['second_examine_id']);
+                if(!$isAutoSecond){
+                    if(!empty($sale_ids)){
+                        if($examine_set!=1){
+                            return ['status'=>0,'msg'=>'不能操作已生成销货单的数据'];
+                        }
+                        $this->error('不能反审核已生成销货单的数据');
+                    }
                     if($examine_set!=1){
                         return ['status'=>0,'msg'=>'不能操作已生成退货单的数据'];
                     }
@@ -871,8 +879,18 @@ class GoodsSalesOrder extends Backend
                 }
             }
             $admin = Session::get('admin');
+            // cascadeDocs：订单id => 级联反审核并删除的单据编号，用于操作日志
+            $cascadeDocs = [];
             Db::startTrans();
             try {
+                foreach ($list as $list_k=>$list_v){
+                    $sale_ids = Db::name('kuerp_goods_saleord')->where(['order_id'=>$list_v['id']])->column('purchase_id');
+                    $exchange_ids = Db::name('kuerp_goods_saleexc')->where(['purchase_id'=>$list_v['id'],'type'=>'1'])->column('exchange_id');
+                    if(empty($sale_ids) && empty($exchange_ids)){
+                        continue;
+                    }
+                    $cascadeDocs[$list_v['id']] = $this->cascadeRemoveDocs($sale_ids, $exchange_ids);
+                }
                 $result = $this->model->where(['id'=>['in',$ids],'examine_status'=>'1'])->update([
                     'examine_status'        => 0,
                     'examine_id'            => 0,
@@ -890,7 +908,11 @@ class GoodsSalesOrder extends Backend
             if(isset($result) && $result !== false){
                 // 写入操作日志
                 foreach ($list as $logOrder) {
-                    GoodsSalesOrderLog::writeLog($logOrder['id'], '反审核', '销货订单反审核：' . $logOrder['purchase_code'], 'sales_order', $logOrder['id']);
+                    $logNote = '销货订单反审核：' . $logOrder['purchase_code'];
+                    if(!empty($cascadeDocs[$logOrder['id']])){
+                        $logNote .= '（级联反审核并删除：' . implode('、', $cascadeDocs[$logOrder['id']]) . '）';
+                    }
+                    GoodsSalesOrderLog::writeLog($logOrder['id'], '反审核', $logNote, 'sales_order', $logOrder['id']);
                 }
                 if($examine_set!=1){
                     return ['status'=>1,'msg'=>'操作成功'];
@@ -902,6 +924,76 @@ class GoodsSalesOrder extends Backend
                 }
                 $this->error('反审核失败');
             }
+        }
+    }
+
+    /**
+     * 级联反审核并删除销货订单生成的下游单据（销货单/退货单），返回被删除的单据编号数组
+     * 仅在自动二审订单的直接反审核时调用；下游单据已对单/已生成收款单/核销单等情况
+     * 会因其自身反审核校验失败而抛出异常，由上层回滚整个操作
+     */
+    protected function cascadeRemoveDocs($sale_ids = [], $exchange_ids = [])
+    {
+        $removedCodes = [];
+        // 先退货单后销货单：销货单若被其生成的退货单引用，需先处理退货单
+        if (!empty($exchange_ids)) {
+            $exchangeController = new \app\admin\controller\kuerp\GoodsSalesExchange();
+            foreach ($exchange_ids as $exchange_id) {
+                $removedCode = $this->removeCascadeDoc($exchangeController, $exchange_id, '退货单');
+                if ($removedCode !== '') {
+                    $removedCodes[] = $removedCode;
+                }
+            }
+        }
+        if (!empty($sale_ids)) {
+            $salesController = new \app\admin\controller\kuerp\GoodsSales();
+            foreach ($sale_ids as $sale_id) {
+                $removedCode = $this->removeCascadeDoc($salesController, $sale_id, '销货单');
+                if ($removedCode !== '') {
+                    $removedCodes[] = $removedCode;
+                }
+            }
+        }
+        return $removedCodes;
+    }
+
+    /**
+     * 对单个下游单据执行 反审核（已审核时）→删除，返回单据编号
+     */
+    protected function removeCascadeDoc($controller, $doc_id, $docLabel)
+    {
+        $table = $docLabel == '销货单' ? 'kuerp_goods_sales' : 'kuerp_goods_sales_exchange';
+        $doc = Db::name($table)->where(['id' => $doc_id])->field('purchase_code,examine_status')->find();
+        if (empty($doc)) {
+            return '';
+        }
+        if ($doc['examine_status'] == 1) {
+            $this->runCascadeMethod($controller, 'examine', [$doc_id, 2], $docLabel, $doc['purchase_code']);
+        }
+        $this->runCascadeMethod($controller, 'del', [$doc_id], $docLabel, $doc['purchase_code']);
+        return $doc['purchase_code'];
+    }
+
+    /**
+     * 调用下游单据控制器方法；FastAdmin 的 success/error 均以 HttpResponseException 抛出，
+     * 成功(code=1)静默返回，失败(code=0)转为普通异常由上层统一回滚并提示
+     */
+    protected function runCascadeMethod($controller, $method, $args, $docLabel, $docCode)
+    {
+        try {
+            $result = call_user_func_array([$controller, $method], $args);
+        } catch (\think\exception\HttpResponseException $e) {
+            $json = json_decode($e->getResponse()->getContent(), true);
+            if (empty($json) || !isset($json['code']) || $json['code'] != 1) {
+                $msg = isset($json['msg']) && $json['msg'] !== '' ? $json['msg'] : '未知原因';
+                throw new Exception($docLabel . '[' . $docCode . ']处理失败：' . $msg);
+            }
+            return;
+        }
+        // 审核开关关闭时控制器以数组返回结果而非抛异常
+        if (is_array($result) && isset($result['status']) && $result['status'] == 0) {
+            $msg = isset($result['msg']) && $result['msg'] !== '' ? $result['msg'] : '未知原因';
+            throw new Exception($docLabel . '[' . $docCode . ']处理失败：' . $msg);
         }
     }
 

@@ -307,6 +307,7 @@ class GoodsSalesOutbound extends Backend
                             'dis_money'         =>  (float)$params['dis_money'][$k],
                             'all_money'         =>  (float)$params['all_money'][$k],
                             'remark'            =>  $params['remark'][$k],
+                            'production_remark' =>  isset($params['production_remark'][$k]) ? $params['production_remark'][$k] : '',
 
                             'goods_attr'        =>  (float)$params['goods_attr'][$k],
                             'tax_included'      =>  (float)$params['tax_included'][$k],

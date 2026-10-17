@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>工序小时看板 - {$dateText}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; }
+        body {
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+            color: #dfe9ff;
+            background-color: #0a1638;
+            overflow-x: hidden;
+        }
+        /* 星空背景: fixed 定位层替代 background-attachment:fixed(后者在 iframe/overflow 场景有渲染 bug) */
+        .bg-photo {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0; pointer-events: none;
+            background-color: #0a1638;
+            background-image: url("__CDN__/assets/img/start.jpg");
+            background-size: cover;
+            background-position: center bottom;
+            background-repeat: no-repeat;
+        }
+        .bg-veil {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0; pointer-events: none;
+            background: linear-gradient(rgba(6, 12, 35, 0.45), rgba(6, 12, 35, 0.66));
+        }
+
+        .board-wrap { position: relative; z-index: 1; max-width: 1280px; margin: 0 auto; padding: 22px 24px 16px; }
+        .board-title {
+            text-align: center; font-size: 34px; font-weight: bold; letter-spacing: 5px;
+            color: #eaf3ff; text-shadow: 0 0 18px rgba(80, 160, 255, .8), 0 0 40px rgba(40, 110, 255, .45);
+            margin-bottom: 6px;
+        }
+        .board-sub { text-align: center; color: #9fc0f2; font-size: 17px; margin-bottom: 16px; letter-spacing: 3px; }
+
+        /* 当日汇总参数卡片 */
+        .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
+        @media (max-width: 900px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+        .stat-card {
+            background: rgba(255, 255, 255, 0.055);
+            border: 1px solid rgba(120, 180, 255, 0.28);
+            border-radius: 10px;
+            padding: 12px 16px;
+            backdrop-filter: blur(2px);
+            box-shadow: 0 0 18px rgba(20, 70, 180, 0.25) inset;
+        }
+        .stat-card .label { font-size: 15px; color: #a8c2ee; margin-bottom: 5px; }
+        .stat-card .value { font-size: 28px; font-weight: bold; font-family: "DIN Alternate", "Arial", sans-serif; }
+        .stat-card .value.green { color: #3ef2b6; }
+        .stat-card .value.orange { color: #ffc069; }
+        .stat-card .value.cyan { color: #4fd8ff; }
+        .stat-card .value.red { color: #ff6b6b; }
+
+        /* 图表容器 */
+        .chart-panel {
+            background: rgba(10, 25, 65, 0.35);
+            border: 1px solid rgba(120, 180, 255, 0.22);
+            border-radius: 12px;
+            padding: 8px 10px 4px;
+        }
+        #chart { width: 100%; height: 58vh; min-height: 420px; }
+    </style>
+</head>
+<body>
+<div class="bg-photo"></div>
+<div class="bg-veil"></div>
+
+<div class="board-wrap">
+    <div class="board-title">工序小时看板</div>
+    <div class="board-sub">{$dateText}</div>
+
+    <div class="stat-grid">
+        <div class="stat-card">
+            <div class="label">{:__('First_pass_total')}</div>
+            <div class="value green">{:$row['first_pass_total']+0}</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">{:__('Rework_total')}</div>
+            <div class="value orange">{:$row['rework_total']+0}</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">{:__('Qualified_total')}</div>
+            <div class="value green">{:$row['qualified_total']+0}</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">{:__('First_pass_yield')}</div>
+            <div class="value cyan">{:round($row.first_pass_yield*100,2)}%</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">{:__('Final_yield')}</div>
+            <div class="value cyan">{:round($row.final_yield*100,2)}%</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">{:__('First_pass_defect')}</div>
+            <div class="value red">{:$row['first_pass_defect']+0}</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">{:__('Rework_defect')}</div>
+            <div class="value red">{:$row['rework_defect']+0}</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">{:__('Total_target')}</div>
+            <div class="value orange">{:$row['total_target']+0}</div>
+        </div>
+    </div>
+
+    <div class="chart-panel">
+        <div id="chart"></div>
+    </div>
+</div>
+
+<script src="__CDN__/assets/js/echarts.min.js"></script>
+<script>
+    // 背景图加载失败时降级为 CSS 星点夜空, 避免纯色背景
+    (function () {
+        var img = new Image();
+        img.onerror = function () {
+            var el = document.querySelector('.bg-photo');
+            if (el) {
+                el.style.backgroundImage =
+                    'radial-gradient(1px 1px at 20px 30px, #fff, transparent),' +
+                    'radial-gradient(1.5px 1.5px at 160px 60px, #fff, transparent),' +
+                    'radial-gradient(1px 1px at 300px 90px, #fff, transparent),' +
+                    'radial-gradient(2px 2px at 190px 150px, rgba(180,220,255,.9), transparent)';
+                el.style.backgroundSize = '420px 280px';
+            }
+        };
+        img.src = '/assets/img/start.jpg';
+    })();
+    var chartData = {$info_list|json_encode};
+    (function () {
+        var el = document.getElementById('chart');
+        if (!el || !window.echarts) { return; }
+        var cats = [], targets = [], actuals = [], statuses = [];
+        for (var i = 0; i < chartData.length; i++) {
+            var r = chartData[i];
+            cats.push(r.time_range || ('时段' + (i + 1)));
+            targets.push(parseFloat(r.target) || 0);
+            actuals.push(parseFloat(r.first_pass_qty) || 0);
+            statuses.push((parseFloat(r.first_pass_qty) || 0) >= (parseFloat(r.target) || 0) ? 'OK' : 'NG');
+        }
+        var chart = echarts.init(el);
+        var okColor = new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: '#3ef2d0' }, { offset: 1, color: '#0e8fb8' }]);
+        var ngColor = new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: '#ff7a6e' }, { offset: 1, color: '#c0392b' }]);
+        var actualData = [];
+        for (var j = 0; j < actuals.length; j++) {
+            actualData.push({ value: actuals[j], itemStyle: { color: statuses[j] === 'NG' ? ngColor : okColor } });
+        }
+        chart.setOption({
+            backgroundColor: 'transparent',
+            tooltip: {
+                trigger: 'axis',
+                backgroundColor: 'rgba(10,25,60,.92)',
+                borderColor: 'rgba(120,180,255,.4)',
+                textStyle: { color: '#dfe9ff', fontSize: 14 }
+            },
+            legend: { data: ['目标', '实际合格'], textStyle: { color: '#cfe0ff', fontSize: 15 }, top: 2 },
+            grid: { left: 60, right: 30, top: 52, bottom: 70 },
+            xAxis: {
+                type: 'category', data: cats,
+                axisLabel: { color: '#cfe0ff', interval: 0, rotate: 40, fontSize: 14 },
+                axisLine: { lineStyle: { color: 'rgba(140,180,255,.4)' } }
+            },
+            yAxis: {
+                type: 'value', name: '数量',
+                nameTextStyle: { color: '#cfe0ff', fontSize: 14 },
+                axisLabel: { color: '#cfe0ff', fontSize: 14 },
+                splitLine: { lineStyle: { color: 'rgba(255,255,255,.08)' } }
+            },
+            series: [
+                {
+                    name: '目标', type: 'line', data: targets, z: 5,
+                    lineStyle: { width: 3, color: '#ffd04b' }, itemStyle: { color: '#ffd04b' },
+                    symbol: 'circle', symbolSize: 8,
+                    label: { show: true, position: 'top', color: '#ffd04b', fontSize: 13, fontWeight: 'bold' }
+                },
+                {
+                    name: '实际合格', type: 'bar', data: actualData, barMaxWidth: 34, z: 3,
+                    itemStyle: { borderRadius: [4, 4, 0, 0] },
+                    // 标签放柱内顶部: 与目标折线数值相同时二者高度重合, 上方标签会重叠, 柱内标签错开
+                    label: { show: true, position: 'insideTop', distance: 6, color: '#ffffff', fontSize: 13, fontWeight: 'bold' }
+                }
+            ]
+        });
+        window.addEventListener('resize', function () { chart.resize(); });
+    })();
+</script>
+</body>
+</html>

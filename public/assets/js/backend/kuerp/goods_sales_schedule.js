@@ -53,6 +53,12 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                     return __('Check_status 1');
                                 }
                             }},
+                        {field: 'production_status', title: __('Production_status'),width:100,templet: function (d) {
+                                if(d.production_status==1){
+                                    return '<span style="color:#5FB878;">' + __('Production_status 1') + '</span>';
+                                }
+                                return '<span style="color:#999;">' + __('Production_status 0') + '</span>';
+                            }},
                         {field: 'delivery_time', title: __('Delivery_time'),templet: function (d) {
                                 return layui.util.toDateString(d.delivery_time*1000,"yyyy-MM-dd");
                             },width:110},
@@ -74,13 +80,38 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             table.reload('table', []);
                             break;
                         case 'add':
-                            Fast.api.open("kuerp/goods_sales_schedule/add", "添加销货排期", {
+                            Fast.api.open("kuerp/goods_sales_schedule/add", "添加计划排期", {
                                callback:function(value){
                                   Controller.api.bindevent();
                                },
                                 area:['90%','75%'],
                             });
                         break;
+                        case 'production':
+                            if(data.length<=0){
+                                Toastr.error('请选择要排产的数据');return;
+                            }
+                            Fast.api.ajax("kuerp/goods_sales_schedule/setproduction?status=1&ids="+ids, function () {
+                                $('.btn-refresh').click();
+                            },'',true);
+                            break;
+                        case 'production_f':
+                            if(data.length<=0){
+                                Toastr.error('请选择要取消排产的数据');return;
+                            }
+                            Fast.api.ajax("kuerp/goods_sales_schedule/setproduction?status=0&ids="+ids, function () {
+                                $('.btn-refresh').click();
+                            },'',true);
+                            break;
+                        case 'export':
+                            if(data.length<=0){
+                                Toastr.error('请选择要导出的数据');return;
+                            }
+                            // form提交才能触发文件下载；action需fixurl补全模块前缀
+                            var $form = $('<form method="post" action="' + Fast.api.fixurl("kuerp/goods_sales_schedule/export") + '" style="display:none;"></form>');
+                            $form.append($('<input type="hidden" name="ids">').val(ids));
+                            $form.appendTo('body').submit().remove();
+                            break;
                         case 'delAll':
                             if(data.length<=0){
                                 Toastr.error('请选择要删除的数据');return;
@@ -154,7 +185,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             }
                         );
                     } else if(obj.event === 'edit'){
-                        Fast.api.open("kuerp/goods_sales_schedule/edit?ids="+data.id, "编辑销货排期",{ area:['90%','75%'],});
+                        Fast.api.open("kuerp/goods_sales_schedule/edit?ids="+data.id, "编辑计划排期",{ area:['90%','75%'],});
                     }
                 });
                 //搜索事件
@@ -190,6 +221,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     var check_status = $('#check_status').val();
                     if(check_status!=''){
                         search.check_status = check_status;
+                    }
+                    var production_status = $('#production_status').val();
+                    if(production_status!=''){
+                        search.production_status = production_status;
                     }
                     return search;
                 }
@@ -1333,6 +1368,16 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 ' data-available="' + v.total_stock + '">锁定</button>';
                         }
 
+                        // 半成品且库存不足：提供「组装单」按钮，跳转组装单添加页预填组装该半成品
+                        if (v.product_type === 'semi_finished' && parseFloat(v.total_diff) < 0) {
+                            var bestStoreId = (v.stock_details && v.stock_details.length > 0) ? v.stock_details[0].stores_id : '';
+                            lockHtml += ' <button type="button" class="btn btn-xs btn-primary bom-assemble"' +
+                                ' data-goods-code="' + v.goods_code + '"' +
+                                ' data-goods-name="' + v.goods_name + '"' +
+                                ' data-number="' + v.required_total + '"' +
+                                ' data-stores="' + bestStoreId + '">组装单</button>';
+                        }
+
                         html += '<tr>';
                         html += '<td>' + v.goods_code + '</td>';
                         html += '<td>' + v.goods_name + '</td>';
@@ -1584,6 +1629,23 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             });
                         }
                     });
+                });
+
+                // BOM半成品「组装单」按钮：组装库存不足的半成品
+                // 打开组装单添加页，组合件=半成品（数量=BOM需求量），子件=该半成品BOM零件（服务端预计算）
+                $(document).on("click", ".bom-assemble", function(){
+                    var goodsCode = $(this).data('goods-code');
+                    var goodsName = $(this).data('goods-name');
+                    var number = $(this).data('number');
+                    var storesId = $(this).data('stores');
+                    parent.Fast.api.open(
+                        "kuerp/assemble/add?schedule_id=" + scheduleId +
+                        "&goods_code=" + encodeURIComponent(goodsCode) +
+                        "&number=" + encodeURIComponent(number) +
+                        "&stores_id=" + encodeURIComponent(storesId),
+                        "生成组装单 - " + goodsCode + " " + goodsName,
+                        { area:['90%','75%'], }
+                    );
                 });
 
                 // 当商品数量/单位/仓库改变时自动刷新BOM（防抖500ms）

@@ -364,12 +364,14 @@ BOM表格 → 已锁定零件 → [解锁] → 确认弹窗
 |---------|------|---------|
 | `addons/kuerp/migration_add_assemble_sales_order_id.sql` | assemble/assemble_info 表增加 `sales_order_id` 字段 | 需手动执行 |
 | `addons/kuerp/migration_add_goods_lock.sql` | 新建 `fa_kuerp_goods_lock` 表 | 需手动执行 |
+| `addons/kuerp/migration_add_goods_frequent_customers.sql` | `fa_kuerp_goods` 增加 `frequent_customers` 字段（商品常用客户） | 需手动执行 |
 
 ### 6.1 执行命令
 
 ```bash
 mysql -uroot -proot -D erp_licheng < addons/kuerp/migration_add_assemble_sales_order_id.sql
 mysql -uroot -proot -D erp_licheng < addons/kuerp/migration_add_goods_lock.sql
+mysql -h127.0.0.1 -uroot -proot -D erp_licheng < addons/kuerp/migration_add_goods_frequent_customers.sql
 ```
 
 ---
@@ -400,7 +402,7 @@ mysql -uroot -proot -D erp_licheng < addons/kuerp/migration_add_goods_lock.sql
 
 ### 7.5 BOM子件过滤
 
-BOM零件需求列表（`GoodsSalesSchedule::getBomRequirement()`）和「生成组装单」预填（`Assemble.php`）取 `product_type IN ('part','semi_finished')`（零件+半成品）的子件，仅 `finished`（成品）不参与计算。注意：「生成采购订单」（`GoodsPurchaseOrder.php`）的预填仍只取 `product_type='part'`。过滤都在 `kuerp_goods_bom_info` JOIN `kuerp_goods` 时完成。
+BOM零件需求列表（`GoodsSalesSchedule::getBomRequirement()`）和「生成组装单」预填（`Assemble.php`）取 `product_type IN ('part','semi_finished')`（零件+半成品）的子件，仅 `finished`（成品）不参与计算。「生成采购订单」预填（`GoodsPurchaseOrder.php` 与 `GoodsPurchaseOrderPlan.php` 的 `add()`，两处为复制代码需同步改）取 `product_type IN ('part','semi_finished','finished')`；且**无BOM模板的排期商品**（无法组装、只能整件采购的成品/半成品）也会做自身库存缺口检测（需求=basic_nmber，库存=全部仓库合计，仓库取排期行的 stores_id）。过滤都在 `kuerp_goods_bom_info` JOIN `kuerp_goods` 时完成。
 
 ### 7.6 商品属性(goods_attr)与库存 attribute_id
 
@@ -413,6 +415,46 @@ BOM零件需求列表（`GoodsSalesSchedule::getBomRequirement()`）和「生成
 组装单 add/edit 页"子件"标题旁的 [一键生成采购单] 按钮（已审核单据上仍可点：bindevent 的"审核的单据不可编辑"块统一 `$('.btn').attr('disabled')` 后对 `.shortage_purchase` 单独 removeAttr 恢复）：遍历 `#assemble_table_c` 子件行，缺口 = `number`(需求数量) − `allow_stock`(可用库存)，缺口>0 的行（同商品+属性+仓库合并）经 `Assemble::setdata()` 存入 `Session('GoodsPurchaseOrder')`，然后 `parent.Fast.api.open("kuerp/goods_purchase_order/add?type=1")` 预填。这与补货模块(`Replenishment::setdata`)共用同一 Session key 和 `type=1` 预填链路（`GoodsPurchaseOrder::add()` 读 Session → `assignconfig("list")` → `initlist()` 填行），行上的 `purchase_code` 字段写入购货行 `sales_order_id`（组装单关联的销货订单号，edit 页无 `.sales_order_id` 隐藏域，从 `Config.assembleSalesOrderId` 取）。全部子件库存充足时提示且不打开采购页。
 
 权限：`setdata` **不在** `$noNeedRight`，受 `fa_auth_rule` 规则 `kuerp/assemble/setdata`（pid=组装单菜单）控制（见 `migration_add_assemble_setdata_auth_rule.sql`）；`Assemble::_initialize` 里 `$this->auth->check()` 结果 assign 为 `canShortagePurchase`，add/edit 视图用 `{if $canShortagePurchase}` 包住按钮，后端同步校验。超管（rules=`*`）始终可见，其他角色需在 角色管理→组装单 勾选"一键生成采购单"。
+
+### 7.8 组装单实际出库/入库弹窗与领料单打印（2026-10-14）
+
+`outbound_edit.html`（实际出库/入库弹窗）：子件出库表和组合件入库表在"商品名称"后各加 **型号 / 规格2/厂商 / 规格3/封装** 三列（`outboundEdit()` 的 info 查询 JOIN `kuerp_goods` 带出 `goods_specification_id`/`vendor_name`/`packaging`）；panel-heading 右侧 [打印领料单] 按钮 → 内联 `printPicking()`（`Fast` 为全局，fast.js 挂 `window.Fast`）→ `Fast.api.open("kuerp/assemble/pickingpage?ids=X")`。
+
+`Assemble::pickingpage()` + `pickingpage.html`（在 `$noNeedRight`，不记 `print_num`）：仅取子件(type=2)，列含上述三字段 + 计划数量(number) + 剩余数量(max(0, number-out_number))，页脚有 领料人/发料人/审核 签字栏；辅助属性列同样受 `goods_attr_sd` 开关控制。
+
+### 7.9 外协加工单(kuerp/process)出库/入库审核流程改造（2026-10-15，对齐组装单）
+
+> 涉及：`Process.php`、`process.js`、`process/outbound_edit.html`（新增）、`process/detail.html`、
+> `migration_add_process_outbound_flow.sql`、`model/kuerp/ProcessLog.php`（新增）
+
+**新流程**（替代原"审核即扣库存 + 一次性出库/取消出库"）：
+
+```
+添加加工单 → [原料出库审核 examine()] → [入库成品审核 examineInbound()] → [实际出库/入库 outboundEdit()/saveOutbound()]（可分批多次，弹窗内可选结算加工费）
+
+> 原"外协入库 processIn()"已移除（2026-10-15）：成品入库并入"实际出库/入库"弹窗，加工费结算同弹窗底部"加工费结算(可选)"面板（金额>0 时生成 kuerp_process_fee 记录 + 账户流水扣款 + kuerp_cost 费用表，字段校验同原 processIn）。控制器 processIn()/getInfo()、视图 process_in.html、JS bindeventProcessIn、菜单/权限规则同步删除（迁移文件第7段清理 fa_auth_rule）。入库顺序强制：examineInbound 前置校验 examine_status==1（'未进行原料出库审核'），JS 列表同守卫。
+```
+
+**双模式**：
+- **手动** (`examine_set==1`)：`examine()` 仅改状态（不再扣库存）；实际原材料出库在 outboundEdit 页分批填写。反审核限制：`outbound_status!=0`（有出库记录）或 `inbound_examine_status==1` 时禁止。
+- **自动** (`examine_set!=1`)：`examine()` 审核即全部出库（设 `outbound_status=2`+回写 `out_number=number`）；`add()` 保存后自动串联 `examineInbound($result,1)`。反审核恢复全部库存并重置 `outbound_status=0`/`out_number=0`。edit/del 对已审核单先 `examineInbound($ids,2)` 再 `examine($ids,2)`（顺序不可反，examine 反审核有 inbound_examine_status 前置校验）。
+
+**字段/表**（`migration_add_process_outbound_flow.sql`，需手动执行）：`fa_kuerp_process` +`inbound_examine_status/id/time`；`fa_kuerp_process_info` +`out_number`；新表 `fa_kuerp_process_log`（process_id/action/note/admin_id/createtime）。历史修复：已审核单据统一标记 `outbound_status=2`+`out_number=number`（其库存在旧逻辑已扣，防二次出库）。
+
+**实际出库/入库 `saveOutbound()`**：POST `out_data[info_id]`(本次出库数) + `in_data[info_id][in_number/unit_cost/stores_id]` + `batch_data[info_id][batch/manufacture/guarantee/validity]` + `fee_data[total_process_fee/account_id/expend_type_id/fee_time/remark]`(可选加工费)；出库 gated `examine_status==1`，入库 gated `inbound_examine_status==1`；按比例折算 `basic_number = basic_number/number×本次`，出库成本 `unit_cost×basic_part`（部分出库按比例计成本）；累计 `out_number`/`in_number`，主表 `outbound_status`/`in_status` 0→1→2；收发明细 business_type '16'外协出库/'17'外协入库；批次沿用单据行 batch_id（页面新填批次优先）；序列号按未出库（store_status==1）顺序取。成品入库 `unit_cost` 取最近一次，`cost_money` 累加（同旧 processIn 约定）。
+
+**出入库记录折叠面板**（outbound_edit.html，2026-10-15）：panel-heading 右侧 [出入库记录] 按钮（`data-toggle="collapse"`→`#history_panel`，默认折叠隐藏）；`outboundEdit()` 从 `kuerp_goods_log` 取 `purchase_code=单号 AND business_type IN (16,17)` 的每次分批记录（JOIN goods 带三规格字段，服务端补仓库名/操作人昵称、is_out 标记），渲染 时间/类型/商品/仓库/数量/单价/金额/操作人 表格，空态"暂无出入库记录"。
+
+**操作记录**：`ProcessLog::writeLog($processId, $action, $note)`（读 Session admin），埋点：添加单据/编辑单据/原料出库审核(反审核)/入库成品审核(反审核)/原料出库/成品入库/加工费结算；详情页 `detail.html` 操作记录面板（服务端渲染 log_list+admin nickname 映射）。del() 同步删 log。
+
+**权限规则**：新增 `kuerp/process/examineinbound`、`kuerp/process/outboundEdit`、`kuerp/process/saveOutbound`（pid=601）；删除旧 `kuerp/process/outbound`、`kuerp/process/cancelOutbound`、`kuerp/process/processIn`（控制器方法已移除）。index 工具栏：原料出库审核/反审核、入库成品审核/反审核、实际出库/入库；四道审核按钮与组装单一致仅手动模式显示（`{if $set['examine']['is_checked']==1}`）；视图 `$auth->check($nowmenu.'/...')` 用小写方法名（大小写不敏感，与 assemble 一致）。JS 列表 `examine_f` 客户端守卫仅在手动模式检查 `outbound_status`/`inbound_examine_status`（自动模式已审核单恒为 outbound_status=2，不能拦）。
+
+**顺带修复的隐患**（序列号/批次功能开启即崩，此前从未暴露）：
+- `fa_kuerp_goods_serial` 表**没有** `process_id` 列 → 统一改写 `order_id`（=kuerp_process_info.id，与 goods_serial_log 的 order_id 一致）；原 examine()反审核 的序列号恢复 where 同样改为 order_id。成品入库序列号 status=15、出库 status=14 不变（现由 saveOutbound 写入）。
+- `fa_kuerp_goods_batch_info` 表没有 `process_info_id` 列 → 迁移文件补 `ALTER TABLE ... ADD COLUMN process_info_id`（对齐 assemble_id/split_id 模式），Process add/edit/del 对该表的写入/删除恢复正常。
+- edit()/del() 调 `examineInbound($ids,2)` 前必须判断 `inbound_examine_status==1`，否则空列表返回 `['status'=>0,'msg'=>'系统错误']` 误拦正常流程。
+
+**已验证**（本地 curl 登录实测，手动+自动两模式）：outboundEdit 未审核拦截、手动审核不动库存、分批出库（库存/成本/收发明细/日志/状态 0→1→2）、入库成品审核门禁（未原料审核拦截 / 未审核时入库输入禁用）、分批入库（新库存行创建、in_number/cost_money 累计）、反审核顺序守卫、超量拦截、del/edit 手动模式拦截、自动模式审核即全部出库 + 反审核恢复库存/重置 out_number + del 级联清理。
 
 ---
 
@@ -492,3 +534,103 @@ kuerp 后台全部原生 `<select>`（约 648 个）转为 bootstrap-select 并�
   盖住相邻「可用库存」列的数字。kuerp.css 已在 `.list .bootstrap-select>.btn` 归零该 margin，勿删。
 - 换新库版本时注意 `$.fn.selectpicker.Constructor.BootstrapVersion = '3'`（与 `require-form.js:105` 一致），
   未设置时插件按 Bootstrap 4 分支渲染会出错。
+
+---
+
+# 销货订单反审核：自动二审订单级联处理
+
+> 涉及文件：`application/admin/controller/kuerp/GoodsSalesOrder.php`（examine() 反审核分支 + cascadeRemoveDocs 等辅助方法）、
+> `public/assets/js/backend/kuerp/goods_sales_order.js`（examine_f 确认弹窗）
+
+## 规则
+
+- **自动二审**（审核时金额未超阈值 `sales_order_examine_money`，系统自动完成二审）的订单：判定条件
+  `second_examine_status==1 && examine_id>0 && examine_id==second_examine_id`，允许审核人**直接反审核**。
+- 若订单已生成销货单/退货单：系统级联对其生成的单据依次执行 **反审核（恢复库存/冲销应收）→ 删除（清除 saleord/saleexc 关联）**，
+  然后订单反审核。级联复用 `GoodsSales::examine($id,2)` / `GoodsSales::del($id)`、`GoodsSalesExchange` 同名方法，
+  其自身安全校验仍然生效：已对单(check_status=1)/已生成收款单/核销单/下游退货单 时中断，整单回滚并提示
+  `销货单[XHDxxx]处理失败：<原因>`。
+- **手动二审**（董事长 `secondExamine`，examine_id≠second_examine_id）的订单维持原限制：已生成销货单/退货单不允许反审核。
+- 全程包在 `Db::startTrans()` 中（依赖 TP5 事务嵌套 savepoint），任何一步失败整体回滚。
+- 操作日志：订单日志记 `反审核（级联反审核并删除：XHDxxx、THDxxx）`，销货单反审核自身会写订单日志 `取消出库`。
+
+## 实现要点
+
+- `runCascadeMethod()`：FastAdmin `success()/error()` 均抛 `HttpResponseException`，解析响应 JSON `code`：
+  1=成功静默，0=转抛普通 `Exception(msg)`；`examine_set` 关闭时控制器以数组返回（`status=0` 同样视为失败）。
+- 跨控制器实例化 `new GoodsSales()` / `new GoodsSalesExchange()` 会触发其 `_initialize()`（依赖当前已登录管理员会话，可用）；
+  `del()` 要求 `isPost()`（`Fast.api.ajax` 为 POST，满足）。
+- 顺带修复：反审核日志此前取不到 `purchase_code`（field 列表缺该字段），已补。
+- 反审核对孤儿数据容错（2026-10-08）：`GoodsSales::examine()` 反审核分支中，单据明细引用的商品档案或
+  `kuerp_goods_stock` 库存行不存在时（商品被删/库存初始化重建），跳过该行库存恢复而非报"系统数据错误"阻断；
+  级联反审核（上一节）因此对历史孤儿单据同样可用。销货单反审核不删 `kuerp_goods_saleord` 关联（仅 `del()` 删），
+  所以"反审核销货单"后销货订单仍显示已生成销货单，须删除销货单（或走销货订单的直接反审核级联）才解除。
+
+---
+
+# 外协订单(process_order)使用BOM模版后 入库成品数量 ↔ 出库原材料数量 联动（2026-10-15）
+
+> 涉及文件：仅 `public/assets/js/backend/kuerp/process_order.js`（纯前端表单联动，后端零改动）
+
+- **填入**：[使用BOM模版] 选中模板后，父件行记 `data-bom-base=父件number`（`kuerp_goods_bom_info.number`，通常为1），每个子件行记 `data-bom-ratio=子件number`（BOM子件数量为**1个父件**所需量，见 `Assemble.php:571` 的 `bom_number×父件数量` 约定），子件初始出库数 = ratio × base（此前固定填 `v.number`，base≠1 的模板会少填，此处顺带修正）。
+- **联动**：修改父件行（`data-bom-base` 存在的行）`.number` 时，所有带 `data-bom-ratio` 的出库行同步为 `ratio × 新父件数量`，并重算该行 `all_money`（单价×新数量）。例：BOM 1A=2b+4c+5d，父件改 5 → 出库变 10/20/25。
+- **解除**：某出库行数量被**手动**修改时移除其 `data-bom-ratio`（程序化赋值不触发 change，不会误解除）——手动微调过的材料行不再被后续父件数量变化覆盖。手动新增的出库行无该属性，天然不参与联动。
+- 仅 add 页有 [使用BOM模版] 按钮（edit.html 无）；处理函数在共用 `bindevent` 中，纯 DOM 属性驱动，无后端/存储依赖。
+
+---
+
+# 商品常用客户标签 + 销货订单选货按客户优先排序（2026-10-15）
+
+> 涉及文件：`addons/kuerp/migration_add_goods_frequent_customers.sql`（新迁移）、
+> `application/admin/controller/kuerp/Goods.php`（index 列表文本 + chosegoods 排序/标记）、
+> `application/admin/view/kuerp/goods/add.html|edit.html`（表单字段）、
+> `public/assets/js/backend/kuerp/goods.js`（列表列 + 选货弹窗）、
+> `public/assets/js/backend/kuerp/goods_sales_order.js`（弹窗/联想传客户）
+
+## 数据与表单
+
+- `fa_kuerp_goods.frequent_customers` varchar(255) 存**逗号分隔客户ID**（刻意不复用 `fa_kuerp_customer_goodscoding`——那是"客户物料编码"，按 goods_code 关联、语义不同）。
+- 商品 add/edit 页「常用客户」字段：selectpage `data-multiple="true" data-source="kuerp/customers/index" data-field="customer_name"`（多选 hidden input 提交/回显逗号串）；位于 `c-manager_warehouse_id` 同一行的右半列。`Goods::add()/edit()` 是无字段过滤的原生 insert/update，新列落库零控制器改动——**列不存在时保存会直接报 Unknown column，迁移必须先执行**。
+- 商品列表（layui）新增「常用客户」列：`Goods::index()` 逐行后处理里把 ID 串转名称（`frequent_customers_text`，已删客户ID降级为空段）。
+
+## 选货优先排序
+
+- `Goods::chosegoods()`（选货弹窗表格 + 销货订单行内联想共用的唯一接口）AJAX 查询：`input('customers_id')` **(int) 强转后 >0** 才加 `orderRaw('FIND_IN_SET(<cid>, frequent_customers) DESC, id ASC')`；未传/空 = 字节级原行为（该接口被 15+ 单据共用，勿无条件改排序）。该查询无 SQL 分页，PHP 内按属性变体展开后 array_slice 分页，故排序全局生效于所有页。
+- 响应行带 `is_frequent` 标记（仅 customers_id>0 时返回，属性变体随父件）；弹窗商品名列据此前置红色 `[常用]`。
+- 仅**销货订单**（goods_sales_order.js）传客户：弹窗 URL 拼 `?customers_id=`（`openCustomersId`，避开回调内已有 `customers_id` 同名 var），行内联想 POST data 加 `customers_id`。**其他单据（购货、销货单、组装等）不传参、排序不变**——若日后要放开，在对应 opener 处照抄传参即可。
+- 弹窗侧 `goods.js chosegoods()` 用正则从 iframe `location.search` 取 `customers_id`，拼进 `table.render` 的 **url 查询串**（仿同文件 chosesale 先例）。勿改成 `where` 注入——layui `table.reload` 会整体替换 where 对象，翻页/搜索后参数就丢了；URL 查询串则由 layui 自动保留。
+- 扫码枪路径（`getGoods` 按条码精确匹配）不涉及排序，未改。
+
+---
+
+# 工序小时看板（process_board，2026-10-16）
+
+> 涉及文件：`addons/kuerp/migration_add_process_board.sql`、`addons/kuerp/migration_add_process_board_chart_rule.sql`、
+> `application/admin/controller/kuerp/ProcessBoard.php`、`application/admin/model/kuerp/ProcessBoard.php`、
+> `application/admin/view/kuerp/process_board/{index,add,edit,chart}.html`、
+> `public/assets/js/backend/kuerp/process_board.js`、`application/admin/lang/zh-cn/kuerp/process_board.php`、
+> `addons/kuerp/Kuerp.php` $menu（数据面板组下新增 kuerp/process_board）
+
+## 结构
+
+- **一天一条看板**：`fa_kuerp_process_board.board_date`（Unix，当天零点）唯一键；add/edit 均做重复日期拦截。
+- 明细 `fa_kuerp_process_board_info` 每小时一行（board_id 关联，edit 删旧插新，del 级联）。
+- 行字段：时段文本 / 目标 / 累计目标 / 组装单号(可空) / 型号(手填) / 一次合格 / 累计合格 / 差异 / 状态 / 不良 / 返工合格 / 备注。
+- 菜单：数据面板 → 工序小时看板（fa_auth_rule pid=86，迁移内用派生表子查询解析 kuerp/process_board 自身 id 作子规则 pid）。
+
+## 计算口径（服务端 buildBoardData 权威计算，前端 JS 同步预览）
+
+- 累计目标逐行累加；累计合格取提交值（留空则=前行累计+本行一次合格）；**差异=累计合格−累计目标（不足为负数）**；**累计合格≥累计目标 → OK，否则 NG**。
+- 日汇总落主表（列表直读）：一次合格=Σ、返工合格=Σ、总合格=两者和、一次不良=Σ、**返工后不良=max(一次不良−返工合格,0)**、
+  一次良率=一次合格/(一次合格+一次不良)、最终良率=总合格/(一次合格+一次不良)（分母0→0）。
+
+## 前端要点
+
+- **时段生成器**：开始/结束整点下拉（默认 8 点–20 点）+ [生成时段]按钮 → 每小时一行（支持跨天如 20→8），有数据时 Layer.confirm 清空重建；行可自由增删/改时段文字（午休折半直接改文本）。**批量设置目标**：旁边 `#batch_target` 输入框 + [批量填充]按钮 → 一键填充所有时段行的目标（有非零目标时 Layer.confirm 覆盖确认），填后 `recalc('keep')` 重算累计目标/差异/状态/汇总。
+- **动态行的组装单号 selectpage**：模板行 input 带 `assemble_code_src` 类（**不带** selectpage 类，避免被 `Form.api.bindevent` 初始化）；克隆成新行后 JS 移除 src 类、加 selectpage 类并手动 `$input.selectPage({eAjaxSuccess...})`。服务端渲染的已有行直接 `class="form-control selectpage" value="{$info.assemble_code}"`（插件自动取 input value 作初值）。数据源 `kuerp/assemble/index`（其 index 已有 keyField→selectpage 转发），`data-primary-key="purchase_code" data-field="purchase_code"`（直接存单号串）。
+- 累计合格数量默认自动级联（改任意行"一次合格"→ full 模式重算该行及之后所有累计），但**可手改**（keep 模式只重算差异/状态/汇总，下次改动"一次合格"时会被级联覆盖，同 Excel 行为）。
+- 模板行各 input 带 `name="row[xxx][]"`（提交时多出一组空值，服务端按"全空行跳过"处理）；只读列（累计目标/差异/状态）**无 name**，服务端重算。
+- **每小时目标/实际对比图只存在于独立大屏页**（2026-10-16 用户明确：add/edit 编辑页不放内嵌图表，`#board_chart` 面板与 process_board.js 的 echarts 依赖/renderChart/图表数据收集已全部移除，JS define 也不再引 'echarts'）。
+- **独立图表大屏页**（2026-10-16）：`ProcessBoard::chart()` + `chart.html`（完全独立 HTML，同 pickingpage 模式，不 include menu），列表行 [图表] 按钮 `Fast.api.open` 95%×92% 打开——**看板背景图/对比图都在这个弹窗页，编辑页没有**。背景=银河实拍图 `public/assets/img/start.jpg`（**fixed 定位 div 层实现**：`.bg-photo`（`position:fixed` + `background-image:url("__CDN__/assets/img/start.jpg") cover`）+ `.bg-veil`（半透明压暗层 `rgba(6,12,35,.45→.66)`）+ 内容 `.board-wrap z-index:1`。**不用** body 多层 background + `background-attachment:fixed`——body 带 `overflow-x:hidden` 时该属性在 iframe 里可能整层不渲染（用户实测"看不到背景图"后重写为 div 层）。另加 JS `new Image()` 预加载 onerror 降级：图 404 时把 .bg-photo 换成 CSS 星点，避免纯色背景）；顶部 8 张毛玻璃参数卡（一次合格/返工合格/总合格/一次良率/最终良率/一次不良/返工后不良/目标合计，日期在标题副行）；下方图表：**目标=金色折线(#ffd04b)、实际合格=柱状**（OK 青绿渐变/NG 红渐变，`echarts.graphic.LinearGradient`，柱色按"该时段一次合格≥目标"——与行上累计口径 OK/NG 不同），全部柱/点带数值标签，echarts 用裸 `<script src="__CDN__/assets/js/echarts.min.js">` 引入（UMD 全局 echarts，**不要写 `{__CDN__}`**——花括号会被 TP 模板引擎吃掉变成空 `src="{}/..."`；裸 `__CDN__` 占位符由 View 输出过滤器 str_replace 替换，`<style>` 块内同样生效）。明细数据经 `{$info_list|json_encode}` 内联为 JS 变量。权限规则 `kuerp/process_board/chart`（`migration_add_process_board_chart_rule.sql`，已同步 Kuerp.php $menu 与 index.html 行按钮 `$auth->check`）。站点 nginx vhost（PhpWebStudy）docroot=public、`view_replace_str.__CDN__`=''，`/assets/img/start.jpg` 已实测 200；浏览器看到旧页面时强刷（Cmd+Shift+R）即可。
+- ⚠️ **模板里不要在 `<?php ?>` 原生块内写含 `{$var}` 的字符串**（如 `echo "<option value='{$h}'>"`）：TP 模板引擎会连 PHP 块内的 `{$h}` 一起编译成 `<?php echo $h; ?>`，输出的 HTML 选项值变成乱码（本次时段下拉框 24 项全废的根因）。整点下拉用控制器 `assign("hourList", range(0,23))` + `{volist}` 渲染。
+- ⚠️ **`{:(...)}` 形式的输出标签不编译**（如 `{:(round($row['x']*100,2))}` 会原样输出到 HTML）：外层多包一层圆括号的 `{:(...)}` TP5 不识别。正确写法去掉外层括号并用点语法取键：`{:round($row.first_pass_yield*100,2)}`（参照 `goods_purchase/summary.html`）。edit.html 汇总面板曾因此带着原样字符串渲染，被 JS recalc 覆盖掩盖；chart.html 无 recalc 才暴露，两处已同改。

@@ -115,8 +115,8 @@
                             </span>
                         </span>
                     </th>
-                    <th>型号</th><th>品号</th><th>功率</th>
-                    <th>{:__('Goods_note')}</th><th class="goods_attr_sd">{:__('Goods_attr')}</th><th>{:__('Goods_unit')}</th><th>{:__('Stores_id')}</th><th>{:__('Allow_stock')}</th>
+                    <th>型号</th>
+                    <th class="goods_attr_sd">{:__('Goods_attr')}</th><th>{:__('Goods_unit')}</th><th>{:__('Allow_stock')}</th>
                     <th class="goods_batch_sd">批次</th><th class="goods_batch_sd">生产日期</th><th class="goods_batch_sd">保质期(天)</th><th class="goods_batch_sd">有效期至</th>
                     <th>{:__('Number')}</th><th>{:__('Default_unit')}</th>
                     <!-- <th>{:__('Basic_nmber')}</th> -->
@@ -125,7 +125,7 @@
                     <th>{:__('Dis_money')}</th> -->
                     <th>{:__('All_money')}</th><th class="goods_tax_sd">{:__('Tax_rate')}</th>
                     <th class="goods_tax_sd">{:__('Tax_money')}</th><th class="goods_tax_sd">{:__('Money_tax_price')}</th>
-                    <th class="hidden">{:__('Purchase_money')}</th><th>{:__('Remark')}</th><th>{:__('Sales_order_id')}</th>
+                    <th class="hidden">{:__('Purchase_money')}</th><th>品号与功率</th><th>生产备注</th><th>{:__('Sales_order_id')}</th>
                 </tr>
 
                 <tr style="display: none;">
@@ -137,10 +137,14 @@
                             <input type="text" class="ipt goods_name">
                         </div>
                     </td>
-                    <td><div><input type="text" class="goods_specification_id" readonly></div></td>
-                    <td><div><input type="text" class="vendor_name" readonly></div></td>
-                    <td><div><input type="text" class="packaging" readonly></div></td>
-                    <td><div><input type="text" name="row[goods_note][]" class="goods_note" readonly></div></td>
+                    <td><div><input type="text" class="goods_specification_id" readonly></div><div data-select-enhance="skip" style="display:none"><select name="row[stores_id][]" class="form-control stores_id">
+                                <option value=""></option>
+                                {foreach name="storesList" item="vo"}
+                                <option value="{$vo.id}">{$vo.name}</option>
+                                {/foreach}
+                            </select></div></td>
+                    
+                    <input type="hidden" name="row[goods_note][]" class="goods_note">
                     <td class="goods_attr_sd">
                         <div>
                             <select name="row[goods_attr][]" class="form-control goods_attr">
@@ -155,16 +159,7 @@
                             </select>
                         </div>
                     </td>
-                    <td>
-                        <div>
-                            <select name="row[stores_id][]" class="form-control stores_id">
-                                <option value=""></option>
-                                {foreach name="storesList" item="vo"}
-                                <option value="{$vo.id}">{$vo.name}</option>
-                                {/foreach}
-                            </select>
-                        </div>
-                    </td>
+                    
                     <td><div><input type="number" name="row[allow_stock][]" class="allow_stock" readonly><input type="hidden" name="row[info_id][]" value=""></div></td>
 
                     <td class="goods_batch_sd">
@@ -195,7 +190,7 @@
                     <td class="goods_tax_sd"><div><input type="number" name="row[tax_money][]" class="tax_money price_decimal"></div></td>
                     <td class="goods_tax_sd"><div><input type="number" name="row[money_tax_price][]" class="money_tax_price price_decimal"></div></td>
                     <td class="hidden"><div><input type="number" name="row[purchase_money][]" class="purchase_money price_decimal"></div></td>
-                    <td><div><input type="text" name="row[remark][]" class="remark"></div></td>
+                    <td><div><input type="text" name="row[remark][]" class="remark"></div></td><td><div><input type="text" name="row[production_remark][]" class="production_remark"></div></td>
                     <td><div><input type="text" name="row[purchase_order_id][]" readonly><input type="hidden" name="row[user_order_info_id][]" value=""></div></td>
                 </tr>
                 {foreach name="purchase_info" item="info" key="k"}
@@ -212,10 +207,14 @@
                             {/foreach}
                         </div>
                     </td>
-                    <td><div><input type="text" class="goods_specification_id" readonly value="{$info.unit.goods.goods_specification_id|default=''}"></div></td>
-                    <td><div><input type="text" class="vendor_name" readonly value="{$info.unit.goods.vendor_name|default=''}"></div></td>
-                    <td><div><input type="text" class="packaging" readonly value="{$info.unit.goods.packaging|default=''}"></div></td>
-                    <td><div><input type="text" name="row[goods_note][]" class="goods_note" value="{$info.goods_note|htmlentities}" readonly></div></td>
+                    <td><div><input type="text" class="goods_specification_id" readonly value="{$info.unit.goods.goods_specification_id|default=''}"></div><div data-select-enhance="skip" style="display:none"><select name="row[stores_id][]" class="form-control stores_id">
+                                <option value=""></option>
+                                {foreach name="storesList" item="vo"}
+                                <option value="{$vo.id}" {if condition="$vo.id==$info.stores_id"}selected{/if}>{$vo.name}</option>
+                                {/foreach}
+                            </select></div></td>
+                    
+                    <input type="hidden" name="row[goods_note][]" class="goods_note" value="{$info.goods_note|htmlentities}">
                     <td class="goods_attr_sd">
                         <div>
                             <select name="row[goods_attr][]" class="form-control goods_attr">
@@ -237,16 +236,7 @@
                             </select>
                         </div>
                     </td>
-                    <td>
-                        <div>
-                            <select name="row[stores_id][]" class="form-control stores_id">
-                                <option value=""></option>
-                                {foreach name="storesList" item="vo"}
-                                <option value="{$vo.id}" {if condition="$vo.id==$info.stores_id"}selected{/if}>{$vo.name}</option>
-                                {/foreach}
-                            </select>
-                        </div>
-                    </td>
+                    
                     <td><div><input type="number" name="row[allow_stock][]" value="{$info.allow_stock|htmlentities}" class="allow_stock" readonly><input type="hidden" name="row[info_id][]" value="{$info.order_info_id|htmlentities}"></div></td>
                     <td class="goods_batch_sd">
                         <div>
@@ -276,7 +266,7 @@
                     <td class="goods_tax_sd"><div><input type="number" name="row[tax_money][]" class="tax_money price_decimal" value="{$info.tax_money|htmlentities}"></div></td>
                     <td class="goods_tax_sd"><div><input type="number" name="row[money_tax_price][]" class="money_tax_price price_decimal" value="{$info.money_tax_price|htmlentities}"></div></td>
                     <td class="hidden"><div><input type="number" name="row[purchase_money][]" class="purchase_money" value="{$info.purchase_money|htmlentities}"></div></td>
-                    <td><div><input type="text" name="row[remark][]" class="remark" value="{$info.remark|htmlentities}"></div></td>
+                    <td><div><input type="text" name="row[remark][]" class="remark" value="{$info.remark|htmlentities}"></div></td><td><div><input type="text" name="row[production_remark][]" class="production_remark" value="{$info.production_remark|htmlentities}"></div></td>
                     <td><div><input type="text" name="row[purchase_order_id][]" readonly value="{$info.purchase_order_id|htmlentities}">
                         <input type="hidden" name="row[user_order_info_id][]" value="{$info.user_order_info_id|default=''}"></div></td>
                 </tr>
@@ -291,10 +281,14 @@
                             <input type="text" class="ipt goods_name">
                         </div>
                     </td>
-                    <td><div><input type="text" class="goods_specification_id" readonly></div></td>
-                    <td><div><input type="text" class="vendor_name" readonly></div></td>
-                    <td><div><input type="text" class="packaging" readonly></div></td>
-                    <td><div><input type="text" name="row[goods_note][]" class="goods_note" readonly></div></td>
+                    <td><div><input type="text" class="goods_specification_id" readonly></div><div data-select-enhance="skip" style="display:none"><select name="row[stores_id][]" class="form-control stores_id">
+                                <option value=""></option>
+                                {foreach name="storesList" item="vo"}
+                                <option value="{$vo.id}">{$vo.name}</option>
+                                {/foreach}
+                            </select></div></td>
+                    
+                    <input type="hidden" name="row[goods_note][]" class="goods_note">
                     <td class="goods_attr_sd">
                         <div>
                             <select name="row[goods_attr][]" class="form-control goods_attr">
@@ -309,16 +303,7 @@
                             </select>
                         </div>
                     </td>
-                    <td>
-                        <div>
-                            <select name="row[stores_id][]" class="form-control stores_id">
-                                <option value=""></option>
-                                {foreach name="storesList" item="vo"}
-                                <option value="{$vo.id}">{$vo.name}</option>
-                                {/foreach}
-                            </select>
-                        </div>
-                    </td>
+                    
                     <td><div><input type="number" name="row[allow_stock][]" class="allow_stock" readonly><input type="hidden" name="row[info_id][]" value=""></div></td>
 
                     <td class="goods_batch_sd">
@@ -348,7 +333,7 @@
                     <td class="goods_tax_sd"><div><input type="number" name="row[tax_money][]" class="tax_money price_decimal"></div></td>
                     <td class="goods_tax_sd"><div><input type="number" name="row[money_tax_price][]" class="money_tax_price price_decimal"></div></td>
                     <td class="hidden"><div><input type="number" name="row[purchase_money][]" class="purchase_money price_decimal"></div></td>
-                    <td><div><input type="text" name="row[remark][]" class="remark"></div></td>
+                    <td><div><input type="text" name="row[remark][]" class="remark"></div></td><td><div><input type="text" name="row[production_remark][]" class="production_remark"></div></td>
                     <td><div><input type="text" name="row[purchase_order_id][]" readonly><input type="hidden" name="row[user_order_info_id][]" value=""></div></td>
                 </tr>
                 {php}}{/php}

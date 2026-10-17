@@ -14,7 +14,7 @@ use think\Session;
  */
 class Assemble extends Backend
 {
-    protected $noNeedRight = ['savetemp', 'outboundedit', 'saveoutbound', 'printpage'];
+    protected $noNeedRight = ['savetemp', 'outboundedit', 'saveoutbound', 'printpage', 'pickingpage'];
     /**
      * Assemble模型对象
      * @var \app\admin\model\kuerp\Assemble
@@ -537,6 +537,18 @@ class Assemble extends Backend
                 $scheduleGoodsUnit = $scheduleInfo ? (int)$scheduleInfo['goods_unit'] : '';
                 $scheduleDefaultUnit = $scheduleInfo ? (int)$scheduleInfo['default_unit'] : '';
                 $scheduleGoodsAttr = $scheduleInfo ? (int)$scheduleInfo['goods_attr'] : '';
+            }
+
+            // BOM半成品排产：半成品不在排期商品行中（排期明细里查不到），
+            // 组装数量与仓库由「计划排期-组装单」按钮通过URL传入（数量为BOM需求量，基本单位）
+            $paramNumber = $this->request->get('number');
+            $paramStoresId = $this->request->get('stores_id');
+            if ($paramNumber !== null && $paramNumber !== '') {
+                $scheduleNumber = (float)$paramNumber;
+                $scheduleBasicNmber = (float)$paramNumber;
+            }
+            if ($paramStoresId !== null && $paramStoresId !== '') {
+                $scheduleStoresId = (int)$paramStoresId;
             }
 
             // 查该商品的BOM模板，计算子件零件
@@ -2179,7 +2191,7 @@ class Assemble extends Backend
         $info_list = Db::name('kuerp_assemble_info')->alias('a')
             ->join('kuerp_goods g', 'g.id=a.goods_id')
             ->where(['a.purchase_code' => $row['purchase_code']])
-            ->field('a.*,g.goods_name')
+            ->field('a.*,g.goods_name,g.goods_specification_id,g.vendor_name,g.packaging')
             ->order('a.type', 'ASC')
             ->select();
         foreach ($info_list as &$v) {
@@ -2975,6 +2987,60 @@ class Assemble extends Backend
         $this->model->where(['id' => $ids])->setInc('print_num');
 
         return $this->view->fetch();
+    }
+
+    //领料单打印页（实际出库/入库弹窗使用，仅子件）
+    public function pickingpage($ids = null)
+    {
+        $row = $this->model->get($ids);
+        if (!$row) {
+            $this->error(__('No Results were found'));
+        }
+        // 制单人
+        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('nickname');
+        // 审核人
+        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('nickname');
+
+        // 子件明细(type=2)
+        $pick_info = Db::name('kuerp_assemble_info')->alias('a')
+            ->join('kuerp_goods g', 'g.id=a.goods_id')
+            ->where(['a.purchase_code' => $row['purchase_code'], 'a.type' => '2'])
+            ->field('a.*,g.goods_name,g.goods_specification_id,g.vendor_name,g.packaging')
+            ->select();
+        foreach ($pick_info as $k => $v) {
+            $pick_info[$k]['stores_name'] = Db::name('kuerp_stores')
+                ->where(['id' => $v['stores_id']])
+                ->value('name');
+            $pick_info[$k]['unit_name'] = Db::name('kuerp_unit')
+                ->where(['id' => $v['goods_unit']])
+                ->value('name');
+            // 属性名称
+            $pick_info[$k]['attr_name'] = '';
+            if (!empty($v['goods_attr'])) {
+                $attribute_id = Db::name('kuerp_goods_attr')
+                    ->where(['id' => $v['goods_attr']])
+                    ->value('attribute_id');
+                if ($attribute_id) {
+                    $attribute_ids = Db::name('kuerp_aux_combination')
+                        ->where(['id' => $attribute_id])
+                        ->value('attr_ids');
+                    if ($attribute_ids) {
+                        $attr_ids_arr = explode('&', $attribute_ids);
+                        $attr_names = Db::name('kuerp_auxiliary')
+                            ->where(['id' => ['in', $attr_ids_arr]])
+                            ->column('name');
+                        $pick_info[$k]['attr_name'] = implode('/', $attr_names);
+                    }
+                }
+            }
+            // 剩余领料数量
+            $pick_info[$k]['remain_number'] = max(0, $v['number'] - $v['out_number']);
+        }
+
+        $this->view->assign("row", $row);
+        $this->view->assign("pick_info", $pick_info);
+
+        return $this->view->fetch('pickingpage');
     }
 
     //保存模板

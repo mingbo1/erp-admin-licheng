@@ -120,6 +120,34 @@
                         </table>
                     </div>
 
+                    <!-- 操作记录 -->
+                    <div class="row" style="padding:10px 15px;">
+                        <div class="col-xs-12">
+                            <div class="form-group" style="margin-bottom:5px;">
+                                <label class="control-label" style="font-weight: bold;">操作记录</label>
+                            </div>
+                            <table class="table table-bordered table-striped" style="margin-bottom:0;">
+                                <tr>
+                                    <th width="160">时间</th>
+                                    <th width="140">操作类型</th>
+                                    <th>备注</th>
+                                    <th width="120">操作人</th>
+                                </tr>
+                                {foreach name="log_list" item="log"}
+                                <tr>
+                                    <td>{$log.createtime|date='Y-m-d H:i:s',###}</td>
+                                    <td>{$log.action}</td>
+                                    <td>{$log.note}</td>
+                                    <td>{$log.admin_name}</td>
+                                </tr>
+                                {/foreach}
+                                {if condition="empty($log_list)"}
+                                <tr><td colspan="4" style="text-align:center;color:#999;">暂无操作记录</td></tr>
+                                {/if}
+                            </table>
+                        </div>
+                    </div>
+
                     <!-- 操作 -->
                     <div class="row" style="padding:10px 15px;">
                         <div class="col-xs-12">

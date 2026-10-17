@@ -183,9 +183,19 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             },'',true);
                             break;
                         case 'examine_f':
-                            Fast.api.ajax("kuerp/goods_sales_order/examine?examine=2&ids="+ids, function () {
-                                $('.btn-refresh').click();
-                            },'',true);
+                            if(data.length<=0){
+                                Toastr.error('请选择要操作的数据');return;
+                            }
+                            Layer.confirm(
+                                '反审核已自动二审的订单时，其生成的销货单/退货单将一并反审核并删除，是否继续？',
+                                {icon: 3, title: 'Warning', shadeClose: true},
+                                function (index) {
+                                    Fast.api.ajax("kuerp/goods_sales_order/examine?examine=2&ids="+ids, function () {
+                                        $('.btn-refresh').click();
+                                    },'',true);
+                                    Layer.close(index);
+                                }
+                            );
                             break;
                         case 'secondExamine':
                             if(data.length<=0){
@@ -728,7 +738,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     var rows = lawtable.rows;//获取所有行
                     var htmlp = rows[1].innerHTML;
                     var html = '';
-                    parent.Fast.api.open("kuerp/Goods/chosegoods", "选择商品",{area:['90%','75%'],callback:function(goodsData){
+                    //带上当前客户，选货弹窗内常用客户商品优先展示
+                    var openCustomersId = $('#customers_id').val() || '';
+                    parent.Fast.api.open("kuerp/Goods/chosegoods" + (openCustomersId ? "?customers_id=" + openCustomersId : ""), "选择商品",{area:['90%','75%'],callback:function(goodsData){
                             if(goodsData!=undefined){
                                 $(goodsData).each(function (k,v) {
                                     if(k>0){
@@ -804,7 +816,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             url: "kuerp/goods/chosegoods",
                             type: "POST",
                             data:{
-                                'goods_name':goods_name
+                                'goods_name':goods_name,
+                                'customers_id':($('#customers_id').val() || 0)
                             },
                             success: function(res){
                                 if(res.total>0){

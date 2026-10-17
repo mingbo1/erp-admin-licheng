@@ -84,6 +84,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                                     return '<input type="checkbox" data-id="'+d.id+'" name="open" lay-skin="switch" lay-filter="switchShow" lay-text="显示|隐藏">'
                                 }
                             }},
+                        {field: 'frequent_customers_text', title: __('Frequent_customers'), minWidth: 150},
                         {field: 'updatetime', title: __('Updatetime'),templet: function (d) {
                                 return layui.util.toDateString(d.updatetime*1000);
                             }},
@@ -437,6 +438,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                 upload = layui.upload;
                 form = layui.form;
 
+                //从弹窗URL取客户ID（销货订单选货时常用客户商品优先，仿chosesale的URL传参方式）
+                var customersId = '';
+                var cm = window.location.search.match(/[?&]customers_id=([^&]*)/);
+                if (cm) { customersId = cm[1]; }
+
                 // 设置全局变量以保存选中行信息(仅需要id的话在你的业务位置调用ids即可，数据格式是int数组)
                 let ids = new Array();
                 // 存储所有选中的数据(需要行内全量数据在你的业务位置调用lists即可，数据格式是对象集合)
@@ -449,7 +455,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
 
                 table.render({
                     elem: '#choseTable'
-                    ,url:'kuerp/goods/choseGoods'
+                    ,url:'kuerp/goods/choseGoods' + (customersId ? '?customers_id=' + customersId : '')
                     ,parseData: function(res){ //res 即为原始返回的数据
                         return {
                             "code": 0, //解析接口状态
@@ -467,8 +473,12 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                         {field: 'goods_code', title: __('Goods_code'), minWidth: 110, hide: true},
                         {field: 'id', title: 'ID', minWidth: 80},
                         {field: 'goods_name', title: __('Goods_name'), minWidth: 220, templet: function (d) {
-                                // 商品名称完整展示，过长换行
-                                return '<div style="white-space:normal;word-break:break-all;line-height:18px;padding:2px 0;" title="' + d.goods_name + '">' + d.goods_name + '</div>';
+                                // 商品名称完整展示，过长换行；带客户参数时常用客户商品加"常用"标识
+                                var name = d.goods_name;
+                                if (customersId && d.is_frequent == 1) {
+                                    name = '<span class="text-danger">[常用]</span> ' + name;
+                                }
+                                return '<div style="white-space:normal;word-break:break-all;line-height:18px;padding:2px 0;" title="' + d.goods_name + '">' + name + '</div>';
                             }},
                         {field: 'goods_specification_id', title: '型号', minWidth: 110},
                         {field: 'vendor_name', title: '规格2/厂商', minWidth: 120},

@@ -27,10 +27,15 @@
         }
         .no-print { text-align: center; margin-bottom: 20px; }
         .no-print button { padding: 8px 30px; font-size: 16px; cursor: pointer; }
+        .print-field-option { display: inline-block; margin-right: 20px; font-size: 15px; cursor: pointer; vertical-align: middle; }
+        .print-field-option input { vertical-align: middle; margin-right: 4px; }
     </style>
 </head>
 <body>
 <div class="no-print">
+    <label class="print-field-option" {if condition="!isset($row['real_money']) || $row['real_money']<=0"}style="display:none"{/if}><input type="checkbox" class="print-field-toggle" data-target="summary-total" checked> {:__('Total_amount')}</label>
+    <label class="print-field-option" {if condition="!isset($row['pay_money']) || $row['pay_money']<=0"}style="display:none"{/if}><input type="checkbox" class="print-field-toggle" data-target="summary-pay" checked> {:__('Pay_amount')}</label>
+    <label class="print-field-option" {if condition="!isset($row['arrears']) || $row['arrears']<=0"}style="display:none"{/if}><input type="checkbox" class="print-field-toggle" data-target="summary-arrears" checked> {:__('Arrears_amount')}</label>
     <button onclick="window.print()">🖨 {:__('Print')}</button>
 </div>
 
@@ -44,10 +49,6 @@
         <div class="item"><strong>{:__('Purchase_type')}：</strong>{if condition="$row.purchase_type==1"}销货{else/}退货{/if}</div>
         <div class="item"><strong>{:__('Sale_user_name')}：</strong>{$row.sale_user_name|htmlentities}</div>
         <div class="item"><strong>{:__('Receiving_address')}：</strong>{$row.receiving_address|htmlentities}</div>
-        <div class="item"><strong>{:__('Preparation_name')}：</strong>{$row.preparation_name|htmlentities}</div>
-        <div class="item"><strong>{:__('Examine_name')}：</strong>{$row.examine_name|htmlentities}</div>
-        <div class="item"><strong>{:__('Examine_status')}：</strong>{if condition="$row.examine_status==1"}已审核{else/}未审核{/if}</div>
-        <div class="item"><strong>{:__('Check_status')}：</strong>{if condition="$row.check_status==1"}已对单{else/}未对单{/if}</div>
     </div>
 
     <table class="goods-table">
@@ -56,14 +57,12 @@
                 <th>序号</th>
                 <th>{:__('Goods_code')}</th>
                 <th>{:__('Goods_name')}</th>
-                <th>型号</th><th>品号</th><th>功率</th>
-                <th>{:__('Goods_note')}</th>
+                <th>型号</th>
                 <th>{:__('Unit_name')}</th>
-                <th>{:__('Stores_name')}</th>
                 <th>{:__('Number')}</th>
                 <th>{:__('Unit_price')}</th>
                 <th>{:__('All_money')}</th>
-                <th>{:__('Remark')}</th>
+                <th>品号与功率</th>
             </tr>
         </thead>
         <tbody>
@@ -75,11 +74,7 @@
                 <td>{$info.goods_code|htmlentities}</td>
                 <td class="left">{$info.goods_name|htmlentities}</td>
                 <td>{$info.goods_specification_id|htmlentities}</td>
-                <td>{$info.vendor_name|htmlentities}</td>
-                <td>{$info.packaging|htmlentities}</td>
-                <td class="left">{$info.goods_note|htmlentities}</td>
                 <td>{$info.unit_name|htmlentities}</td>
-                <td>{$info.stores_name|htmlentities}</td>
                 <td class="right">{$info.number|htmlentities}</td>
                 <td class="right">{$info.unit_price|htmlentities}</td>
                 <td class="right">{$info.all_money|htmlentities}</td>
@@ -87,12 +82,12 @@
             </tr>
             {/foreach}
             {if condition="empty($purchase_info)"}
-            <tr><td colspan="13">无明细数据</td></tr>
+            <tr><td colspan="9">无明细数据</td></tr>
             {/if}
         </tbody>
         <tfoot>
             <tr>
-                <th colspan="9">合计</th>
+                <th colspan="5">合计</th>
                 <th class="right">{$total_number}</th>
                 <th></th>
                 <th class="right">{$total_money}</th>
@@ -103,13 +98,13 @@
 
     <div class="summary-row">
         {if condition="isset($row['real_money']) && $row['real_money']>0"}
-        <span>{:__('Total_amount')}：<strong>￥{$row.real_money|htmlentities}</strong></span>
+        <span id="summary-total">{:__('Total_amount')}：<strong>￥{$row.real_money|htmlentities}</strong></span>
         {/if}
         {if condition="isset($row['pay_money']) && $row['pay_money']>0"}
-        <span>{:__('Pay_amount')}：<strong>￥{$row.pay_money|htmlentities}</strong></span>
+        <span id="summary-pay">{:__('Pay_amount')}：<strong>￥{$row.pay_money|htmlentities}</strong></span>
         {/if}
         {if condition="isset($row['arrears']) && $row['arrears']>0"}
-        <span>{:__('Arrears_amount')}：<strong>￥{$row.arrears|htmlentities}</strong></span>
+        <span id="summary-arrears">{:__('Arrears_amount')}：<strong>￥{$row.arrears|htmlentities}</strong></span>
         {/if}
     </div>
 
@@ -125,11 +120,16 @@
 </div>
 
 <script>
-    window.onload = function() {
-        setTimeout(function() {
-            window.print();
-        }, 500);
-    };
+    // 勾选/取消勾选 → 显示/隐藏对应字段（不勾选打印即不显示）
+    var toggles = document.querySelectorAll('.print-field-toggle');
+    for (var i = 0; i < toggles.length; i++) {
+        toggles[i].addEventListener('change', function() {
+            var target = document.getElementById(this.getAttribute('data-target'));
+            if (target) {
+                target.style.display = this.checked ? '' : 'none';
+            }
+        });
+    }
 </script>
 </body>
 </html>

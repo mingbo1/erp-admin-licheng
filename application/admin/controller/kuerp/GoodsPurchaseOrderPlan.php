@@ -259,21 +259,37 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
                 if ($setData) $numberDecimal = (int)$setData;
 
                 $partMap = [];
+                $noBomMap = []; // 无BOM模板的排期商品（成品/半成品整件采购）：自身缺货检测
                 foreach ($scheduleInfo as $info) {
                     $goodsCode = $info['goods_code'];
                     $basicNmber = (float)$info['basic_nmber'];
                     $storesId = (int)$info['stores_id'];
 
-                    $goodsId = Db::name('kuerp_goods')->where(['goods_code' => $goodsCode])->value('id');
-                    if (!$goodsId) continue;
+                    $goods = Db::name('kuerp_goods')->where(['goods_code' => $goodsCode])->field('id, goods_name, unit_id')->find();
+                    if (empty($goods)) continue;
+                    $goodsId = $goods['id'];
 
                     $bomList = Db::name('kuerp_goods_bom')->where(['goods_id' => $goodsId])->select();
-                    if (empty($bomList)) continue;
+                    if (empty($bomList)) {
+                        // 无BOM则无法组装，只能整件采购：记录自身需求，后面按库存缺口生成采购明细
+                        if (!isset($noBomMap[$goodsId])) {
+                            $noBomMap[$goodsId] = [
+                                'goods_code' => $goodsCode,
+                                'goods_name' => $goods['goods_name'],
+                                'number' => 0,
+                                'stores_id' => $storesId,
+                                'unit_id' => $goods['unit_id'],
+                            ];
+                        }
+                        $noBomMap[$goodsId]['number'] += $basicNmber;
+                        continue;
+                    }
 
                     foreach ($bomList as $bom) {
+                        // 子件检测扩展到零件+半成品+成品
                         $children = Db::name('kuerp_goods_bom_info')->alias('a')
                             ->join('kuerp_goods g', 'g.id=a.goods_id')
-                            ->where(['a.bom_id' => $bom['id'], 'a.type' => '2', 'g.product_type' => 'part'])
+                            ->where(['a.bom_id' => $bom['id'], 'a.type' => '2', 'g.product_type' => ['in', ['part', 'semi_finished', 'finished']]])
                             ->field('a.goods_id, a.goods_code, a.number as bom_number, g.goods_name, g.unit_id')
                             ->select();
 
@@ -324,7 +340,7 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
                     }
                 }
 
-                $partGoodsCodes = array_column($partMap, 'goods_code');
+                $partGoodsCodes = array_unique(array_merge(array_column($partMap, 'goods_code'), array_column($noBomMap, 'goods_code')));
                 $goodsSupplierMap = [];
                 if (!empty($partGoodsCodes)) {
                     $goodsData = Db::name('kuerp_goods')
@@ -369,6 +385,36 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
                         'unit_id' => $p['unit_id'],
                         'supplyer_code' => isset($goodsSupplierMap[$p['goods_code']]) ? $goodsSupplierMap[$p['goods_code']] : '',
                     ];
+                }
+
+                // 无BOM模板的排期商品：自身库存缺口（全部仓库合计）生成整件采购明细
+                if (!empty($noBomMap)) {
+                    $noBomIds = array_keys($noBomMap);
+                    $selfStockData = Db::name('kuerp_goods_stock')
+                        ->where(['goods_id' => ['in', $noBomIds]])
+                        ->field('goods_id, stock')
+                        ->select();
+                    $selfStockMap = [];
+                    foreach ($selfStockData as $sd) {
+                        $sgid = $sd['goods_id'];
+                        if (!isset($selfStockMap[$sgid])) $selfStockMap[$sgid] = 0;
+                        $selfStockMap[$sgid] += (float)$sd['stock'];
+                    }
+                    foreach ($noBomMap as $gid => $p) {
+                        $totalStock = isset($selfStockMap[$gid]) ? $selfStockMap[$gid] : 0;
+                        $shortage = round($p['number'], $numberDecimal) - round($totalStock, $numberDecimal);
+                        if ($shortage <= 0) {
+                            continue; // 现有库存已满足需求，不生成采购明细
+                        }
+                        $scheduleBomGoods[] = [
+                            'goods_code' => $p['goods_code'],
+                            'goods_name' => $p['goods_name'],
+                            'number' => round($shortage, $numberDecimal),
+                            'stores_id' => $p['stores_id'],
+                            'unit_id' => $p['unit_id'],
+                            'supplyer_code' => isset($goodsSupplierMap[$p['goods_code']]) ? $goodsSupplierMap[$p['goods_code']] : '',
+                        ];
+                    }
                 }
 
                 if (!empty($salesOrderCode)) {

@@ -8,13 +8,13 @@ use think\Db;
 use Exception;
 use think\Session;
 /**
- * 销货排期
+ * 计划排期（原销货排期）
  *
  * @icon fa fa-calendar
  */
 class GoodsSalesSchedule extends Backend
 {
-    protected $noNeedRight = ['getunit','formatinfo','getbranch','gettime','printpage','getschedulegoods','counter','examine','getbomrequirement','lockgoods','unlockgoods','getlockstatus','getCustomerSaleUser'];
+    protected $noNeedRight = ['getunit','formatinfo','getbranch','gettime','printpage','getschedulegoods','counter','examine','getbomrequirement','lockgoods','unlockgoods','getlockstatus','getCustomerSaleUser','setproduction','export'];
     /**
      * GoodsSalesSchedule模型对象
      * @var \app\admin\model\kuerp\GoodsSalesSchedule
@@ -198,6 +198,7 @@ class GoodsSalesSchedule extends Backend
                             'default_unit'      =>  (float)$params['default_unit'][$k],
                             'basic_nmber'       =>  (float)$params['basic_nmber'][$k],
                             'remark'            =>  $params['remark'][$k],
+                            'production_remark' =>  isset($params['production_remark'][$k]) ? $params['production_remark'][$k] : '',
 
                             'goods_attr'        =>  (float)$params['goods_attr'][$k],
 
@@ -364,6 +365,7 @@ class GoodsSalesSchedule extends Backend
                             'default_unit'      =>  (float)$params['default_unit'][$k],
                             'basic_nmber'       =>  (float)$params['basic_nmber'][$k],
                             'remark'            =>  $params['remark'][$k],
+                            'production_remark' =>  isset($params['production_remark'][$k]) ? $params['production_remark'][$k] : '',
 
                             'goods_attr'        =>  (float)$params['goods_attr'][$k],
 
@@ -701,6 +703,7 @@ class GoodsSalesSchedule extends Backend
                 'default_unit' => $v['default_unit'],
                 'basic_nmber'  => $v['basic_nmber'],
                 'remark'       => $v['remark'],
+                'production_remark' => isset($v['production_remark']) ? $v['production_remark'] : '',
             ];
         }
 
@@ -744,12 +747,14 @@ class GoodsSalesSchedule extends Backend
                 'default_unit' => $v['default_unit'],
                 'basic_nmber'  => $v['basic_nmber'],
                 'remark'       => $v['remark'],
+                'production_remark' => isset($v['production_remark']) ? $v['production_remark'] : '',
             ];
         }
         return $goods_list;
     }
 
     // 打印销货排期详情
+    // 打印生产排期单（计划排期详情）
     public function printpage($ids = null)
     {
         $row = $this->model->get($ids);
@@ -761,10 +766,28 @@ class GoodsSalesSchedule extends Backend
         $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('nickname');
         $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('nickname');
 
+        // 关联销货订单的备注（订单备注）与交货时间
+        $row['order_note'] = '';
+        $row['order_delivery_time'] = 0;
+        if (!empty($row['purchase_order_id'])) {
+            $order = Db::name('kuerp_goods_sales_order')
+                ->where(['purchase_code' => $row['purchase_order_id']])
+                ->field('note,delivery_time')
+                ->find();
+            if ($order) {
+                $row['order_note'] = $order['note'] ? $order['note'] : '';
+                $row['order_delivery_time'] = $order['delivery_time'] ? $order['delivery_time'] : 0;
+            }
+        }
+        if (empty($row['delivery_time']) && !empty($row['order_delivery_time'])) {
+            $row['delivery_time'] = $row['order_delivery_time'];
+        }
+
         $purchase_info = Db::name('kuerp_goods_sales_info')->where(['purchase_code' => $row['purchase_code']])->select();
         foreach ($purchase_info as $k => $v) {
-            $purchase_info[$k]['goods_name'] = Db::name('kuerp_goods')->where(['goods_code' => $v['goods_code']])->value('goods_name');
-            $purchase_info[$k]['goods_note'] = Db::name('kuerp_goods')->where(['goods_code' => $v['goods_code']])->value('note');
+            $goods = Db::name('kuerp_goods')->where(['goods_code' => $v['goods_code']])->field('goods_name,goods_specification_id')->find();
+            $purchase_info[$k]['goods_name'] = $goods ? $goods['goods_name'] : '';
+            $purchase_info[$k]['goods_specification_id'] = $goods ? $goods['goods_specification_id'] : '';
             $purchase_info[$k]['stores_name'] = Db::name('kuerp_stores')->where(['id' => $v['stores_id']])->value('name');
             $purchase_info[$k]['unit_name'] = Db::name('kuerp_unit')->where(['id' => $v['goods_unit']])->value('name');
         }
@@ -819,6 +842,137 @@ class GoodsSalesSchedule extends Backend
                 $this->error('反对单失败');
             }
         }
+    }
+
+    /**
+     * 排产/取消排产（勾选的排期打上是否已排产标记）
+     */
+    public function setproduction($ids = null, $status = 1)
+    {
+        if (empty($ids)) {
+            $ids = $this->request->post("ids");
+        }
+        if (empty($ids)) {
+            $this->error('请选择要操作的数据');
+        }
+        $status = $status == 1 ? '1' : '0';
+        $admin = Session::get('admin');
+        $result = $this->model->where(['id' => ['in', $ids]])->update([
+            'production_status' => $status,
+            'operation_id'      => $admin['id'],
+            'updatetime'        => time(),
+        ]);
+        if ($result !== false) {
+            $this->success(($status == 1 ? '排产' : '取消排产') . '成功');
+        }
+        $this->error('操作失败');
+    }
+
+    /**
+     * 导出勾选的计划排期（Excel，含商品明细行）
+     * POST: ids=1,2,3
+     */
+    public function export()
+    {
+        $ids = $this->request->post('ids');
+        $idArr = array_filter(is_array($ids) ? $ids : explode(',', (string)$ids));
+        if (empty($idArr)) {
+            $this->error('请选择要导出的数据');
+        }
+        $list = $this->model->where(['id' => ['in', $idArr]])->order('purchase_time', 'DESC')->order('purchase_code', 'DESC')->select();
+        if (empty($list)) {
+            $this->error('未找到可导出的数据');
+        }
+
+        $numberDecimal = 2;
+        $setData = Db::name('kuerp_sets')->where(['name' => 'number_decimal'])->value('value');
+        if ($setData !== null && $setData !== '') {
+            $numberDecimal = (int)$setData;
+        }
+
+        // 批量查询关联的销货订单备注
+        $orderCodes = [];
+        foreach ($list as $row) {
+            if (!empty($row['purchase_order_id'])) {
+                $orderCodes[] = $row['purchase_order_id'];
+            }
+        }
+        $orderNoteMap = [];
+        if (!empty($orderCodes)) {
+            $orderNoteMap = Db::name('kuerp_goods_sales_order')
+                ->where(['purchase_code' => ['in', array_unique($orderCodes)]])
+                ->column('note', 'purchase_code');
+        }
+
+        $rows = [];
+        $seq = 0;
+        foreach ($list as $row) {
+            $seq++;
+            $customerName  = Db::name('kuerp_customers')->where(['id' => $row['customers_id']])->value('customer_name');
+            $saleUserName  = Db::name('kuerp_staff_member')->where(['id' => $row['sale_user']])->value('name');
+            $preparationName = Db::name('admin')->where(['id' => $row['preparation_id']])->value('nickname');
+            $orderNote     = isset($orderNoteMap[$row['purchase_order_id']]) ? $orderNoteMap[$row['purchase_order_id']] : '';
+
+            $infoList = Db::name('kuerp_goods_sales_info')->where(['purchase_code' => $row['purchase_code']])->select();
+            if (empty($infoList)) {
+                $infoList = [[]];
+            }
+            foreach ($infoList as $info) {
+                $goodsName = $unitName = '';
+                $goodsSpec = '';
+                if (!empty($info)) {
+                    $goods = Db::name('kuerp_goods')->where(['goods_code' => $info['goods_code']])->field('goods_name,goods_specification_id')->find();
+                    $goodsName = $goods ? $goods['goods_name'] : '';
+                    $goodsSpec = $goods ? $goods['goods_specification_id'] : '';
+                    $unitName = Db::name('kuerp_unit')->where(['id' => $info['goods_unit']])->value('name');
+                }
+                $rows[] = [
+                    'seq'              => $seq,
+                    'purchase_code'    => $row['purchase_code'],
+                    'purchase_time'    => $row['purchase_time'] ? date('Y-m-d', $row['purchase_time']) : '',
+                    'delivery_time'    => $row['delivery_time'] ? date('Y-m-d', $row['delivery_time']) : '',
+                    'customer_name'    => $customerName ? $customerName : '',
+                    'sale_user_name'   => $saleUserName ? $saleUserName : '',
+                    'order_code'       => $row['purchase_order_id'],
+                    'order_note'       => $orderNote,
+                    'production_text'  => $row['production_status'] == 1 ? '已排产' : '未排产',
+                    'goods_code'       => isset($info['goods_code']) ? $info['goods_code'] : '',
+                    'goods_name'       => $goodsName,
+                    'goods_spec'       => $goodsSpec,
+                    'unit_name'        => $unitName ? $unitName : '',
+                    'number'           => isset($info['number']) ? round((float)$info['number'], $numberDecimal) : '',
+                    'remark'           => isset($info['remark']) ? $info['remark'] : '',
+                    'production_remark'=> (isset($info['production_remark']) && !is_null($info['production_remark'])) ? $info['production_remark'] : '',
+                    'preparation_name' => $preparationName ? $preparationName : '',
+                ];
+            }
+        }
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle("计划排期");
+        $widths = [6, 20, 12, 12, 18, 10, 20, 24, 10, 16, 30, 12, 8, 10, 18, 20, 10];
+        foreach ($widths as $colK => $w) {
+            $sheet->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colK + 1))->setWidth($w);
+        }
+        $headers = ['序号', '计划排期单号', '单据日期', '交货时间', '客户', '销售员', '销货订单号', '订单备注', '是否排产', '商品编号', '商品名称', '型号', '单位', '数量', '品号与功率', '生产备注', '制单人'];
+        foreach ($headers as $hK => $h) {
+            $sheet->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($hK + 1) . '1')->setValue($h);
+        }
+        foreach ($rows as $rK => $val) {
+            $rowNum = $rK + 2;
+            $fields = ['seq','purchase_code','purchase_time','delivery_time','customer_name','sale_user_name','order_code','order_note','production_text','goods_code','goods_name','goods_spec','unit_name','number','remark','production_remark','preparation_name'];
+            foreach ($fields as $fK => $f) {
+                $sheet->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($fK + 1) . $rowNum)->setValue($val[$f]);
+            }
+        }
+        $title = "计划排期" . date("YmdHis");
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="' . $title . '.xlsx"');
+        header('Cache-Control: max-age=0');
+        $writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xlsx');
+        $writer->save('php://output');
+        exit;
     }
 
     /**
@@ -1031,7 +1185,7 @@ class GoodsSalesSchedule extends Backend
                         'a.type' => '2',
                         'g.product_type' => ['in', ['part', 'semi_finished']],
                     ])
-                    ->field('a.goods_id, a.goods_code, a.number as bom_number, g.goods_name, g.unit_id')
+                    ->field('a.goods_id, a.goods_code, a.number as bom_number, g.goods_name, g.unit_id, g.product_type')
                     ->select();
 
                 foreach ($children as $child) {
@@ -1048,6 +1202,7 @@ class GoodsSalesSchedule extends Backend
                             'goods_code' => $child['goods_code'],
                             'goods_name' => $child['goods_name'],
                             'unit_id' => $child['unit_id'],
+                            'product_type' => $child['product_type'],
                             'required_total' => 0,
                             'stores' => [],
                         ];
@@ -1208,6 +1363,7 @@ class GoodsSalesSchedule extends Backend
                 'goods_id'      => $goodsId,
                 'goods_code'    => $part['goods_code'],
                 'goods_name'    => $part['goods_name'],
+                'product_type'  => $part['product_type'],
                 'required_total'=> round($part['required_total'], $numberDecimal),
                 'total_stock'   => round($totalStock, $numberDecimal),
                 'total_diff'    => round($totalDiff, $numberDecimal),

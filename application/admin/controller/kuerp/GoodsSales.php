@@ -326,6 +326,7 @@ class GoodsSales extends Backend
                             'dis_money'         =>  (float)$params['dis_money'][$k],
                             'all_money'         =>  (float)$params['all_money'][$k],
                             'remark'            =>  $params['remark'][$k],
+                            'production_remark' =>  isset($params['production_remark'][$k]) ? $params['production_remark'][$k] : '',
 
                             'goods_attr'        =>  (float)$params['goods_attr'][$k],
                             'tax_included'      =>  (float)$params['tax_included'][$k],
@@ -624,6 +625,7 @@ class GoodsSales extends Backend
                         'dis_money' => 0,
                         'purchase_money' => 0,
                         'remark' => $v['remark'],
+                        'production_remark' => isset($v['production_remark']) ? $v['production_remark'] : '',
                         'purchase_code' => '',
                         'order_info_id' => 0,
                     ];
@@ -839,6 +841,7 @@ class GoodsSales extends Backend
                             'dis_money'         =>  (float)$params['dis_money'][$k],
                             'all_money'         =>  (float)$params['all_money'][$k],
                             'remark'            =>  $params['remark'][$k],
+                            'production_remark' =>  isset($params['production_remark'][$k]) ? $params['production_remark'][$k] : '',
 
                             'goods_attr'        =>  (float)$params['goods_attr'][$k],
                             'tax_included'      =>  (float)$params['tax_included'][$k],
@@ -2073,6 +2076,24 @@ class GoodsSales extends Backend
                 $info_list[$list_k]['updatetime']        = time();
                 $stock_number = $list_v['basic_nmber'];
                 $goods = Db::name('kuerp_goods')->where(['goods_code'=>$list_v['goods_code']])->field('id,attribute_id,inventory,goods_name')->find();
+                //商品库存
+                $where = [];
+                $where['goods_code'] = $list_v['goods_code'];
+                $where['stores_id'] = $list_v['stores_id'];
+                if($list_v['goods_attr']>0){
+                    $goods_attr = $list_v['goods_attr'];
+                    if($goods_attr>0){
+                        $where['attribute_id'] = $goods_attr;
+                    }
+                }
+                $stock = Db::name('kuerp_goods_stock')->where($where)->field('stock,id')->find();
+                if(empty($goods) || empty($stock)){
+                    //商品档案或对应仓库的库存行已不存在（如商品被删/库存初始化重建）：
+                    //审核、出库时同样找不到该行不会产生过扣减，库存本就无可恢复数据，
+                    //跳过该行的库存调整，不再报"系统数据错误"阻断反审核
+                    $purchase_info[] = $list_v['id'];
+                    continue;
+                }
                 $status = false;
                 foreach ($goods_stock as $goods_stock_k=>$goods_stock_v){
                     if($goods_stock_v['id']==$goods['id']){
@@ -2086,36 +2107,18 @@ class GoodsSales extends Backend
                         'inventory'=>$goods['inventory']+$stock_number,
                     ];
                 }
-                //商品库存
-                $where = [];
-                $where['goods_code'] = $list_v['goods_code'];
-                $where['stores_id'] = $list_v['stores_id'];
-                if($list_v['goods_attr']>0){
-                    $goods_attr = $list_v['goods_attr'];
-                    if($goods_attr>0){
-                        $where['attribute_id'] = $goods_attr;
+                $status = false;
+                foreach ($editstock as $editstock_k=>$editstock_v){
+                    if($editstock_v['id']==$stock['id']){
+                        $editstock[$editstock_k]['stock'] += $stock_number;
+                        $status = true;
                     }
                 }
-                $stock = Db::name('kuerp_goods_stock')->where($where)->field('stock,id')->find();
-                if($stock){
-                    $status = false;
-                    foreach ($editstock as $editstock_k=>$editstock_v){
-                        if($editstock_v['id']==$stock['id']){
-                            $editstock[$editstock_k]['stock'] += $stock_number;
-                            $status = true;
-                        }
-                    }
-                    if(!$status){
-                        $editstock[] = [
-                            'id'=>$stock['id'],
-                            'stock'=>(round($stock['stock']+$stock_number,2))
-                        ];
-                    }
-                }else{
-                    if($examine_set!=1){
-                        return ['status'=>0,'msg'=>'系统数据错误，操作失败'];
-                    }
-                    $this->error('系统数据错误,反审核失败');
+                if(!$status){
+                    $editstock[] = [
+                        'id'=>$stock['id'],
+                        'stock'=>(round($stock['stock']+$stock_number,2))
+                    ];
                 }
                 $purchase_info[] = $list_v['id'];
             }
@@ -3027,11 +3030,9 @@ class GoodsSales extends Backend
         // 销货单详情
         $purchase_info = Db::name('kuerp_goods_sales_info')->where(['purchase_code' => $row['purchase_code']])->select();
         foreach ($purchase_info as $k => $v) {
-            $goods = Db::name('kuerp_goods')->where(['goods_code' => $v['goods_code']])->field('goods_name,goods_specification_id,vendor_name,packaging')->find();
+            $goods = Db::name('kuerp_goods')->where(['goods_code' => $v['goods_code']])->field('goods_name,goods_specification_id')->find();
             $purchase_info[$k]['goods_name'] = isset($goods['goods_name']) ? $goods['goods_name'] : '';
             $purchase_info[$k]['goods_specification_id'] = isset($goods['goods_specification_id']) ? $goods['goods_specification_id'] : '';
-            $purchase_info[$k]['vendor_name'] = isset($goods['vendor_name']) ? $goods['vendor_name'] : '';
-            $purchase_info[$k]['packaging'] = isset($goods['packaging']) ? $goods['packaging'] : '';
             $purchase_info[$k]['stores_name'] = Db::name('kuerp_stores')->where(['id' => $v['stores_id']])->value('name');
             $purchase_info[$k]['unit_name'] = Db::name('kuerp_unit')->where(['id' => $v['goods_unit']])->value('name');
         }

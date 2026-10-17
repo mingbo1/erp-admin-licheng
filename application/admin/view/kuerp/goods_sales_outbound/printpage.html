@@ -53,12 +53,11 @@
                 <th>序号</th>
                 <th>{:__('Goods_code')}</th>
                 <th>{:__('Goods_name')}</th>
-                <th>{:__('Goods_note')}</th>
                 <th>{:__('Unit_name')}</th>
                 <th>库位</th>
                 <th>总数量</th>
                 <th>出库数量</th>
-                <th>{:__('Remark')}</th>
+                <th>品号与功率</th>
             </tr>
         </thead>
         <tbody>
@@ -69,7 +68,6 @@
                 <td>{$k+1}</td>
                 <td>{$info.goods_code|htmlentities}</td>
                 <td class="left">{$info.goods_name|htmlentities}</td>
-                <td class="left">{$info.goods_note|htmlentities}</td>
                 <td>{$info.unit_name|htmlentities}</td>
                 <td>{$info.location_name|default=''}</td>
                 <td class="right">{$info.number|htmlentities}</td>
@@ -78,12 +76,12 @@
             </tr>
             {/foreach}
             {if condition="empty($purchase_info)"}
-            <tr><td colspan="9">无明细数据</td></tr>
+            <tr><td colspan="8">无明细数据</td></tr>
             {/if}
         </tbody>
         <tfoot>
             <tr>
-                <th colspan="6">合计</th>
+                <th colspan="5">合计</th>
                 <th class="right">{$total_number}</th>
                 <th class="right">{$total_out}</th>
                 <th></th>

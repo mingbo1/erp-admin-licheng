@@ -821,6 +821,7 @@ class Goods extends Backend
                 ->order($sort, $order)
                 ->paginate($limit);
 
+            $customerMap = Db::name('kuerp_customers')->column('customer_name', 'id');
             foreach ($list as $list_k=>$list_v){
                 $list_v->goods_image = $list_v->goods_image ? cdnurl($list_v->goods_image, true) : '';
                 $unit = Db::name('kuerp_unit')->where(['id'=>$list_v['unit_id']])->field('id,name')->find();
@@ -847,6 +848,18 @@ class Goods extends Backend
                 if(empty($unit)){
                     $list[$list_k]['unit'] = ['name'=>''];
                 }
+                //常用客户ID串转名称
+                $frequentNames = '';
+                if (!empty($list_v['frequent_customers'])) {
+                    $names = [];
+                    foreach (explode(',', $list_v['frequent_customers']) as $cid) {
+                        if ($cid && isset($customerMap[$cid])) {
+                            $names[] = $customerMap[$cid];
+                        }
+                    }
+                    $frequentNames = implode('，', $names);
+                }
+                $list[$list_k]['frequent_customers_text'] = $frequentNames;
             }
             foreach ($list as $row) {
                 $row->getRelation('goodstype')->visible(['supplier_type_name']);
@@ -2475,7 +2488,15 @@ class Goods extends Backend
                 $where['goods_code|goods_name|goods_barcode'] = ['like','%'.$data['goods_name'].'%'];
             }
             $where['status'] = '1';
-            $goods = Db::name('kuerp_goods')->where($where)->select();
+            //常用客户优先：带 customers_id 时，"常用客户"含该客户的商品排前，其余保持 id 升序（其余单据不传参则完全维持原行为）
+            $customersId = isset($data['customers_id']) ? (int)$data['customers_id'] : 0;
+            if ($customersId > 0) {
+                $goods = Db::name('kuerp_goods')->where($where)
+                    ->orderRaw('FIND_IN_SET(' . $customersId . ', frequent_customers) DESC, id ASC')
+                    ->select();
+            } else {
+                $goods = Db::name('kuerp_goods')->where($where)->select();
+            }
             $auxiliary = Db::name('kuerp_sets')->where(['name'=>'auxiliary'])->value('is_checked');
 
             // ===== 批量预查询：收集所有需要的ID =====
@@ -2626,6 +2647,12 @@ class Goods extends Backend
                 // 库位（完整层级名）
                 $lid = $list_v['location_id'];
                 $list[$list_k]['goods_location'] = isset($locationMap[$lid]) ? $locationMap[$lid] : ['id' => '', 'name' => ''];
+
+                //常用客户标记（仅带 customers_id 时返回，供选货弹窗显示"常用"标识）
+                if ($customersId > 0) {
+                    $fc = !empty($list_v['frequent_customers']) ? array_map('intval', explode(',', $list_v['frequent_customers'])) : [];
+                    $list[$list_k]['is_frequent'] = in_array($customersId, $fc) ? 1 : 0;
+                }
             }
 
             // 批量查询物理库存和锁定数量（仅对基础商品，不包括属性变体）

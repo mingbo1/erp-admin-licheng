@@ -6,6 +6,7 @@
     <div class="panel panel-default">
         <div class="panel-heading">
             <b>实际出库/入库</b>
+            <button type="button" class="btn btn-success btn-sm pull-right" onclick="printPicking()"><i class="fa fa-print"></i> 打印领料单</button>
         </div>
         <div class="panel-body">
             <!-- 组装单基本信息 -->
@@ -62,6 +63,9 @@
                     <tr>
                         <th>商品编号</th>
                         <th>商品名称</th>
+                        <th>型号</th>
+                        <th>规格2/厂商</th>
+                        <th>规格3/封装</th>
                         <th class="goods_attr_sd">属性</th>
                         <th>单位</th>
                         <th>仓库</th>
@@ -74,6 +78,9 @@
                     <tr>
                         <td>{$item.goods_code}</td>
                         <td>{$item.goods_name} {$item.attr_name}</td>
+                        <td>{$item.goods_specification_id}</td>
+                        <td>{$item.vendor_name}</td>
+                        <td>{$item.packaging}</td>
                         <td class="goods_attr_sd">{$item.attr_name}</td>
                         <td>{$item.unit_name}</td>
                         <td>{$item.stores_name}</td>
@@ -94,7 +101,7 @@
                     </tr>
                     {/foreach}
                     {if condition="empty($out_items)"}
-                    <tr><td colspan="9" style="text-align:center;color:#999;">暂无子件数据</td></tr>
+                    <tr><td colspan="12" style="text-align:center;color:#999;">暂无子件数据</td></tr>
                     {/if}
                 </table>
             </div>
@@ -117,6 +124,9 @@
                     <tr>
                         <th>商品编号</th>
                         <th>商品名称</th>
+                        <th>型号</th>
+                        <th>规格2/厂商</th>
+                        <th>规格3/封装</th>
                         <th class="goods_attr_sd">属性</th>
                         <th>单位</th>
                         <th>仓库</th>
@@ -129,6 +139,9 @@
                     <tr>
                         <td>{$item.goods_code}</td>
                         <td>{$item.goods_name} {$item.attr_name}</td>
+                        <td>{$item.goods_specification_id}</td>
+                        <td>{$item.vendor_name}</td>
+                        <td>{$item.packaging}</td>
                         <td class="goods_attr_sd">{$item.attr_name}</td>
                         <td>{$item.unit_name}</td>
                         <td>{$item.stores_name}</td>
@@ -149,7 +162,7 @@
                     </tr>
                     {/foreach}
                     {if condition="empty($in_items)"}
-                    <tr><td colspan="9" style="text-align:center;color:#999;">暂无组合件数据</td></tr>
+                    <tr><td colspan="12" style="text-align:center;color:#999;">暂无组合件数据</td></tr>
                     {/if}
                 </table>
             </div>
@@ -168,3 +181,12 @@
         </div>
     </div>
 </form>
+<script>
+    // 打印领料单（子件领料）
+    function printPicking() {
+        var ids = document.getElementById('assemble_id').value;
+        Fast.api.open('kuerp/assemble/pickingpage?ids=' + ids, '打印领料单', {
+            area: ['90%', '75%']
+        });
+    }
+</script>

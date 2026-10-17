@@ -1,0 +1,147 @@
+{include file="kuerp/common/menu" /}
+<form id="edit-form" class="form-horizontal process_board_form" role="form" data-toggle="validator" method="POST" action="">
+
+    <div class="row">
+        <div class="col-xs-12 col-sm-4 col-md-4 col-lg-4">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4"><span class="must">*</span> {:__('Board_date')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-board_date" class="form-control" data-use-current="true" data-rule="required" name="row[board_date]" type="text" value="{$row.board_date|date='Y-m-d',###}" placeholder="{:__('Board_date')}">
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-8 col-md-8 col-lg-8">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-2">{:__('Note')}:</label>
+                <div class="col-xs-12 col-sm-10">
+                    <input id="c-note" class="form-control" name="row[note]" type="text" value="{$row.note|htmlentities}" placeholder="{:__('Note')}">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 当日汇总(只读, 随下面时段数据实时刷新) -->
+    <div class="panel panel-default" id="board_summary" style="margin-bottom:10px;">
+        <div class="panel-heading">{:__('Board_summary')}</div>
+        <div class="panel-body" style="padding:8px 15px;">
+            <div class="row">
+                <div class="col-xs-6 col-sm-3" style="margin-bottom:4px;">{:__('Total_target')}： <b class="sum_total_target" style="color:#333;">{:$row['total_target']+0}</b></div>
+                <div class="col-xs-6 col-sm-3" style="margin-bottom:4px;">{:__('First_pass_total')}： <b class="sum_first_pass_total" style="color:green;">{:$row['first_pass_total']+0}</b></div>
+                <div class="col-xs-6 col-sm-3" style="margin-bottom:4px;">{:__('Rework_total')}： <b class="sum_rework_total" style="color:#e6a23c;">{:$row['rework_total']+0}</b></div>
+                <div class="col-xs-6 col-sm-3" style="margin-bottom:4px;">{:__('Qualified_total')}： <b class="sum_qualified_total" style="color:green;">{:$row['qualified_total']+0}</b></div>
+                <div class="col-xs-6 col-sm-3" style="margin-bottom:4px;">{:__('First_pass_defect')}： <b class="sum_first_pass_defect" style="color:red;">{:$row['first_pass_defect']+0}</b></div>
+                <div class="col-xs-6 col-sm-3" style="margin-bottom:4px;">{:__('Rework_defect')}： <b class="sum_rework_defect" style="color:red;">{:$row['rework_defect']+0}</b></div>
+                <div class="col-xs-6 col-sm-3" style="margin-bottom:4px;">{:__('First_pass_yield')}： <b class="sum_first_pass_yield" style="color:#409eff;">{:round($row.first_pass_yield*100,2)}%</b></div>
+                <div class="col-xs-6 col-sm-3" style="margin-bottom:4px;">{:__('Final_yield')}： <b class="sum_final_yield" style="color:#409eff;">{:round($row.final_yield*100,2)}%</b></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 时段设置 -->
+    <div class="row" style="margin-bottom:5px;">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-2" style="text-align:left;">时段设置:</label>
+                <div class="col-xs-12 col-sm-10" style="line-height:33px;">
+                    每天 <select id="gen_start" style="width:70px;height:30px;">
+                        {volist name="hourList" id="h"}
+                        <option value="{$h}" {if condition="$h == 8"}selected{/if}>{$h}:00</option>
+                        {/volist}
+                    </select> 点
+                    至 <select id="gen_end" style="width:70px;height:30px;">
+                        {volist name="hourList" id="h"}
+                        <option value="{$h}" {if condition="$h == 20"}selected{/if}>{$h}:00</option>
+                        {/volist}
+                    </select> 点
+                    ，每小时一个时段
+                    <button type="button" class="btn btn-success btn-sm" id="btn_gen_range"><i class="fa fa-magic"></i> {:__('Generate_time_range')}</button>
+                    　批量设置目标 <input id="batch_target" type="number" min="0" style="width:100px;height:30px;" placeholder="目标数量">
+                    <button type="button" class="btn btn-warning btn-sm" id="btn_batch_target"><i class="fa fa-th-large"></i> 批量填充</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="list" style="overflow-x: auto">
+        <table id="board_table">
+            <tr>
+                <th>选择</th>
+                <th><span class="must">*</span> {:__('Time_range')}</th>
+                <th>{:__('Target')}</th>
+                <th>{:__('Cumulative_target')}</th>
+                <th>{:__('Assemble_code')}</th>
+                <th>{:__('Model')}</th>
+                <th>{:__('First_pass_qty')}</th>
+                <th>{:__('Cumulative_qty')}</th>
+                <th>{:__('Variance')}</th>
+                <th>{:__('Status')}</th>
+                <th>{:__('Defect_qty')}</th>
+                <th>{:__('Rework_qty')}</th>
+                <th>{:__('Remark')}</th>
+            </tr>
+            {foreach name="info_list" item="info" key="k"}
+            <tr>
+                <td><div class="btn"><span class="add"><i class="fa fa-plus"></i></span><span class="del"><i class="fa fa-trash"></i></span></div></td>
+                <td><div><input type="text" name="row[time_range][]" class="time_range" value="{$info.time_range|htmlentities}" style="width:110px;"></div></td>
+                <td><div><input type="number" name="row[target][]" class="target" value="{$info['target']+0}" style="width:90px;"></div></td>
+                <td><div><input type="text" class="cum_target" readonly tabindex="-1" value="{$info['cumulative_target']+0}" style="width:90px;background:#f5f5f5;"></div></td>
+                <td>
+                    <div>
+                        <input type="text" name="row[assemble_code][]" class="form-control selectpage" data-source="kuerp/assemble/index" data-field="purchase_code" data-primary-key="purchase_code" value="{$info.assemble_code|htmlentities}" style="width:170px;" placeholder="组装单号(可不填)">
+                    </div>
+                </td>
+                <td><div><input type="text" name="row[model][]" class="model" value="{$info.model|htmlentities}" style="width:130px;"></div></td>
+                <td><div><input type="number" name="row[first_pass_qty][]" class="first_pass_qty" value="{$info['first_pass_qty']+0}" style="width:100px;"></div></td>
+                <td><div><input type="number" name="row[cumulative_qty][]" class="cumulative_qty" value="{$info['cumulative_qty']+0}" style="width:100px;"></div></td>
+                <td><div><input type="text" class="variance" readonly tabindex="-1" value="{$info['variance']+0}" style="width:80px;background:#f5f5f5;"></div></td>
+                <td><div style="width:60px;text-align:center;"><span class="status_span" style="{if condition="$info['status']=='NG'"}color:red;{else}color:green;{/if}">{$info.status}</span></div></td>
+                <td><div><input type="number" name="row[defect_qty][]" class="defect_qty" value="{$info['defect_qty']+0}" style="width:90px;"></div></td>
+                <td><div><input type="number" name="row[rework_qty][]" class="rework_qty" value="{$info['rework_qty']+0}" style="width:90px;"></div></td>
+                <td><div><input type="text" name="row[remark][]" class="remark" value="{$info.remark|htmlentities}" style="width:160px;"></div></td>
+            </tr>
+            {/foreach}
+            <!-- 模板行（隐藏），用于动态添加时段 -->
+            <tr style="display: none" class="row_template">
+                <td><div class="btn"><span class="add"><i class="fa fa-plus"></i></span><span class="del"><i class="fa fa-trash"></i></span></div></td>
+                <td><div><input type="text" name="row[time_range][]" class="time_range" value="" style="width:110px;" placeholder="8:00-9:00"></div></td>
+                <td><div><input type="number" name="row[target][]" class="target" value="" style="width:90px;"></div></td>
+                <td><div><input type="text" class="cum_target" readonly tabindex="-1" value="" style="width:90px;background:#f5f5f5;"></div></td>
+                <td>
+                    <div>
+                        <input type="text" name="row[assemble_code][]" class="form-control assemble_code_src" data-source="kuerp/assemble/index" data-field="purchase_code" data-primary-key="purchase_code" value="" style="width:170px;" placeholder="组装单号(可不填)">
+                    </div>
+                </td>
+                <td><div><input type="text" name="row[model][]" class="model" value="" style="width:130px;" placeholder="型号"></div></td>
+                <td><div><input type="number" name="row[first_pass_qty][]" class="first_pass_qty" value="" style="width:100px;"></div></td>
+                <td><div><input type="number" name="row[cumulative_qty][]" class="cumulative_qty" value="" style="width:100px;"></div></td>
+                <td><div><input type="text" class="variance" readonly tabindex="-1" value="" style="width:80px;background:#f5f5f5;"></div></td>
+                <td><div style="width:60px;text-align:center;"><span class="status_span"></span></div></td>
+                <td><div><input type="number" name="row[defect_qty][]" class="defect_qty" value="" style="width:90px;"></div></td>
+                <td><div><input type="number" name="row[rework_qty][]" class="rework_qty" value="" style="width:90px;"></div></td>
+                <td><div><input type="text" name="row[remark][]" class="remark" value="" style="width:160px;"></div></td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="row" style="margin-top: 5px">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-12" style="text-align: left; color: #999;">
+                    累计目标/累计合格/差异/状态自动计算：差异=累计合格-累计目标(不足为负数)，状态 OK=达标或超量(绿色)/NG=未达标(红色)
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-2"></label>
+                <div class="col-xs-12 col-sm-8">
+                    <button type="submit" class="btn btn-success btn-embossed"><i class="fa fa-check"></i> {:__('Submit')}</button>
+                    <button type="reset" class="btn btn-default btn-embossed"><i class="fa fa-undo"></i> {:__('Reset')}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>

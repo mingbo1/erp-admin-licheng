@@ -1,0 +1,339 @@
+{include file="kuerp/common/menu" /}
+<form id="outbound-form" class="form-horizontal" role="form" data-toggle="validator" method="POST" action="{:url('kuerp/process/saveOutbound')}">
+
+    <input type="hidden" id="process_id" name="ids" value="{$row.id}">
+
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <b>实际出库/入库</b>
+            <button type="button" class="btn btn-default btn-xs pull-right" data-toggle="collapse" data-target="#history_panel" aria-expanded="false"><i class="fa fa-history"></i> 出入库记录</button>
+        </div>
+        <div id="history_panel" class="panel-collapse collapse">
+            <div class="panel-body" style="background:#fafafa;border-bottom:1px solid #eee;padding-top:10px;padding-bottom:10px;">
+                <table class="table table-bordered table-striped" style="margin-bottom:0;">
+                    <tr>
+                        <th>时间</th>
+                        <th>类型</th>
+                        <th>商品编号</th>
+                        <th>商品名称</th>
+                        <th>型号</th>
+                        <th>规格2/厂商</th>
+                        <th>规格3/封装</th>
+                        <th>仓库</th>
+                        <th>数量</th>
+                        <th>单价</th>
+                        <th>金额</th>
+                        <th>操作人</th>
+                    </tr>
+                    {foreach name="log_list" item="log"}
+                    <tr>
+                        <td>{$log.createtime|date='Y-m-d H:i',###}</td>
+                        <td>{if condition="$log.is_out"}<span style="color:#f60">出库</span>{else /}<span style="color:green">入库</span>{/if}</td>
+                        <td>{$log.goods_code}</td>
+                        <td>{$log.goods_name}</td>
+                        <td>{$log.goods_specification_id}</td>
+                        <td>{$log.vendor_name}</td>
+                        <td>{$log.packaging}</td>
+                        <td>{$log.stores_name}</td>
+                        <td>{if condition="$log.is_out"}{$log.out_number|htmlentities}{else /}{$log.enter_number|htmlentities}{/if}</td>
+                        <td>{if condition="$log.is_out"}{$log.out_unit|htmlentities}{else /}{$log.enter_unit|htmlentities}{/if}</td>
+                        <td>{if condition="$log.is_out"}{$log.out_cost|htmlentities}{else /}{$log.enter_cost|htmlentities}{/if}</td>
+                        <td>{$log.admin_name}</td>
+                    </tr>
+                    {/foreach}
+                    {if condition="empty($log_list)"}
+                    <tr><td colspan="12" style="text-align:center;color:#999;">暂无出入库记录</td></tr>
+                    {/if}
+                </table>
+            </div>
+        </div>
+        <div class="panel-body">
+            <!-- 加工单基本信息 -->
+            <div class="row">
+                <div class="col-xs-12 col-sm-3">
+                    <div class="form-group">
+                        <label class="control-label col-xs-4">加工单号:</label>
+                        <div class="col-xs-8">
+                            <p class="form-control-static"><b>{$row.process_code}</b></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xs-12 col-sm-3">
+                    <div class="form-group">
+                        <label class="control-label col-xs-4">加工商:</label>
+                        <div class="col-xs-8">
+                            <p class="form-control-static">{$supplier_name}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xs-12 col-sm-3">
+                    <div class="form-group">
+                        <label class="control-label col-xs-4">加工日期:</label>
+                        <div class="col-xs-8">
+                            <p class="form-control-static">{$row.process_time|date='Y-m-d',###}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xs-12 col-sm-3">
+                    <div class="form-group">
+                        <label class="control-label col-xs-4">出库状态:</label>
+                        <div class="col-xs-8">
+                            <p class="form-control-static">
+                                {if condition="$row.outbound_status==0"}<span style="color:#999">未出库</span>{/if}
+                                {if condition="$row.outbound_status==1"}<span style="color:orange">部分出库</span>{/if}
+                                {if condition="$row.outbound_status==2"}<span style="color:green">全部出库</span>{/if}
+                                &nbsp;|&nbsp;
+                                入库状态:
+                                {if condition="$row.in_status==0"}<span style="color:#999">未入库</span>{/if}
+                                {if condition="$row.in_status==1"}<span style="color:orange">部分入库</span>{/if}
+                                {if condition="$row.in_status==2"}<span style="color:green">全部入库</span>{/if}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr>
+
+            <!-- 原材料出库（type=1） -->
+            <div class="row">
+                <div class="col-xs-12">
+                    <div class="form-group">
+                        <label class="control-label" style="font-weight: bold;">原材料出库 (本次出库数量)：</label>
+                        {if condition="$row.inbound_examine_status==0"}
+                        <span style="color:#f60;margin-left:10px;">提示：入库成品尚未审核，可先填写出库数量</span>
+                        {/if}
+                    </div>
+                </div>
+            </div>
+            <div class="list" style="overflow-x: auto">
+                <table id="out_table" class="table table-bordered">
+                    <tr>
+                        <th>商品编号</th>
+                        <th>商品名称</th>
+                        <th>型号</th>
+                        <th>规格2/厂商</th>
+                        <th>规格3/封装</th>
+                        <th class="goods_attr_sd">属性</th>
+                        <th>单位</th>
+                        <th>仓库</th>
+                        <th>计划数量</th>
+                        <th>已出库数量</th>
+                        <th>本次出库数量</th>
+                    </tr>
+                    {foreach name="out_items" item="item"}
+                    <tr>
+                        <td>{$item.goods_code}</td>
+                        <td>{$item.goods_name}</td>
+                        <td>{$item.goods_specification_id}</td>
+                        <td>{$item.vendor_name}</td>
+                        <td>{$item.packaging}</td>
+                        <td class="goods_attr_sd">{$item.attr_name}</td>
+                        <td>{$item.unit_name}</td>
+                        <td>{$item.stores_name}</td>
+                        <td>{$item.number|htmlentities}</td>
+                        <td>{$item.out_number|default=0|htmlentities}</td>
+                        <td>
+                            {if condition="$item.out_number < $item.number"}
+                            <input type="number" name="out_data[{$item.id}]" class="form-control out_number_ipt number_decimal" value="{$item.number - $item.out_number}" min="0" max="{$item.number - $item.out_number}" step="0.0001" placeholder="本次出库数量">
+                            {else}
+                            <span style="color:green">已全部出库</span>
+                            {/if}
+                        </td>
+                    </tr>
+                    {/foreach}
+                    {if condition="empty($out_items)"}
+                    <tr><td colspan="11" style="text-align:center;color:#999;">暂无原材料数据</td></tr>
+                    {/if}
+                </table>
+            </div>
+
+            <hr>
+
+            <!-- 成品入库（type=2） -->
+            <div class="row">
+                <div class="col-xs-12">
+                    <div class="form-group">
+                        <label class="control-label" style="font-weight: bold;">成品入库 (本次入库数量)：</label>
+                        {if condition="$row.inbound_examine_status==0"}
+                        <span style="color:red;margin-left:10px;">⚠ 请先进行"入库成品审核"后，才可填写实际入库数量（操作顺序：先原料出库审核 → 再入库成品审核）</span>
+                        {/if}
+                    </div>
+                </div>
+            </div>
+            <div class="list" style="overflow-x: auto">
+                <table id="in_table" class="table table-bordered">
+                    <tr>
+                        <th>商品编号</th>
+                        <th>商品名称</th>
+                        <th>型号</th>
+                        <th>规格2/厂商</th>
+                        <th>规格3/封装</th>
+                        <th class="goods_attr_sd">属性</th>
+                        <th>单位</th>
+                        <th>仓库</th>
+                        <th>计划数量</th>
+                        <th>已入库数量</th>
+                        <th>本次入库数量</th>
+                        <th>入库成本</th>
+                        <th class="goods_batch_sd">批次</th>
+                        <th class="goods_batch_sd">生产日期</th>
+                        <th class="goods_batch_sd">保质期(天)</th>
+                        <th class="goods_batch_sd">有效期至</th>
+                    </tr>
+                    {foreach name="in_items" item="item"}
+                    <tr>
+                        <td>{$item.goods_code}</td>
+                        <td>{$item.goods_name}</td>
+                        <td>{$item.goods_specification_id}</td>
+                        <td>{$item.vendor_name}</td>
+                        <td>{$item.packaging}</td>
+                        <td class="goods_attr_sd">{$item.attr_name}</td>
+                        <td>{$item.unit_name}</td>
+                        <td>
+                            {if condition="$row.inbound_examine_status==1"}
+                            <select name="in_data[{$item.id}][stores_id]" class="form-control" data-live-search="false">
+                                {foreach name="storesList" item="stores"}
+                                <option value="{$stores.id}" {if condition="$stores.id == $item.stores_id"}selected{/if}>{$stores.name}</option>
+                                {/foreach}
+                            </select>
+                            {else /}
+                            {$item.stores_name}
+                            {/if}
+                        </td>
+                        <td>{$item.number|htmlentities}</td>
+                        <td>{$item.in_number|default=0|htmlentities}</td>
+                        <td>
+                            {if condition="$row.inbound_examine_status==1"}
+                                {if condition="$item.in_number < $item.number"}
+                                <input type="number" name="in_data[{$item.id}][in_number]" class="form-control in_number_ipt number_decimal" value="{$item.number - $item.in_number}" min="0" max="{$item.number - $item.in_number}" step="0.0001" placeholder="本次入库数量">
+                                {else}
+                                <span style="color:green">已全部入库</span>
+                                {/if}
+                            {else}
+                            <span style="color:#999">等待入库成品审核</span>
+                            {/if}
+                        </td>
+                        <td>
+                            {if condition="$row.inbound_examine_status==1 && $item.in_number < $item.number"}
+                            <input type="number" name="in_data[{$item.id}][unit_cost]" class="form-control price_decimal" value="{$item.unit_cost|default=0}" min="0" step="0.0001" placeholder="入库单价">
+                            {else /}
+                            {$item.unit_cost|default=0}
+                            {/if}
+                        </td>
+                        <td class="goods_batch_sd">
+                            {if condition="$row.inbound_examine_status==1 && $item.in_number < $item.number"}
+                            <input type="text" name="batch_data[{$item.id}][batch]" class="form-control" value="{$item.batch}" placeholder="批次">
+                            {else /}
+                            {$item.batch}
+                            {/if}
+                        </td>
+                        <td class="goods_batch_sd">
+                            {if condition="$row.inbound_examine_status==1 && $item.in_number < $item.number"}
+                            <input type="text" name="batch_data[{$item.id}][manufacture]" class="form-control manufacture" value="" placeholder="生产日期">
+                            {else /}
+                            -
+                            {/if}
+                        </td>
+                        <td class="goods_batch_sd">
+                            {if condition="$row.inbound_examine_status==1 && $item.in_number < $item.number"}
+                            <input type="number" name="batch_data[{$item.id}][guarantee]" class="form-control guarantee" value="" min="0" placeholder="天数">
+                            {else /}
+                            -
+                            {/if}
+                        </td>
+                        <td class="goods_batch_sd">
+                            {if condition="$row.inbound_examine_status==1 && $item.in_number < $item.number"}
+                            <input type="text" name="batch_data[{$item.id}][validity]" class="form-control validity" value="" placeholder="有效期至">
+                            {else /}
+                            -
+                            {/if}
+                        </td>
+                    </tr>
+                    {/foreach}
+                    {if condition="empty($in_items)"}
+                    <tr><td colspan="16" style="text-align:center;color:#999;">暂无成品数据</td></tr>
+                    {/if}
+                </table>
+            </div>
+
+            {if condition="$row.inbound_examine_status==1"}
+            <hr>
+
+            <!-- 加工费结算（可选） -->
+            <div class="row">
+                <div class="col-xs-12">
+                    <div class="form-group">
+                        <label class="control-label" style="font-weight: bold;">加工费结算 (可选)：</label>
+                        <span style="color:#999;margin-left:10px;">金额大于0时，保存后将生成费用支出记录并从结算账户扣款</span>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-xs-12 col-sm-3">
+                    <div class="form-group">
+                        <label class="control-label col-xs-4">加工费金额:</label>
+                        <div class="col-xs-8">
+                            <input type="number" name="fee_data[total_process_fee]" class="form-control price_decimal" value="0" min="0" step="0.01" placeholder="本次结算金额">
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xs-12 col-sm-3">
+                    <div class="form-group">
+                        <label class="control-label col-xs-4">结算账户:</label>
+                        <div class="col-xs-8">
+                            <select name="fee_data[account_id]" class="form-control" data-live-search="false">
+                                <option value="">请选择结算账户</option>
+                                {foreach name="accountsList" item="vo"}
+                                <option value="{$vo.id}" {if condition="$vo.is_default==1"}selected{/if}>{$vo.account_name}</option>
+                                {/foreach}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xs-12 col-sm-3">
+                    <div class="form-group">
+                        <label class="control-label col-xs-4">支出类别:</label>
+                        <div class="col-xs-8">
+                            <select name="fee_data[expend_type_id]" class="form-control" data-live-search="false">
+                                <option value="">请选择支出类别</option>
+                                {foreach name="expendTypeList" item="vo"}
+                                <option value="{$vo.id}">{$vo.name}</option>
+                                {/foreach}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xs-12 col-sm-3">
+                    <div class="form-group">
+                        <label class="control-label col-xs-4">费用日期:</label>
+                        <div class="col-xs-8">
+                            <input type="text" name="fee_data[fee_time]" class="form-control fee_time" value="{:date('Y-m-d')}" placeholder="费用日期" readonly>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xs-12 col-sm-9">
+                    <div class="form-group">
+                        <label class="control-label col-xs-4 col-sm-2">备注:</label>
+                        <div class="col-xs-8 col-sm-10">
+                            <input type="text" name="fee_data[remark]" class="form-control" value="" placeholder="备注(选填)">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {/if}
+        </div>
+    </div>
+
+    <div class="row" style="margin-top: 15px">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-2"></label>
+                <div class="col-xs-12 col-sm-8">
+                    <button type="submit" class="btn btn-success btn-embossed"><i class="fa fa-check"></i> 确认出库/入库</button>
+                    <button type="button" class="btn btn-default btn-embossed" onclick="parent.Layer.closeAll();"><i class="fa fa-close"></i> 取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>

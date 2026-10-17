@@ -616,9 +616,27 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     // ===== 出库: 数量change → 重算金额（后台计算，隐藏域保存） =====
                     $(document).on("change", "#out_table .number", function () {
                         var obj = $(this).parents('tr');
+                        // 手动修改过出库数量的行解除BOM联动（后续改入库数量不再覆盖）
+                        obj.removeAttr('data-bom-ratio');
                         var unit_price = parseFloat(obj.find('.unit_price').val()) || 0;
                         var number = parseFloat($(this).val()) || 0;
                         obj.find('.all_money').val((unit_price * number).toFixed(price_decimal));
+                    });
+
+                    // ===== BOM联动: 修改入库成品数量 → 出库原材料按BOM比例同步 =====
+                    $(document).on("change", "#in_table .number", function () {
+                        var parentRow = $(this).parents('tr');
+                        // 仅对使用BOM模版填入的父件行生效
+                        if (parentRow.attr('data-bom-base') === undefined) { return; }
+                        var parentNumber = parseFloat($(this).val()) || 0;
+                        $("#out_table tr[data-bom-ratio]").each(function () {
+                            var ratio = parseFloat($(this).attr('data-bom-ratio'));
+                            if (isNaN(ratio)) { return; }
+                            var newNumber = ratio * parentNumber;
+                            $(this).find('.number').val(newNumber.toFixed(number_decimal));
+                            var unit_price = parseFloat($(this).find('.unit_price').val()) || 0;
+                            $(this).find('.all_money').val((unit_price * newNumber).toFixed(price_decimal));
+                        });
                     });
 
                     // ===== 核心: changeGoods (出库/入库通用) =====
@@ -786,6 +804,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                         if (res.code == 1) {
                                             var parent = res.data.parent;
                                             var children = res.data.children;
+                                            // BOM基准数量(父件数量): 子件number为1个父件所需量, 出库数=子件number×父件数量
+                                            var bomBase = parseFloat(parent.number) || 1;
 
                                             // 入库成品（父件）→ in_table
                                             var inTable = $('#in_table');
@@ -796,7 +816,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                             inTable.append(parentRow);
                                             parentRow.find('.goods_code').val(parent.goods_code);
                                             parentRow.find('.goods_name').val(parent.goods_code + ' ' + parent.goods_name);
-                                            changeGoods(parent.goods_code, parent.manager_warehouse_id > 0 ? parent.manager_warehouse_id : '', '', parentRow, parent.unit_id > 0 ? parent.unit_id : '', parent.number, 'in');
+                                            parentRow.attr('data-bom-base', bomBase);
+                                            changeGoods(parent.goods_code, parent.manager_warehouse_id > 0 ? parent.manager_warehouse_id : '', '', parentRow, parent.unit_id > 0 ? parent.unit_id : '', bomBase, 'in');
 
                                             // 出库原材料（子件）→ out_table
                                             var outTable = $('#out_table');
@@ -808,7 +829,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                                 outTable.append(newRow);
                                                 newRow.find('.goods_code').val(v.goods_code);
                                                 newRow.find('.goods_names').val(v.goods_code + ' ' + v.goods_name);
-                                                changeGoods(v.goods_code, v.manager_warehouse_id > 0 ? v.manager_warehouse_id : '', '', newRow, v.unit_id > 0 ? v.unit_id : '', v.number, 'out');
+                                                var ratio = parseFloat(v.number) || 0;
+                                                newRow.attr('data-bom-ratio', ratio);
+                                                changeGoods(v.goods_code, v.manager_warehouse_id > 0 ? v.manager_warehouse_id : '', '', newRow, v.unit_id > 0 ? v.unit_id : '', ratio * bomBase, 'out');
                                             });
 
                                             // 重新绑定日期选择器

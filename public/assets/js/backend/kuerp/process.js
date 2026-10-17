@@ -44,10 +44,15 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 if (d.examine_status == 0) return '<span style="color:red">' + __('Examine_status 0') + '</span>';
                                 return '<span style="color:green">' + __('Examine_status 1') + '</span>';
                             }, hide: hideStatus },
-                        
+
+                        { field: 'inbound_examine_status', title: __('Inbound_examine_status'), templet: function (d) {
+                                if (d.inbound_examine_status == 0) return '<span style="color:red">' + __('Inbound_examine_status 0') + '</span>';
+                                return '<span style="color:green">' + __('Inbound_examine_status 1') + '</span>';
+                            }, hide: hideStatus },
                         { field: 'outbound_status', title: __('Outbound_status'), templet: function (d) {
                                 if (d.outbound_status == 0) return '<span style="color:red">' + __('Outbound_status 0') + '</span>';
-                                return '<span style="color:green">' + __('Outbound_status 1') + '</span>';
+                                if (d.outbound_status == 1) return '<span style="color:orange">' + __('Outbound_status 1') + '</span>';
+                                return '<span style="color:green">' + __('Outbound_status 2') + '</span>';
                             }},
                         { field: 'in_status', title: __('In_status'), templet: function (d) {
                                 if (d.in_status == 0) return '<span style="color:#999">' + __('In_status 0') + '</span>';
@@ -73,12 +78,56 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     $(data).each(function (k, v) { ids += v.id + ','; });
                     switch (obj.event) {
                         case 'refresh': table.reload('table', []); break;
-                        case 'outbound':
-                            if (data.length <= 0) { Toastr.error('请选择要出库的数据'); return; }
-                            Fast.api.ajax("kuerp/process/outbound?ids=" + ids, function () { $('.btn-refresh').click(); }, '', true); break;
-                        case 'cancelOutbound':
-                            if (data.length <= 0) { Toastr.error('请选择要取消出库的数据'); return; }
-                            Fast.api.ajax("kuerp/process/cancelOutbound?ids=" + ids, function () { $('.btn-refresh').click(); }, '', true); break;
+                        case 'examine':
+                            if (data.length <= 0) { Toastr.error('请选择要审核的数据'); return; }
+                            for (var i = 0; i < data.length; i++) {
+                                if (data[i].examine_status == 1) { Toastr.error('存在已审核数据，请选择未审核的加工单'); return; }
+                            }
+                            Layer.confirm('确认对选中的 ' + data.length + ' 条加工单进行原料出库审核？', { icon: 3, title: '提示' }, function (index) {
+                                Layer.close(index);
+                                Fast.api.ajax("kuerp/process/examine?examine=1&ids=" + ids, function () { $('.btn-refresh').click(); }, '', true);
+                            }); break;
+                        case 'examine_f':
+                            if (data.length <= 0) { Toastr.error('请选择要反审核的数据'); return; }
+                            for (var i = 0; i < data.length; i++) {
+                                if (data[i].examine_status == 0) { Toastr.error('存在未审核数据，请选择已审核的加工单'); return; }
+                                // 手动审核模式才限制实际出库/入库审核状态 (自动模式反审核会自动恢复库存)
+                                if (examine == 1) {
+                                    if (data[i].inbound_examine_status == 1) { Toastr.error('存在已入库成品审核的加工单，请先反审核入库成品'); return; }
+                                    if (data[i].outbound_status != 0) { Toastr.error('存在已有出库记录的加工单，不可反审核'); return; }
+                                }
+                            }
+                            Layer.confirm('确认对选中的 ' + data.length + ' 条加工单进行原料出库反审核？', { icon: 3, title: '提示' }, function (index) {
+                                Layer.close(index);
+                                Fast.api.ajax("kuerp/process/examine?examine=2&ids=" + ids, function () { $('.btn-refresh').click(); }, '', true);
+                            }); break;
+                        case 'examineInbound':
+                            if (data.length <= 0) { Toastr.error('请选择要审核的数据'); return; }
+                            for (var i = 0; i < data.length; i++) {
+                                if (data[i].examine_status != 1) { Toastr.error('请选择已进行原料出库审核的加工单'); return; }
+                                if (data[i].inbound_examine_status == 1) { Toastr.error('存在已审核数据，请选择未入库成品审核的加工单'); return; }
+                            }
+                            Layer.confirm('确认对选中的 ' + data.length + ' 条加工单进行入库成品审核？审核后方可填写实际入库数量。', { icon: 3, title: '提示' }, function (index) {
+                                Layer.close(index);
+                                Fast.api.ajax("kuerp/process/examineInbound?examine=1&ids=" + ids, function () { $('.btn-refresh').click(); }, '', true);
+                            }); break;
+                        case 'examineInbound_f':
+                            if (data.length <= 0) { Toastr.error('请选择要反审核的数据'); return; }
+                            for (var i = 0; i < data.length; i++) {
+                                if (data[i].inbound_examine_status == 0) { Toastr.error('存在未审核数据，请选择已入库成品审核的加工单'); return; }
+                                if (data[i].in_status != 0) { Toastr.error('存在已有入库记录的加工单，不可反审核入库成品'); return; }
+                            }
+                            Layer.confirm('确认对选中的 ' + data.length + ' 条加工单进行入库成品反审核？', { icon: 3, title: '提示' }, function (index) {
+                                Layer.close(index);
+                                Fast.api.ajax("kuerp/process/examineInbound?examine=2&ids=" + ids, function () { $('.btn-refresh').click(); }, '', true);
+                            }); break;
+                        case 'outboundEdit':
+                            if (data.length != 1) { Toastr.error('请选择一条记录'); return; }
+                            if (data[0].examine_status != 1) { Toastr.error('请选择已进行原料出库审核的加工单'); return; }
+                            Fast.api.open("kuerp/process/outboundEdit?ids=" + data[0].id, "实际出库/入库", {
+                                callback: function () { $('.btn-refresh').click(); },
+                                area: ['90%', '80%'],
+                            }); break;
                         case 'add':
                             Fast.api.open("kuerp/process/add", "添加外协加工单", {
                                 callback: function () { Controller.api.bindevent(); },
@@ -96,14 +145,6 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             Fast.api.ajax("kuerp/process/examine?examine=1&ids=" + ids, function () { $('.btn-refresh').click(); }, '', true); break;
                         case 'examine_f':
                             Fast.api.ajax("kuerp/process/examine?examine=2&ids=" + ids, function () { $('.btn-refresh').click(); }, '', true); break;
-                        case 'processIn':
-                            if (data.length != 1) { Toastr.error('请选择一条记录'); return; }
-                            if (data[0].examine_status != 1) { Toastr.error('请选择已审核的加工单'); return; }
-                            if (data[0].in_status == 2) { Toastr.error('已全部入库'); return; }
-                            Fast.api.open("kuerp/process/processIn?ids=" + data[0].id, "外协入库", {
-                                callback: function () { $('.btn-refresh').click(); },
-                                area: ['90%', '75%'],
-                            }); break;
                         case 'print':
                             if (data.length <= 0) { Toastr.error('请选择要打印的数据'); return; }
                             if (data.length > 1) { Toastr.error('一次只能打印一条数据'); return; }
@@ -166,10 +207,48 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
         add: function () { Controller.api.bindevent(); },
         edit: function () { Controller.api.bindevent(false); },
         detail: function () {}, // 纯服务端渲染，无需JS初始化
-        processIn: function () { Controller.api.bindeventProcessIn(); },
-        processin: function () { Controller.api.bindeventProcessIn(); },
+        outboundEdit: function () { Controller.api.bindeventOutboundEdit(); },
+        outboundedit: function () { Controller.api.bindeventOutboundEdit(); },
 
         api: {
+            bindeventOutboundEdit: function () {
+                // 批次 生产日期/有效期/费用日期 选择
+                layui.use('laydate', function () {
+                    var laydate = layui.laydate;
+                    lay('.manufacture').each(function () { laydate.render({ elem: this, trigger: "click" }); });
+                    lay('.validity').each(function () { laydate.render({ elem: this, trigger: "click" }); });
+                    lay('.fee_time').each(function () { laydate.render({ elem: this, trigger: "click" }); });
+                });
+                // 数量格式化
+                $(document).on("change", ".number_decimal", function () {
+                    var set = Config.set;
+                    var number_decimal = parseInt(set.number_decimal.value);
+                    if (isNaN(number_decimal)) { number_decimal = 1; }
+                    var val = parseFloat($(this).val());
+                    if (!isNaN(val)) {
+                        $(this).val(val.toFixed(number_decimal));
+                    } else {
+                        $(this).val('');
+                    }
+                });
+                // 价格格式化
+                $(document).on("change", ".price_decimal", function () {
+                    var set = Config.set;
+                    var price_decimal = parseInt(set.price_decimal.value);
+                    if (isNaN(price_decimal)) { price_decimal = 1; }
+                    var val = parseFloat($(this).val());
+                    if (!isNaN(val)) {
+                        $(this).val(val.toFixed(price_decimal));
+                    } else {
+                        $(this).val('');
+                    }
+                });
+                // 表单提交
+                Form.api.bindevent($("form[role=form]"), function (data, ret) {
+                    parent.Layer.closeAll();
+                    parent.$('.btn-refresh').click();
+                });
+            },
             bindevent: function (reloadStatus) {
                 if (reloadStatus === undefined) { reloadStatus = true; }
                 layui.use(['table', 'form'], function () {
@@ -751,137 +830,6 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     });
                 });
             },
-
-            // ============ 外协入库页 ============
-            bindeventProcessIn: function () {
-                layui.use('laydate', function () {
-                    var laydate = layui.laydate;
-                    laydate.render({ elem: '#c-fee_time' });
-                    lay('.manufacture').each(function () { laydate.render({ elem: this, trigger: "click" }); });
-                    lay('.validity').each(function () { laydate.render({ elem: this, trigger: "click" }); });
-                });
-
-                var set = Config.set;
-                var price_decimal = parseInt(set.price_decimal.value);
-                if (isNaN(price_decimal)) { price_decimal = 1; }
-                var number_decimal = parseInt(set.number_decimal.value);
-                if (isNaN(number_decimal)) { number_decimal = 1; }
-
-                var processId = Config.processId;
-                var processCode = Config.processCode;
-                var processTime = Config.processTime;
-                var supplier = Config.supplier;
-                if (!processId) { Toastr.error('参数错误'); return; }
-
-                $('#process_id').val(processId);
-                $('#show_process_code').text(processCode);
-                $('#show_time').text(processTime ? layui.util.toDateString(processTime * 1000, "yyyy-MM-dd") : '-');
-                if (supplier) { $('#show_supplier').text(supplier.supplyer_code + ' ' + supplier.supplyer_name); }
-
-                // 支出类别
-                var expendTypeLists = Config.expendTypeLists;
-                if (expendTypeLists) {
-                    var expendHtml = '';
-                    $(expendTypeLists).each(function (k, v) { expendHtml += '<option value="' + v.id + '">' + v.name + '</option>'; });
-                    $('#expend_type_id').append(expendHtml);
-                }
-
-                loadProcessDetail(processCode);
-
-                function loadProcessDetail(process_code) {
-                    $.ajax({
-                        url: "kuerp/process/getInfo", type: "POST", data: { process_code: process_code },
-                        success: function (res) {
-                            if (res.code == 1) { renderDetail(res.data); }
-                            else { Toastr.error(res.msg || '数据加载失败'); }
-                        }
-                    });
-                }
-
-                function renderDetail(data) {
-                    // 构建仓库下拉选项
-                    var storesOptions = '';
-                    var storesList = Config.storesList || [];
-                    $(storesList).each(function (i, s) {
-                        storesOptions += '<option value="' + s.id + '">' + s.name + '</option>';
-                    });
-
-                    var outHtml = '';
-                    $(data.out).each(function (k, v) {
-                        outHtml += '<span style="margin-right:15px;padding:2px 6px;background:#e8e8e8;border-radius:3px">' +
-                            v.goods_name + ' ×' + parseFloat(v.number).toFixed(number_decimal) + ' (' + v.store_name + ')</span>';
-                    });
-                    $('#out_material_list').html(outHtml || '<span style="color:#999">无</span>');
-
-                    var table = document.getElementById("in_product_table");
-                    while (table.rows.length > 1) { table.deleteRow(1); }
-
-                    $(data.in).each(function (k, v) {
-                        var tr = table.insertRow(-1);
-                        var maxIn = parseFloat(v.number) - parseFloat(v.in_number);
-                        var disabled = maxIn <= 0 ? 'disabled' : '';
-
-                        // 仓库下拉，默认选中加工单计划的仓库
-                        var storeSelect = '<select name="in_goods[' + k + '][stores_id]" class="form-control stores_id" ' + disabled + '>';
-                        storeSelect += '<option value="">请选择</option>';
-                        $(storesList).each(function (i, s) {
-                            var sel = (s.id == v.stores_id) ? ' selected' : '';
-                            storeSelect += '<option value="' + s.id + '"' + sel + '>' + s.name + '</option>';
-                        });
-                        storeSelect += '</select>';
-
-                        tr.innerHTML =
-                            '<td>' + v.goods_code + '</td>' +
-                            '<td>' + v.goods_name + '</td>' +
-                            '<td>' + storeSelect + '</td>' +
-                            '<td>' + parseFloat(v.number).toFixed(number_decimal) + '</td>' +
-                            '<td>' + parseFloat(v.in_number).toFixed(number_decimal) + '</td>' +
-                            '<td><input type="number" name="in_goods[' + k + '][in_number]" class="in_number number_decimal" ' +
-                            'value="0" min="0" max="' + maxIn + '" data-info-id="' + v.id + '" ' + disabled + '></td>' +
-                            '<input type="hidden" name="in_goods[' + k + '][unit_cost]" class="unit_cost price_decimal" value="">' +
-                            '<input type="hidden" class="cost_money price_decimal" value="">' +
-                            '<td class="goods_batch_sd"><input name="batch_data[' + k + '][batch]" class="batch_sec" placeholder="批次"></td>' +
-                            '<td class="goods_batch_sd"><input name="batch_data[' + k + '][manufacture]" class="ipt manufacture" placeholder="生产日期"></td>' +
-                            '<td class="goods_batch_sd"><input name="batch_data[' + k + '][guarantee]" class="ipt guarantee" placeholder="天数"></td>' +
-                            '<td class="goods_batch_sd"><input name="batch_data[' + k + '][validity]" class="ipt validity" placeholder="有效期"></td>' +
-                            '<input type="hidden" name="in_goods[' + k + '][info_id]" value="' + v.id + '">';
-                    });
-
-                    if ($('.in_number:not([disabled])').length == 0) {
-                        Toastr.info('所有成品已全部入库');
-                    }
-                    layui.use('laydate', function () {
-                        var laydate = layui.laydate;
-                        lay('.manufacture').each(function () { laydate.render({ elem: this, trigger: "click" }); });
-                        lay('.validity').each(function () { laydate.render({ elem: this, trigger: "click" }); });
-                    });
-                }
-
-                // 入库数量/单价 change → 计算成本金额
-                $(document).on("change input", ".in_number, .unit_cost", function () {
-                    var row = $(this).parents('tr');
-                    var in_number = parseFloat(row.find('.in_number').val()) || 0;
-                    var unit_cost = parseFloat(row.find('.unit_cost').val()) || 0;
-                    row.find('.cost_money').val((in_number * unit_cost).toFixed(price_decimal));
-                });
-
-                $(document).on("change", ".number_decimal", function () {
-                    var v = parseFloat($(this).val());
-                    if (!isNaN(v)) { $(this).val(v.toFixed(number_decimal)); } else { $(this).val(''); }
-                });
-                $(document).on("change", ".price_decimal", function () {
-                    var v = parseFloat($(this).val());
-                    if (!isNaN(v)) { $(this).val(v.toFixed(price_decimal)); } else { $(this).val(''); }
-                });
-
-                Form.api.bindevent($("form[role=form]"), function (data, ret) {
-                    if (ret.code == 1) {
-                        Toastr.success('外协入库成功');
-                        setTimeout(function () { parent.$('.btn-refresh').click(); parent.Layer.closeAll(); }, 1500);
-                    }
-                }, function () { return false; });
-                $("form[role=form]").attr('action', 'kuerp/process/processIn');
-            }
         }
     };
     return Controller;
