@@ -3473,3 +3473,28 @@ UPDATE fa_kuerp_sales_invoicing SET pay_money=200, give_money=0, invoice_status=
 - 临时角色追加 729 后重新登录：按钮渲染、对账单详情正常打开（非超管，未开 `$noNeedRight`）。
 - `node --check purchase_payment_apply.js` 通过；临时 `fa_admin`/`fa_auth_group`/`fa_auth_group_access` 行已删除，
   `AUTO_INCREMENT` 已还原（admin 24、auth_group 27）。
+
+---
+
+# 2026-11-04 线上部署记录（1.6.26）
+
+> 版本标记：`addons/kuerp/info.ini` version = 1.6.26；线上根目录 `DEPLOY_VERSION.txt`（版本 + 已部署文件清单）
+> 部署/更新流程与固定不部署清单见仓库根目录 **`DEPLOY.md`**。
+
+- **代码**：33 个文件（FTP 逐个 md5 校验通过），较 11-03 部署新增：
+  成品入库成本计算（`addons/kuerp/library/Goods.php`、`Assemble.php`、`Process.php`、`process/outbound_edit.html`、`GoodsStock.php`）、
+  出库管理审核出库校验库存（`GoodsSalesOutbound.php`）、计划排期审核补建核销源单（`GoodsSalesSchedule.php`、`Collection.php`）、
+  付款申请详情 [查看明细]（`purchase_payment_apply/detail.html` + js + 迁移）、
+  采购单列表按采购订单分组排序（`GoodsPurchase.php`/`GoodsPurchasePlan.php`/`GoodsPurchaseStorage.php` + `model/kuerp/GoodsPurchase::orderSqlByPurchaseOrder()`）、
+  商品「预计采购价」改名「预估成本」（goods add/edit + lang + 导入表头别名）、
+  组装单列表生产日期/生成日期/预计生产完成日期列与排序（`Assemble.php` + `assemble/index.html` + js）、
+  组装单打印「待入库/待出库数量」、入库单详情/打印三规格列、销货对账详情收款单金额口径、采购预订单调用BOM（计划版视图/JS）。
+- **数据库**：结构与线上**逐表逐列一致**（`mysqldump --no-data` 去 AUTO_INCREMENT 后 diff 为空），本次无 DDL；
+  执行 `migration_add_payment_apply_recon_detail_auth.sql`（幂等，线上无角色拥有付款申请权限 → 无实际变更）；
+  `fa_auth_rule` 702 标题同步为「一键生成采购预订单(计划)」。
+- **未部署（有意保留线上版本）**：`application/extra/addons.php`、`application/extra/site.php`、
+  `public/assets/js/backend/kuerp/goods_log.js`（线上版本多「基本单位数量」两列）、`application/config.php`。
+- 部署后已清 `runtime/cache`、`runtime/temp`；登录页 / kuerp 列表页均 200。
+- ⚠️ 本次部署曾误把新文件（远端不存在）当成「目录不可写」走了目录重建兜底，`/addons/kuerp` 被改名重建、
+  子目录 `controller/library/model/uniapp` 一度消失；已通过还原 `kuerp__deploybak_*` 目录并补传 `library/Goods.php` 恢复。
+  脚本判分支前**必须先确认远端文件是否存在**（详见 `DEPLOY.md` 第二节第 3 步）。
