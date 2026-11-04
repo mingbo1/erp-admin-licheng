@@ -14,7 +14,7 @@ use think\Session;
  */
 class Assemble extends Backend
 {
-    protected $noNeedRight = ['savetemp', 'outboundedit', 'saveoutbound', 'printpage', 'pickingpage'];
+    protected $noNeedRight = ['savetemp', 'outboundedit', 'saveoutbound', 'printpage'];
     /**
      * Assemble模型对象
      * @var \app\admin\model\kuerp\Assemble
@@ -43,6 +43,88 @@ class Assemble extends Backend
 
         //一键生成采购单按钮权限（fa_auth_rule: kuerp/assemble/setdata）
         $this->view->assign("canShortagePurchase", $this->auth->check('kuerp/assemble/setdata', $this->auth->id));
+        //打印领料单按钮权限（fa_auth_rule: kuerp/assemble/pickingpage）
+        $this->view->assign("canPrintPicking", $this->auth->check('kuerp/assemble/pickingpage', $this->auth->id));
+    }
+
+    /**
+     * 取关联销货订单的展示信息（单号 / 备注 / 明细行的品号与功率、生产备注）
+     * 组装单的 sales_order_id 存的是销货订单号（kuerp_goods_sales_order.purchase_code）
+     *
+     * @param string $salesOrderCode 销货订单号
+     * @return array|null null = 无关联订单或订单已不存在
+     */
+    protected function getSalesOrderInfo($salesOrderCode)
+    {
+        $salesOrderCode = trim((string)$salesOrderCode);
+        if ($salesOrderCode === '') {
+            return null;
+        }
+        $order = Db::name('kuerp_goods_sales_order')
+            ->where(['purchase_code' => $salesOrderCode])
+            ->find();
+        if (!$order) {
+            return null;
+        }
+        // 销货订单明细表的 remark = 品号与功率，production_remark = 生产备注
+        // 明细表没有 goods_id / goods_name，商品名称按 goods_code 关联商品档案
+        $items = Db::name('kuerp_goods_sales_order_info')->alias('i')
+            ->join('kuerp_goods g', 'g.goods_code=i.goods_code', 'LEFT')
+            ->where(['i.purchase_code' => $salesOrderCode])
+            ->field('i.goods_code,i.remark,i.production_remark,g.goods_name')
+            ->order('i.id asc')
+            ->select();
+        foreach ($items as $k => $v) {
+            $items[$k]['goods_name'] = isset($v['goods_name']) ? $v['goods_name'] : '';
+            $items[$k]['remark'] = isset($v['remark']) ? $v['remark'] : '';
+            $items[$k]['production_remark'] = isset($v['production_remark']) ? $v['production_remark'] : '';
+        }
+
+        return [
+            'purchase_code' => $order['purchase_code'],
+            'note'          => isset($order['note']) ? $order['note'] : '',
+            'items'         => $items,
+        ];
+    }
+
+    /**
+     * 把销货订单明细按商品编号归并成 map（同一商品多行时用「；」拼接去重）
+     * 用于组装单「组合件」行内带出品号与功率 / 生产备注
+     *
+     * @param array|null $salesOrderInfo getSalesOrderInfo() 的返回值
+     * @return array goods_code => ['remark'=>..,'production_remark'=>..]
+     */
+    protected function buildSalesOrderItemMap($salesOrderInfo)
+    {
+        $map = [];
+        if (empty($salesOrderInfo['items'])) {
+            return $map;
+        }
+        foreach ($salesOrderInfo['items'] as $item) {
+            $code = isset($item['goods_code']) ? $item['goods_code'] : '';
+            if ($code === '') {
+                continue;
+            }
+            if (!isset($map[$code])) {
+                $map[$code] = ['remark' => [], 'production_remark' => []];
+            }
+            $remark = trim((string)$item['remark']);
+            $productionRemark = trim((string)$item['production_remark']);
+            if ($remark !== '' && !in_array($remark, $map[$code]['remark'])) {
+                $map[$code]['remark'][] = $remark;
+            }
+            if ($productionRemark !== '' && !in_array($productionRemark, $map[$code]['production_remark'])) {
+                $map[$code]['production_remark'][] = $productionRemark;
+            }
+        }
+        foreach ($map as $code => $v) {
+            $map[$code] = [
+                'remark'            => implode('；', $v['remark']),
+                'production_remark' => implode('；', $v['production_remark']),
+            ];
+        }
+
+        return $map;
     }
 
     /**
@@ -68,11 +150,40 @@ class Assemble extends Backend
             }
             list($where, $sort, $order, $offset, $limit) = $this->buildparams();
 
-            $list = $this->model
+            $query = $this->model
                 ->with(['admin'])
-                ->where($where)
-                ->order($sort, $order)
-                ->paginate($limit);
+                ->where($where);
+            if ($this->request->param('sort')) {
+                // 前端显式指定排序时按指定字段
+                $query->order($sort, $order);
+            } else {
+                // 默认：先按生产日期（未排产的排在最后），再按组装单生成日期
+                $query->orderRaw('(produce_date IS NULL OR produce_date = 0) ASC, produce_date ASC, createtime ASC, id ASC');
+            }
+            $list = $query->paginate($limit);
+
+            // 关联销货订单的「预计生产完成日期」：销货订单号 → 该订单生成的销货单/计划排期里最早的非空预计日期
+            $salesOrderCodes = [];
+            foreach ($list as $list_v) {
+                if (!empty($list_v['sales_order_id'])) {
+                    $salesOrderCodes[] = $list_v['sales_order_id'];
+                }
+            }
+            $expectedMap = [];
+            if (!empty($salesOrderCodes)) {
+                $expectedRows = Db::name('kuerp_goods_sales')
+                    ->where(['purchase_order_id' => ['in', array_unique($salesOrderCodes)]])
+                    ->whereNotNull('expected_delivery_date')
+                    ->where('expected_delivery_date', '<>', '')
+                    ->field('purchase_order_id,expected_delivery_date')
+                    ->select();
+                foreach ($expectedRows as $er) {
+                    $code = $er['purchase_order_id'];
+                    if (!isset($expectedMap[$code]) || $er['expected_delivery_date'] < $expectedMap[$code]) {
+                        $expectedMap[$code] = $er['expected_delivery_date'];
+                    }
+                }
+            }
 
             foreach ($list as $row) {
 
@@ -123,6 +234,10 @@ class Assemble extends Backend
 
                 $row['purchase_code'] = $list_v['purchase_code'];
                 $row['purchase_time'] = date('Y-m-d',$list_v['purchase_time']);
+                $row['produce_date'] = !empty($list_v['produce_date']) ? date('Y-m-d', $list_v['produce_date']) : '';
+                $row['createtime'] = !empty($list_v['createtime']) ? date('Y-m-d H:i', $list_v['createtime']) : '';
+                $row['expected_delivery_date'] = (!empty($list_v['sales_order_id']) && isset($expectedMap[$list_v['sales_order_id']]))
+                    ? $expectedMap[$list_v['sales_order_id']] : '';
                 $row['pnumber'] = $p_info['number'];
                 $row['pname'] = $p_info['goods_name'].' '.$p_info['attr_name'];
                 $row['unit_name'] = $p_info['unit_name'];
@@ -429,10 +544,13 @@ class Assemble extends Backend
                 if($z==2){
                     $this->error('组合子件信息不能为空');
                 }
+                // 计算成本：子件取成本单价，组合件 = Σ子件成本
+                $this->applyAssembleCost($data);
                 if(!empty($data)){
                     $row = \addons\kuerp\library\Goods::setDataInfo([
                         'purchase_code'     =>  $params['purchase_code'],
                         'purchase_time'     =>  strtotime($params['purchase_time']),
+                        'produce_date'      =>  $params['produce_date']===''?null:strtotime($params['produce_date']),
                         'business_type'     =>  1,
                         'money'             =>  $params['costs']===''?null:(float)$params['costs'],
                         'sales_order_id'    =>  isset($params['sales_order_id']) ? $params['sales_order_id'] : '',
@@ -587,6 +705,8 @@ class Assemble extends Backend
             $bomChildren = array_values($bomChildren);
 
             $this->assignconfig('scheduleSalesOrderId', $salesOrderId);
+            // 排期「排产」时填写的生产日期 → 组装单生产日期
+            $this->assignconfig('scheduleProduceDate', isset($schedule['production_date']) ? $schedule['production_date'] : '');
             $this->assignconfig('scheduleGoodsCode', $scheduleGoodsCode);
             $this->assignconfig('scheduleGoodsName', isset($goods) ? $goods['goods_name'] : '');
             $this->assignconfig('scheduleStoresId', isset($scheduleStoresId) ? $scheduleStoresId : '');
@@ -596,6 +716,11 @@ class Assemble extends Backend
             $this->assignconfig('scheduleGoodsAttr', isset($scheduleGoodsAttr) ? $scheduleGoodsAttr : '');
             $this->assignconfig('scheduleBomChildren', $bomChildren);
         }
+
+        // 关联销货订单信息（销货订单号 / 备注 / 明细品号与功率、生产备注）
+        $salesOrderInfo = $this->getSalesOrderInfo(isset($salesOrderId) ? $salesOrderId : '');
+        $this->view->assign('salesOrderInfo', $salesOrderInfo);
+        $this->assignconfig('salesOrderInfo', $salesOrderInfo);
 
         $code = \addons\kuerp\library\Goods::getCodes('',19);
         $this->view->assign("code", $code);
@@ -903,10 +1028,13 @@ class Assemble extends Backend
                 if($z==2){
                     $this->error('组合子件信息不能为空');
                 }
+                // 计算成本：子件取成本单价，组合件 = Σ子件成本
+                $this->applyAssembleCost($data);
                 if(!empty($data)){
                     $rowdata = \addons\kuerp\library\Goods::setDataInfo([
                         'purchase_code'     =>  $params['purchase_code'],
                         'purchase_time'     =>  strtotime($params['purchase_time']),
+                        'produce_date'      =>  $params['produce_date']===''?null:strtotime($params['produce_date']),
                         'business_type'     =>  1,
                         'money'             =>  $params['costs']===''?null:(float)$params['costs'],
                         'sales_order_id'    =>  isset($params['sales_order_id']) ? $params['sales_order_id'] : '',
@@ -987,12 +1115,17 @@ class Assemble extends Backend
             $this->error(__('Parameter %s can not be empty', ''));
         }
         $this->view->assign("row", $row);
+        // 生产日期（编辑页回显，空则不显示）
+        $row['produce_date_text'] = $row['produce_date'] ? date('Y-m-d', $row['produce_date']) : '';
 
         $info = Db::name('kuerp_assemble_info')->alias('a')
             ->join('kuerp_goods g','g.id=a.goods_id')
             ->where(['a.purchase_code'=>$row['purchase_code']])
             ->field('a.*,g.goods_name')
             ->select();
+        // 关联销货订单信息（销货订单号 / 备注 / 明细品号与功率、生产备注）
+        $salesOrderInfo = $this->getSalesOrderInfo(isset($row['sales_order_id']) ? $row['sales_order_id'] : '');
+        $salesOrderItemMap = $this->buildSalesOrderItemMap($salesOrderInfo);
         // 批量查询动态库存
         $goodsCodes = array_column($info, 'goods_code');
         $goodsIdMap = $goodsCodes ? Db::name('kuerp_goods')->where(['goods_code' => ['in', $goodsCodes]])->column('id', 'goods_code') : [];
@@ -1008,6 +1141,13 @@ class Assemble extends Backend
             $gid = isset($goodsIdMap[$info_v['goods_code']]) ? $goodsIdMap[$info_v['goods_code']] : 0;
             $key = $gid . '-' . (int)$info_v['stores_id'] . '-' . (int)$info_v['goods_attr'];
             $info[$info_k]['allow_stock'] = isset($stockMap[$key]) ? $stockMap[$key] : 0;
+            // 组合件行带出销货订单对应商品的品号与功率 / 生产备注（子件不参与）
+            $info[$info_k]['so_remark'] = '';
+            $info[$info_k]['so_production_remark'] = '';
+            if ((int)$info_v['type'] === 1 && isset($salesOrderItemMap[$info_v['goods_code']])) {
+                $info[$info_k]['so_remark'] = $salesOrderItemMap[$info_v['goods_code']]['remark'];
+                $info[$info_k]['so_production_remark'] = $salesOrderItemMap[$info_v['goods_code']]['production_remark'];
+            }
         }
         $this->view->assign("info_list", $info);
 
@@ -1018,11 +1158,15 @@ class Assemble extends Backend
         }
         $this->assignconfig("examine_status", $row['examine_status']);
         $this->assignconfig("assembleSalesOrderId", isset($row['sales_order_id']) ? $row['sales_order_id'] : '');
+        // 关联销货订单信息（销货订单号 / 备注 / 明细品号与功率、生产备注）
+        $this->view->assign('salesOrderInfo', $salesOrderInfo);
+        $this->assignconfig('salesOrderInfo', $salesOrderInfo);
 
         return $this->view->fetch();
     }
     /**
-     * 一键生成采购单：暂存子件缺口数量，供 goods_purchase_order/add?type=1 预填
+     * 一键生成采购预订单(计划)：暂存子件缺口数量，供 goods_purchase_order_plan/add?type=1 预填
+     * （计划部门使用；采购预订单(计划)页面不展示价格）
      */
     public function setdata(){
         $params = $this->request->post("row/a");
@@ -1142,6 +1286,9 @@ class Assemble extends Backend
                 $this->error('请选择需要子件出库审核的数据');
             }
 
+            // 补算成本（历史单据/尚未计算成本时）
+            $this->ensureAssembleCost($purchase_code);
+
             // 手动审核模式：仅设置审核状态，不做库存变动（实际出库通过 outboundEdit 页面填写）
             if($examine_set==1){
                 $admin = Session::get('admin');
@@ -1249,8 +1396,8 @@ class Assemble extends Backend
                     'enter_cost'    => null,
                     'out_number'    => (float)$info_list_v['number'],
                     'out_basics'    => (float)$stock_number,
-                    // 'out_unit'      => round($info_list_v['unit_cost'],4),
-                    // 'out_cost'      => (float)$info_list_v['cost_money'],
+                    'out_unit'      => $stock_number > 0 ? round($info_list_v['cost_money'] / $stock_number, 4) : 0,
+                    'out_cost'      => round($info_list_v['cost_money'], 4),
                     'createtime'    => time(),
                     'updatetime'    => time(),
                 ]);
@@ -1644,6 +1791,9 @@ class Assemble extends Backend
                 $this->error('请选择需要组合件入库审核的数据');
             }
 
+            // 补算成本（历史单据/尚未计算成本时）
+            $this->ensureAssembleCost($purchase_code);
+
             // 手动审核模式：仅设置审核状态，不做库存变动（实际入库通过 outboundEdit 页面填写）
             if($examine_set==1){
                 $admin = Session::get('admin');
@@ -1747,8 +1897,8 @@ class Assemble extends Backend
                     'remark'        => $info_list_v['remark'],
                     'enter_number'  => (float)$info_list_v['number'],
                     'enter_basics'  => (float)$stock_number,
-                    // 'enter_unit'    => round($info_list_v['unit_cost'],4),
-                    // 'enter_cost'    => (float)$info_list_v['cost_money'],
+                    'enter_unit'    => $stock_number > 0 ? round($info_list_v['cost_money'] / $stock_number, 4) : 0,
+                    'enter_cost'    => round($info_list_v['cost_money'], 4),
                     'out_number'    => null,
                     'out_basics'    => null,
                     'out_unit'      => null,
@@ -2239,9 +2389,24 @@ class Assemble extends Backend
             }
         }
 
+        // 出入库记录（每次分批出/入库一行，取自商品收发明细 13子件出库/12组合件入库）
+        $log_list = Db::name('kuerp_goods_log')->alias('a')
+            ->join('kuerp_goods g', 'g.id=a.goods_id', 'LEFT')
+            ->where(['a.purchase_code' => $row['purchase_code'], 'a.business_type' => ['in', '12,13']])
+            ->field('a.*,g.goods_name,g.goods_specification_id,g.vendor_name,g.packaging')
+            ->order('a.createtime DESC, a.id DESC')
+            ->select();
+        foreach ($log_list as &$lv) {
+            $lv['is_out'] = $lv['business_type'] == 13;
+            $lv['stores_name'] = Db::name('kuerp_stores')->where(['id' => $lv['stores_id']])->value('name');
+            $lv['admin_name'] = Db::name('admin')->where(['id' => $lv['admin_id']])->value('nickname');
+        }
+        unset($lv);
+
         $this->view->assign("row", $row);
         $this->view->assign("out_items", $out_items);
         $this->view->assign("in_items", $in_item);
+        $this->view->assign("log_list", $log_list);
         $this->assignconfig("assembleId", $row['id']);
         $this->assignconfig("purchaseCode", $row['purchase_code']);
         $this->assignconfig("outboundStatus", $row['outbound_status']);
@@ -2269,6 +2434,9 @@ class Assemble extends Backend
         if ($checkout !== true) {
             $this->error($checkout);
         }
+
+        // 补算成本（历史单据/尚未计算成本时）
+        $this->ensureAssembleCost($row['purchase_code']);
 
         $serial_set = Db::name('kuerp_sets')->where(['name' => 'serial'])->value('is_checked');
         $batch_set = Db::name('kuerp_sets')->where(['name' => 'batch'])->value('is_checked');
@@ -2321,6 +2489,10 @@ class Assemble extends Backend
                 $has_out = true;
                 $goods = Db::name('kuerp_goods')->where(['id' => $info['goods_id']])->find();
                 $basic_number = round(($info['basic_number'] / max($info['number'], 0.0001)) * $out_number, 4);
+                // 本批出库成本（按基本数量比例分摊，最后一批吃尾差）
+                $already_out_cost = (float)Db::name('kuerp_goods_log')
+                    ->where(['purchase_id' => $info['id'], 'business_type' => '13'])->sum('out_cost');
+                $out_cost = $this->batchLineCost($info, $basic_number, $out_number, (float)$info['out_number'], $already_out_cost);
 
                 // 商品表库存扣减
                 $status = false;
@@ -2359,7 +2531,7 @@ class Assemble extends Backend
                     foreach ($editstock_out as $ek => $ev) {
                         if ($ev['id'] == $stock['id']) {
                             $editstock_out[$ek]['stock'] -= $basic_number;
-                            $editstock_out[$ek]['cost_money'] = round($ev['cost_money'] - $info['cost_money'], 4);
+                            $editstock_out[$ek]['cost_money'] = round($ev['cost_money'] - $out_cost, 4);
                             $status = true;
                         }
                     }
@@ -2367,7 +2539,7 @@ class Assemble extends Backend
                         $editstock_out[] = [
                             'id'         => $stock['id'],
                             'stock'      => round($stock['stock'] - $basic_number, 4),
-                            'cost_money' => round($stock['cost_money'] - $info['cost_money'], 4)
+                            'cost_money' => round($stock['cost_money'] - $out_cost, 4)
                         ];
                     }
                 } else {
@@ -2392,6 +2564,8 @@ class Assemble extends Backend
                     'enter_cost'    => null,
                     'out_number'    => $out_number,
                     'out_basics'    => $basic_number,
+                    'out_unit'      => $basic_number > 0 ? round($out_cost / $basic_number, 4) : 0,
+                    'out_cost'      => $out_cost,
                     'createtime'    => time(),
                     'updatetime'    => time(),
                 ]);
@@ -2432,7 +2606,7 @@ class Assemble extends Backend
                         'remarks'         => $info['remark'],
                         'order_id'        => $info['id'],
                         'tax_money'       => 0,
-                        'money_tax_price' => $info['cost_money'],
+                        'money_tax_price' => $out_cost,
                         'createtime'      => time(),
                         'updatetime'      => time(),
                     ]);
@@ -2509,6 +2683,10 @@ class Assemble extends Backend
                 $has_in = true;
                 $goods = Db::name('kuerp_goods')->where(['id' => $info['goods_id']])->find();
                 $basic_number = round(($info['basic_number'] / max($info['number'], 0.0001)) * $in_number, 4);
+                // 本批入库成本（按基本数量比例分摊，最后一批吃尾差）
+                $already_in_cost = (float)Db::name('kuerp_goods_log')
+                    ->where(['purchase_id' => $info['id'], 'business_type' => '12'])->sum('enter_cost');
+                $in_cost = $this->batchLineCost($info, $basic_number, $in_number, (float)$info['in_number'], $already_in_cost);
 
                 // 商品表库存增加
                 $status = false;
@@ -2540,7 +2718,7 @@ class Assemble extends Backend
                     foreach ($editstock_in as $ek => $ev) {
                         if ($ev['id'] == $stock['id']) {
                             $editstock_in[$ek]['stock'] += $basic_number;
-                            $editstock_in[$ek]['cost_money'] = round($ev['cost_money'] + $info['cost_money'], 4);
+                            $editstock_in[$ek]['cost_money'] = round($ev['cost_money'] + $in_cost, 4);
                             $status = true;
                         }
                     }
@@ -2548,7 +2726,7 @@ class Assemble extends Backend
                         $editstock_in[] = [
                             'id'         => $stock['id'],
                             'stock'      => round($stock['stock'] + $basic_number, 4),
-                            'cost_money' => round($stock['cost_money'] + $info['cost_money'], 4)
+                            'cost_money' => round($stock['cost_money'] + $in_cost, 4)
                         ];
                     }
                 } else {
@@ -2558,7 +2736,7 @@ class Assemble extends Backend
                         'attribute_id' => $goods_attr,
                         'stores_id'    => $info['stores_id'],
                         'stock'        => $basic_number,
-                        'cost_money'   => round($info['cost_money'], 4),
+                        'cost_money'   => round($in_cost, 4),
                         'createtime'   => time(),
                         'updatetime'   => time(),
                     ]);
@@ -2578,6 +2756,8 @@ class Assemble extends Backend
                     'remark'        => $info['remark'],
                     'enter_number'  => $in_number,
                     'enter_basics'  => $basic_number,
+                    'enter_unit'    => $basic_number > 0 ? round($in_cost / $basic_number, 4) : 0,
+                    'enter_cost'    => $in_cost,
                     'out_number'    => null,
                     'out_basics'    => null,
                     'out_unit'      => null,
@@ -2651,7 +2831,7 @@ class Assemble extends Backend
                         'remarks'         => $info['remark'],
                         'order_id'        => $info['id'],
                         'tax_money'       => 0,
-                        'money_tax_price' => $info['cost_money'],
+                        'money_tax_price' => $in_cost,
                         'createtime'      => time(),
                         'updatetime'      => time(),
                     ]);
@@ -2927,6 +3107,182 @@ class Assemble extends Backend
     }
 
     /**
+     * 计算明细行本次分批出/入库应结转的成本金额
+     *
+     * 按本次基本数量占整行基本数量的比例分摊；最后一批用「整行成本 - 已结转成本」兜底，
+     * 避免分批四舍五入产生尾差。
+     *
+     * @param array $info          明细行（含 cost_money / basic_number / number）
+     * @param float $batchBasic    本次基本数量
+     * @param float $batchNumber   本次单据数量
+     * @param float $alreadyNumber 本次之前已出/入库数量
+     * @return float
+     */
+    private function batchLineCost($info, $batchBasic, $batchNumber, $alreadyNumber, $alreadyCost = null)
+    {
+        $lineBasic = (float)$info['basic_number'];
+        $lineCost = (float)$info['cost_money'];
+        $lineNumber = (float)$info['number'];
+        if ($lineBasic <= 0 || $lineCost == 0) {
+            return 0;
+        }
+        if ($lineNumber > 0 && $alreadyNumber + $batchNumber >= $lineNumber - 0.0001) {
+            // 最后一批：整行成本 - 已结转成本（优先用收发明细里的实际结转金额）
+            if ($alreadyCost === null) {
+                $alreadyCost = round($lineCost * ($alreadyNumber / $lineNumber), 4);
+            }
+            return round($lineCost - (float)$alreadyCost, 4);
+        }
+        return round($lineCost * ($batchBasic / $lineBasic), 4);
+    }
+
+    /**
+     * 计算组装单成本（按行写入 unit_cost / cost_money）
+     *
+     * 子件(type=2)：成本金额 = 成本单价 × 基本数量
+     * 组合件(type=1)：成本金额 = Σ子件成本（按基本数量比例分摊，最后一行吃尾差），
+     *                 单位成本 = 成本金额 / 基本数量
+     *
+     * @param array $rows 组装单明细行（引用）
+     * @return void
+     */
+    private function applyAssembleCost(array &$rows)
+    {
+        if (empty($rows)) {
+            return;
+        }
+        $childTotal = 0;
+        foreach ($rows as $k => $row) {
+            if (!isset($row['type']) || $row['type'] != 2) {
+                continue;
+            }
+            $basic = (float)$row['basic_number'];
+            $price = \addons\kuerp\library\Goods::getCostPrice(
+                isset($row['goods_code']) ? $row['goods_code'] : '',
+                isset($row['stores_id']) ? $row['stores_id'] : 0,
+                isset($row['goods_attr']) ? $row['goods_attr'] : 0
+            );
+            $rows[$k]['unit_cost'] = round($price, 4);
+            $rows[$k]['cost_money'] = round($price * $basic, 4);
+            $childTotal += $rows[$k]['cost_money'];
+        }
+
+        $finished = [];
+        $finishedBasic = 0;
+        foreach ($rows as $k => $row) {
+            if (isset($row['type']) && $row['type'] == 1) {
+                $finished[] = $k;
+                $finishedBasic += (float)$row['basic_number'];
+            }
+        }
+        if (empty($finished)) {
+            return;
+        }
+        $allocated = 0;
+        $last = count($finished) - 1;
+        foreach ($finished as $i => $k) {
+            $basic = (float)$rows[$k]['basic_number'];
+            if ($i == $last) {
+                $cost = round($childTotal - $allocated, 4);
+            } elseif ($finishedBasic > 0) {
+                $cost = round($childTotal * ($basic / $finishedBasic), 4);
+            } else {
+                $cost = 0;
+            }
+            $allocated += $cost;
+            $rows[$k]['cost_money'] = $cost;
+            $rows[$k]['unit_cost'] = $basic > 0 ? round($cost / $basic, 4) : 0;
+        }
+    }
+
+    /**
+     * 补算组装单成本（历史单据或尚未计算过成本时）
+     *
+     * 已算出组合件成本的单据直接跳过，避免重复审核/出库时成本漂移；
+     * 子件已有成本沿用，缺失的按 Goods::getCostPrice() 补算。
+     *
+     * @param array|string $purchaseCodes 单据编号
+     * @return void
+     */
+    private function ensureAssembleCost($purchaseCodes)
+    {
+        $codes = is_array($purchaseCodes) ? $purchaseCodes : [$purchaseCodes];
+        $codes = array_values(array_filter($codes, function ($v) {
+            return $v !== '' && $v !== null;
+        }));
+        if (empty($codes)) {
+            return;
+        }
+        $infoList = Db::name('kuerp_assemble_info')
+            ->where(['purchase_code' => ['in', $codes]])
+            ->order('id', 'asc')->select();
+        if (empty($infoList)) {
+            return;
+        }
+        $groups = [];
+        foreach ($infoList as $row) {
+            $groups[$row['purchase_code']][] = $row;
+        }
+        foreach ($groups as $rows) {
+            $hasCost = false;
+            foreach ($rows as $row) {
+                if ($row['type'] == 1 && (float)$row['cost_money'] > 0) {
+                    $hasCost = true;
+                    break;
+                }
+            }
+            if ($hasCost) {
+                continue;
+            }
+            // 子件成本
+            $childTotal = 0;
+            foreach ($rows as $row) {
+                if ($row['type'] != 2) {
+                    continue;
+                }
+                if ((float)$row['cost_money'] > 0) {
+                    $childTotal += (float)$row['cost_money'];
+                    continue;
+                }
+                $basic = (float)$row['basic_number'];
+                $price = \addons\kuerp\library\Goods::getCostPrice($row['goods_code'], $row['stores_id'], $row['goods_attr']);
+                $cost = round($price * $basic, 4);
+                Db::name('kuerp_assemble_info')->where(['id' => $row['id']])->update([
+                    'unit_cost'  => round($price, 4),
+                    'cost_money' => $cost,
+                ]);
+                $childTotal += $cost;
+            }
+            // 分摊到组合件
+            $finished = [];
+            $finishedBasic = 0;
+            foreach ($rows as $row) {
+                if ($row['type'] == 1) {
+                    $finished[] = $row;
+                    $finishedBasic += (float)$row['basic_number'];
+                }
+            }
+            $allocated = 0;
+            $last = count($finished) - 1;
+            foreach ($finished as $i => $row) {
+                $basic = (float)$row['basic_number'];
+                if ($i == $last) {
+                    $cost = round($childTotal - $allocated, 4);
+                } elseif ($finishedBasic > 0) {
+                    $cost = round($childTotal * ($basic / $finishedBasic), 4);
+                } else {
+                    $cost = 0;
+                }
+                $allocated += $cost;
+                Db::name('kuerp_assemble_info')->where(['id' => $row['id']])->update([
+                    'unit_cost'  => $basic > 0 ? round($cost / $basic, 4) : 0,
+                    'cost_money' => $cost,
+                ]);
+            }
+        }
+    }
+
+    /**
      * 打印
      */
     public function printpage($ids = null)
@@ -2939,6 +3295,8 @@ class Assemble extends Backend
         $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('nickname');
         // 审核人
         $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('nickname');
+        // 生产日期
+        $row['produce_date_text'] = $row['produce_date'] ? date('Y-m-d', $row['produce_date']) : '';
 
         // 获取组装单详情(组合件 type=1 和 子件 type=2)
         $assemble_info = Db::name('kuerp_assemble_info')
@@ -2947,9 +3305,15 @@ class Assemble extends Backend
 
         $detailHiddenFields = ['unit_cost', 'cost_money'];
         foreach ($assemble_info as $k => $v) {
-            $assemble_info[$k]['goods_name'] = Db::name('kuerp_goods')
+            // 型号 / 规格2(厂商) / 规格3(封装) 从商品档案带出
+            $goods = Db::name('kuerp_goods')
                 ->where(['id' => $v['goods_id']])
-                ->value('goods_name');
+                ->field('goods_name,goods_specification_id,vendor_name,packaging')
+                ->find();
+            $assemble_info[$k]['goods_name'] = $goods ? $goods['goods_name'] : '';
+            $assemble_info[$k]['goods_specification_id'] = $goods ? $goods['goods_specification_id'] : '';
+            $assemble_info[$k]['vendor_name'] = $goods ? $goods['vendor_name'] : '';
+            $assemble_info[$k]['packaging'] = $goods ? $goods['packaging'] : '';
             $assemble_info[$k]['stores_name'] = Db::name('kuerp_stores')
                 ->where(['id' => $v['stores_id']])
                 ->value('name');
@@ -2975,6 +3339,9 @@ class Assemble extends Backend
                     }
                 }
             }
+            // 待入库/待出库数量（组合件看 in_number，子件看 out_number；不足 0 时按 0 显示）
+            $assemble_info[$k]['remain_in_number'] = max(0, (float)$v['number'] - (float)$v['in_number']);
+            $assemble_info[$k]['remain_out_number'] = max(0, (float)$v['number'] - (float)$v['out_number']);
             foreach ($detailHiddenFields as $f) {
                 unset($assemble_info[$k][$f]);
             }
@@ -2982,6 +3349,8 @@ class Assemble extends Backend
 
         $this->view->assign("row", $row);
         $this->view->assign("assemble_info", $assemble_info);
+        // 关联销货订单信息（销货订单号 / 备注 / 明细品号与功率、生产备注）
+        $this->view->assign("sales_order_info", $this->getSalesOrderInfo(isset($row['sales_order_id']) ? $row['sales_order_id'] : ''));
 
         // 增加打印次数
         $this->model->where(['id' => $ids])->setInc('print_num');

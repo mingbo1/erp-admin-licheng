@@ -14,6 +14,10 @@ return [
     'Child_number'         => '单耗数量',
     'Child_unit'           => '单位',
     'Child_remark'         => '备注',
+    'Placement_location'   => '放置位置',
+    'Goods_specification_id' => '型号',
+    'Vendor_name'          => '规格2/厂商',
+    'Packaging'            => '规格3/封装',
 
     'Number'               => '数量',
     'Goods_name'           => '商品名称',

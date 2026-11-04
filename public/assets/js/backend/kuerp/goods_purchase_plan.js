@@ -42,6 +42,18 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'preparation_id', title: __('Preparation_id'),templet: function (d) {
                                 return d.preparation.nickname;
                             }},
+                        {field: 'storage_status', title: __('Storage_status'),templet: function (d) {
+                            if(d.storage_status===''||d.storage_status===null||d.storage_status===undefined){
+                                return '<span style="color:#ccc">—</span>';
+                            }
+                            if(d.storage_status==2){
+                                return '<span style="color:#5fb878">'+__('Storage_status 2')+'</span>';
+                            }
+                            if(d.storage_status==1){
+                                return '<span style="color:#ffb800">'+__('Storage_status 1')+'</span>';
+                            }
+                            return '<span style="color:#999">'+__('Storage_status 0')+'</span>';
+                        }},
                         {field: 'note', title: __('Note')},
                         {fixed: 'right', title:__('Operate'), toolbar: '#barDemo', width:150}
                     ]]

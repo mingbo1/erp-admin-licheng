@@ -4,6 +4,15 @@ namespace app\admin\controller\kuerp;
 
 use app\admin\model\kuerp\GoodsSalesOrderLog;
 use app\common\controller\Backend;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use think\Db;
 use Exception;
 use think\Session;
@@ -14,7 +23,11 @@ use think\Session;
  */
 class GoodsPurchaseOrder extends Backend
 {
-    protected $noNeedRight = ['checkexchange','checkpurchase','checksuppliercount','batchgeneratepurchase','generatebysupplier'];
+    protected $noNeedRight = ['checkexchange','checkpurchase','checksuppliercount','batchgeneratepurchase','generatebysupplier','export','parseimport'];
+    /** 导入模板 / 导出明细共用的隐藏选项表名 */
+    const EXCEL_OPT_SHEET = 'Lists';
+    /** 模板预留的可填写行数（数据自第 2 行开始） */
+    const EXCEL_TEMPLATE_ROWS = 500;
     /**
      * GoodsPurchaseOrder模型对象
      * @var \app\admin\model\kuerp\GoodsPurchaseOrder
@@ -60,6 +73,25 @@ class GoodsPurchaseOrder extends Backend
 
 
     /**
+     * 单据来源标记（写入 fa_kuerp_goods_purchase_order.order_source）
+     * purchase=购货订单页 / plan=计划部门预订单 / warehouse=仓库部门预订单
+     * @return string
+     */
+    protected function orderSource()
+    {
+        return 'purchase';
+    }
+
+    /**
+     * 列表的来源过滤，返回 null 表示不限制（购货订单页能看到全部预订单）
+     * @return array|null
+     */
+    protected function orderSourceListFilter()
+    {
+        return null;
+    }
+
+    /**
      * 查看
      */
     public function index()
@@ -90,6 +122,11 @@ class GoodsPurchaseOrder extends Backend
                     ->column('purchase_code');
                 $this->model->where('purchase_code', 'in', $matchedCodes ?: ['']); // 无匹配结果
             }
+            // 按来源部门过滤：计划预订单 / 仓库预订单各自只看自己录入的单据（购货订单页不过滤）
+            $orderSource = $this->orderSourceListFilter();
+            if ($orderSource !== null) {
+                $this->model->where('order_source', 'in', (array)$orderSource);
+            }
             $sort = 'purchase_time';$order='DESC';
             $list = $this->model
                 ->with(['suppliers','preparation','examine','secondExamine'])
@@ -111,7 +148,7 @@ class GoodsPurchaseOrder extends Backend
                     $list[$list_k]['print_num'] = 0;
                 }
                 $purchase_id = Db::name('kuerp_goods_purord')->where(['order_id'=>$list_v['id']])->column('purchase_id');
-                // 获取关联购货单的完整状态信息
+                // 获取关联采购单的完整状态信息
                 $purchase_list = Db::name('kuerp_goods_purchase')
                     ->where(['id'=>['in',$purchase_id]])
                     ->field('purchase_code,examine_status,pay_status,check_status')
@@ -195,7 +232,7 @@ class GoodsPurchaseOrder extends Backend
                             'purchase_code'     =>  $params['purchase_code'],
                             'purchase_type'     =>  $params['purchase_type'],
                             'purchase_time'     =>  strtotime($params['purchase_time']),
-                            'delivery_time'     =>  strtotime($params['delivery_time']),
+                            'delivery_time'     =>  !empty($params['delivery_time']) ? strtotime($params['delivery_time']) : null,
                             'supplyer_code'     =>  $lineSupplier,//行级供应商
 
                             'goods_code'        =>  $v,//商品信息
@@ -251,8 +288,9 @@ class GoodsPurchaseOrder extends Backend
                     $row = [
                         'purchase_code'     =>  $params['purchase_code'],
                         'purchase_type'     =>  $params['purchase_type'],
+                        'order_source'      =>  $this->orderSource(),
                         'purchase_time'     =>  strtotime($params['purchase_time']),
-                        'delivery_time'     =>  strtotime($params['delivery_time']),
+                        'delivery_time'     =>  !empty($params['delivery_time']) ? strtotime($params['delivery_time']) : null,
                         'supplyer_code'     =>  $headerSupplierCode,
                         'supplier_count'    =>  count($uniqueSuppliers),
                         'sales_order_id'    =>  $mainSalesOrderId,
@@ -595,7 +633,7 @@ class GoodsPurchaseOrder extends Backend
             if($row['purchase_type']==1){
                 $purchase_id = Db::name('kuerp_goods_purord')->where(['order_id'=>$ids])->column('purchase_id');
                 if(!empty($purchase_id)){
-                    $this->error('不能编辑已生成购货单的数据');
+                    $this->error('不能编辑已生成采购单的数据');
                 }
             }else{
                 $purchase_id = Db::name('kuerp_goods_excpur')->where(['purchase_id'=>$ids])->column('exchange_id');
@@ -645,7 +683,7 @@ class GoodsPurchaseOrder extends Backend
                             'purchase_code'     =>  $params['purchase_code'],
                             'purchase_type'     =>  $params['purchase_type'],
                             'purchase_time'     =>  strtotime($params['purchase_time']),
-                            'delivery_time'     =>  strtotime($params['delivery_time']),
+                            'delivery_time'     =>  !empty($params['delivery_time']) ? strtotime($params['delivery_time']) : null,
                             'supplyer_code'     =>  $lineSupplier,//行级供应商
 
                             'goods_code'        =>  $v,//商品信息
@@ -703,7 +741,7 @@ class GoodsPurchaseOrder extends Backend
                         'purchase_code'     =>  $params['purchase_code'],
                         'purchase_type'     =>  $params['purchase_type'],
                         'purchase_time'     =>  strtotime($params['purchase_time']),
-                        'delivery_time'     =>  strtotime($params['delivery_time']),
+                        'delivery_time'     =>  !empty($params['delivery_time']) ? strtotime($params['delivery_time']) : null,
                         'supplyer_code'     =>  $headerSupplierCode,
                         'supplier_count'    =>  count($uniqueSuppliers),
                         'sales_order_id'    =>  $mainSalesOrderId,
@@ -809,7 +847,7 @@ class GoodsPurchaseOrder extends Backend
         $this->view->assign("purchase_info", $purchase_info);
         $this->assignconfig("purchase_id", $row['id']);
 
-        // 按供应商分组，查询每个分组的购货单生成状态，并收集各行数据
+        // 按供应商分组，查询每个分组的采购单生成状态，并收集各行数据
         $supplierGroups = [];
         foreach ($purchase_info as $info) {
             $sc = !empty($info['supplyer_code']) ? $info['supplyer_code'] : '未指定供应商';
@@ -835,7 +873,7 @@ class GoodsPurchaseOrder extends Backend
             $supplierGroups[$sc]['total_money'] += (float)($info['money_tax_price'] ?? 0);
             $supplierGroups[$sc]['items'][] = $info;
 
-            // 检查该行是否已生成购货单
+            // 检查该行是否已生成采购单
             $purordInfo = Db::name('kuerp_goods_purord_info')
                 ->where(['order_id' => $info['id']])
                 ->find();
@@ -847,7 +885,7 @@ class GoodsPurchaseOrder extends Backend
                 if (!empty($purchaseInfo)) {
                     $supplierGroups[$sc]['generated'] = true;
                     $supplierGroups[$sc]['purchase_code'] = $purchaseInfo['purchase_code'];
-                    // 查询购货单主表ID，用于"查看购货单"链接跳转
+                    // 查询采购单主表ID，用于"查看采购单"链接跳转
                     $purchaseHeaderId = Db::name('kuerp_goods_purchase')
                         ->where(['purchase_code' => $purchaseInfo['purchase_code']])
                         ->value('id');
@@ -876,6 +914,23 @@ class GoodsPurchaseOrder extends Backend
         $this->assignconfig("examine_status", $row['examine_status']);
         $this->assignconfig("purchase_type", $row['purchase_type']);
 
+        //明细导入能否使用：条件与 edit() POST 的拦截逐条对齐（结账 / 已审核 / 已生成采购单 / 已生成退货单），
+        //由服务端算好原因下发，避免前端重复实现业务规则后与后端跑偏。空串 = 可导入。
+        $importBlockReason = '';
+        $checkout = (new \addons\kuerp\library\Checkout())->checkOutTime($row['purchase_time']);
+        if ($checkout !== true) {
+            $importBlockReason = $checkout;
+        } elseif ($examine_set == 1 && $row['examine_status'] == 1) {
+            $importBlockReason = '已审核的单据不能修改明细，请先反审核';
+        } elseif ($row['purchase_type'] == 1) {
+            if (Db::name('kuerp_goods_purord')->where(['order_id' => $ids])->count()) {
+                $importBlockReason = '该购货订单已生成采购单，不能修改明细';
+            }
+        } elseif (Db::name('kuerp_goods_excpur')->where(['purchase_id' => $ids])->count()) {
+            $importBlockReason = '该购货订单已生成退货单，不能修改明细';
+        }
+        $this->assignconfig('importBlockReason', $importBlockReason);
+
         return $this->view->fetch();
     }
 
@@ -895,6 +950,15 @@ class GoodsPurchaseOrder extends Backend
                 $this->model->where($this->dataLimitField, 'in', $adminIds);
             }
             $list = $this->model->where($pk, 'in', $ids)->select();
+            // 部门隔离：只能删除本部门录入的预订单
+            $orderSource = $this->orderSourceListFilter();
+            if ($orderSource !== null) {
+                foreach ($list as $list_v) {
+                    if (!in_array($list_v['order_source'], (array)$orderSource)) {
+                        $this->error('单据[' . $list_v['purchase_code'] . ']不属于当前部门，不能删除');
+                    }
+                }
+            }
             $examine= Db::name('kuerp_sets')->where(['name'=>'examine'])->value('is_checked');
 
             foreach ($list as $list_k=>$list_v){
@@ -917,7 +981,7 @@ class GoodsPurchaseOrder extends Backend
                 if($list_v['purchase_type']==1){
                     $purchase_id = Db::name('kuerp_goods_purord')->where(['order_id'=>$list_v['id']])->column('purchase_id');
                     if(!empty($purchase_id)){
-                        $this->error('不能删除已生成购货单的数据');
+                        $this->error('不能删除已生成采购单的数据');
                     }
                 }else{
                     $purchase_id = Db::name('kuerp_goods_excpur')->where(['purchase_id'=>$list_v['id']])->column('exchange_id');
@@ -1062,7 +1126,7 @@ class GoodsPurchaseOrder extends Backend
                     if($examine_set!=1){
                         return ['status'=>0,'msg'=>'不能操作已生成退货单的数据'];
                     }
-                    $this->error('不能反审核已生成购货单的数据');
+                    $this->error('不能反审核已生成采购单的数据');
                 }
                 $purchase_id = Db::name('kuerp_goods_excpur')->where(['purchase_id'=>$list_v['id'],'type'=>'1'])->column('exchange_id');
                 if(!empty($purchase_id)){
@@ -1193,7 +1257,7 @@ class GoodsPurchaseOrder extends Backend
         $this->success('', ['supplier_count' => $supplierCount, 'groups' => $groups]);
     }
 
-    // 按供应商分组批量生成购货单
+    // 按供应商分组批量生成采购单
     public function batchGeneratePurchase(){
         $order_id = isset($_POST['order_id']) ? intval($_POST['order_id']) : 0;
         if (empty($order_id)) {
@@ -1205,7 +1269,7 @@ class GoodsPurchaseOrder extends Backend
             $this->error('订单不存在');
         }
         if ($order['examine_status'] != '1') {
-            $this->error('订单未审核，不可生成购货单');
+            $this->error('订单未审核，不可生成采购单');
         }
 
         $lines = Db::name('kuerp_goods_purchase_order_info')
@@ -1221,7 +1285,7 @@ class GoodsPurchaseOrder extends Backend
         });
 
         if (empty($lines)) {
-            $this->error('此购货订单已全部生成购货单');
+            $this->error('此购货订单已全部生成采购单');
         }
 
         // 按供应商分组
@@ -1320,11 +1384,11 @@ class GoodsPurchaseOrder extends Backend
                 // 实付金额 = 本组价税合计 - 本组分摊优惠
                 $realMoney = round($totalMoneyTaxPrice - $groupPreferential, 2);
 
-                // 生成购货单默认未付款，本次欠款 = 实付金额；总欠款 = 本次欠款 + 供应商已有欠款
+                // 生成采购单默认未付款，本次欠款 = 实付金额；总欠款 = 本次欠款 + 供应商已有欠款
                 $giveAccount = Db::name('kuerp_suppliers')->where(['supplyer_code' => $realSupplierCode])->value('need_give_account');
                 $giveAccount = $giveAccount ? (float)$giveAccount : 0;
 
-                // 插入购货单主表
+                // 插入采购单主表
                 $purchaseMainId = Db::name('kuerp_goods_purchase')->insertGetId([
                     'purchase_code'     => $purchaseCode,
                     'purchase_type'     => $order['purchase_type'],
@@ -1350,7 +1414,7 @@ class GoodsPurchaseOrder extends Backend
                     'updatetime'        => time(),
                 ]);
 
-                // 插入购货单明细
+                // 插入采购单明细
                 foreach ($detailData as $dv) {
                     $orderInfoId = $dv['order_info_id'];
                     unset($dv['order_info_id']);
@@ -1379,8 +1443,8 @@ class GoodsPurchaseOrder extends Backend
                 if (!empty($order['sales_order_id'])) {
                     \app\admin\model\kuerp\GoodsSalesOrderLog::writeLogByCode(
                         $order['sales_order_id'],
-                        '生成购货单',
-                        "生成购货单：{$purchaseCode}（供应商：{$realSupplierCode}）",
+                        '生成采购单',
+                        "生成采购单：{$purchaseCode}（供应商：{$realSupplierCode}）",
                         'purchase',
                         $purchaseMainId
                     );
@@ -1401,13 +1465,13 @@ class GoodsPurchaseOrder extends Backend
             Db::commit();
         } catch (\Exception $e) {
             Db::rollback();
-            $this->error('生成购货单失败：' . $e->getMessage());
+            $this->error('生成采购单失败：' . $e->getMessage());
         }
 
-        $this->success('成功生成' . count($results) . '个购货单', ['results' => $results]);
+        $this->success('成功生成' . count($results) . '个采购单', ['results' => $results]);
     }
 
-    // 按单个供应商生成购货单
+    // 按单个供应商生成采购单
     public function generateBySupplier(){
         $order_id = isset($_POST['order_id']) ? intval($_POST['order_id']) : 0;
         $supplyer_code = isset($_POST['supplyer_code']) ? trim($_POST['supplyer_code']) : '';
@@ -1421,7 +1485,7 @@ class GoodsPurchaseOrder extends Backend
             $this->error('订单不存在');
         }
         if ($order['examine_status'] != '1') {
-            $this->error('订单未审核，不可生成购货单');
+            $this->error('订单未审核，不可生成采购单');
         }
 
         // 查询该供应商的订单明细行
@@ -1437,7 +1501,7 @@ class GoodsPurchaseOrder extends Backend
             ->select();
 
         if (empty($lines)) {
-            $this->error('该供应商没有可生成购货单的商品');
+            $this->error('该供应商没有可生成采购单的商品');
         }
 
         // 过滤已全部转换的行
@@ -1449,7 +1513,7 @@ class GoodsPurchaseOrder extends Backend
         });
 
         if (empty($lines)) {
-            $this->error('该供应商的商品已全部生成购货单');
+            $this->error('该供应商的商品已全部生成采购单');
         }
 
         $purchaseCode = \addons\kuerp\library\Goods::getCodes('', 8);
@@ -1530,7 +1594,7 @@ class GoodsPurchaseOrder extends Backend
         // 实付金额 = 本组价税合计 - 本组分摊优惠
         $realMoney = round($totalMoneyTaxPrice - $groupPreferential, 2);
 
-        // 生成购货单默认未付款，本次欠款 = 实付金额；总欠款 = 本次欠款 + 供应商已有欠款
+        // 生成采购单默认未付款，本次欠款 = 实付金额；总欠款 = 本次欠款 + 供应商已有欠款
         $giveAccount = Db::name('kuerp_suppliers')->where(['supplyer_code' => $supplyer_code])->value('need_give_account');
         $giveAccount = $giveAccount ? (float)$giveAccount : 0;
 
@@ -1597,8 +1661,8 @@ class GoodsPurchaseOrder extends Backend
             if (!empty($order['sales_order_id'])) {
                 \app\admin\model\kuerp\GoodsSalesOrderLog::writeLogByCode(
                     $order['sales_order_id'],
-                    '生成购货单',
-                    "生成购货单：{$purchaseCode}（供应商：{$supplyer_code}）",
+                    '生成采购单',
+                    "生成采购单：{$purchaseCode}（供应商：{$supplyer_code}）",
                     'purchase',
                     $purchaseMainId
                 );
@@ -1607,13 +1671,13 @@ class GoodsPurchaseOrder extends Backend
             Db::commit();
         } catch (\Exception $e) {
             Db::rollback();
-            $this->error('生成购货单失败：' . $e->getMessage());
+            $this->error('生成采购单失败：' . $e->getMessage());
         }
 
-        $this->success('成功生成购货单：' . $purchaseCode);
+        $this->success('成功生成采购单：' . $purchaseCode);
     }
 
-    //检测可生成购货单
+    //检测可生成采购单
     public function checkPurchase(){
         $order_id = isset($_POST['order_id'])?trim($_POST['order_id']):0;
         if(empty($order_id)){
@@ -1628,10 +1692,10 @@ class GoodsPurchaseOrder extends Backend
         $examine= Db::name('kuerp_sets')->where(['name'=>'examine'])->value('is_checked');
         if($examine==1){
             if($row['examine_status']!=1){
-                $this->error('此购货订单未审核，不可生成购货单');
+                $this->error('此购货订单未审核，不可生成采购单');
             }
             if($row['second_examine_status']!=1){
-                $this->error('此购货订单未通过二次审核，不可生成购货单');
+                $this->error('此购货订单未通过二次审核，不可生成采购单');
             }
         }
         $purchase_info = Db::name('kuerp_goods_purchase_order_info')->where(['purchase_code'=>$row['purchase_code']])->select();
@@ -1643,7 +1707,7 @@ class GoodsPurchaseOrder extends Backend
             }
         }
         if(empty($purchase_info)){
-            $this->error('此购货订单已全部生成购货单');
+            $this->error('此购货订单已全部生成采购单');
         }
         $this->success();
     }
@@ -1679,5 +1743,555 @@ class GoodsPurchaseOrder extends Backend
             $this->error('此购货订单已全部生成退货单');
         }
         $this->success();
+    }
+
+    /**
+     * 购货订单明细Excel模板的列定义（导出与导入共用同一套定义）
+     * alias 用于导入时容错匹配表头；required 的列在表头带 * 标记
+     */
+    private function excelColumns()
+    {
+        return [
+            ['field' => 'goods_code',     'title' => '商品编号', 'alias' => ['商品编号', '商品编码', 'goods_code'],              'required' => true],
+            ['field' => 'goods_name',     'title' => '商品名称', 'alias' => ['商品名称', '商品名', 'goods_name'],                'required' => false],
+            ['field' => 'unit_name',      'title' => '商品单位', 'alias' => ['商品单位', '单位', 'unit'],                        'required' => true],
+            ['field' => 'store_name',     'title' => '仓库',     'alias' => ['仓库', '仓库名称', 'stores'],                      'required' => true],
+            ['field' => 'supplier_label', 'title' => '供应商',   'alias' => ['供应商', '供应商名称', 'supplier'],                'required' => false],
+            ['field' => 'number',         'title' => '数量',     'alias' => ['数量', 'number'],                                  'required' => true],
+            ['field' => 'unit_price',     'title' => '采购单价', 'alias' => ['采购单价', '单价', '不含税单价', 'unit_price'],    'required' => false],
+            ['field' => 'discount',       'title' => '折扣率%',  'alias' => ['折扣率', '折扣', 'discount'],                      'required' => false],
+            ['field' => 'tax_rate',       'title' => '税率%',    'alias' => ['税率', 'tax_rate'],                                'required' => false],
+            ['field' => 'remark',         'title' => '备注',     'alias' => ['备注', 'remark'],                                  'required' => false],
+        ];
+    }
+
+    /**
+     * 表头归一化：去掉空白与 * 必填标记、去掉结尾的 % 单位，便于容错匹配
+     */
+    private function normalizeExcelHeader($title)
+    {
+        $title = (string)$title;
+        $title = preg_replace('/[\s\*\x{3000}]+/u', '', $title);
+        return rtrim($title, '%');
+    }
+
+    /**
+     * 解析表头行，返回 内部字段 => 列号(从1开始)
+     */
+    private function mapExcelColumns($sheet, $headerRow)
+    {
+        $byAlias = [];
+        foreach ($this->excelColumns() as $col) {
+            foreach (array_merge([$col['title']], $col['alias']) as $alias) {
+                $byAlias[$this->normalizeExcelHeader($alias)] = $col['field'];
+            }
+        }
+        $map    = [];
+        $maxCol = Coordinate::columnIndexFromString($sheet->getHighestDataColumn());
+        for ($i = 1; $i <= $maxCol; $i++) {
+            $head = $this->normalizeExcelHeader($sheet->getCellByColumnAndRow($i, $headerRow)->getValue());
+            if ($head !== '' && isset($byAlias[$head]) && !isset($map[$byAlias[$head]])) {
+                $map[$byAlias[$head]] = $i;
+            }
+        }
+        return $map;
+    }
+
+    /**
+     * Excel 单元格值转字符串：避免纯数字的商品编号被读成科学计数法或丢掉前导零
+     */
+    private function excelCellString($value)
+    {
+        if (is_int($value)) {
+            return (string)$value;
+        }
+        if (is_float($value)) {
+            return (floor($value) == $value)
+                ? number_format($value, 0, '', '')
+                : rtrim(rtrim(sprintf('%.10F', $value), '0'), '.');
+        }
+        return trim((string)$value);
+    }
+
+    /**
+     * 导出购货订单明细Excel（与导入共用同一份模板）
+     *
+     * 商品编号 / 商品单位 / 仓库 / 供应商 四列为下拉选择，下拉数据全部取自系统资料；
+     * 资料变动后重新点一次「导出」即可得到最新模板。
+     * 明细为空时导出的即为空白模板。
+     */
+    public function export()
+    {
+        $rows = $this->request->post('rows');
+        if (is_string($rows)) {
+            $rows = json_decode($rows, true);
+        }
+        if (!is_array($rows)) {
+            $rows = [];
+        }
+        $purchaseCode = trim((string)$this->request->post('purchase_code', ''));
+
+        $columns = $this->excelColumns();
+
+        // ---------- 下拉数据源（与页面上的下拉保持同一取数口径：仅启用状态） ----------
+        $goodsList = Db::name('kuerp_goods')->where(['status' => '1'])
+            ->field('goods_code,goods_name')->order('goods_code', 'ASC')->select();
+        $storeList = Db::name('kuerp_stores')->where(['status' => '1'])
+            ->field('id,name')->order('id', 'ASC')->select();
+        $supplierList = Db::name('kuerp_suppliers')->where(['status' => '1'])
+            ->field('supplyer_code,supplyer_name')->order('supplyer_code', 'ASC')->select();
+
+        // 单位名称去重（同名单位可能对应多条单位记录）
+        $unitNames = [];
+        foreach (Db::name('kuerp_unit')->field('id,name')->order('id', 'ASC')->select() as $unit) {
+            $unitName = trim((string)$unit['name']);
+            if ($unitName !== '' && !in_array($unitName, $unitNames, true)) {
+                $unitNames[] = $unitName;
+            }
+        }
+
+        $numberDecimal = (int)Db::name('kuerp_sets')->where(['name' => 'number_decimal'])->value('value');
+        $priceDecimal  = (int)Db::name('kuerp_sets')->where(['name' => 'price_decimal'])->value('value');
+        $numberFormat  = '0' . ($numberDecimal > 0 ? '.' . str_repeat('0', $numberDecimal) : '');
+        $priceFormat   = '0' . ($priceDecimal > 0 ? '.' . str_repeat('0', $priceDecimal) : '');
+
+        $spreadsheet = new Spreadsheet();
+        $spreadsheet->getDefaultStyle()->getFont()->setName('微软雅黑')->setSize(10);
+
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('购货订单明细');
+
+        // 列号 <-> 字段 的映射，避免正文里出现魔法字母
+        $letterByField = [];
+        $fieldByLetter = [];
+        foreach ($columns as $k => $col) {
+            $letter = Coordinate::stringFromColumnIndex($k + 1);
+            $letterByField[$col['field']] = $letter;
+            $fieldByLetter[$letter]       = $col['field'];
+        }
+        $lastColLetter = Coordinate::stringFromColumnIndex(count($columns));
+
+        // ---------- 隐藏的选项表（下拉数据源） ----------
+        $opt = $spreadsheet->createSheet();
+        $opt->setTitle(self::EXCEL_OPT_SHEET);
+        $opt->fromArray(['商品编号', '商品名称', '商品单位', '仓库', '供应商', '供应商编号'], null, 'A1');
+        foreach ($goodsList as $k => $goods) {
+            $opt->setCellValueExplicit('A' . ($k + 2), (string)$goods['goods_code'], DataType::TYPE_STRING);
+            $opt->setCellValueExplicit('B' . ($k + 2), (string)$goods['goods_name'], DataType::TYPE_STRING);
+        }
+        foreach ($unitNames as $k => $unitName) {
+            $opt->setCellValueExplicit('C' . ($k + 2), $unitName, DataType::TYPE_STRING);
+        }
+        foreach ($storeList as $k => $store) {
+            $opt->setCellValueExplicit('D' . ($k + 2), (string)$store['name'], DataType::TYPE_STRING);
+        }
+        foreach ($supplierList as $k => $supplier) {
+            $opt->setCellValueExplicit('E' . ($k + 2), trim($supplier['supplyer_code'] . ' ' . $supplier['supplyer_name']), DataType::TYPE_STRING);
+            $opt->setCellValueExplicit('F' . ($k + 2), (string)$supplier['supplyer_code'], DataType::TYPE_STRING);
+        }
+        $opt->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
+
+        // ---------- 明细表 ----------
+        foreach ($columns as $col) {
+            $sheet->setCellValue($letterByField[$col['field']] . '1', $col['title'] . ($col['required'] ? '*' : ''));
+        }
+
+        $firstDataRow = 2;
+        $lastDataRow  = $firstDataRow + max(count($rows), self::EXCEL_TEMPLATE_ROWS) - 1;
+
+        // 下拉校验
+        $optRange = [
+            'goods_code'     => self::EXCEL_OPT_SHEET . '!$A$2:$A$' . (count($goodsList) + 1),
+            'unit_name'      => self::EXCEL_OPT_SHEET . '!$C$2:$C$' . (count($unitNames) + 1),
+            'store_name'     => self::EXCEL_OPT_SHEET . '!$D$2:$D$' . (count($storeList) + 1),
+            'supplier_label' => self::EXCEL_OPT_SHEET . '!$E$2:$E$' . (count($supplierList) + 1),
+        ];
+        $optPrompt = [
+            'goods_code'     => ['商品编号', '请从下拉列表中选择商品编号；下拉数据取自系统商品资料'],
+            'unit_name'      => ['商品单位', '请从下拉列表中选择；留空则按商品的默认单位'],
+            'store_name'     => ['仓库', '请从下拉列表中选择；留空则按商品的默认仓库'],
+            'supplier_label' => ['供应商', '请从下拉列表中选择；留空则按商品绑定的默认供应商'],
+        ];
+        foreach ($fieldByLetter as $letter => $field) {
+            if (!isset($optRange[$field])) {
+                continue;
+            }
+            $validation = new DataValidation();
+            $validation->setType(DataValidation::TYPE_LIST);
+            $validation->setOperator('');   // 列表校验不需要 operator，避免写出多余的 operator="between"
+            $validation->setAllowBlank(true);
+            $validation->setShowDropDown(true);
+            $validation->setShowErrorMessage(true);
+            $validation->setErrorStyle(DataValidation::STYLE_WARNING);
+            $validation->setErrorTitle('提示');
+            $validation->setError('请从下拉列表中选择，或确认后继续。');
+            $validation->setShowInputMessage(true);
+            $validation->setPromptTitle($optPrompt[$field][0]);
+            $validation->setPrompt($optPrompt[$field][1]);
+            $validation->setFormula1($optRange[$field]);
+            $sheet->setDataValidation($letter . $firstDataRow . ':' . $letter . $lastDataRow, $validation);
+        }
+
+        // 数量 / 金额类：数字校验 + 数字格式
+        $numericRules = [
+            $letterByField['number']     => [$numberFormat, '请填写大于 0 的数字。', DataValidation::OPERATOR_GREATERTHAN, '0'],
+            $letterByField['unit_price'] => [$priceFormat,  '请填写不小于 0 的数字。', DataValidation::OPERATOR_GREATERTHANOREQUAL, '0'],
+            $letterByField['discount']   => [$priceFormat,  '请填写 0 到 100 之间的数字（百分数）。', DataValidation::OPERATOR_BETWEEN, '0', '100'],
+            $letterByField['tax_rate']   => [$priceFormat,  '请填写 0 到 100 之间的数字（百分数）。', DataValidation::OPERATOR_BETWEEN, '0', '100'],
+        ];
+        foreach ($numericRules as $letter => $rule) {
+            $validation = new DataValidation();
+            $validation->setType(DataValidation::TYPE_DECIMAL);
+            $validation->setOperator($rule[2]);
+            $validation->setAllowBlank(true);
+            $validation->setShowErrorMessage(true);
+            $validation->setErrorStyle(DataValidation::STYLE_WARNING);
+            $validation->setErrorTitle('提示');
+            $validation->setError($rule[1]);
+            $validation->setFormula1($rule[3]);
+            if (isset($rule[4])) {
+                $validation->setFormula2($rule[4]);
+            }
+            $sheet->setDataValidation($letter . $firstDataRow . ':' . $letter . $lastDataRow, $validation);
+            $sheet->getStyle($letter . $firstDataRow . ':' . $letter . $lastDataRow)
+                ->getNumberFormat()->setFormatCode($rule[0]);
+        }
+
+        // 商品名称列：公式自动带出，导入时以商品编号为准
+        $goodsRange = self::EXCEL_OPT_SHEET . '!$A$2:$B$' . (count($goodsList) + 1);
+        for ($r = $firstDataRow; $r <= $lastDataRow; $r++) {
+            $sheet->setCellValue(
+                $letterByField['goods_name'] . $r,
+                '=IFERROR(VLOOKUP($' . $letterByField['goods_code'] . $r . ',' . $goodsRange . ',2,0),"")'
+            );
+        }
+
+        // 回填当前明细
+        $r = $firstDataRow;
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $goodsCode = trim((string)(isset($row['goods_code']) ? $row['goods_code'] : ''));
+            if ($goodsCode === '') {
+                continue;
+            }
+            $sheet->setCellValueExplicit($letterByField['goods_code'] . $r, $goodsCode, DataType::TYPE_STRING);
+            foreach (['unit_name', 'store_name', 'supplier_label', 'remark'] as $field) {
+                $val = isset($row[$field]) ? trim((string)$row[$field]) : '';
+                if ($val !== '') {
+                    $sheet->setCellValueExplicit($letterByField[$field] . $r, $val, DataType::TYPE_STRING);
+                }
+            }
+            foreach (['number', 'unit_price', 'discount', 'tax_rate'] as $field) {
+                $val = isset($row[$field]) ? $row[$field] : '';
+                if ($val !== '' && $val !== null && is_numeric($val)) {
+                    $sheet->setCellValue($letterByField[$field] . $r, (float)$val);
+                }
+            }
+            $r++;
+        }
+
+        // 表头样式
+        $sheet->getStyle('A1:' . $lastColLetter . '1')->applyFromArray([
+            'font'      => ['bold' => true, 'size' => 11, 'color' => ['rgb' => 'FFFFFF']],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '3C8DBC']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+            'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'B8CCE4']]],
+        ]);
+        $sheet->getRowDimension(1)->setRowHeight(26);
+        $sheet->getStyle('A' . $firstDataRow . ':' . $lastColLetter . $lastDataRow)->applyFromArray([
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'DDDDDD']]],
+        ]);
+
+        $widths = [
+            'goods_code' => 16, 'goods_name' => 34, 'unit_name' => 10, 'store_name' => 14,
+            'supplier_label' => 30, 'number' => 12, 'unit_price' => 12, 'discount' => 10,
+            'tax_rate' => 10, 'remark' => 26,
+        ];
+        foreach ($letterByField as $field => $letter) {
+            $sheet->getColumnDimension($letter)->setWidth(isset($widths[$field]) ? $widths[$field] : 14);
+        }
+        $sheet->freezePane('A' . $firstDataRow);
+
+        // ---------- 填写说明 ----------
+        $note = $spreadsheet->createSheet();
+        $note->setTitle('填写说明');
+        $noteRows = [
+            '购货订单明细  导入 / 导出 模板说明',
+            '1、本模板同时用于「导出」与「导入」，导出与导入必须使用同一份模板。',
+            '2、导入会【替换】购货订单编辑页当前的全部明细行，请先确认页面上的明细已导出备份。',
+            '3、带 * 的列为必填：商品编号、商品单位、仓库、数量。',
+            '4、商品编号、商品单位、仓库、供应商 四列均为下拉选择，下拉数据取自系统资料；',
+            '     若下拉中没有需要的选项，请先在系统对应模块中新增资料，然后重新点击「导出」生成新模板。',
+            '5、商品名称列由公式自动带出，无需填写；导入时以商品编号为准。',
+            '6、采购单价为不含税单价；折扣率、税率填百分数（如 13 表示 13%）。',
+            '     这三列留空时，按商品档案 / 供应商的默认值自动计算。',
+            '7、含税单价、购货金额、税额、价税合计由系统自动计算，无需填写。',
+            '8、商品单位 / 仓库 / 供应商 留空时，分别按商品的默认单位、默认仓库、默认供应商处理。',
+            '9、商品编号不存在、仓库名称不正确、数量为空或非数字时，导入会被拒绝并提示具体行号。',
+            '10、明细行数超过模板预留行数时，可复制最后一行的公式继续填写（商品名称列公式会自动跟随）。',
+        ];
+        foreach ($noteRows as $k => $line) {
+            $note->setCellValue('A' . ($k + 1), $line);
+        }
+        $note->getStyle('A1')->getFont()->setBold(true)->setSize(12);
+        $note->getColumnDimension('A')->setWidth(105);
+
+        $spreadsheet->setActiveSheetIndex(0);
+
+        // ---------- 输出下载 ----------
+        $title = '购货订单导入模板';
+        if ($purchaseCode !== '') {
+            $safeCode = str_replace(['"', "'", '\\', '/', "\r", "\n", ';', ':'], '', $purchaseCode);
+            if ($safeCode !== '') {
+                $title = '购货订单明细_' . $safeCode;
+            }
+        }
+        $stamp = date('YmdHis');
+
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="purchase_order_' . $stamp . '.xlsx";filename*=UTF-8\'\'' . rawurlencode($title . '_' . $stamp . '.xlsx'));
+        header('Cache-Control: max-age=0');
+        header('Pragma: public');
+
+        $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
+        $writer->save('php://output');
+        $spreadsheet->disconnectWorksheets();
+        exit;
+    }
+
+    /**
+     * 解析导入的Excel（与「导出」共用同一份模板），返回明细行供前端替换表格
+     *
+     * 只做解析与校验，不写库；由前端把结果填进表单后再走正常的保存流程。
+     */
+    public function parseimport()
+    {
+        $file = $this->request->file('file');
+        if (!$file) {
+            $this->error('请选择要导入的Excel文件');
+        }
+        $fileInfo = $file->getInfo();
+        $fileName = isset($fileInfo['name']) ? $fileInfo['name'] : '';
+        $tmpPath  = isset($fileInfo['tmp_name']) ? $fileInfo['tmp_name'] : '';
+        if (!in_array(strtolower(pathinfo($fileName, PATHINFO_EXTENSION)), ['xlsx', 'xls'], true)) {
+            $this->error('仅支持 .xlsx / .xls 格式的Excel文件');
+        }
+        if (!$tmpPath || !is_file($tmpPath)) {
+            $this->error('文件上传失败，请重新选择文件');
+        }
+        if (filesize($tmpPath) > 10 * 1024 * 1024) {
+            $this->error('文件过大，请确认使用的是本系统导出的模板（不超过10M）');
+        }
+
+        try {
+            $reader = IOFactory::createReaderForFile($tmpPath);
+            $reader->setReadDataOnly(true);
+            $spreadsheet = $reader->load($tmpPath);
+        } catch (Exception $e) {
+            $this->error('Excel文件解析失败，请确认文件未损坏：' . $e->getMessage());
+        }
+
+        $sheet = $spreadsheet->getSheetByName('购货订单明细');
+        if (!$sheet) {
+            $sheet = $spreadsheet->getSheet(0);
+        }
+
+        // 定位表头行（容错：允许表头前有标题行）
+        $maxCol    = Coordinate::columnIndexFromString($sheet->getHighestDataColumn());
+        $headerRow = 0;
+        $scanTo    = min(10, $sheet->getHighestDataRow());
+        for ($r = 1; $r <= $scanTo && !$headerRow; $r++) {
+            for ($c = 1; $c <= $maxCol; $c++) {
+                if ($this->normalizeExcelHeader($sheet->getCellByColumnAndRow($c, $r)->getValue()) === '商品编号') {
+                    $headerRow = $r;
+                    break;
+                }
+            }
+        }
+        if (!$headerRow) {
+            $this->error('未识别到表头，请使用系统「导出」生成的模板填写后再导入');
+        }
+
+        $map = $this->mapExcelColumns($sheet, $headerRow);
+        if (!isset($map['goods_code']) || !isset($map['number'])) {
+            $this->error('模板缺少必填列（商品编号 / 数量），请使用系统「导出」生成的模板');
+        }
+
+        // ---------- 参照资料 ----------
+        $goodsMap = [];
+        foreach (Db::name('kuerp_goods')->where(['status' => '1'])
+            ->field('id,goods_code,goods_name,unit_id,more_unit,manager_warehouse_id')->select() as $goods) {
+            $goodsMap[$goods['goods_code']] = $goods;
+        }
+        $storeByName = [];
+        $storeById   = [];
+        foreach (Db::name('kuerp_stores')->where(['status' => '1'])->field('id,name')->select() as $store) {
+            $storeByName[trim($store['name'])] = (int)$store['id'];
+            $storeById[(int)$store['id']]      = $store['name'];
+        }
+        $unitByName = [];
+        foreach (Db::name('kuerp_unit')->field('id,name')->select() as $unit) {
+            $unitByName[trim($unit['name'])][] = (int)$unit['id'];
+        }
+        $convByMain = [];
+        foreach (Db::name('kuerp_unit_conversion')->field('main_unit,vice_unit')->select() as $conv) {
+            $convByMain[(int)$conv['main_unit']][] = (int)$conv['vice_unit'];
+        }
+        $supplierByLabel = [];
+        $supplierCodes   = [];
+        foreach (Db::name('kuerp_suppliers')->where(['status' => '1'])->field('supplyer_code,supplyer_name')->select() as $supplier) {
+            $supplierByLabel[trim($supplier['supplyer_code'] . ' ' . $supplier['supplyer_name'])] = $supplier['supplyer_code'];
+            $supplierCodes[$supplier['supplyer_code']] = true;
+        }
+
+        $cellValue = function ($rowIdx, $field) use ($sheet, $map) {
+            if (!isset($map[$field])) {
+                return '';
+            }
+            return $sheet->getCellByColumnAndRow($map[$field], $rowIdx)->getValue();
+        };
+        $cellText = function ($rowIdx, $field) use ($cellValue) {
+            return $this->excelCellString($cellValue($rowIdx, $field));
+        };
+
+        // ---------- 逐行解析 ----------
+        $rows     = [];
+        $errors   = [];
+        $warnings = [];
+        $lastRow  = $sheet->getHighestDataRow();
+
+        for ($r = $headerRow + 1; $r <= $lastRow; $r++) {
+            $goodsCode = $cellText($r, 'goods_code');
+            if ($goodsCode === '') {
+                continue;   // 空行跳过
+            }
+            $goods = isset($goodsMap[$goodsCode]) ? $goodsMap[$goodsCode] : null;
+            if (!$goods) {
+                $errors[] = '第' . $r . '行：商品编号「' . $goodsCode . '」不存在';
+                continue;
+            }
+
+            $numberRaw = $cellText($r, 'number');
+            if ($numberRaw === '' || !is_numeric($numberRaw) || (float)$numberRaw <= 0) {
+                $errors[] = '第' . $r . '行：数量必须为大于 0 的数字';
+                continue;
+            }
+
+            // 仓库：留空则回退到商品的默认仓库
+            $storeName = $cellText($r, 'store_name');
+            if ($storeName !== '') {
+                if (!isset($storeByName[$storeName])) {
+                    $errors[] = '第' . $r . '行：仓库「' . $storeName . '」不存在，请使用下拉选项';
+                    continue;
+                }
+                $storesId = $storeByName[$storeName];
+            } else {
+                $storesId = (int)$goods['manager_warehouse_id'];
+                if (!$storesId || !isset($storeById[$storesId])) {
+                    $errors[] = '第' . $r . '行：未填写仓库，且商品「' . $goodsCode . '」未设置默认仓库';
+                    continue;
+                }
+                $warnings[] = '第' . $r . '行：未填写仓库，已按商品默认仓库「' . $storeById[$storesId] . '」处理';
+            }
+
+            // 单位：在该商品的可用单位里按名称匹配；留空或匹配不到则交给前端按默认单位处理
+            $unitName = $cellText($r, 'unit_name');
+            $unitId   = 0;
+            if ($unitName !== '') {
+                $validIds = [(int)$goods['unit_id']];
+                if ((string)$goods['more_unit'] === '1' && isset($convByMain[(int)$goods['unit_id']])) {
+                    foreach ($convByMain[(int)$goods['unit_id']] as $viceId) {
+                        $validIds[] = $viceId;
+                    }
+                }
+                foreach (isset($unitByName[$unitName]) ? $unitByName[$unitName] : [] as $candidate) {
+                    if (in_array($candidate, $validIds, true)) {
+                        $unitId = $candidate;
+                        break;
+                    }
+                }
+                if (!$unitId) {
+                    $warnings[] = '第' . $r . '行：单位「' . $unitName . '」不适用于商品「' . $goodsCode . '」，已改用默认单位';
+                }
+            }
+
+            // 供应商：支持「编号 名称」整串、单独编号；留空则按商品默认供应商
+            $supplierLabel = $cellText($r, 'supplier_label');
+            $supplyerCode  = '';
+            if ($supplierLabel !== '') {
+                if (isset($supplierByLabel[$supplierLabel])) {
+                    $supplyerCode = $supplierByLabel[$supplierLabel];
+                } elseif (isset($supplierCodes[$supplierLabel])) {
+                    $supplyerCode = $supplierLabel;
+                } else {
+                    $codePart = explode(' ', $supplierLabel);
+                    $codePart = trim($codePart[0]);
+                    if ($codePart !== '' && isset($supplierCodes[$codePart])) {
+                        $supplyerCode = $codePart;
+                    } else {
+                        $warnings[] = '第' . $r . '行：供应商「' . $supplierLabel . '」不存在，已忽略（按商品默认供应商处理）';
+                    }
+                }
+            }
+
+            // 价格类：允许留空，填了就必须是非负数字（容忍写成 13%）
+            $prices     = ['unit_price' => '', 'discount' => '', 'tax_rate' => ''];
+            $priceError = '';
+            foreach (['unit_price' => '采购单价', 'discount' => '折扣率', 'tax_rate' => '税率'] as $field => $label) {
+                $raw = trim(rtrim(trim($cellText($r, $field)), '%'));
+                if ($raw === '') {
+                    continue;
+                }
+                if (!is_numeric($raw)) {
+                    $priceError = '第' . $r . '行：' . $label . '「' . $cellText($r, $field) . '」不是数字';
+                    break;
+                }
+                if ((float)$raw < 0) {
+                    $priceError = '第' . $r . '行：' . $label . '不能为负数';
+                    break;
+                }
+                $prices[$field] = (float)$raw;
+            }
+            if ($priceError !== '') {
+                $errors[] = $priceError;
+                continue;
+            }
+
+            $rows[] = [
+                'goods_code'    => $goodsCode,
+                'goods_name'    => $goods['goods_name'],
+                'goods_unit'    => $unitId,
+                'stores_id'     => $storesId,
+                'supplyer_code' => $supplyerCode,
+                'number'        => (float)$numberRaw,
+                'unit_price'    => $prices['unit_price'],
+                'discount'      => $prices['discount'],
+                'tax_rate'      => $prices['tax_rate'],
+                'remark'        => mb_substr($cellText($r, 'remark'), 0, 255),
+            ];
+        }
+
+        $spreadsheet->disconnectWorksheets();
+
+        if (!empty($errors)) {
+            $msg = implode('；', array_slice($errors, 0, 8));
+            if (count($errors) > 8) {
+                $msg .= '；……共 ' . count($errors) . ' 处问题';
+            }
+            $this->error($msg);
+        }
+        if (empty($rows)) {
+            $this->error('未读取到有效明细行，请使用系统「导出」生成的模板填写后再导入');
+        }
+
+        $this->success('解析成功', null, [
+            'rows'     => $rows,
+            'warnings' => array_slice($warnings, 0, 10),
+        ]);
     }
 }

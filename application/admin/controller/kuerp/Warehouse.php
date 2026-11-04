@@ -2,6 +2,7 @@
 
 namespace app\admin\controller\kuerp;
 
+use app\admin\library\traits\WarehouseExcel;
 use app\common\controller\Backend;
 use think\Db;
 use Exception;
@@ -13,7 +14,14 @@ use think\Session;
  */
 class Warehouse extends Backend
 {
-    protected $noNeedRight = ['getserial','printpage'];
+    use WarehouseExcel;
+
+    protected $noNeedRight = ['getserial','printpage','template','parseimport'];
+    /** 单据类型：out=其他出库单（Excel 模板不含单价列） */
+    protected function excelDocType()
+    {
+        return 'out';
+    }
     /**
      * Warehouse模型对象
      * @var \app\admin\model\kuerp\Warehouse
@@ -311,7 +319,8 @@ class Warehouse extends Backend
                         $goods = Db::name('kuerp_goods')->where(['id'=>$info_v['goods_id']])->find();
                         $info[$info_k]['goods'] = $goods;
 
-                        $goodsInfo = json_decode(\addons\kuerp\library\GoodsPurchase::getUnit($goods['goods_code'],$info_v['stores_id'],$info_v['goods_attr']),true);
+                        //商品档案已删除的孤儿单据行：跳过单位查询，避免 $goods 为 null 时报错
+                        $goodsInfo = empty($goods)?['unit'=>[],'attr'=>[],'goods'=>[]]:json_decode(\addons\kuerp\library\GoodsPurchase::getUnit($goods['goods_code'],$info_v['stores_id'],$info_v['goods_attr']),true);
                         $info[$info_k]['unit_price'] = 0;
                         $info[$info_k]['price'] = 0;
                         $info[$info_k]['unit'] = $goodsInfo;
@@ -333,7 +342,8 @@ class Warehouse extends Backend
                     foreach ($info as $info_k=>$info_v){
                         $goods = Db::name('kuerp_goods')->where(['id'=>$info_v['goods_id']])->find();
                         $info[$info_k]['goods'] = $goods;
-                        $goodsInfo = json_decode(\addons\kuerp\library\GoodsPurchase::getUnit($goods['goods_code'],$info_v['stores_id'],$info_v['goods_attr']),true);
+                        //商品档案已删除的孤儿单据行：跳过单位查询，避免 $goods 为 null 时报错
+                        $goodsInfo = empty($goods)?['unit'=>[],'attr'=>[],'goods'=>[]]:json_decode(\addons\kuerp\library\GoodsPurchase::getUnit($goods['goods_code'],$info_v['stores_id'],$info_v['goods_attr']),true);
                         $goods_code    = isset($goods['goods_code'])?$goods['goods_code']:'';
                         $stores_id     = isset($info_v['stores_id'])?$info_v['stores_id']:'';
                         $attribute_id  = isset($info_v['goods_attr'])?$info_v['goods_attr']:'';
@@ -622,7 +632,8 @@ class Warehouse extends Backend
 
         foreach ($info as $info_k=>$info_v){
             $goods = Db::name('kuerp_goods')->where(['id'=>$info_v['goods_id']])->find();
-            $info[$info_k]['unit'] = json_decode(\addons\kuerp\library\GoodsPurchase::getUnit($goods['goods_code'], $info_v['stores_id'], $info_v['goods_attr']),true);
+            //商品档案已删除的孤儿单据行：跳过单位查询，避免 $goods 为 null 时报错
+            $info[$info_k]['unit'] = empty($goods)?['unit'=>[],'attr'=>[],'goods'=>[]]:json_decode(\addons\kuerp\library\GoodsPurchase::getUnit($goods['goods_code'], $info_v['stores_id'], $info_v['goods_attr']),true);
             $gid = (int)$info_v['goods_id'];
             $key = $gid . '-' . (int)$info_v['stores_id'] . '-' . (int)$info_v['goods_attr'];
             $info[$info_k]['stock'] = isset($stockMap[$key]) ? $stockMap[$key] : 0;
@@ -1157,7 +1168,7 @@ class Warehouse extends Backend
      * @param string goods_code 商品编号
      * @param string stores_id 仓库ID
      * @param string attribute_id 属性id
-     * @param string purchase_code 购货单单号
+     * @param string purchase_code 采购单单号
      * @return array
      */
     public function getSerial(){

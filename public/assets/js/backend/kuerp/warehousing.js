@@ -769,6 +769,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                     obj.find('.'+v.key).val(v.value);
                                 }
                             });
+                            var afterChange = obj.data('warehouseAfterChange');
+                            if(typeof afterChange === 'function'){
+                                obj.removeData('warehouseAfterChange');
+                                afterChange(obj);
+                            }
                         }
                     });
                 }
@@ -792,7 +797,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     obj.find('.all_money').val(all_money);
                 }
 
-                function changeGoods(goods_code,store,attr,obj,goods_unit,number) {
+                function changeGoods(goods_code,store,attr,obj,goods_unit,number,callback) {
                     var set = Config.set;
                     var number_decimal = parseInt(set.number_decimal.value);
                     if(isNaN(number_decimal)){
@@ -864,9 +869,193 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             if(goods_unit!=''){
                                 obj.find('.goods_unit').val(goods_unit);
                             }
+                            if(typeof callback === 'function'){ obj.data('warehouseAfterChange', callback); }
                         }
                     });
                 }
+
+                // ===== Excel：下载模板 / 导入明细（模板由后端生成，导入只解析不写库） =====
+                $(document).on("click", ".btn_export_template", function(){
+                    window.location.href = $(this).data('url');
+                });
+                $(document).on("click", ".btn_import_excel", function(){
+                    $('#import_excel_file')[0].click();
+                });
+                $(document).on("change", "#import_excel_file", function(){
+                    var file = this.files && this.files[0];
+                    if(!file){ return; }
+                    var btn = $('.btn_import_excel');
+                    var fd = new FormData();
+                    fd.append('file', file);
+                    btn.attr('disabled', true);
+                    $.ajax({
+                        url: "kuerp/warehousing/parseimport",
+                        type: "POST",
+                        data: fd,
+                        processData: false,
+                        contentType: false,
+                        success: function(res){
+                            btn.removeAttr('disabled');
+                            $('#import_excel_file').val('');
+                            if(!res || res.code != 1){
+                                Toastr.error((res && res.msg) ? res.msg : '导入解析失败');
+                                return;
+                            }
+                            var rows = (res.data && res.data.rows) ? res.data.rows : [];
+                            if(!rows.length){ Toastr.error('未读取到有效的明细行'); return; }
+                            var doApply = function(){
+                                applyImportedRows(rows);
+                                if(res.data.warnings && res.data.warnings.length){
+                                    Toastr.warning(res.data.warnings.join('；'), '导入提示');
+                                }else{
+                                    Toastr.success('已导入 ' + rows.length + ' 行明细');
+                                }
+                            };
+                            var hasData = false;
+                            var tableRows = document.getElementById('purchase_table').rows;
+                            for(var i = 2; i < tableRows.length; i++){
+                                if($(tableRows[i]).find('.goods_code').val()){ hasData = true; break; }
+                            }
+                            if(hasData){
+                                Layer.confirm('导入会替换当前全部明细行（包括手工录入的商品），是否继续？', {icon: 3, title: '导入确认'}, function(index){
+                                    Layer.close(index);
+                                    doApply();
+                                });
+                            }else{
+                                doApply();
+                            }
+                        },
+                        error: function(){
+                            btn.removeAttr('disabled');
+                            $('#import_excel_file').val('');
+                            Toastr.error('导入失败，请检查文件或网络后重试');
+                        }
+                    });
+                });
+
+                // 把导入解析出的行填进明细表格（替换除表头、模板行外的全部行）
+                function applyImportedRows(rows){
+                    var lawtable = document.getElementById('purchase_table');
+                    var tableRows = lawtable.rows;
+                    for(var i = tableRows.length - 1; i >= 2; i--){ $(tableRows[i]).remove(); }
+                    var templateHtml = tableRows[1].innerHTML;
+                    $(rows).each(function(k, v){
+                        var tr = $('<tr>' + templateHtml + '</tr>');
+                        $('#purchase_table').append(tr);
+                        tr.find('.goods_code').val(v.goods_code);
+                        tr.find('.goods_name').val(v.goods_code + ' ' + v.goods_name);
+                        tr.find('.remark').val(v.remark || '');
+                        changeGoods(v.goods_code, v.stores_id ? v.stores_id : '', '', tr, v.goods_unit ? v.goods_unit : '', v.number, function(row){
+                            if(v.unit_price === undefined || v.unit_price === '' || v.unit_price === null){ return; }
+                            var price = parseFloat(v.unit_price);
+                            if(isNaN(price)){ return; }
+                            var price_decimal = parseInt(Config.set.price_decimal.value);
+                            if(isNaN(price_decimal)){ price_decimal = 2; }
+                            row.find('.unit_price').val(price.toFixed(price_decimal));
+                            var number = parseFloat(row.find('.number').val()) || 0;
+                            row.find('.all_money').val((price * number).toFixed(price_decimal));
+                        });
+                    });
+                    layui.use('laydate', function(){
+                        var laydate = layui.laydate;
+                        lay('.manufacture').each(function () {
+                            laydate.render({ elem:this, trigger:"click" });
+                        });
+                        lay('.validity').each(function () {
+                            laydate.render({ elem:this, trigger:"click" });
+                        });
+                    });
+                }
+
+                // ===== 调用BOM：选BOM模板 → 子商品即明细商品；父商品数量自动计算子商品数量 =====
+                $(document).on("click", ".mb_bom_call", function(){
+                    parent.Fast.api.open("kuerp/goods_bom/chosebom", "选择BOM模板", { area: ['90%', '75%'], callback: function(goodsData){
+                        if(goodsData == undefined || goodsData.length < 1){ return; }
+                        $.ajax({
+                            url: "kuerp/goods_bom/getbomdetail",
+                            type: "POST",
+                            data: { 'id': goodsData[0].id },
+                            success: function(res){
+                                if(res.code != 1){ Toastr.error(res.msg); return; }
+                                var parentInfo = res.data.parent || {};
+                                var children = res.data.children || [];
+                                if(children.length < 1){ Toastr.error('该BOM模板没有子商品'); return; }
+
+                                var set = Config.set;
+                                var number_decimal = parseInt(set.number_decimal.value);
+                                if(isNaN(number_decimal)){ number_decimal = 1; }
+
+                                var parentNumber = parseFloat($('.bom_parent_number').val());
+                                if(isNaN(parentNumber) || parentNumber <= 0){
+                                    parentNumber = 1;
+                                }
+
+                                // 先清理空行与上一次BOM生成的行（已录入的其它商品行保留）
+                                var lawtable = document.getElementById("purchase_table");
+                                var rows = lawtable.rows;
+                                for(var i = rows.length - 1; i >= 2; i--){
+                                    var oldRow = $(rows[i]);
+                                    if(oldRow.attr('data-bom-ratio') !== undefined || !oldRow.find('.goods_code').val()){
+                                        oldRow.remove();
+                                    }
+                                }
+
+                                // 以隐藏模板行克隆生成子商品行
+                                var templateHtml = rows[1].innerHTML;
+                                var parentStore = parentInfo.manager_warehouse_id > 0 ? parentInfo.manager_warehouse_id : '';
+                                $(children).each(function(k, v){
+                                    var newRow = $('<tr>' + templateHtml + '</tr>');
+                                    $('#purchase_table').append(newRow);
+                                    var ratio = parseFloat(v.number) || 0;
+                                    newRow.find('.goods_code').val(v.goods_code);
+                                    newRow.find('.goods_name').val(v.goods_code + ' ' + v.goods_name);
+                                    newRow.attr('data-bom-ratio', ratio);
+                                    var childStore = v.manager_warehouse_id > 0 ? v.manager_warehouse_id : parentStore;
+                                    changeGoods(v.goods_code, childStore, '', newRow, v.unit_id > 0 ? v.unit_id : '', ratio * parentNumber);
+                                });
+
+                                $('.bom_title').text(res.data.bom ? res.data.bom.bom_name : '');
+                                $('.bom_parent').text((parentInfo.goods_code || '') + ' ' + (parentInfo.goods_name || ''));
+                                $('.bom_parent_number').val(parentNumber);
+                                $('.bom_bar').show();
+
+                                layui.use('laydate', function(){
+                                    var laydate = layui.laydate;
+                                    lay('.manufacture').each(function () {
+                                        laydate.render({ elem:this, trigger:"click" });
+                                    });
+                                    lay('.validity').each(function () {
+                                        laydate.render({ elem:this, trigger:"click" });
+                                    });
+                                });
+                            }
+                        });
+                    }});
+                });
+
+                // 父商品数量变化 → 子商品数量按BOM比例自动重算
+                $(document).on("input change", ".bom_parent_number", function(){
+                    var set = Config.set;
+                    var number_decimal = parseInt(set.number_decimal.value);
+                    if(isNaN(number_decimal)){ number_decimal = 1; }
+                    var parentNumber = parseFloat($(this).val());
+                    if(isNaN(parentNumber) || parentNumber < 0){ parentNumber = 0; }
+                    $('#purchase_table tr[data-bom-ratio]').each(function(){
+                        var ratio = parseFloat($(this).attr('data-bom-ratio'));
+                        if(isNaN(ratio)){ return; }
+                        $(this).find('.number').val((ratio * parentNumber).toFixed(number_decimal));
+                        changeGoodsInfo($(this));
+                    });
+                });
+
+                // 清除BOM生成的行
+                $(document).on("click", ".bom_clear", function(){
+                    $('#purchase_table tr[data-bom-ratio]').remove();
+                    $('.bom_bar').hide();
+                    $('.bom_title, .bom_parent').text('');
+                    $('.bom_parent_number').val(1);
+                });
+
                 function arrayToJsonString(o) {
                     var len = o.length;
                     var new_arr = new Array();
@@ -1190,6 +1379,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 // 数量
                 $(document).on("change", ".number", function(){
                     var obj = $(this).parents('tr');
+                    // 手动修改过数量的行解除BOM联动（再改父商品数量不会覆盖）
+                    obj.removeAttr('data-bom-ratio');
                     changeGoodsInfo(obj)
                 });
                 $(document).on("change", ".unit_price", function(){

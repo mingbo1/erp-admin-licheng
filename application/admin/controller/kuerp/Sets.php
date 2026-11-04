@@ -125,7 +125,7 @@ class Sets extends Backend
                         if($sets==1){
                             $arr = [
                                 'kuerp_goods_purchase_order' => '购货订单',
-                                'kuerp_goods_purchase' => '购货单',
+                                'kuerp_goods_purchase' => '采购单',
                                 'kuerp_goods_exchange' => '购货退货单',
                                 'kuerp_goods_sales_order' => '销货订单',
                                 'kuerp_goods_sales' => '销货单',
@@ -253,7 +253,7 @@ class Sets extends Backend
     private static function checkOrder(){
         $arr = [
             'kuerp_goods_purchase_order' => '购货订单',
-            'kuerp_goods_purchase' => '购货单',
+            'kuerp_goods_purchase' => '采购单',
             'kuerp_goods_exchange' => '购货退货单',
             'kuerp_goods_sales_order' => '销货订单',
             'kuerp_goods_sales' => '销货单',

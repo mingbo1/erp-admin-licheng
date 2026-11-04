@@ -40,6 +40,67 @@ class GoodsPurchase extends Model
         return ['1' => __('Purchase_type 1'), '2' => __('Purchase_type 2')];
     }
 
+    /**
+     * 批量计算采购单的入库状态（0=未入库 1=部分入库 2=已入库）
+     *
+     * 按采购单号汇总明细表的 采购数量(number) 与 已入库数量(storage_number)：
+     *   已入库量 <= 0         → 0 未入库
+     *   0 < 已入库量 < 采购数量 → 1 部分入库
+     *   已入库量 >= 采购数量    → 2 已入库
+     *
+     * 采购单(goods_purchase)、采购单(计划)(goods_purchase_plan)、采购单(仓库)
+     * (goods_purchase_plan_warehouse) 与采购入库(goods_purchase_storage) 共用
+     * fa_kuerp_goods_purchase 表，因此统一调用本方法（其余控制器跨模型全限定调用）。
+     *
+     * @param array $purchaseCodes 采购单号数组
+     * @return array [采购单号 => 0|1|2]（查不到明细的单号不出现在结果里，调用方按 0 处理）
+     */
+    /**
+     * 采购单列表排序 SQL（orderRaw 用）
+     *
+     * 规则：同一个采购订单(GHDD)生成的采购单排在一起；分组之间按采购订单创建时间倒序
+     * （没有关联采购订单的采购单按自身创建时间参与排序）；组内按采购单号升序。
+     *
+     * 采购单(goods_purchase)、采购单(计划)(goods_purchase_plan)、采购单(仓库)
+     * (goods_purchase_plan_warehouse) 与采购入库(goods_purchase_storage) 共用
+     * fa_kuerp_goods_purchase 表，因此统一调用本方法。
+     *
+     * @param string $alias 当前查询主表的别名（由 buildparams 生成，默认是模型名转下划线）
+     * @return string
+     */
+    public static function orderSqlByPurchaseOrder($alias)
+    {
+        $orderTable = \think\Config::get('database.prefix') . 'kuerp_goods_purchase_order';
+        return "COALESCE((SELECT po.createtime FROM {$orderTable} po WHERE po.purchase_code = {$alias}.purchase_order_id), {$alias}.createtime) DESC,"
+            . " {$alias}.purchase_order_id DESC, {$alias}.purchase_code ASC";
+    }
+
+    public static function storageStatusMap($purchaseCodes)
+    {
+        $purchaseCodes = array_values(array_filter(array_unique((array)$purchaseCodes)));
+        if (empty($purchaseCodes)) {
+            return [];
+        }
+        $rows = Db::name('kuerp_goods_purchase_info')
+            ->where(['purchase_code' => ['in', $purchaseCodes]])
+            ->field('purchase_code, SUM(number) AS sum_number, SUM(storage_number) AS sum_stored')
+            ->group('purchase_code')
+            ->select();
+        $map = [];
+        foreach ($rows as $row) {
+            $sumNumber = (float)$row['sum_number'];
+            $sumStored = (float)$row['sum_stored'];
+            if ($sumStored <= 0) {
+                $map[$row['purchase_code']] = 0;
+            } elseif ($sumStored < $sumNumber) {
+                $map[$row['purchase_code']] = 1;
+            } else {
+                $map[$row['purchase_code']] = 2;
+            }
+        }
+        return $map;
+    }
+
     public function getPayStatusList()
     {
         return ['0' => __('Pay_status 0'), '1' => __('Pay_status 1'), '2' => __('Pay_status 2')];

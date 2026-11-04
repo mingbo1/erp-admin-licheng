@@ -6,7 +6,7 @@ return [
     'Purchase_type 1'    => '购货',
     'Purchase_type 2'    => '退货',
     'Purchase_time'      => '单据日期',
-    'Delivery_time'      => '交货时间',
+    'Delivery_time'      => '交货日期',
     'Supplyer_code'      => '供应商',
     'Number'             => '原销货数量',
     'Retreat_number'     => '退货数量',

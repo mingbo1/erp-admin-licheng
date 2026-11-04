@@ -23,6 +23,7 @@ class GoodsSalesSchedule extends Model
     protected $append = [
         'purchase_type_text',
         'purchase_time_text',
+        'delivery_mode_text',
         'examine_status_text',
         'examine_time_text',
     ];
@@ -30,6 +31,14 @@ class GoodsSalesSchedule extends Model
     public function getPurchaseTypeList()
     {
         return ['1' => __('Purchase_type 1'), '2' => __('Purchase_type 2')];
+    }
+
+    /**
+     * 发货方式：direct=直发，dropship=代发
+     */
+    public function getDeliveryModeList()
+    {
+        return ['direct' => __('Delivery_mode direct'), 'dropship' => __('Delivery_mode dropship')];
     }
 
     public function getExamineStatusList()
@@ -65,6 +74,14 @@ class GoodsSalesSchedule extends Model
         $value = $value ? $value : (isset($data['purchase_time']) ? $data['purchase_time'] : '');
         return is_numeric($value) ? date("Y-m-d H:i:s", $value) : $value;
     }
+
+    public function getDeliveryModeTextAttr($value, $data)
+    {
+        $value = $value ? $value : (isset($data['delivery_mode']) ? $data['delivery_mode'] : 'direct');
+        $list = $this->getDeliveryModeList();
+        return isset($list[$value]) ? $list[$value] : $list['direct'];
+    }
+
 
     public function getExamineStatusTextAttr($value, $data)
     {

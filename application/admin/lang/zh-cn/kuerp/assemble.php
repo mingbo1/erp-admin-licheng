@@ -3,6 +3,7 @@
 return [
     'Purchase_code'     => '单据编号',
     'Purchase_time'     => '单据日期',
+    'Produce_date'      => '生产日期',
     'Business_type'     => '业务类型',
     'Business_type 1'   => '组装单',
     'Business_type 2'   => '拆卸单',
@@ -41,4 +42,6 @@ return [
     'Unit_name'         => '单位',
     'Sales_order_id'    => '销货订单号',
     'Generate_assemble' => '生成组装单',
+    'Create_date'       => '组装单生成日期',
+    'Expected_delivery_date' => '预计生产完成日期',
 ];

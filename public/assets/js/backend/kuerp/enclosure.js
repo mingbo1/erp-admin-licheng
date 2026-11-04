@@ -1,11 +1,19 @@
-define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp/layui/layui.js'], function ($, undefined, Backend, Table, Form, Layui) {
+define(['jquery', 'bootstrap', 'backend', 'table', 'form', 'upload', '/assets/addons/kuerp/layui/layui.js'], function ($, undefined, Backend, Table, Form, Upload, Layui) {
 
     var Controller = {
         index: function () {
 
-            layui.use(['table','upload','form'], function(){
+            layui.use(['table','upload','form','laydate'], function(){
                 var table = layui.table;
+                var laydate = layui.laydate;
                 upload = layui.upload;
+
+                //上传日期区间搜索
+                laydate.render({
+                    elem: '#upload_date',
+                    type: 'date',
+                    range: true
+                });
 
                 table.render({
                     elem: '#table'
@@ -23,9 +31,13 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     ,cellMinWidth: 80 //全局定义常规单元格的最小宽度，layui 2.2.1 新增
                     ,cols: [[
                         {checkbox: true},
-                        {field: 'image', title: __('原始单据'), operate: false,templet: function (d) {
-                                return "<a href='javascript:;'><img style='max-width: 100px;max-height: 100px;' src="+d.image+"></a>";
+                        {field: 'name', title: __('文件名称'), operate: 'LIKE', templet: function (d) {
+                                return "<span title='"+Controller.api.escapeHtml(d.name)+"'>"+Controller.api.escapeHtml(d.name)+"</span>";
                             }},
+                        {field: 'url', title: __('原始单据'), operate: false,templet: function (d) {
+                                return Controller.api.fileCell(d);
+                            }},
+                        {field: 'upload_date', title: __('上传日期')},
                         {field: 'createtime', title: __('Createtime'),templet: function (d) {
                                 return layui.util.toDateString(d.createtime*1000);
                             }},
@@ -71,7 +83,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 });
                 function reloadTable(){
                     table.reload('table', {
-                        page: {
+                        where: {
+                            filter:JSON.stringify(getSearch()),
+                            op:JSON.stringify(getOp()),
+                        }
+                        ,page: {
                             curr: 1
                         }
                     });
@@ -115,10 +131,34 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         Fast.api.open("kuerp/enclosure/edit?ids="+data.id, "编辑");
                     }
                 });
+                //搜索事件
+                $('#search').on('click', function () {
+                    reloadTable();
+                });
+                function getSearch() {
+                    var search = {};
+                    var name = $('#name').val();
+                    if(name!=''){
+                        search.name = name;
+                    }
+                    var upload_date = $('#upload_date').val();
+                    if(upload_date!=''){
+                        //upload_date 是 varchar('Y-m-d')：用 BETWEEN 直接比字符串。
+                        //不能用 RANGE——服务端会转成 BETWEEN TIME，把日期当时间戳换算成数字，与字符串列比较恒不匹配
+                        search.upload_date = upload_date.replace(' - ', ',');
+                    }
+                    return search;
+                }
+                function getOp() {
+                    var op = {};
+                    op.name = 'LIKE';
+                    op.upload_date = 'BETWEEN';
+                    return op;
+                }
             });
             Controller.api.bindevent();
         },
-        
+
         add: function () {
             Controller.api.bindevent();
         },
@@ -126,7 +166,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
             Controller.api.bindevent();
         },
         selectpage: function () {
-            layui.use(['table','upload'], function(){
+            layui.use(['table','upload','form'], function(){
                 var table = layui.table;
                 upload = layui.upload;
 
@@ -146,8 +186,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     ,cellMinWidth: 100 //全局定义常规单元格的最小宽度，layui 2.2.1 新增
                     ,cols: [[
                         {checkbox: true},
-                        {field: 'image', title: __('原始单据'), operate: false,templet: function (d) {
-                                return "<a href='javascript:;'><img class='showImg' src="+d.image+"></a>";
+                        {field: 'name', title: __('文件名称'), operate: 'LIKE', templet: function (d) {
+                                return "<span title='"+Controller.api.escapeHtml(d.name)+"'>"+Controller.api.escapeHtml(d.name)+"</span>";
+                            }},
+                        {field: 'url', title: __('原始单据'), operate: false,templet: function (d) {
+                                return Controller.api.fileCell(d, 'showImg');
                             }},
                         {field: 'createtime', title: __('Createtime'),templet: function (d) {
                                 return layui.util.toDateString(d.createtime*1000);
@@ -171,17 +214,72 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 $(document).on("click", "#cancel", function(){
                     Fast.api.close();
                 });
+                //按文件名称搜索
+                $('#search').on('click', function () {
+                    table.reload('choseTable', {
+                        where: {
+                            filter: JSON.stringify(Controller.api.getSearch()),
+                            op: JSON.stringify({name:'LIKE'}),
+                        }
+                        ,page: {
+                            curr: 1
+                        }
+                    });
+                });
             });
             Controller.api.bindevent();
         },
         api: {
+            //文件名可能带引号/尖括号，拼进 HTML 前必须转义，否则整行渲染会被打断
+            escapeHtml: function (s) {
+                return String(s == null ? '' : s)
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            },
+            //文件单元格：图片直接显示缩略图，其余类型显示文件图标并链接到文件本身
+            fileCell: function (d, imgClass) {
+                if (!d.url) {
+                    return '';
+                }
+                var url = Controller.api.escapeHtml(d.url);
+                if (d.is_image == 1) {
+                    return "<a href='javascript:;' class='" + (imgClass || 'showImg') + "' data-src='" + url + "'>" +
+                        "<img style='max-width:100px;max-height:100px;' src='" + url + "'></a>";
+                }
+                var icon = Fast.api.fixurl('ajax/icon') + '?suffix=' + (d.file_suffix || 'file');
+                return "<a href='" + url + "' target='_blank' title='" + __('点击查看/下载') + "'>" +
+                    "<img style='max-width:48px;max-height:48px;' src='" + icon + "'> <span>" +
+                    Controller.api.escapeHtml((d.file_suffix || '').toUpperCase()) + "</span></a>";
+            },
+            //按文件名称搜索（搜索栏的输入框 id=name）
+            getSearch: function () {
+                var search = {};
+                var name = $('#name').val();
+                if (name != '') {
+                    search.name = name;
+                }
+                return search;
+            },
             bindevent: function () {
                 Form.api.bindevent($("form[role=form]"), function(data, ret){
                     parent.location.reload();
                 });
 
+                //上传成功后把原始文件名填入「文件名称」（仅在用户还没填写时，去掉扩展名）
+                if (typeof Upload !== 'undefined' && Upload.api && Upload.api.custom) {
+                    Upload.api.custom.enclosureName = function (data, ret, up, file) {
+                        var nameInput = $('#c-name');
+                        if (nameInput.length && $.trim(nameInput.val()) === '' && file && file.name) {
+                            nameInput.val(file.name.replace(/\.[^.]+$/, '')).trigger('change');
+                        }
+                    };
+                }
+
                 $(document).on("click", ".showImg", function(){
-                    var src = $(this).attr('src');
+                    var src = $(this).data('src') || $(this).find('img').attr('src') || $(this).attr('src');
+                    if (!src) {
+                        return;
+                    }
                     layer.open({
                         type: 1,
                         title: false,

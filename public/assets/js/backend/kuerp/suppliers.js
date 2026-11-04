@@ -38,6 +38,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'qq_wx_email', title: __('Qq_wx_email'), operate: 'LIKE'},
                         {field: 'connect_address', title: __('Connect_address'), operate: 'LIKE'},
                         {field: 'note', title: __('Note'), operate: 'LIKE'},
+                        {field: 'contract', title: __('Contract'), operate: false, templet: function (d) {
+                                return Controller.api.contractCell(d);
+                            }},
                         {field: 'need_give_account', title: __('Need_give_account'), operate:'BETWEEN'},
                         {field: 'status', title: __('Status'),templet: function (d) {
                             if(d.status==1){
@@ -48,6 +51,19 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             }},
                         {fixed: 'right', title:__('Operate'), toolbar: '#barDemo', width:150}
                     ]]
+                    //合同列含图片缩略图时行高会高于固定列默认行高，逐行同步行高避免操作列错位
+                    ,done: function () {
+                        $(".layui-table-main tr").each(function (index, val) {
+                            $(".layui-table-fixed").each(function () {
+                                $($(this).find(".layui-table-body tbody tr")[index]).height($(val).height());
+                            });
+                        });
+                        $(".layui-table-header tr").each(function (index, val) {
+                            $(".layui-table-fixed").each(function () {
+                                $($(this).find(".layui-table-header thead tr")[index]).height($(val).height());
+                            });
+                        });
+                    }
                 });
 
                 layui.form.on('switch(switchList)', function (obj) {
@@ -287,6 +303,27 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
             Controller.api.bindevent(false);
         },
         api: {
+            escapeHtml: function (s) {
+                return String(s == null ? '' : s)
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            },
+            //合同单元格：图片显示缩略图，其余类型显示文件图标并链接到文件本身；未上传显示 —
+            contractCell: function (d) {
+                if (!d.contract_url) {
+                    return "<span style='color:#999'>—</span>";
+                }
+                var url = Controller.api.escapeHtml(d.contract_url);
+                var title = __('点击查看/下载');
+                if (d.contract_is_image == 1) {
+                    return "<a href='" + url + "' target='_blank' title='" + title + "'>" +
+                        "<img style='max-height:40px;' src='" + url + "'></a>";
+                }
+                var icon = Fast.api.fixurl('ajax/icon') + '?suffix=' + (d.contract_suffix || 'file');
+                return "<a href='" + url + "' target='_blank' title='" + title + "'>" +
+                    "<img style='max-height:28px;max-width:28px;' src='" + icon + "'> <span>" +
+                    Controller.api.escapeHtml((d.contract_suffix || '').toUpperCase()) + "</span></a>";
+            },
             bindevent: function (reloadStatus=true) {
                 layui.use('laydate', function(){
                     var laydate = layui.laydate;

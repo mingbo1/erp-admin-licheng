@@ -38,4 +38,8 @@ return [
     'Generate_purchase'  => '生成采购单',
     'Print_page'         => '打印采购计划',
     'Goods_count'        => '采购总数量',
+    'Storage_status'     => '入库状态',
+    'Storage_status 0'   => '未入库',
+    'Storage_status 1'   => '部分入库',
+    'Storage_status 2'   => '已入库',
 ];

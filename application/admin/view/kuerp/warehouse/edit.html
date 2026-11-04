@@ -47,6 +47,22 @@
         {if condition="$row.examine_status==1 && isset($set['examine']['is_checked']) && $set['examine']['is_checked']==1"}
         <div id="mark" class="has-audit"></div>
         {/if}
+        <div class="row">
+            <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+                <div class="form-group">
+                    <button type="button" class="mb_bom_call btn btn-default btn-embossed">调用BOM</button>
+                    <button type="button" class="btn_export_template btn btn-info btn-embossed" data-url="{:url('kuerp/warehouse/template')}"><i class="fa fa-download"></i> 下载模板</button>
+                    <button type="button" class="btn_import_excel btn btn-success btn-embossed"><i class="fa fa-upload"></i> 导入Excel</button>
+                    <input type="file" id="import_excel_file" accept=".xlsx,.xls" style="display: none;">
+                    <span class="bom_bar" style="display: none; margin-left: 15px; line-height: 30px; vertical-align: middle;">
+                        BOM模板：<b class="bom_title"></b>
+                        　父商品：<b class="bom_parent"></b>
+                        　父商品数量：<input type="number" class="bom_parent_number" style="display: inline-block; width: 110px; height: 30px; padding: 2px 8px; vertical-align: middle;" value="1" min="0" step="any">
+                        <button type="button" class="btn btn-link btn-sm bom_clear">清除</button>
+                    </span>
+                </div>
+            </div>
+        </div>
         <div class="list" style="overflow-x: auto">
             <table id="purchase_table">
                 <tr>

@@ -7,7 +7,7 @@ return [
     'Purchase_type 1'    => '销货',
     'Purchase_type 2'    => '退货',
     'Purchase_time'      => '单据日期',
-    'Delivery_time'      => '交货时间',
+    'Delivery_time'      => '交货日期',
     'Supplyer_code'      => '供应商',
     'Goods_code'         => '商品编号',
     'Goods_note'         => '商品备注',
@@ -87,4 +87,21 @@ return [
     'This_outbound'          => '本次出库数量',
     'Actual_outbound'        => '实际出库',
 
+    // 出库申请流程（计划部门申请 → 仓库"出库管理"审核执行）
+    'Apply'                  => '申请出库',
+    'Applycancel'            => '撤销申请',
+    'Outbound_status'        => '出库状态',
+    'Apply_status'           => '申请状态',
+
+    // 列表「状态」列（按库存与待出库数量判断，进度优先）
+    'Stock_status'           => '状态',
+    'Stock_status 0'         => '全部可出库',
+    'Stock_status 1'         => '部分可出库',
+    'Stock_status 2'         => '库存不足',
+    'Stock_status 3'         => '部分已出库',
+    'Stock_status 4'         => '全部已出库',
+
+    'Delivery_mode'           => '代发/直发',
+    'Delivery_mode direct'    => '直发',
+    'Delivery_mode dropship'  => '代发',
 ];

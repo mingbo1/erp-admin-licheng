@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>{$companyName}对账单 - {$row.recon_code}</title>
+    {php}$pd = (int)$set['price_decimal']['value']; $nd = (int)$set['number_decimal']['value'];{/php}
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:"Microsoft YaHei","SimSun",Arial,sans-serif; font-size:12px; color:#333; padding:16px; }
+        .no-print { text-align:center; margin-bottom:14px; }
+        .no-print button { padding:6px 24px; font-size:14px; cursor:pointer; }
+        .print-title { text-align:center; font-size:20px; font-weight:bold; margin-bottom:12px; }
+        .meta { font-size:12px; margin-bottom:8px; }
+        .meta span { margin-right:20px; }
+        table { width:100%; border-collapse:collapse; }
+        th, td { border:1px solid #666; padding:4px 5px; }
+        th { background:#f0f0f0; text-align:center; white-space:nowrap; }
+        td.center { text-align:center; }
+        td.right { text-align:right; }
+        tr.sum td { background:#fafafa; font-weight:bold; }
+        .statement { margin-top:12px; line-height:1.8; }
+        .sign { margin-top:26px; display:flex; gap:50px; }
+        @media print { body { padding:0; } .no-print { display:none; } }
+    </style>
+{include file="kuerp/common/printstyle" /}
+</head>
+<body>
+<div class="no-print">
+    <button onclick="window.print()">🖨 打印</button>
+</div>
+
+<div class="print-title">{$companyName}对账单</div>
+<div class="meta">
+    <span>对账单号：{$row.recon_code}</span>
+    <span>客户：{$row.customer_name}</span>
+    <span>对账期间：{:date('Y-m-d', $row['period_start'])} ~ {:date('Y-m-d', $row['period_end'])}</span>
+</div>
+
+<table>
+    <thead>
+    <tr>
+        <th>销售单号</th><th>对账日期</th><th>销售日期</th><th>公司名称</th><th>商品名称</th>
+        <th>型号/规格</th><th>数量</th><th>含税单价</th><th>未税单价</th><th>税点</th>
+        <th>销货合计金额</th><th>客户承担费用</th><th>总金额</th><th>备注</th><th>物流单号</th>
+    </tr>
+    </thead>
+    <tbody>
+    {foreach $groups as $g}
+    {foreach $g['items'] as $k=>$item}
+    <tr>
+        <td class="center">{$g.doc.doc_code}</td>
+        <td class="center">{:date('Y-m-d', $row['createtime'])}</td>
+        <td class="center">{:date('Y-m-d', $g.doc.doc_time)}</td>
+        <td>{$row.customer_name}</td>
+        <td>{$item.goods_name}{if condition="$item.attr_name"} ({$item.attr_name}){/if}</td>
+        <td class="center">{$item.specification}</td>
+        <td class="right">{:number_format($item['number'], $nd)}</td>
+        <td class="right">{:number_format($item['tax_included'], $pd)}</td>
+        <td class="right">{:number_format($item['unit_price'], $pd)}</td>
+        <td class="center">{:number_format($item['tax_rate'], 2)}%</td>
+        <td class="right">{:number_format($item['line_amount'], $pd)}</td>
+        <td class="right">{if condition="$k==0"}{:number_format($g['doc']['customers_money'], $pd)}{/if}</td>
+        <td class="right">{if condition="$k==0"}{:number_format($g['doc']['total_amount'], $pd)}{/if}</td>
+        <td>{$item.remark}</td>
+        <td class="center">{if condition="$k==0"}{$g['doc']['express_no']}{/if}</td>
+    </tr>
+    {/foreach}
+    {/foreach}
+
+    <tr class="sum">
+        <td colspan="10" class="right">本期合计：</td>
+        <td class="right">{:number_format($row['total_money'], $pd)}</td>
+        <td class="right">{:number_format($row['total_customers_money'], $pd)}</td>
+        <td class="right">{:number_format($row['total_amount'], $pd)}</td>
+        <td colspan="2"></td>
+    </tr>
+
+    {foreach $pastList as $month=>$amount}
+    <tr>
+        <td colspan="12" class="right">{$month}已对账已开票（或者未开票）未付款合计：</td>
+        <td class="right">{:number_format($amount, $pd)}</td>
+        <td colspan="2"></td>
+    </tr>
+    {/foreach}
+
+    <tr class="sum">
+        <td colspan="12" class="right">总未付款金额合计：</td>
+        <td class="right">{:number_format($totalUnpaid, $pd)}</td>
+        <td colspan="2"></td>
+    </tr>
+    </tbody>
+</table>
+
+<div class="statement">
+    请贵公司核对本对账单金额，无误后盖章回传确认，如有异议，请在收到此账单后三个工作日内回复，逾期未提出异议，视为认可本对账单金额。谢谢！
+</div>
+
+<div class="sign">
+    <span>销售确认：____________</span>
+    <span>客户确认（盖章）：____________</span>
+    <span>财务确认：____________</span>
+</div>
+</body>
+</html>

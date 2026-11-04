@@ -65,8 +65,18 @@
     </div>
 </div>
 
-<!-- 仓库人员专用行操作模板：只有编辑，没有删除 -->
+<!-- 仓库人员专用行操作模板：出库须由计划部门申请、仓库在"出库管理"审核执行；同一销货单可并存多条申请
+     撤销申请已移到「申请出库/申请记录」弹窗的历次申请记录列表里（每条待审记录各自的 [撤销]），行上不再放撤销按钮 -->
 <script type="text/html" id="barDemoOutbound">
-    <a class="layui-btn layui-btn-xs layui-bg-orange" lay-event="outbound">出库</a>
-    <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+    {{# if(d.outbound_status != 2){ }}
+    <a class="layui-btn layui-btn-xs layui-bg-orange {if condition="$auth->check($nowmenu.'/apply')!=1"}hiddens{/if}" lay-event="apply">申请出库</a>
+    {{# } else if(d.apply_count > 0){ }}
+    <!-- 已全部出库：申请出库入口隐藏，仍保留只读入口查看历次申请/出库记录 -->
+    <a class="layui-btn layui-btn-xs layui-bg-gray {if condition="$auth->check($nowmenu.'/apply')!=1"}hiddens{/if}" lay-event="applyrecord">申请记录</a>
+    {{# } }}
+    {{# if(d.printable_apply_count > 0){ }}
+    <!-- 送货单：有可打印的申请（待审核/已同意出库）时显示；多条申请时默认打印最新一条，历次记录里可逐条打印 -->
+    <a class="layui-btn layui-btn-xs layui-btn-primary" lay-event="deliverynote">送货单</a>
+    {{# } }}
+    <a class="layui-btn layui-btn-xs {if condition="$auth->check($nowmenu.'/edit')!=1"}hiddens{/if}" lay-event="edit">编辑</a>
 </script>

@@ -1,0 +1,225 @@
+{include file="kuerp/common/menu" /}
+<form id="audit-form" class="form-horizontal" role="form" data-toggle="validator" method="POST" action="">
+    <div class="panel panel-default">
+        <div class="panel-heading"><b>{$stepName}</b></div>
+        <div class="panel-body">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">对账单号:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <p class="form-control-static"><b>{$row.recon_code|htmlentities}</b></p>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">供应商:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <p class="form-control-static">{$row.supplyer_code|htmlentities} {$row.supplyer_name|htmlentities}</p>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">对账金额:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <p class="form-control-static" style="color:#ff5722;font-weight:bold;">￥{:number_format($row['total_money'], 2, '.', '')}</p>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">核对提示:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <p class="form-control-static" style="color:#999;">
+                        请核对采购合同、入库单（含每次入库的原始单据）、退货单与本对账单附件后再审核。
+                    </p>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3"><span class="must">*</span> 审核结果:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <label class="radio-inline"><input type="radio" name="result" value="1" checked> 审核通过</label>
+                    <label class="radio-inline"><input type="radio" name="result" value="2"> 驳回</label>
+                </div>
+            </div>
+            <div class="form-group" id="remark-wrap" style="display:none;">
+                <label class="control-label col-xs-12 col-sm-3"><span class="must">*</span> 驳回原因:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <textarea name="remark" class="form-control" rows="3" placeholder="驳回时必填"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="panel panel-default">
+        <div class="panel-heading" id="recon-items-toggle" style="cursor:pointer;" title="点击展开 / 收起">
+            <b>对账单明细</b>
+            <span style="color:#999;font-size:12px;">（{:count($itemRows)} 行商品，点击展开/收起）</span>
+            <span class="glyphicon glyphicon-chevron-right" id="recon-items-caret" style="float:right;font-size:12px;color:#999;margin-top:3px;"></span>
+        </div>
+        <div class="panel-body" id="recon-items-body" style="padding:0;display:none;">
+            <div class="table-responsive">
+                <table class="table table-bordered" style="margin-bottom:0;">
+                    <thead>
+                        <tr>
+                            <th style="width:50px;text-align:center;">序号</th>
+                            <th style="width:130px;">采购单号</th>
+                            <th>商品名称</th>
+                            <th style="width:180px;">型号/规格</th>
+                            <th style="width:80px;text-align:right;">数量</th>
+                            <th style="width:90px;text-align:right;">含税单价</th>
+                            <th style="width:90px;text-align:right;">未税单价</th>
+                            <th style="width:70px;text-align:right;">税点(%)</th>
+                            <th style="width:110px;text-align:right;">采购合计金额</th>
+                            <th style="width:90px;text-align:right;">采购费用</th>
+                            <th style="width:100px;text-align:right;">总金额</th>
+                            <th style="width:120px;">备注</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {foreach name="itemRows" item="r" key="rk"}
+                        <tr>
+                            <td style="text-align:center;">{$rk+1}</td>
+                            <td>{$r.doc_code|htmlentities}</td>
+                            <td>{$r.goods_name|htmlentities}</td>
+                            <td>{$r.spec|htmlentities}</td>
+                            <td style="text-align:right;">{:number_format($r['number'], $itemNumberDecimal, '.', '')}</td>
+                            <td style="text-align:right;">{:number_format($r['tax_included'], $itemPriceDecimal, '.', '')}</td>
+                            <td style="text-align:right;">{:number_format($r['unit_price'], $itemPriceDecimal, '.', '')}</td>
+                            <td style="text-align:right;">{:number_format($r['tax_rate'], 2, '.', '')}</td>
+                            <td style="text-align:right;">{:number_format($r['line_amount'], $itemPriceDecimal, '.', '')}</td>
+                            <td style="text-align:right;">{if condition="$r['doc_cost'] !== null"}{:number_format($r['doc_cost'], $itemPriceDecimal, '.', '')}{/if}</td>
+                            <td style="text-align:right;">{if condition="$r['doc_total'] !== null"}{:number_format($r['doc_total'], $itemPriceDecimal, '.', '')}{/if}</td>
+                            <td>{$r.remark|htmlentities}</td>
+                        </tr>
+                        {/foreach}
+                        {if condition="empty($itemRows)"}
+                        <tr><td colspan="12" style="text-align:center;color:#999;">无明细数据</td></tr>
+                        {/if}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th colspan="8" style="text-align:center;">本期合计</th>
+                            <th style="text-align:right;">{:number_format($itemSumLine, $itemPriceDecimal, '.', '')}</th>
+                            <th></th>
+                            <th style="text-align:right;">{:number_format($itemSumTotal, $itemPriceDecimal, '.', '')}</th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+    {if condition="!empty($materials)"}
+    <div class="panel panel-default">
+        <div class="panel-heading"><b>对账资料（业务人员上传的原始单据）</b></div>
+        <div class="panel-body" style="font-size:13px;">
+            <p style="margin-bottom:8px;">
+                <b>对账单文件：</b>
+                {if condition="!empty($materials['files'])"}
+                    {foreach name="materials.files" item="f"}
+                    <a href="{$f.url}" target="_blank" style="margin-right:14px;">
+                        {if condition="$f['is_image']==1"}<img src="{$f.url}" style="max-height:34px;vertical-align:middle;">
+                        {else/}<img src="{:url('ajax/icon')}?suffix={$f.file_suffix}" style="max-height:24px;vertical-align:middle;"><span style="margin-left:4px;">{$f.file_suffix|strtoupper}</span>{/if}
+                        <span style="margin-left:6px;">{$f.name|htmlentities}</span>
+                    </a>
+                    {/foreach}
+                {else}<span style="color:#999">未上传</span>{/if}
+            </p>
+            <p style="margin-bottom:8px;">
+                <b>采购合同：</b>
+                {if condition="!empty($materials['contract'])"}
+                <a href="{$materials.contract.url}" target="_blank" style="margin-right:14px;">
+                    {if condition="$materials.contract['is_image']==1"}<img src="{$materials.contract.url}" style="max-height:34px;vertical-align:middle;">
+                    {else/}<img src="{:url('ajax/icon')}?suffix={$materials.contract.file_suffix}" style="max-height:24px;vertical-align:middle;"><span style="margin-left:4px;">{$materials.contract.file_suffix|strtoupper}</span>{/if}
+                    <span style="margin-left:6px;">{$materials.contract.name|htmlentities}</span>
+                </a>
+                {else}<span style="color:#999">未上传</span>{/if}
+                {if condition="!empty($materials['orders'])"}
+                    {foreach name="materials.orders" item="o"}
+                    <span style="margin-left:12px;color:#666;">订单{$o.purchase_code}：</span>
+                    {if condition="!empty($o['files'])"}
+                        {foreach name="o.files" item="f"}
+                        <a href="{$f.url}" target="_blank" style="margin-right:10px;">
+                            {if condition="$f['is_image']==1"}<img src="{$f.url}" style="max-height:30px;vertical-align:middle;">
+                            {else/}<img src="{:url('ajax/icon')}?suffix={$f.file_suffix}" style="max-height:22px;vertical-align:middle;"><span style="margin-left:3px;">{$f.file_suffix|strtoupper}</span>{/if}
+                            <span style="margin-left:4px;">{$f.name|htmlentities}</span>
+                        </a>
+                        {/foreach}
+                    {else}<span style="color:#999">未上传</span>{/if}
+                    {/foreach}
+                {/if}
+            </p>
+            <div style="margin-bottom:8px;">
+                <b>入库单：</b>
+                {if condition="!empty($materials['storages'])"}
+                <table class="table table-bordered" style="margin-top:6px;margin-bottom:0;">
+                    <thead><tr><th style="width:150px;">采购单号</th><th style="width:140px;">入库时间</th><th style="width:100px;text-align:right;">数量</th><th>入库明细</th><th style="width:260px;">入库原始单据</th></tr></thead>
+                    <tbody>
+                        {foreach name="materials.storages" item="st"}
+                        {if condition="empty($st['logs'])"}
+                        <tr><td>{$st.purchase_code|htmlentities}</td><td colspan="4" style="color:#999;">暂无入库记录</td></tr>
+                        {else/}
+                        {foreach name="st.logs" item="log"}
+                        <tr>
+                            <td>{$st.purchase_code|htmlentities}</td>
+                            <td>{$log.createtime}</td>
+                            <td style="text-align:right;color:#ff5722;">{$log.total_number}</td>
+                            <td>{$log.detail_text|htmlentities}</td>
+                            <td>
+                                {if condition="!empty($log['files'])"}
+                                {foreach name="log.files" item="f"}
+                                <a href="{$f.url}" target="_blank" style="margin-right:10px;">
+                                    {if condition="$f['is_image']==1"}<img src="{$f.url}" style="max-height:30px;vertical-align:middle;">
+                                    {else/}<img src="{:url('ajax/icon')}?suffix={$f.file_suffix}" style="max-height:22px;vertical-align:middle;"><span style="margin-left:3px;">{$f.file_suffix|strtoupper}</span>{/if}
+                                    <span style="margin-left:4px;">{$f.name|htmlentities}</span>
+                                </a>
+                                {/foreach}
+                                {else}<span style="color:#999">未上传</span>{/if}
+                            </td>
+                        </tr>
+                        {/foreach}
+                        {/if}
+                        {/foreach}
+                    </tbody>
+                </table>
+                {else}<span style="color:#999">无采购单明细</span>{/if}
+            </div>
+            {if condition="!empty($materials['returns'])"}
+            <div style="margin-bottom:8px;">
+                <b>购货退货单（冲减）：</b>
+                <table class="table table-bordered" style="margin-top:6px;margin-bottom:0;">
+                    <thead><tr><th style="width:200px;">退货单号</th><th style="width:140px;">退货日期</th><th style="width:110px;text-align:right;">数量</th><th style="width:130px;text-align:right;">金额</th><th>说明</th></tr></thead>
+                    <tbody>
+                        {foreach name="materials.returns" item="ret"}
+                        <tr>
+                            <td>{$ret.doc_code|htmlentities}</td>
+                            <td>{$ret.doc_time}</td>
+                            <td style="text-align:right;color:#ff5722;">{$ret.number}</td>
+                            <td style="text-align:right;color:#ff5722;">￥{:number_format($ret['real_money'], 2, '.', '')}</td>
+                            <td style="color:#999;">退货单冲减</td>
+                        </tr>
+                        {/foreach}
+                    </tbody>
+                </table>
+            </div>
+            {/if}
+            {if condition="!empty($materials['invoices'])"}
+            <p style="margin-bottom:0;">
+                <b>发票：</b>
+                {foreach name="materials.invoices" item="inv"}
+                <span style="margin-right:14px;">
+                    {$inv.invoice_no|htmlentities}（￥{:number_format($inv['invoice_amount'], 2, '.', '')}，账期{$inv.term_days}天）
+                    {if condition="!empty($inv['file'])"}
+                    <a href="{$inv.file.url}" target="_blank" style="margin-left:4px;">
+                        {if condition="$inv.file['is_image']==1"}<img src="{$inv.file.url}" style="max-height:30px;vertical-align:middle;">
+                        {else/}<img src="{:url('ajax/icon')}?suffix={$inv.file.file_suffix}" style="max-height:22px;vertical-align:middle;"><span style="margin-left:3px;">{$inv.file.file_suffix|strtoupper}</span>{/if}
+                        <span style="margin-left:4px;">{$inv.file.name|htmlentities}</span>
+                    </a>
+                    {/if}
+                </span>
+                {/foreach}
+            </p>
+            {/if}
+        </div>
+    </div>
+    {/if}
+
+    <div class="form-group layer-footer" style="text-align:center;">
+        <button type="submit" class="btn btn-success btn-embossed">确定</button>
+        <button type="button" class="btn btn-default btn-embossed layer-close">取消</button>
+    </div>
+</form>

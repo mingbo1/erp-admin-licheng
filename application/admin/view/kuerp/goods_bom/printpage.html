@@ -31,6 +31,7 @@
         .no-print { text-align: center; margin-bottom: 20px; }
         .no-print button { padding: 8px 30px; font-size: 16px; cursor: pointer; }
     </style>
+{include file="kuerp/common/printstyle" /}
 </head>
 <body>
 <div class="no-print">
@@ -50,6 +51,7 @@
             <div class="item"><strong>单位：</strong>{$parent.unit_name|default=''}</div>
             <div class="item"><strong>规格2/厂商：</strong>{$parent.vendor_name|default=''}</div>
             <div class="item"><strong>规格3/封装：</strong>{$parent.packaging|default=''}</div>
+            <div class="item"><strong>放置位置：</strong>{$parent.location|default=''}</div>
         </div>
     </div>
 
@@ -71,6 +73,7 @@
                 <th>型号</th>
                 <th>单位</th>
                 <th>单耗数量</th>
+                <th>放置位置</th>
                 <th>备注</th>
             </tr>
         </thead>
@@ -83,11 +86,12 @@
                 <td>{$info.goods_specification_id|default=''}</td>
                 <td>{$info.unit_name|default=''}</td>
                 <td class="right">{$info.number|htmlentities}</td>
+                <td class="left">{$info.location|default=''}</td>
                 <td class="left">{$info.remark|htmlentities}</td>
             </tr>
             {/foreach}
             {if condition="empty($children)"}
-            <tr><td colspan="7">无明细数据</td></tr>
+            <tr><td colspan="8">无明细数据</td></tr>
             {/if}
         </tbody>
     </table>

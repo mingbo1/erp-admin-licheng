@@ -24,9 +24,7 @@
                     </script>
 
                     <script type="text/html" id="barDemoSales">
-                        {{# if(d.examine_status == 1 && d.purchase_type == 1 && d.status != 0 && d.status != 3 && d.status != 4){ }}
-                        <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="ship">发货</a>
-                        {{# } }}
+                        <!-- 「发货」入口已隐藏：发货数量/快递单号改为在销货出库页的[申请出库]中填写，仓库审核出库后打印送货单 -->
                         {{# if(d.examine_status == 1 && d.purchase_type == 1 && d.status != 0 && d.status != 3 && d.status != 4){ }}
                         <a class="layui-btn layui-btn-xs layui-bg-orange" lay-event="confirmreceipt">确认收货</a>
                         {{# } }}

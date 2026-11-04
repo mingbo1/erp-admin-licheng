@@ -31,6 +31,45 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
     }
 
     /**
+     * 单据来源标记：计划购货订单 = plan（仓库子类改为 warehouse）
+     * @return string
+     */
+    protected function orderSource()
+    {
+        return 'plan';
+    }
+
+    /**
+     * 列表来源过滤：计划购货订单只显示计划部门录入的单据
+     * @return array|null
+     */
+    protected function orderSourceListFilter()
+    {
+        return ['plan'];
+    }
+
+    /**
+     * 单据名称（用于提示文案，仓库子类覆盖）
+     * @return string
+     */
+    protected function docTitle()
+    {
+        return '计划购货订单';
+    }
+
+    /**
+     * 校验单据是否属于当前部门（编辑/删除前的隔离守卫）
+     * @param array $row
+     */
+    protected function checkOrderSource($row)
+    {
+        $filter = $this->orderSourceListFilter();
+        if ($filter !== null && !in_array($row['order_source'], (array)$filter)) {
+            $this->error('单据[' . $row['purchase_code'] . ']不属于当前部门，不能操作');
+        }
+    }
+
+    /**
      * 计划购货订单不支持手动审核操作
      */
     public function examine($ids = null, $examine = 1)
@@ -41,7 +80,7 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
             return ['status' => 1, 'msg' => '操作成功'];
         }
         // 手动调用 - 拒绝
-        $this->error('计划购货订单不支持审核操作');
+        $this->error($this->docTitle() . '不支持审核操作');
     }
 
     /**
@@ -49,7 +88,7 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
      */
     public function secondExamine($ids = null)
     {
-        $this->error('计划购货订单不支持二次审核操作');
+        $this->error($this->docTitle() . '不支持二次审核操作');
     }
 
     /**
@@ -104,7 +143,7 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
                             'purchase_code'     => $params['purchase_code'],
                             'purchase_type'     => $params['purchase_type'],
                             'purchase_time'     => strtotime($params['purchase_time']),
-                            'delivery_time'     => strtotime($params['delivery_time']),
+                            'delivery_time'     => !empty($params['delivery_time']) ? strtotime($params['delivery_time']) : null,
                             'supplyer_code'     => $lineSupplier,
                             'goods_code'        => $v,
                             'goods_note'        => $params['goods_note'][$k],
@@ -151,8 +190,9 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
                     $row = [
                         'purchase_code'     => $params['purchase_code'],
                         'purchase_type'     => $params['purchase_type'],
+                        'order_source'      => $this->orderSource(),
                         'purchase_time'     => strtotime($params['purchase_time']),
-                        'delivery_time'     => strtotime($params['delivery_time']),
+                        'delivery_time'     => !empty($params['delivery_time']) ? strtotime($params['delivery_time']) : null,
                         'supplyer_code'     => $headerSupplierCode,
                         'supplier_count'    => count($uniqueSuppliers),
                         'sales_order_id'    => $mainSalesOrderId,
@@ -217,7 +257,7 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
                 if (isset($result) && $result !== false) {
                     // 写入销货订单日志
                     if (!empty($mainSalesOrderId)) {
-                        GoodsSalesOrderLog::writeLogByCode($mainSalesOrderId, '生成计划购货订单', '计划购货订单：' . $params['purchase_code'], 'purchase_order', $result);
+                        GoodsSalesOrderLog::writeLogByCode($mainSalesOrderId, '生成' . $this->docTitle(), $this->docTitle() . '：' . $params['purchase_code'], 'purchase_order', $result);
                     }
                     // 计划购货订单不自动审核
                     $this->success();
@@ -452,6 +492,8 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
         if (!$row) {
             $this->error(__('No Results were found'));
         }
+        // 部门隔离：只能编辑本部门录入的预订单
+        $this->checkOrderSource($row);
         $adminIds = $this->getDataLimitAdminIds();
         if (is_array($adminIds)) {
             if (!in_array($row[$this->dataLimitField], $adminIds)) {
@@ -466,7 +508,7 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
             if ($row['purchase_type'] == 1) {
                 $purchase_id = Db::name('kuerp_goods_purord')->where(['order_id' => $ids])->column('purchase_id');
                 if (!empty($purchase_id)) {
-                    $this->error('不能编辑已生成购货单的数据');
+                    $this->error('不能编辑已生成采购单的数据');
                 }
             } else {
                 $purchase_id = Db::name('kuerp_goods_excpur')->where(['purchase_id' => $ids])->column('exchange_id');
@@ -517,7 +559,7 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
                             'purchase_code'     => $params['purchase_code'],
                             'purchase_type'     => $params['purchase_type'],
                             'purchase_time'     => strtotime($params['purchase_time']),
-                            'delivery_time'     => strtotime($params['delivery_time']),
+                            'delivery_time'     => !empty($params['delivery_time']) ? strtotime($params['delivery_time']) : null,
                             'supplyer_code'     => $lineSupplier,
                             'goods_code'        => $v,
                             'goods_note'        => $params['goods_note'][$k],
@@ -565,7 +607,7 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
                         'purchase_code'     => $params['purchase_code'],
                         'purchase_type'     => $params['purchase_type'],
                         'purchase_time'     => strtotime($params['purchase_time']),
-                        'delivery_time'     => strtotime($params['delivery_time']),
+                        'delivery_time'     => !empty($params['delivery_time']) ? strtotime($params['delivery_time']) : null,
                         'supplyer_code'     => $headerSupplierCode,
                         'supplier_count'    => count($uniqueSuppliers),
                         'sales_order_id'    => $mainSalesOrderId,
@@ -719,7 +761,7 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
     }
 
     /**
-     * 计划购货订单检测可生成购货单 - 跳过审核检查
+     * 计划购货订单检测可生成采购单 - 跳过审核检查
      */
     public function checkPurchase()
     {
@@ -743,7 +785,7 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
             }
         }
         if (empty($purchase_info)) {
-            $this->error('此计划购货订单已全部生成购货单');
+            $this->error('此计划购货订单已全部生成采购单');
         }
         $this->success();
     }
@@ -779,7 +821,7 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
     }
 
     /**
-     * 计划购货订单按供应商分组批量生成购货单 - 跳过审核检查
+     * 计划购货订单按供应商分组批量生成采购单 - 跳过审核检查
      */
     public function batchGeneratePurchase()
     {
@@ -792,6 +834,8 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
         if (!$order) {
             $this->error('订单不存在');
         }
+        // 部门隔离：只能对本部门录入的预订单生成采购单
+        $this->checkOrderSource($order);
         // 计划购货订单跳过审核检查
 
         $lines = Db::name('kuerp_goods_purchase_order_info')
@@ -806,7 +850,7 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
         });
 
         if (empty($lines)) {
-            $this->error('此计划购货订单已全部生成购货单');
+            $this->error('此计划购货订单已全部生成采购单');
         }
 
         $groups = [];
@@ -929,8 +973,8 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
                 if (!empty($order['sales_order_id'])) {
                     \app\admin\model\kuerp\GoodsSalesOrderLog::writeLogByCode(
                         $order['sales_order_id'],
-                        '生成购货单',
-                        "生成购货单：{$purchaseCode}（供应商：{$realSupplierCode}）",
+                        '生成采购单',
+                        "生成采购单：{$purchaseCode}（供应商：{$realSupplierCode}）",
                         'purchase',
                         $purchaseMainId
                     );
@@ -950,14 +994,14 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
             Db::commit();
         } catch (\Exception $e) {
             Db::rollback();
-            $this->error('生成购货单失败：' . $e->getMessage());
+            $this->error('生成采购单失败：' . $e->getMessage());
         }
 
-        $this->success('成功生成' . count($results) . '个购货单', ['results' => $results]);
+        $this->success('成功生成' . count($results) . '个采购单', ['results' => $results]);
     }
 
     /**
-     * 计划购货订单按单个供应商生成购货单 - 跳过审核检查
+     * 计划购货订单按单个供应商生成采购单 - 跳过审核检查
      */
     public function generateBySupplier()
     {
@@ -972,6 +1016,8 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
         if (!$order) {
             $this->error('订单不存在');
         }
+        // 部门隔离：只能对本部门录入的预订单生成采购单
+        $this->checkOrderSource($order);
         // 计划购货订单跳过审核检查
 
         $lines = Db::name('kuerp_goods_purchase_order_info')
@@ -986,7 +1032,7 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
             ->select();
 
         if (empty($lines)) {
-            $this->error('该供应商没有可生成购货单的商品');
+            $this->error('该供应商没有可生成采购单的商品');
         }
 
         $lines = array_filter($lines, function ($line) {
@@ -997,7 +1043,7 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
         });
 
         if (empty($lines)) {
-            $this->error('该供应商的商品已全部生成购货单');
+            $this->error('该供应商的商品已全部生成采购单');
         }
 
         $purchaseCode = \addons\kuerp\library\Goods::getCodes('', 8);
@@ -1117,8 +1163,8 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
             if (!empty($order['sales_order_id'])) {
                 \app\admin\model\kuerp\GoodsSalesOrderLog::writeLogByCode(
                     $order['sales_order_id'],
-                    '生成购货单',
-                    "生成购货单：{$purchaseCode}（供应商：{$supplyer_code}）",
+                    '生成采购单',
+                    "生成采购单：{$purchaseCode}（供应商：{$supplyer_code}）",
                     'purchase',
                     $purchaseMainId
                 );
@@ -1127,9 +1173,9 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
             Db::commit();
         } catch (\Exception $e) {
             Db::rollback();
-            $this->error('生成购货单失败：' . $e->getMessage());
+            $this->error('生成采购单失败：' . $e->getMessage());
         }
 
-        $this->success('成功生成购货单：' . $purchaseCode);
+        $this->success('成功生成采购单：' . $purchaseCode);
     }
 }

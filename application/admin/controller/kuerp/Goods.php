@@ -199,8 +199,8 @@ class Goods extends Backend
                     }
                 }
 
-                // 兼容新旧模板表头：型号/厂商/封装(新) → 规格型号/规格2/厂商/规格3/封装(旧)
-                $headerAlias = ['型号' => '规格型号', '厂商' => '规格2/厂商', '封装' => '规格3/封装'];
+                // 兼容新旧模板表头：型号/厂商/封装(新) → 规格型号/规格2/厂商/规格3/封装(旧)；预估成本(新) → 预计采购价(旧)
+                $headerAlias = ['型号' => '规格型号', '厂商' => '规格2/厂商', '封装' => '规格3/封装', '产品类型' => '商品类型', '预估成本' => '预计采购价'];
                 foreach ($fields as $fields_k => $fields_v) {
                     if (isset($headerAlias[$fields_v])) {
                         $fields[$fields_k] = $headerAlias[$fields_v];
@@ -470,9 +470,21 @@ class Goods extends Backend
             $catelist = Db::name('kuerp_goods_type')->where(['supplier_type_name'=>['in',$cate]])->column('id','supplier_type_name');
 
             //仓库  不能新增，缺少仓库抛出
-            $titles = array_filter($titles);
-            foreach ($titles as $titles_k=>$titles_v){
-                if(!in_array($titles_v,$stores) && $titles_v!='基础信息' && $titles_v!='价格管理'){
+            //表头行的仓库名称只在其"期初数量"列填了数量时才校验，
+            //避免模板里的占位仓库名(默认仓库/绵阳/成都等)未填写数量也报"仓库不存在"
+            $used_titles = [];
+            foreach ($insert as $insert_v){
+                foreach ($insert_v as $insert_v_k=>$insert_v_v){
+                    if(strpos($insert_v_k,'期初数量-') === 0 && (float)$insert_v_v != 0){
+                        $used_title = substr($insert_v_k, strlen('期初数量-'));
+                        if($used_title !== ''){
+                            $used_titles[$used_title] = true;
+                        }
+                    }
+                }
+            }
+            foreach (array_keys($used_titles) as $titles_v){
+                if(!in_array($titles_v,$stores)){
                     $stores[] = $titles_v;
                 }
             }
@@ -500,6 +512,23 @@ class Goods extends Backend
                     }
 
                     $this->chackstatus($insert_v['商品编号']);
+                    //商品类型(成品/半成品/零件)：表格留空时不写入（新增走数据库默认零件，更新保留原值）
+                    $product_type = '';
+                    $product_type_text = isset($insert_v['商品类型']) ? trim($insert_v['商品类型']) : '';
+                    if($product_type_text !== ''){
+                        $product_type_map = [
+                            '成品'          => 'finished',
+                            '半成品'        => 'semi_finished',
+                            '零件'          => 'part',
+                            'finished'      => 'finished',
+                            'semi_finished' => 'semi_finished',
+                            'part'          => 'part',
+                        ];
+                        if(!isset($product_type_map[$product_type_text])){
+                            $this->error('商品'.$insert_v['商品编号'].'的商品类型“'.$product_type_text.'”不正确，请填写成品/半成品/零件');
+                        }
+                        $product_type = $product_type_map[$product_type_text];
+                    }
                     $nowsp = $insert_k;
                     if(in_array($insert_v['商品编号'],$supplyer_code)){
                         $k = array_search($insert_v['商品编号'],$supplyer_code);
@@ -512,7 +541,8 @@ class Goods extends Backend
 
                     $unit = explode('/',$insert_v['计量单位']);
                     $market_sell_price = explode('/',$insert_v['零售价']);
-                    $wholesale_price = explode('/',$insert_v['批发价']);
+                    //批发价列已从导入模板移除；旧模板仍带该列也能识别，但一律按 0 入库
+                    $wholesale_price = explode('/',$insert_v['批发价'] ?? '');
                     $vip_price = explode('/',$insert_v['会员价'] ?? '');
                     $discount = explode('/',$insert_v['折扣率一'] ?? '');
                     $discount2 = explode('/',$insert_v['折扣率二'] ?? '');
@@ -524,7 +554,7 @@ class Goods extends Backend
                             'goods_name'        => $insert_v['商品名称'],
                             'unit'              => $insert_v['unit_info'][$unit_v],
                             'market_sell_price' => isset($market_sell_price[$unit_k])?((float)$market_sell_price[$unit_k]):0,
-                            'wholesale_price'   => isset($wholesale_price[$unit_k])?((float)$wholesale_price[$unit_k]):0,
+                            'wholesale_price'   => 0,
                             'vip_price'         => isset($vip_price[$unit_k])?((float)$vip_price[$unit_k]):0,
                             'discount'          => isset($discount[$unit_k])?((float)$discount[$unit_k]):0,
                             'discount2'         => isset($discount2[$unit_k])?((float)$discount2[$unit_k]):0,
@@ -603,6 +633,9 @@ class Goods extends Backend
                             $params[$insert_k]['period_status'] = 1;
                         }
                     }
+                    if($product_type !== ''){
+                        $params[$insert_k]['product_type'] = $product_type;
+                    }
                     if(strpos($insert_v['计量单位'],'/') !== false){
                         $params[$insert_k]['more_unit'] = 1;
                         $params[$insert_k]['more_unit_id'] = $insert_v['unit_info'][$unit[0]];
@@ -634,7 +667,6 @@ class Goods extends Backend
                         if(strpos($insert[$nowsp]['计量单位'],'/') !== false){
                             $unit = explode('/',$insert[$nowsp]['计量单位']);
                             $market_sell_price = explode('/',$insert[$nowsp]['零售价']);
-                            $wholesale_price = explode('/',$insert[$nowsp]['批发价']);
                             $vip_price = explode('/',$insert[$nowsp]['会员价'] ?? '');
                             $discount = explode('/',$insert[$nowsp]['折扣率一'] ?? '');
                             $discount2 = explode('/',$insert[$nowsp]['折扣率二'] ?? '');
@@ -642,7 +674,6 @@ class Goods extends Backend
                         }else{
                             $unit = explode('/',$insert[$nowsp]['计量单位']);
                             $market_sell_price = explode('/',$insert_v['零售价']);
-                            $wholesale_price = explode('/',$insert_v['批发价']);
                             $vip_price = explode('/',$insert_v['会员价'] ?? '');
                             $discount = explode('/',$insert_v['折扣率一'] ?? '');
                             $discount2 = explode('/',$insert_v['折扣率二'] ?? '');
@@ -654,7 +685,7 @@ class Goods extends Backend
                             'goods_name'        => $insert[$nowsp]['商品名称'],
                             'unit'              => (isset($params[$nowsp]['attr_price'][0]['unit'])?$params[$nowsp]['attr_price'][0]['unit']:0),
                             'market_sell_price' => $market_sell_price[0],
-                            'wholesale_price'   => $wholesale_price[0],
+                            'wholesale_price'   => 0,
                             'vip_price'         => $vip_price[0],
                             'discount'          => $discount[0],
                             'discount2'         => $discount2[0],
@@ -977,9 +1008,7 @@ class Goods extends Backend
                             if($auxiliary['market_sell_price'][$k]!==''){
                                 $row['market_sell_price'] = $auxiliary['market_sell_price'][$k];
                             }
-                            if($auxiliary['wholesale_price'][$k]!==''){
-                                $row['wholesale_price'] = $auxiliary['wholesale_price'][$k];
-                            }
+                            //批发价字段已从界面移除，不再从表单读取
                             // if($auxiliary['vip_price'][$k]!==''){
                             //     $row['vip_price'] = $auxiliary['vip_price'][$k];
                             // }
@@ -1068,7 +1097,8 @@ class Goods extends Backend
                     $params['warehousing'] = $more_unit['warehousing'];
                     $params['warehouse'] = $more_unit['warehouse'];
                     $params['market_sell_price'] = (float)$more_unit['market_sell_price'][0];
-                    $params['wholesale_price'] = (float)$more_unit['wholesale_price'][0];
+                    //批发价字段已从界面移除，固定写 0（表单不再提交该字段）
+                    $params['wholesale_price'] = 0;
                     $params['vip_price'] = (float)$more_unit['vip_price'][0];
                     $params['discount'] = (float)$more_unit['discount'][0];
                     $params['discount2'] = (float)$more_unit['discount2'][0];
@@ -1083,7 +1113,7 @@ class Goods extends Backend
                             'goods_barcode'=>$params['goods_barcode'],
                             'unit'=>$more_unit_v,
                             'market_sell_price'=>(float)$more_unit['market_sell_price'][$more_unit_k],
-                            'wholesale_price'=>(float)$more_unit['wholesale_price'][$more_unit_k],
+                            'wholesale_price'=>0,//批发价字段已从界面移除
                             'vip_price'=>(float)$more_unit['vip_price'][$more_unit_k],
                             'discount'=>(float)$more_unit['discount'][$more_unit_k],
                             'discount2'=>(float)$more_unit['discount2'][$more_unit_k],
@@ -1525,9 +1555,7 @@ class Goods extends Backend
                             if($auxiliary['market_sell_price'][$k]!==''){
                                 $auxiliary_row['market_sell_price'] = $auxiliary['market_sell_price'][$k];
                             }
-                            if($auxiliary['wholesale_price'][$k]!==''){
-                                $auxiliary_row['wholesale_price'] = $auxiliary['wholesale_price'][$k];
-                            }
+                            //批发价字段已从界面移除，不再从表单读取
                             // if($auxiliary['vip_price'][$k]!==''){
                             //     $auxiliary_row['vip_price'] = $auxiliary['vip_price'][$k];
                             // }
@@ -1616,7 +1644,8 @@ class Goods extends Backend
                     $params['warehousing'] = $more_unit['warehousing'];
                     $params['warehouse'] = $more_unit['warehouse'];
                     $params['market_sell_price'] = (float)$more_unit['market_sell_price'][0];
-                    $params['wholesale_price'] = (float)$more_unit['wholesale_price'][0];
+                    //批发价字段已从界面移除，固定写 0（表单不再提交该字段）
+                    $params['wholesale_price'] = 0;
                     $params['vip_price'] = (float)$more_unit['vip_price'][0];
                     $params['discount'] = (float)$more_unit['discount'][0];
                     $params['discount2'] = (float)$more_unit['discount2'][0];
@@ -1631,7 +1660,7 @@ class Goods extends Backend
                             'goods_barcode'=>$params['goods_barcode'],
                             'unit'=>$more_unit_v,
                             'market_sell_price'=>(float)$more_unit['market_sell_price'][$more_unit_k],
-                            'wholesale_price'=>(float)$more_unit['wholesale_price'][$more_unit_k],
+                            'wholesale_price'=>0,//批发价字段已从界面移除
                             'vip_price'=>(float)$more_unit['vip_price'][$more_unit_k],
                             'discount'=>(float)$more_unit['discount'][$more_unit_k],
                             'discount2'=>(float)$more_unit['discount2'][$more_unit_k],
@@ -2299,7 +2328,7 @@ class Goods extends Backend
         }
         $order_info = Db::name('kuerp_goods_purchase_info')->where(['goods_code'=>$goods_code])->value('id');
         if(!empty($order_info)){
-            return ['status'=>500,'msg'=>$goods_code.'已有购货单'];
+            return ['status'=>500,'msg'=>$goods_code.'已有采购单'];
         }
         $order_info = Db::name('kuerp_goods_exchange_info')->where(['goods_code'=>$goods_code])->value('id');
         if(!empty($order_info)){
@@ -3008,8 +3037,8 @@ class Goods extends Backend
                     case 1:
                         $field = 'market_sell_price';
                         break;
-                    case 2:
-                        $field = 'wholesale_price';
+                    case 2://批发价已下线，批发客户按零售价取价
+                        $field = 'market_sell_price';
                         break;
                     case 3:
                         $field = 'vip_price';
@@ -3260,7 +3289,7 @@ class Goods extends Backend
      * @param string goods_code 商品编号
      * @param string stores_id 仓库ID
      * @param string attribute_id 属性id
-     * @param string purchase_code 购货单单号
+     * @param string purchase_code 采购单单号
      * @return array
      */
     public function getSerial(){

@@ -63,7 +63,6 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                                 }
                             }},
                         {field: 'market_sell_price', title: __('Market_sell_price'), operate:'BETWEEN'},
-                        // {field: 'wholesale_price', title: __('Wholesale_price'), operate:'BETWEEN'},
                         // {field: 'vip_price', title: __('Vip_price'), operate:'BETWEEN'},
                         {field: 'purchase', title: __('Purchase'), operate:'BETWEEN'},
                         {field: 'goods_image', title: __('Goods_image'), operate: false,templet: function (d) {
@@ -1515,7 +1514,6 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                                         '<td style="white-space:nowrap">副单位'+(k2-(-1))+'</td>\n' +
                                         '<td><div id="more_unit_div2">'+v2.name+'</div><input type="hidden" name="more_unit[id][]" value="'+v2.id+'"></td>\n' +
                                         '<td><div><input type="number" class="price_decimal" name="more_unit[market_sell_price][]"></div></td>\n' +
-                                        '<td><div><input type="number" class="price_decimal" name="more_unit[wholesale_price][]"></div></td>\n' +
                                         '<td><div><input type="number" class="price_decimal" name="more_unit[vip_price][]"></div></td>\n' +
                                         '<td><div><input type="number" name="more_unit[discount][]"></div></td>\n' +
                                         '<td><div><input type="number" name="more_unit[discount2][]"></div></td>\n' +

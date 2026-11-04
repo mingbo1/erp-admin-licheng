@@ -9,13 +9,13 @@ use think\Db;
 use Exception;
 use think\Session;
 /**
- * 购货单
+ * 采购单
  *
  * @icon fa fa-circle-o
  */
 class GoodsPurchase extends Backend
 {
-    protected $noNeedRight = ['checkpurchase','getsuppliers','getunit','formatinfo','formatinfo2','getbranch','gettime','printpage','summary'];
+    protected $noNeedRight = ['checkpurchase','getsuppliers','getunit','formatinfo','formatinfo2','getbranch','gettime','printpage','summary','export'];
     /**
      * GoodsPurchase模型对象
      * @var \app\admin\model\kuerp\GoodsPurchase
@@ -75,12 +75,13 @@ class GoodsPurchase extends Backend
                 return $this->selectpage();
             }
             list($where, $sort, $order, $offset, $limit) = $this->buildparams();
-            $sort = 'purchase_time';$order='DESC';
+            // 排序：同一采购订单(GHDD)的采购单排在一起，分组按采购订单创建时间倒序；
+            // 没有关联采购订单的采购单按自身创建时间参与排序（规则见模型方法）
+            $mainAlias = \think\Loader::parseName(basename(str_replace('\\', '/', get_class($this->model))));
             $list = $this->model
                 ->with(['suppliers','preparation','examine','secondExamine'])
                 ->where($where)
-                ->order($sort, $order)
-                ->order('purchase_code', 'DESC')
+                ->orderRaw(\app\admin\model\kuerp\GoodsPurchase::orderSqlByPurchaseOrder($mainAlias))
                 ->paginate($limit);
 
             foreach ($list as $row) {
@@ -98,6 +99,15 @@ class GoodsPurchase extends Backend
                 $purchase_id = Db::name('kuerp_goods_excpur')->where(['purchase_id'=>$list_v['id']])->column('exchange_id');
                 $purchase = Db::name('kuerp_goods_exchange')->where(['id'=>['in',$purchase_id]])->column('purchase_code');
                 $list[$list_k]['returns_order_id'] = implode(',',$purchase);
+            }
+            //入库状态：未入库/部分入库/已入库（退货单不适用，返回空串由前端显示 —）
+            $storageStatusMap = \app\admin\model\kuerp\GoodsPurchase::storageStatusMap(array_column($list->items(), 'purchase_code'));
+            foreach ($list as $list_k=>$list_v){
+                if($list_v['purchase_type']!=1){
+                    $list[$list_k]['storage_status'] = '';
+                    continue;
+                }
+                $list[$list_k]['storage_status'] = isset($storageStatusMap[$list_v['purchase_code']]) ? $storageStatusMap[$list_v['purchase_code']] : 0;
             }
             $result = array("total" => $list->total(), "rows" => $list->items());
 
@@ -142,6 +152,7 @@ class GoodsPurchase extends Backend
                 $auxiliary_status= Db::name('kuerp_sets')->where(['name'=>'auxiliary'])->value('is_checked');
                 $data = [];
                 $number = 0;$all_money = 0;$purchase_order_id = '';$tax_money=0;$goods_serial_all = [];$money_tax_price=0;
+                $delivery_time = !empty($params['delivery_time']) ? strtotime($params['delivery_time']) : null;
                 foreach ($params['goods_code'] as $k=>$v){
                     if(!empty($v)){//有产品编号
                         $number += (float)$params['number'][$k];
@@ -267,6 +278,8 @@ class GoodsPurchase extends Backend
 
                             'purchase_order_id' =>  $params['purchase_order_id'][$k],
 
+                            'delivery_time'     =>  $delivery_time,
+
                             'createtime'        => time(),
                             'updatetime'        => time(),
                             'period'            =>  $params['period_period'][$k]===''?null:$params['period_period'][$k],
@@ -305,6 +318,8 @@ class GoodsPurchase extends Backend
                         'all_arrears'       =>  $params['add_arrears'],
 
                         'purchase_order_id' =>  $purchase_order_id,
+
+                        'delivery_time'     =>  $delivery_time,
 
                         'pay_status'        =>  isset($pay_status)?$pay_status:'0',
                         'pay_money'         =>  isset($pay_money)?$pay_money:0,
@@ -378,10 +393,10 @@ class GoodsPurchase extends Backend
                     if(!empty($purchase_order_id)){
                         if($result){
                             Db::name('kuerp_goods_purord')->insert(['order_id'=>$order_id,'purchase_id'=>$result]);
-                            // 写入销货订单日志：生成购货单
+                            // 写入销货订单日志：生成采购单
                             $salesOrderCode = Db::name('kuerp_goods_purchase_order')->where(['id' => $order_id])->value('sales_order_id');
                             if (!empty($salesOrderCode)) {
-                                GoodsSalesOrderLog::writeLogByCode($salesOrderCode, '生成购货单', '生成购货单：' . $params['purchase_code'], 'purchase', $result);
+                                GoodsSalesOrderLog::writeLogByCode($salesOrderCode, '生成采购单', '生成采购单：' . $params['purchase_code'], 'purchase', $result);
                             }
                         }
                     }
@@ -489,6 +504,9 @@ class GoodsPurchase extends Backend
                 $this->error(__('You have no permission'));
             }
         }
+        if (!empty($row['recon_status']) && $row['recon_status'] != '0') {
+            $this->error('该采购单已进入采购对账' . ($row['recon_code'] ? '（' . $row['recon_code'] . '）' : '') . '，不能编辑');
+        }
         if ($this->request->isPost()) {
             $checkout = (new \addons\kuerp\library\Checkout())->checkOutTime($row['purchase_time']);
             if($checkout!==true){
@@ -531,6 +549,7 @@ class GoodsPurchase extends Backend
                 $auxiliary_status= Db::name('kuerp_sets')->where(['name'=>'auxiliary'])->value('is_checked');
                 $data = [];
                 $number = 0;$all_money = 0;$tax_money=0;$goods_serial_all=[];$money_tax_price=0;
+                $delivery_time = !empty($params['delivery_time']) ? strtotime($params['delivery_time']) : null;
                 foreach ($params['goods_code'] as $k=>$v){
                     if(!empty($v)){//有产品编号
                         $number+=$params['number'][$k];
@@ -646,6 +665,8 @@ class GoodsPurchase extends Backend
                             'pay_money'         =>  isset($pay_money)?$pay_money:0,
                             'account'           =>  isset($pay_status)?$params['account']:0,
 
+                            'delivery_time'     =>  $delivery_time,
+
                             'createtime'        => $row['createtime'],
                             'updatetime'        => time(),
                             'period'            =>  $params['period_period'][$k]===''?null:$params['period_period'][$k],
@@ -681,6 +702,8 @@ class GoodsPurchase extends Backend
 
                         'arrears'           =>  $params['arrears'],
                         'all_arrears'       =>  $params['add_arrears'],
+
+                        'delivery_time'     =>  $delivery_time,
 
                         'pay_status'        =>  isset($pay_status)?$pay_status:'0',
                         'pay_money'         =>  isset($pay_money)?$pay_money:0,
@@ -754,6 +777,15 @@ class GoodsPurchase extends Backend
                             ]);
                         }
                     }
+                    //交货日期回写到来源购货订单（计划部门查看的采购预订单）
+                    if(!empty($row['purchase_order_id'])){
+                        Db::name('kuerp_goods_purchase_order')
+                            ->where(['purchase_code'=>$row['purchase_order_id']])
+                            ->update(['delivery_time'=>$delivery_time,'updatetime'=>time()]);
+                        Db::name('kuerp_goods_purchase_order_info')
+                            ->where(['purchase_code'=>$row['purchase_order_id']])
+                            ->update(['delivery_time'=>$delivery_time,'updatetime'=>time()]);
+                    }
                     Db::commit();
                 } catch (Exception $e) {
                     Db::rollback();
@@ -777,6 +809,11 @@ class GoodsPurchase extends Backend
             $this->error(__('Parameter %s can not be empty', ''));
         }
         $this->view->assign("row", $row);
+
+        // 编辑页展示：供应商电话、需求方/需求电话（取设置里的公司名称、公司电话）
+        $this->view->assign('supplyer_phone', $this->supplierPhone($row['supplyer_code']));
+        $this->view->assign('company_name', (string)Db::name('kuerp_sets')->where(['name' => 'company_name'])->value('value'));
+        $this->view->assign('company_phone', (string)Db::name('kuerp_sets')->where(['name' => 'company_phone'])->value('value'));
 
         $purchase_info = Db::name('kuerp_goods_purchase_info')->where(['purchase_code'=>$row['purchase_code']])->select();
         // 批量查询动态库存
@@ -849,6 +886,9 @@ class GoodsPurchase extends Backend
 
             $goods_purchase_id = [];$goods_purchase_code = [];
             foreach ($list as $list_k=>$list_v){
+                if(!empty($list_v['recon_status']) && $list_v['recon_status'] != '0'){
+                    $this->error('采购单'.$list_v['purchase_code'].'已进入采购对账，不能删除');
+                }
                 if($list_v['examine_status']==1){
                     $checkout = (new \addons\kuerp\library\Checkout())->checkOutTime($list_v['purchase_time']);
                     if($checkout!==true){
@@ -996,7 +1036,8 @@ class GoodsPurchase extends Backend
                     'bill_code'      => $list_v['purchase_code'],
                     'bill_codes'     => $list_v['purchase_code'],
                     'purchase_money' => $list_v['all_money'],
-                    'money_tax_price'=> $list_v['all_money']-$list_v['preferential_money'],
+                    //采购单主表没有 money_tax_price 列，价税合计按 金额+税额 还原（与销货侧 money_tax_price 同口径，优惠前）
+                    'money_tax_price'=> $list_v['all_money']+$list_v['tax_money'],
                     'discount_money' => $list_v['preferential_money'],
                     'real_money'     => $list_v['real_money'],
                     'pay_money'      => $list_v['pay_money'],
@@ -1504,7 +1545,7 @@ class GoodsPurchase extends Backend
                     foreach ($order_count as $oc) {
                         $salesOrderCode = Db::name('kuerp_goods_purchase_order')->where(['id' => $oc['id']])->value('sales_order_id');
                         if (!empty($salesOrderCode)) {
-                            GoodsSalesOrderLog::writeLogByCode($salesOrderCode, '零件入库', '购货单审核入库，关联购货单号：' . implode(',', $purchase_code), 'purchase', $ids);
+                            GoodsSalesOrderLog::writeLogByCode($salesOrderCode, '零件入库', '采购单审核入库，关联采购单号：' . implode(',', $purchase_code), 'purchase', $ids);
                             break; // 同一个订单只写一次
                         }
                     }
@@ -1575,6 +1616,12 @@ class GoodsPurchase extends Backend
                 $this->error('请选择需要反审核的数据');
             }
             foreach ($list as $list_k=>$list_v){
+                if(!empty($list_v['recon_status']) && $list_v['recon_status'] != '0'){
+                    if($examine_set!=1){
+                        return ['status'=>0,'msg'=>'采购单'.$list_v['purchase_code'].'已进入采购对账，不能反审核'];
+                    }
+                    $this->error('采购单'.$list_v['purchase_code'].'已进入采购对账，不能反审核');
+                }
                 if($list_v['check_status']==1){
                     $this->error('不能反审核已对单的数据');
                 }
@@ -1889,6 +1936,9 @@ class GoodsPurchase extends Backend
         if($counter==1){
             $list = $this->model->where(['id'=>['in',$ids],'check_status'=>'0'])->select();
             foreach ($list as $list_k=>$list_v){
+                if(!empty($list_v['recon_status']) && $list_v['recon_status'] != '0'){
+                    $this->error('采购单'.$list_v['purchase_code'].'已进入采购对账，不能对单');
+                }
                 $checkout = (new \addons\kuerp\library\Checkout())->checkOutTime($list_v['purchase_time']);
                 if($checkout!==true){
                     $this->error($checkout);
@@ -1914,6 +1964,9 @@ class GoodsPurchase extends Backend
         }else{
             $list = $this->model->where(['id'=>['in',$ids],'check_status'=>'1'])->select();
             foreach ($list as $list_k=>$list_v){
+                if(!empty($list_v['recon_status']) && $list_v['recon_status'] != '0'){
+                    $this->error('采购单'.$list_v['purchase_code'].'已进入采购对账，不能反对单');
+                }
                 $checkout = (new \addons\kuerp\library\Checkout())->checkOutTime($list_v['purchase_time']);
                 if($checkout!==true){
                     $this->error($checkout);
@@ -1952,7 +2005,7 @@ class GoodsPurchase extends Backend
             $this->error('参数错误');
         }
         if($row['examine_status']!=1){
-            $this->error('此购货单未审核，不可生成退货单');
+            $this->error('此采购单未审核，不可生成退货单');
         }
         $purchase_info = Db::name('kuerp_goods_purchase_info')->where(['purchase_code'=>$row['purchase_code']])->select();
         foreach ($purchase_info as $purchase_info_k=>$purchase_info_v){
@@ -1963,7 +2016,7 @@ class GoodsPurchase extends Backend
             }
         }
         if(empty($purchase_info)){
-            $this->error('此购货单已全部生成退货单');
+            $this->error('此采购单已全部生成退货单');
         }
         $this->success();
     }
@@ -1989,7 +2042,8 @@ class GoodsPurchase extends Backend
             $row = Db::name('kuerp_goods')->where(['id'=>$goods_id])->field('batch,serial,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,warehousing,warehouse,goods_specification_id,vendor_name,packaging')->find();
         }
         if(empty($row)){
-            return [];
+            //商品档案已删除的孤儿单据行：统一返回JSON串，避免调用方 json_decode() 收到数组报错
+            return json_encode(['unit'=>[],'attr'=>[],'goods'=>[],'supplier'=>null]);
         }
         if($supplyer_code){
             $suppliers = Db::name('kuerp_suppliers')->where(['supplyer_code'=>$supplyer_code])->value('vat_rate');
@@ -2029,7 +2083,7 @@ class GoodsPurchase extends Backend
 
         // 始终调整可用库存（考虑锁定）
         // - 传入 sales_order_id → 可看到自己的锁定库存
-        // - 未传入 → 扣除所有锁定库存（无关联订单的购货单/销货单等）
+        // - 未传入 → 扣除所有锁定库存（无关联订单的采购单/销货单等）
         $salesOrderId = isset($_POST['sales_order_id']) ? trim($_POST['sales_order_id']) : '';
         $attrId = isset($attr) ? (int)$attr : 0;
         $storesId = isset($where['stores_id']) ? (int)$where['stores_id'] : 0;
@@ -2484,6 +2538,22 @@ class GoodsPurchase extends Backend
         return json_encode(['manufacture'=>$manufacture,'shelf_life'=>$shelf_life,'validity'=>$validity]);
     }
 
+    /**
+     * 供应商电话：取首要联系人（无首要取第一条），优先手机，其次座机
+     */
+    private function supplierPhone($supplyer_code)
+    {
+        $user = Db::name('kuerp_suppliers_user')
+            ->where(['supplyer_code' => $supplyer_code, 'status' => '1'])
+            ->whereNull('deletetime')
+            ->order('is_first desc, id asc')
+            ->find();
+        if (!$user) {
+            return '';
+        }
+        return (string)($user['first_connect_mobile'] ? $user['first_connect_mobile'] : $user['first_connect_phone']);
+    }
+
     // 打印采购单详情
     public function printpage($ids = null)
     {
@@ -2494,15 +2564,28 @@ class GoodsPurchase extends Backend
         // 供应商名称
         $supplyer_name = Db::name('kuerp_suppliers')->where(['supplyer_code' => $row['supplyer_code']])->value('supplyer_name');
         $row['supplyer_name'] = $supplyer_name ? $supplyer_name : '';
+        // 供应商电话：优先首要联系人的手机，其次座机
+        $row['supplyer_phone'] = $this->supplierPhone($row['supplyer_code']);
+        // 需求方 / 需求电话：取设置里的公司名称、公司电话
+        $row['company_name'] = (string)Db::name('kuerp_sets')->where(['name' => 'company_name'])->value('value');
+        $row['company_phone'] = (string)Db::name('kuerp_sets')->where(['name' => 'company_phone'])->value('value');
         // 制单人
         $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('nickname');
         // 审核人
         $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('nickname');
 
-        // 购货单详情
+        // 采购单详情
         $purchase_info = Db::name('kuerp_goods_purchase_info')->where(['purchase_code' => $row['purchase_code']])->select();
         foreach ($purchase_info as $k => $v) {
-            $purchase_info[$k]['goods_name'] = Db::name('kuerp_goods')->where(['goods_code' => $v['goods_code']])->value('goods_name');
+            $goods = Db::name('kuerp_goods')
+                ->field('goods_name,goods_specification_id,vendor_name,packaging')
+                ->where(['goods_code' => $v['goods_code']])
+                ->find();
+            $purchase_info[$k]['goods_name'] = $goods ? $goods['goods_name'] : '';
+            // 型号 / 规格2(厂商) / 规格3(封装)，商品不存在(孤儿明细)时留空
+            $purchase_info[$k]['goods_specification_id'] = $goods ? (string)$goods['goods_specification_id'] : '';
+            $purchase_info[$k]['vendor_name'] = $goods ? (string)$goods['vendor_name'] : '';
+            $purchase_info[$k]['packaging'] = $goods ? (string)$goods['packaging'] : '';
             $purchase_info[$k]['stores_name'] = Db::name('kuerp_stores')->where(['id' => $v['stores_id']])->value('name');
             $purchase_info[$k]['unit_name'] = Db::name('kuerp_unit')->where(['id' => $v['goods_unit']])->value('name');
         }
@@ -2516,21 +2599,118 @@ class GoodsPurchase extends Backend
     }
 
     /**
-     * 采购汇总 — 勾选多条采购单，按商品+属性+仓库汇总
+     * 采购汇总 — 勾选多条采购单，按 单号+商品+属性 汇总
      */
     public function summary($ids = null)
     {
         $ids = $ids ? $ids : $this->request->get("ids");
-        if (empty($ids)) {
-            return '请选择要汇总的采购单';
-        }
-        $idArr = explode(',', $ids);
-        $idArr = array_map('intval', $idArr);
-        $idArr = array_filter($idArr);
+        $idArr = array_filter(array_map('intval', explode(',', (string)$ids)));
         if (empty($idArr)) {
             return '请选择要汇总的采购单';
         }
 
+        $data = $this->buildSummaryData($idArr);
+        if (isset($data['error'])) {
+            return $data['error'];
+        }
+
+        $this->assign('list', $data['list']);
+        $this->assign('totals', $data['totals']);
+        $this->assign('taxes', $data['taxes']);
+        $this->assign('price_decimal', $data['price_decimal']);
+        $this->assign('number_decimal', $data['number_decimal']);
+        $this->assign('ids', implode(',', $idArr));
+
+        return $this->view->fetch();
+    }
+
+    /**
+     * 导出采购汇总（Excel，格式与汇总页一致）
+     * POST: ids=1,2,3
+     */
+    public function export()
+    {
+        $ids = $this->request->post('ids');
+        $idArr = array_filter(array_map('intval', explode(',', (string)$ids)));
+        if (empty($idArr)) {
+            $this->error('请选择要导出的数据');
+        }
+
+        $data = $this->buildSummaryData($idArr);
+        if (isset($data['error'])) {
+            $this->error($data['error']);
+        }
+
+        $list = $data['list'];
+        $totals = $data['totals'];
+        $taxes = $data['taxes'];
+        $price_decimal = (int)$data['price_decimal'];
+        $number_decimal = (int)$data['number_decimal'];
+
+        $headers = ['序号', '日期', '单号', '供应商名称', '供应商类别', '商品编号', '商品名称',
+            '型号', '规格2/厂商', '规格3/封装', '属性', '计量单位', '单价', '购货金额'];
+        $fields = ['seq', 'purchase_date', 'purchase_code', 'supplyer_name', 'supplier_type_name',
+            'goods_code', 'goods_name', 'goods_specification_id', 'vendor_name', 'packaging',
+            'attr_name', 'u_name', 'unit_price', 'all_money'];
+        if ($taxes == 1) {
+            $headers[] = '税额';
+            $headers[] = '价税合计';
+            $fields[] = 'tax_money';
+            $fields[] = 'money_tax_price';
+        }
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle("采购汇总");
+        $widths = [6, 12, 20, 24, 14, 16, 24, 16, 16, 16, 12, 10, 10, 12];
+        foreach ($widths as $colK => $w) {
+            $sheet->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colK + 1))->setWidth($w);
+        }
+        foreach ($headers as $hK => $h) {
+            $sheet->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($hK + 1) . '1')->setValue($h);
+        }
+        $rowNum = 2;
+        foreach ($list as $row) {
+            foreach ($fields as $fK => $f) {
+                $value = isset($row[$f]) ? $row[$f] : '';
+                if (in_array($f, ['i_number', 'unit_price', 'all_money', 'tax_money', 'money_tax_price'])) {
+                    $value = round((float)$value, $f == 'i_number' ? $number_decimal : $price_decimal);
+                }
+                $sheet->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($fK + 1) . $rowNum)->setValue($value);
+            }
+            $rowNum++;
+        }
+        // 合计行
+        $totalFields = ['unit_price', 'all_money'];
+        if ($taxes == 1) {
+            $totalFields[] = 'tax_money';
+            $totalFields[] = 'money_tax_price';
+        }
+        $sheet->getCell('A' . $rowNum)->setValue('合计');
+        $sheet->mergeCells('A' . $rowNum . ':L' . $rowNum);
+        foreach ($totalFields as $tK => $tf) {
+            $value = isset($totals[$tf]) ? round((float)$totals[$tf], $tf == 'i_number' ? $number_decimal : $price_decimal) : '';
+            $sheet->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(13 + $tK) . $rowNum)->setValue($value);
+        }
+
+        $title = "采购汇总" . date("YmdHis");
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="' . $title . '.xlsx"');
+        header('Cache-Control: max-age=0');
+        $writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xlsx');
+        $writer->save('php://output');
+        exit;
+    }
+
+    /**
+     * 组装采购汇总数据（汇总页展示与导出共用）
+     * 汇总口径：单号 + 商品 + 属性（同一单据同一商品合并为一行）
+     *
+     * @param array $idArr 采购单主表id
+     * @return array 失败返回 ['error'=>提示]，成功返回 list/totals/taxes/price_decimal/number_decimal
+     */
+    protected function buildSummaryData($idArr)
+    {
         $price_decimal = Db::name('kuerp_sets')->where(['name' => 'price_decimal'])->value('value');
         $number_decimal = Db::name('kuerp_sets')->where(['name' => 'number_decimal'])->value('value');
         try {
@@ -2543,33 +2723,51 @@ class GoodsPurchase extends Backend
             ->where('id', 'in', $idArr)
             ->column('purchase_code');
         if (empty($purchaseCodes)) {
-            return '未找到对应的采购单数据';
+            return ['error' => '未找到对应的采购单数据'];
         }
 
         $list = Db::name('kuerp_goods_purchase_info')->alias('i')
+            ->join('kuerp_goods_purchase p', 'p.purchase_code=i.purchase_code', 'LEFT')
             ->join('kuerp_goods g', 'g.goods_code=i.goods_code')
             ->join('kuerp_goods_type gt', 'gt.id=g.goods_type_id', 'LEFT')
-            ->join('kuerp_stores s', 's.id=i.stores_id', 'LEFT')
             ->join('kuerp_unit u', 'u.id=i.goods_unit', 'LEFT')
             ->where('i.purchase_code', 'in', $purchaseCodes)
-            ->group('i.goods_code,i.goods_attr,i.stores_id')
+            ->group('i.purchase_code,i.goods_code,i.goods_attr')
+            ->order('p.purchase_time ASC,i.purchase_code ASC,min_id ASC')
             ->field('SUM(i.number) as i_number, SUM(i.basic_nmber) as basic_nmber, SUM(i.all_money) as all_money,
                 SUM(i.tax_money) as tax_money, SUM(i.money_tax_price) as money_tax_price,
-                SUM(i.purchase_money) as purchase_money,
+                MIN(i.id) as min_id,
+                ANY_VALUE(i.purchase_code) as purchase_code,
                 ANY_VALUE(i.goods_code) as goods_code, ANY_VALUE(i.goods_attr) as goods_attr,
-                ANY_VALUE(i.stores_id) as stores_id, ANY_VALUE(i.goods_unit) as goods_unit,
-                ANY_VALUE(i.default_unit) as default_unit,
+                ANY_VALUE(i.goods_unit) as goods_unit,
+                ANY_VALUE(p.purchase_time) as purchase_time, ANY_VALUE(p.supplyer_code) as supplyer_code,
                 ANY_VALUE(g.goods_name) as goods_name,
                 ANY_VALUE(g.goods_specification_id) as goods_specification_id,
+                ANY_VALUE(g.vendor_name) as vendor_name, ANY_VALUE(g.packaging) as packaging,
                 ANY_VALUE(gt.supplier_type_name) as supplier_type_name,
-                ANY_VALUE(s.name) as s_name, ANY_VALUE(u.name) as u_name')
+                ANY_VALUE(u.name) as u_name')
             ->select();
 
-        // 处理单位换算 & 属性名称
+        // 供应商名称
+        $supplyerCodes = [];
+        foreach ($list as $lv) {
+            if (!empty($lv['supplyer_code'])) {
+                $supplyerCodes[] = $lv['supplyer_code'];
+            }
+        }
+        $supplyerNames = [];
+        if (!empty($supplyerCodes)) {
+            $supplyerNames = Db::name('kuerp_suppliers')
+                ->where(['supplyer_code' => ['in', array_unique($supplyerCodes)]])
+                ->column('supplyer_name', 'supplyer_code');
+        }
+
         // 预加载辅助属性
         $auxiliary = Db::name('kuerp_auxiliary')->where(['status' => 1])->column('name', 'id');
 
+        $seq = 0;
         foreach ($list as $lk => $lv) {
+            $seq++;
             // 解析属性名称
             $attrName = '';
             if (!empty($lv['goods_attr'])) {
@@ -2588,43 +2786,24 @@ class GoodsPurchase extends Backend
                     }
                 }
             }
-            $list[$lk]['attr_name'] = $attrName;
-
-            if (!empty($lv['default_unit']) && !empty($lv['goods_unit'])) {
-                $list[$lk]['unit_conversion'] = Db::name('kuerp_unit_conversion')
-                    ->where(['main_unit' => $lv['default_unit'], 'vice_unit' => $lv['goods_unit']])
-                    ->value('advance_rate');
-            } else {
-                $list[$lk]['unit_conversion'] = '';
-            }
-            // 副单位数显示
-            if (!empty($list[$lk]['unit_conversion'])) {
-                $unitConv = $list[$lk]['unit_conversion'];
-                $basicNmber = $list[$lk]['basic_nmber'];
-                if ($basicNmber % $unitConv > 0) {
-                    $list[$lk]['basic_nmber_display'] = floor($basicNmber / $unitConv) . $list[$lk]['u_name'] . ($basicNmber % $unitConv) . $list[$lk]['u_name'];
-                } else {
-                    $list[$lk]['basic_nmber_display'] = floor($basicNmber / $unitConv) . $list[$lk]['u_name'];
-                }
-            } else {
-                $list[$lk]['basic_nmber_display'] = '';
-            }
+            $list[$lk]['seq']         = $seq;
+            $list[$lk]['attr_name']   = $attrName;
+            $list[$lk]['purchase_date'] = !empty($lv['purchase_time']) ? date('Y-m-d', $lv['purchase_time']) : '';
+            $list[$lk]['supplyer_name'] = isset($supplyerNames[$lv['supplyer_code']]) ? $supplyerNames[$lv['supplyer_code']] : '';
             // 格式化
             $list[$lk]['i_number']       = round($lv['i_number'], $number_decimal);
             $list[$lk]['all_money']      = round($lv['all_money'], $price_decimal);
-            $list[$lk]['purchase_money'] = round($lv['purchase_money'], $price_decimal);
             $list[$lk]['tax_money']      = round($lv['tax_money'], $price_decimal);
             $list[$lk]['money_tax_price'] = round($lv['money_tax_price'], $price_decimal);
             $list[$lk]['unit_price']     = $lv['i_number'] > 0 ? round($lv['all_money'] / $lv['i_number'], $price_decimal) : 0;
         }
 
         // 合计
-        $totalNumber = 0; $totalAllMoney = 0; $totalPurchaseMoney = 0;
+        $totalNumber = 0; $totalAllMoney = 0;
         $totalTaxMoney = 0; $totalMoneyTaxPrice = 0;
         foreach ($list as $lv) {
             $totalNumber += $lv['i_number'];
             $totalAllMoney += $lv['all_money'];
-            $totalPurchaseMoney += $lv['purchase_money'];
             $totalTaxMoney += $lv['tax_money'];
             $totalMoneyTaxPrice += $lv['money_tax_price'];
         }
@@ -2632,7 +2811,6 @@ class GoodsPurchase extends Backend
             'i_number'        => round($totalNumber, $number_decimal),
             'unit_price'      => $totalNumber > 0 ? round($totalAllMoney / $totalNumber, $price_decimal) : 0,
             'all_money'       => round($totalAllMoney, $price_decimal),
-            'purchase_money'  => round($totalPurchaseMoney, $price_decimal),
             'tax_money'       => round($totalTaxMoney, $price_decimal),
             'money_tax_price' => round($totalMoneyTaxPrice, $price_decimal),
         ];
@@ -2641,13 +2819,13 @@ class GoodsPurchase extends Backend
         $set = $setData['setList'];
         $taxes = isset($set['taxes']['is_checked']) && $set['taxes']['is_checked'] == 1 ? 1 : 0;
 
-        $this->assign('list', $list);
-        $this->assign('totals', $totals);
-        $this->assign('taxes', $taxes);
-        $this->assign('price_decimal', $price_decimal);
-        $this->assign('number_decimal', $number_decimal);
-
-        return $this->view->fetch();
+        return [
+            'list'            => $list,
+            'totals'          => $totals,
+            'taxes'           => $taxes,
+            'price_decimal'   => $price_decimal,
+            'number_decimal'  => $number_decimal,
+        ];
     }
 
     // 董事长二次审核

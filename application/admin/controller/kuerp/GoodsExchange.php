@@ -156,7 +156,7 @@ class GoodsExchange extends Backend
                         }
 
                         if(!empty($params['purchase_id'][$k]) && $purchase_type==2){
-                            //有关联购货单需对比 单位，属性，仓库等信息是否一致
+                            //有关联采购单需对比 单位，属性，仓库等信息是否一致
                             $goods_info = Db::name('kuerp_goods_purchase_info')->where([
                                 'goods_code'=>$params['goods_code'][$k],
                                 'goods_unit'=>$params['goods_unit'][$k],
@@ -486,7 +486,7 @@ class GoodsExchange extends Backend
         }
 
         if($type==1){
-            //购货单退货
+            //采购单退货
             $row = Db::name('kuerp_goods_purchase_order')->where(['id'=>$ids])->find();
             $give_account = 0;$real_money = 0;$arrears = 0;
             if($row){
@@ -650,6 +650,9 @@ class GoodsExchange extends Backend
                 $this->error(__('You have no permission'));
             }
         }
+        if (!empty($row['recon_status']) && $row['recon_status'] != '0') {
+            $this->error('该购货退货单已进入采购对账' . ($row['recon_code'] ? '（' . $row['recon_code'] . '）' : '') . '，不能编辑');
+        }
         if ($this->request->isPost()) {
             $checkout = (new \addons\kuerp\library\Checkout())->checkOutTime($row['purchase_time']);
             if($checkout!==true){
@@ -713,7 +716,7 @@ class GoodsExchange extends Backend
                         }
 
                         if(!empty($params['purchase_id'][$k]) && $purchase_type==2){
-                            //有关联购货单需对比 单位，属性，仓库等信息是否一致
+                            //有关联采购单需对比 单位，属性，仓库等信息是否一致
                             $goods_info = Db::name('kuerp_goods_purchase_info')->where([
                                 'goods_code'=>$params['goods_code'][$k],
                                 'goods_unit'=>$params['goods_unit'][$k],
@@ -1096,6 +1099,9 @@ class GoodsExchange extends Backend
             $examine= Db::name('kuerp_sets')->where(['name'=>'examine'])->value('is_checked');
 
             foreach ($list as $list_k=>$list_v){
+                if(!empty($list_v['recon_status']) && $list_v['recon_status'] != '0'){
+                    $this->error('购货退货单'.$list_v['purchase_code'].'已进入采购对账，不能删除');
+                }
                 if($list_v['examine_status']==1){
                     $checkout = (new \addons\kuerp\library\Checkout())->checkOutTime($list_v['purchase_time']);
                     if($checkout!==true){
@@ -1161,6 +1167,9 @@ class GoodsExchange extends Backend
         if($counter==1){
             $list = $this->model->where(['id'=>['in',$ids],'check_status'=>'0'])->select();
             foreach ($list as $list_k=>$list_v){
+                if(!empty($list_v['recon_status']) && $list_v['recon_status'] != '0'){
+                    $this->error('购货退货单'.$list_v['purchase_code'].'已进入采购对账，不能对单');
+                }
                 $checkout = (new \addons\kuerp\library\Checkout())->checkOutTime($list_v['purchase_time']);
                 if($checkout!==true){
                     $this->error($checkout);
@@ -1186,6 +1195,9 @@ class GoodsExchange extends Backend
         }else{
             $list = $this->model->where(['id'=>['in',$ids],'check_status'=>'1'])->select();
             foreach ($list as $list_k=>$list_v){
+                if(!empty($list_v['recon_status']) && $list_v['recon_status'] != '0'){
+                    $this->error('购货退货单'.$list_v['purchase_code'].'已进入采购对账，不能反对单');
+                }
                 $checkout = (new \addons\kuerp\library\Checkout())->checkOutTime($list_v['purchase_time']);
                 if($checkout!==true){
                     $this->error($checkout);
@@ -1471,7 +1483,8 @@ class GoodsExchange extends Backend
                     'bill_code'      => $list_v['purchase_code'],
                     'bill_codes'     => $list_v['purchase_code'],
                     'purchase_money' => -$list_v['all_money'],
-                    'money_tax_price'=> -$list_v['all_money']+$list_v['preferential_money'],
+                    //退货单主表没有 money_tax_price 列，价税合计按 金额+税额 还原后取负（与销货退货侧 -money_tax_price 同口径）
+                    'money_tax_price'=> -($list_v['all_money']+$list_v['tax_money']),
                     'discount_money' => $list_v['preferential_money'],
                     'real_money'     => -$list_v['real_money'],
                     'pay_money'      => -$list_v['retreat_money'],
@@ -1692,7 +1705,7 @@ class GoodsExchange extends Backend
                     Db::name('kuerp_goods_log')->insertAll($goods_stock_log);
                 }
 
-                //购货单修改状态
+                //采购单修改状态
                 if(!empty($order_count)){
                     $goodsPurchaseOrder = (new \app\admin\model\kuerp\GoodsPurchaseOrder());
                     foreach ($order_count as $order_count_k=>$order_count_v){
@@ -1846,6 +1859,12 @@ class GoodsExchange extends Backend
                 }
             }
             foreach ($list as $list_k=>$list_v){
+                if(!empty($list_v['recon_status']) && $list_v['recon_status'] != '0'){
+                    if($examine_set!=1){
+                        return ['status'=>0,'msg'=>'购货退货单'.$list_v['purchase_code'].'已进入采购对账，不能反审核'];
+                    }
+                    $this->error('购货退货单'.$list_v['purchase_code'].'已进入采购对账，不能反审核');
+                }
                 if($list_v['check_status']==1){
                     $this->error('不能反审核已对单的数据');
                 }
@@ -2210,7 +2229,7 @@ class GoodsExchange extends Backend
      * @param string goods_code 商品编号
      * @param string stores_id 仓库ID
      * @param string attribute_id 属性id
-     * @param string purchase_code 购货单单号
+     * @param string purchase_code 采购单单号
      * @return array
      */
     public function getSerial(){

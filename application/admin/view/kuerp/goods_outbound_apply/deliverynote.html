@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>送货单 - {$row.apply_code|htmlentities}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: "Microsoft YaHei", "SimSun", Arial, sans-serif; font-size: 13px; color: #000; padding: 20px; }
+        .print-wrap { max-width: 900px; margin: 0 auto; }
+        .no-print { text-align: center; margin-bottom: 16px; }
+        .no-print button { padding: 7px 28px; font-size: 15px; cursor: pointer; }
+        .no-print label { margin-left: 18px; font-size: 14px; cursor: pointer; }
+        .dn-title { text-align: center; font-size: 22px; font-weight: bold; letter-spacing: 2px; margin-bottom: 6px; }
+        .dn-address { font-size: 12px; margin-bottom: 6px; }
+        .dn-table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
+        .dn-table th, .dn-table td { border: 1px solid #000; padding: 4px 6px; font-size: 12.5px; }
+        .dn-table th { font-weight: bold; text-align: center; background: #f7f7f7; }
+        .dn-head td { height: 26px; }
+        .dn-head .lb { text-align: right; white-space: nowrap; }
+        .dn-table .left { text-align: left; }
+        .dn-table .right { text-align: right; }
+        .dn-table .center { text-align: center; }
+        .dn-foot { width: 100%; border-collapse: collapse; margin-top: -1px; }
+        .dn-foot td { border: 1px solid #000; padding: 4px 6px; font-size: 12.5px; }
+        .dn-foot .lb { text-align: left; white-space: nowrap; }
+        .dn-foot .right { text-align: right; }
+        /* 价格默认隐藏：勾选「显示价格」后移除 price-hide */
+        .price-hide .col-price, .price-hide .label-price { display: none; }
+        .dn-sign { margin-top: 16px; font-size: 13px; line-height: 30px; }
+        .dn-sign .line { display: flex; justify-content: space-between; }
+        .dn-copy { margin-top: 14px; font-size: 12px; color: #333; }
+        .print-time { text-align: right; color: #888; font-size: 11px; margin-top: 8px; }
+        @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+            .print-time { display: none; }
+        }
+    </style>
+{include file="kuerp/common/printstyle" /}
+</head>
+<body>
+<div class="no-print">
+    <button type="button" onclick="window.print()">🖨 打印</button>
+    <label><input type="checkbox" id="chk_show_price"> 显示价格</label>
+    <span style="color:#999;margin-left:10px;font-size:12px;">（默认隐藏单价/金额/销售价格/税额/合计）</span>
+</div>
+
+<div class="print-wrap price-hide" id="dn_sheet">
+    <div class="dn-title">{$company_name|htmlentities}送货单</div>
+    <div class="dn-address">地址：{$company_address|default=''|htmlentities}</div>
+
+    <table class="dn-table dn-head">
+        <tr>
+            <td class="left" colspan="4">客户名称：{$customer_name|htmlentities}</td>
+            <td class="lb" style="width:80px;">销货日期：</td>
+            <td style="width:100px;">{$sales_date}</td>
+            <td class="lb" style="width:70px;">业务员：</td>
+            <td style="width:100px;">{$sale_user_name|htmlentities}</td>
+        </tr>
+        <tr>
+            <td class="lb" style="width:60px;">联络人：</td>
+            <td colspan="2">{$contact_name|htmlentities}</td>
+            <td class="lb" style="width:70px;">联系电话：</td>
+            <td colspan="2">{$contact_mobile|htmlentities}</td>
+            <td class="lb" style="width:50px;">品号：</td>
+            <td>{$customer_codes|htmlentities}</td>
+        </tr>
+    </table>
+
+    <table class="dn-table">
+        <thead>
+            <tr>
+                <th style="width:42px;">序</th>
+                <th>产品名称</th>
+                <th style="width:130px;">型号规格</th>
+                <th style="width:120px;">品号与功率</th>
+                <th style="width:80px;">数量</th>
+                <th class="col-price" style="width:80px;">单价</th>
+                <th class="col-price" style="width:90px;">金额</th>
+                <th style="width:110px;">备注</th>
+            </tr>
+        </thead>
+        <tbody>
+            {foreach name="infoList" item="info" key="k"}
+            <tr>
+                <td class="center">{$k+1}</td>
+                <td class="left">{$info.goods_name|htmlentities}</td>
+                <td class="center">{$info.spec|default=''|htmlentities}</td>
+                <td class="center">{$info.power|default=''|htmlentities}</td>
+                <td class="right">{:number_format($info['number'], $number_decimal, '.', '')}</td>
+                <td class="col-price right">{:number_format($info['unit_price'], $price_decimal, '.', '')}</td>
+                <td class="col-price right">{:number_format($info['sales_price'], $price_decimal, '.', '')}</td>
+                <td class="left">{$info.remark|default=''|htmlentities}</td>
+            </tr>
+            {/foreach}
+            {if condition="empty($infoList)"}
+            <tr><td colspan="8" class="center" style="color:#999;">暂无出库明细</td></tr>
+            {/if}
+        </tbody>
+    </table>
+
+    <table class="dn-foot">
+        <tr>
+            <td rowspan="3" class="lb" style="width:60px;">备注</td>
+            <td rowspan="3" style="vertical-align: top;">
+                <div>快递公司：{$express_companies_text|default=''|htmlentities}</div>
+                <div>快递单号：{$express_nos_text|default=''|htmlentities}</div>
+            </td>
+            <td rowspan="3" style="vertical-align: top; color:#333;">{$row.remark|default=''|htmlentities}</td>
+            <td class="lb label-price" style="width:90px;">销售价格：</td>
+            <td class="right col-price" style="width:120px;">￥{:number_format($total_sales_price, $price_decimal, '.', '')}</td>
+        </tr>
+        <tr>
+            <td class="lb label-price">税额：</td>
+            <td class="right col-price">￥{:number_format($total_tax, $price_decimal, '.', '')}</td>
+        </tr>
+        <tr>
+            <td class="lb label-price">合计：</td>
+            <td class="right col-price">￥{:number_format($total_money, $price_decimal, '.', '')}</td>
+        </tr>
+    </table>
+
+    <div class="dn-sign">
+        <div class="line">
+            <span>请核对后签字回传</span>
+            <span>谢谢！</span>
+            <span>签收人：____________________</span>
+            <span>日期：____________________</span>
+        </div>
+    </div>
+    <div class="dn-copy">第一联白色为存根联&nbsp;&nbsp;&nbsp;&nbsp;第二联红色为客户联&nbsp;&nbsp;&nbsp;&nbsp;第三联黄色为记帐联&nbsp;&nbsp;&nbsp;&nbsp;第四联蓝色为仓库联</div>
+    <div class="print-time">打印时间：{$printTime}</div>
+</div>
+
+<script>
+    (function () {
+        var chk = document.getElementById('chk_show_price');
+        var sheet = document.getElementById('dn_sheet');
+        if (chk && sheet) {
+            chk.addEventListener('change', function () {
+                if (chk.checked) {
+                    sheet.classList.remove('price-hide');
+                } else {
+                    sheet.classList.add('price-hide');
+                }
+            });
+        }
+    })();
+</script>
+</body>
+</html>

@@ -4454,8 +4454,8 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_batch_exchange_info` (
   `manufacture` int(11) unsigned DEFAULT NULL COMMENT '生产日期',
   `guarantee` int(11) unsigned DEFAULT NULL COMMENT '保质期',
   `validity` int(11) DEFAULT NULL COMMENT '有效期至',
-  `purchase_id` int(11) DEFAULT NULL COMMENT '购货单号',
-  `purchase_info_id` int(11) DEFAULT NULL COMMENT '购货单详情ID',
+  `purchase_id` int(11) DEFAULT NULL COMMENT '采购单号',
+  `purchase_info_id` int(11) DEFAULT NULL COMMENT '采购单详情ID',
   `type` tinyint(3) DEFAULT '0' COMMENT '类型:1=期初,2=购货',
   `createtime` bigint(16) DEFAULT NULL COMMENT '创建时间',
   `updatetime` bigint(16) DEFAULT NULL COMMENT '更新时间',
@@ -4478,8 +4478,8 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_batch_info` (
   `manufacture` int(11) unsigned DEFAULT NULL COMMENT '生产日期',
   `guarantee` int(11) unsigned DEFAULT NULL COMMENT '保质期',
   `validity` int(11) DEFAULT NULL COMMENT '有效期至',
-  `purchase_id` int(11) DEFAULT NULL COMMENT '购货单号',
-  `purchase_info_id` int(11) DEFAULT NULL COMMENT '购货单详情ID',
+  `purchase_id` int(11) DEFAULT NULL COMMENT '采购单号',
+  `purchase_info_id` int(11) DEFAULT NULL COMMENT '采购单详情ID',
   `assemble_id` int(11) DEFAULT NULL COMMENT '组合单ID',
   `split_id` int(11) DEFAULT NULL COMMENT '拆卸单ID',
   `type` tinyint(3) DEFAULT '0' COMMENT '类型:1=期初,2=购货,3=盘盈,4=其他入库,5=组合单,6=拆卸单',
@@ -4529,8 +4529,8 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_batch_sale_info` (
   `manufacture` int(11) unsigned DEFAULT NULL COMMENT '生产日期',
   `guarantee` int(11) unsigned DEFAULT NULL COMMENT '保质期',
   `validity` int(11) DEFAULT NULL COMMENT '有效期至',
-  `purchase_id` int(11) DEFAULT NULL COMMENT '购货单号',
-  `purchase_info_id` int(11) DEFAULT NULL COMMENT '购货单详情ID',
+  `purchase_id` int(11) DEFAULT NULL COMMENT '采购单号',
+  `purchase_info_id` int(11) DEFAULT NULL COMMENT '采购单详情ID',
   `type` tinyint(3) DEFAULT '0' COMMENT '类型:1=期初,2=购货',
   `createtime` bigint(16) DEFAULT NULL COMMENT '创建时间',
   `updatetime` bigint(16) DEFAULT NULL COMMENT '更新时间',
@@ -4553,8 +4553,8 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_batch_salee_info` (
   `manufacture` int(11) unsigned DEFAULT NULL COMMENT '生产日期',
   `guarantee` int(11) unsigned DEFAULT NULL COMMENT '保质期',
   `validity` int(11) DEFAULT NULL COMMENT '有效期至',
-  `purchase_id` int(11) DEFAULT NULL COMMENT '购货单号',
-  `purchase_info_id` int(11) DEFAULT NULL COMMENT '购货单详情ID',
+  `purchase_id` int(11) DEFAULT NULL COMMENT '采购单号',
+  `purchase_info_id` int(11) DEFAULT NULL COMMENT '采购单详情ID',
   `type` tinyint(3) DEFAULT '0' COMMENT '类型:1=期初,2=购货',
   `createtime` bigint(16) DEFAULT NULL COMMENT '创建时间',
   `updatetime` bigint(16) DEFAULT NULL COMMENT '更新时间',
@@ -4580,14 +4580,14 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_exchange` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `admin_id` int(11) DEFAULT NULL,
   `purchase_code` varchar(50) DEFAULT NULL COMMENT '单据编号',
-  `purchase_type` enum('0','1','2') DEFAULT '0' COMMENT '类型:0=退货单,1=购货订单退货,2=购货单退货',
+  `purchase_type` enum('0','1','2') DEFAULT '0' COMMENT '类型:0=退货单,1=购货订单退货,2=采购单退货',
   `purchase_time` bigint(16) DEFAULT NULL COMMENT '单据日期',
   `delivery_time` bigint(16) DEFAULT NULL COMMENT '交货时间',
   `supplyer_code` varchar(30) DEFAULT NULL COMMENT '供应商编号',
   `number` double(15,4) DEFAULT '0.0000' COMMENT '数量',
   `all_money` double(15,4) DEFAULT '0.0000' COMMENT '购货金额',
   `purchase_order_id` varchar(50) DEFAULT NULL COMMENT '购货订单号',
-  `purchase_id` varchar(50) DEFAULT NULL COMMENT '购货单号',
+  `purchase_id` varchar(50) DEFAULT NULL COMMENT '采购单号',
   `sales_order_id` varchar(50) DEFAULT NULL COMMENT '销货订单号',
   `preferential_rate` double(15,4) DEFAULT '0.0000' COMMENT '优惠率',
   `preferential_money` double(15,4) DEFAULT '0.0000' COMMENT '优惠额',
@@ -4633,7 +4633,7 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_exchange_info` (
   `number` double(15,4) DEFAULT '0.0000' COMMENT '数量',
   `default_unit` int(11) DEFAULT NULL COMMENT '基本单位',
   `basic_nmber` double(15,4) DEFAULT '0.0000' COMMENT '基本数量',
-  `unit_price` double(15,4) DEFAULT '0.0000' COMMENT '购货单价',
+  `unit_price` double(15,4) DEFAULT '0.0000' COMMENT '采购单价',
   `tax_included` double(15,4) DEFAULT NULL COMMENT '含税单价',
   `discount` float(5,2) DEFAULT '0.00' COMMENT '折扣率',
   `dis_money` double(15,4) DEFAULT '0.0000' COMMENT '折扣额',
@@ -4643,10 +4643,10 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_exchange_info` (
   `money_tax_price` double(15,4) DEFAULT NULL COMMENT '价税合计',
   `remark` varchar(255) DEFAULT NULL COMMENT '备注',
   `purchase_order_id` varchar(50) DEFAULT NULL COMMENT '购货订单号',
-  `purchase_id` varchar(50) DEFAULT NULL COMMENT '购货单号',
+  `purchase_id` varchar(50) DEFAULT NULL COMMENT '采购单号',
   `sales_order_id` varchar(50) DEFAULT NULL COMMENT '销货订单号',
   `returns_order_id` varchar(50) DEFAULT NULL COMMENT '退货订单号',
-  `purchase_info_id` int(11) DEFAULT NULL COMMENT '购货单详情ID',
+  `purchase_info_id` int(11) DEFAULT NULL COMMENT '采购单详情ID',
   `preferential_rate` float(5,2) DEFAULT '0.00' COMMENT '优惠率',
   `preferential_money` double(15,4) DEFAULT '0.0000' COMMENT '优惠额',
   `real_money` double(15,4) DEFAULT '0.0000' COMMENT '优惠后金额',
@@ -4687,7 +4687,7 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_excpur_info` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `exchange_id` int(11) DEFAULT '0',
   `purchase_id` int(11) DEFAULT NULL,
-  `type` enum('0','1','2') DEFAULT NULL COMMENT '类型:1=购货订单,2=购货单',
+  `type` enum('0','1','2') DEFAULT NULL COMMENT '类型:1=购货订单,2=采购单',
   `number` float(11,2) DEFAULT '0.00',
   `money` float(11,2) DEFAULT '0.00' COMMENT '退款金额',
   `all_money` double(15,4) DEFAULT '0.0000' COMMENT '购货金额',
@@ -4810,7 +4810,7 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_purchase` (
   `updatetime` bigint(16) DEFAULT NULL COMMENT '更新时间',
   PRIMARY KEY (`id`),
   KEY `purchase_code` (`purchase_code`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COMMENT='购货单';
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COMMENT='采购单';
 
 CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_purchase_info` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
@@ -4829,7 +4829,7 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_purchase_info` (
   `number` double(15,4) DEFAULT '0.0000' COMMENT '数量',
   `default_unit` int(11) DEFAULT NULL COMMENT '基本单位',
   `basic_nmber` double(15,4) DEFAULT '0.0000' COMMENT '基本数量',
-  `unit_price` double(15,4) DEFAULT '0.0000' COMMENT '购货单价',
+  `unit_price` double(15,4) DEFAULT '0.0000' COMMENT '采购单价',
   `tax_included` double(15,4) DEFAULT NULL COMMENT '含税单价',
   `discount` float(5,2) DEFAULT '0.00' COMMENT '折扣率',
   `dis_money` double(15,4) DEFAULT '0.0000' COMMENT '折扣额',
@@ -4873,12 +4873,13 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_purchase_order` (
   `admin_id` int(11) DEFAULT NULL,
   `purchase_code` varchar(50) DEFAULT NULL COMMENT '单据编号',
   `purchase_type` enum('1','2') DEFAULT '1' COMMENT '类型:1=购货,2=退货',
+  `order_source` enum('plan','warehouse','purchase') NOT NULL DEFAULT 'plan' COMMENT '来源:plan=计划部门,warehouse=仓库部门,purchase=购货订单',
   `purchase_time` bigint(16) DEFAULT NULL COMMENT '单据日期',
   `delivery_time` bigint(16) DEFAULT NULL COMMENT '交货时间',
   `supplyer_code` varchar(30) DEFAULT NULL COMMENT '供应商编号',
   `number` double(15,4) DEFAULT '0.0000' COMMENT '数量',
   `all_money` double(15,4) DEFAULT '0.0000' COMMENT '购货金额',
-  `purchase_id` varchar(50) DEFAULT NULL COMMENT '购货单号',
+  `purchase_id` varchar(50) DEFAULT NULL COMMENT '采购单号',
   `sales_order_id` varchar(50) DEFAULT NULL COMMENT '销货订单号',
   `returns_order_id` varchar(50) DEFAULT NULL COMMENT '退货订单号',
   `preferential_rate` double(15,4) DEFAULT '0.0000' COMMENT '优惠率',
@@ -4921,10 +4922,10 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_purchase_order_info` (
   `stores_id` int(11) DEFAULT NULL COMMENT '仓库',
   `allow_stock` double(15,4) DEFAULT '0.0000' COMMENT '可用库存',
   `number` double(15,4) DEFAULT '0.0000' COMMENT '数量',
-  `purchase_number` double(15,4) DEFAULT '0.0000' COMMENT '可生成购货单数量',
+  `purchase_number` double(15,4) DEFAULT '0.0000' COMMENT '可生成采购单数量',
   `default_unit` int(11) DEFAULT NULL COMMENT '基本单位',
   `basic_nmber` double(15,4) DEFAULT '0.0000' COMMENT '基本数量',
-  `unit_price` double(15,4) DEFAULT '0.0000' COMMENT '购货单价',
+  `unit_price` double(15,4) DEFAULT '0.0000' COMMENT '采购单价',
   `tax_included` double(15,4) DEFAULT NULL COMMENT '含税单价',
   `discount` double(15,4) DEFAULT '0.0000' COMMENT '折扣率',
   `dis_money` double(15,4) DEFAULT '0.0000' COMMENT '折扣额',
@@ -4933,7 +4934,7 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_purchase_order_info` (
   `tax_money` double(15,4) unsigned DEFAULT '0.0000' COMMENT '税额',
   `money_tax_price` double(15,4) DEFAULT '0.0000' COMMENT '价税合计',
   `remark` varchar(255) DEFAULT NULL COMMENT '备注',
-  `purchase_id` varchar(50) DEFAULT NULL COMMENT '购货单号',
+  `purchase_id` varchar(50) DEFAULT NULL COMMENT '采购单号',
   `sales_order_id` varchar(50) DEFAULT NULL COMMENT '销货订单号',
   `returns_order_id` varchar(50) DEFAULT NULL COMMENT '退货订单号',
   `preferential_rate` double(15,4) DEFAULT '0.0000' COMMENT '优惠率',
@@ -4976,7 +4977,7 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_purchase_summary` (
   `number` double(15,4) DEFAULT '0.00' COMMENT '数量',
   `default_unit` int(11) DEFAULT NULL COMMENT '基本单位',
   `basic_nmber` double(15,4) DEFAULT '0.0000' COMMENT '基本数量',
-  `unit_price` float(11,2) DEFAULT '0.00' COMMENT '购货单价',
+  `unit_price` float(11,2) DEFAULT '0.00' COMMENT '采购单价',
   `tax_included` double(15,4) DEFAULT NULL COMMENT '含税单价',
   `discount` float(5,2) DEFAULT '0.00' COMMENT '折扣率',
   `dis_money` double(15,4) DEFAULT '0.00' COMMENT '折扣额',
@@ -4986,7 +4987,7 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_purchase_summary` (
   `money_tax_price` double(15,4) DEFAULT NULL COMMENT '价税合计',
   `remark` varchar(255) DEFAULT NULL COMMENT '备注',
   `purchase_order_id` varchar(50) DEFAULT NULL COMMENT '购货订单号',
-  `sales_order_id` varchar(50) DEFAULT NULL COMMENT '购货单号',
+  `sales_order_id` varchar(50) DEFAULT NULL COMMENT '采购单号',
   `returns_order_id` varchar(50) DEFAULT NULL COMMENT '退货订单号',
   `preferential_rate` float(5,2) DEFAULT '0.00' COMMENT '优惠率',
   `preferential_money` double(15,4) DEFAULT '0.00' COMMENT '优惠额',
@@ -5025,7 +5026,7 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_purord_info` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `order_id` int(11) DEFAULT '0',
   `purchase_id` int(11) DEFAULT NULL COMMENT '购货明细ID',
-  `type` enum('0','1','2') DEFAULT NULL COMMENT '类型:1=购货订单,2=购货单',
+  `type` enum('0','1','2') DEFAULT NULL COMMENT '类型:1=购货订单,2=采购单',
   `number` float(11,2) DEFAULT '0.00' COMMENT '数量',
   `money` float(11,2) DEFAULT '0.00' COMMENT '已付款金额',
   `all_money` float(11,2) DEFAULT '0.00' COMMENT '购货金额',
@@ -5090,6 +5091,7 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_sales` (
   `purchase_type` enum('1','2') DEFAULT '1' COMMENT '类型:1=销货,2=退货',
   `purchase_time` bigint(16) DEFAULT NULL COMMENT '单据日期',
   `delivery_time` bigint(16) DEFAULT NULL COMMENT '交货时间',
+  `delivery_mode` enum('direct','dropship') NOT NULL DEFAULT 'direct' COMMENT '发货方式:direct=直发,dropship=代发',
   `customers_id` int(11) DEFAULT NULL COMMENT '客户',
   `receiving_address` varchar(255) DEFAULT NULL COMMENT '收货地址',
   `sale_user` int(11) DEFAULT NULL COMMENT '销售员',
@@ -5138,7 +5140,7 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_sales_exchange` (
   `number` double(15,4) DEFAULT '0.0000' COMMENT '数量',
   `all_money` double(15,4) DEFAULT '0.0000' COMMENT '购货金额',
   `purchase_order_id` varchar(50) DEFAULT NULL COMMENT '购货订单号',
-  `purchase_id` varchar(50) DEFAULT NULL COMMENT '购货单号',
+  `purchase_id` varchar(50) DEFAULT NULL COMMENT '采购单号',
   `sales_order_id` varchar(50) DEFAULT NULL COMMENT '销货订单号',
   `preferential_rate` float(5,2) DEFAULT '0.00' COMMENT '优惠率',
   `preferential_money` double(15,4) DEFAULT '0.0000' COMMENT '优惠额',
@@ -5188,7 +5190,7 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_sales_exchange_info` (
   `number` double(15,4) DEFAULT '0.0000' COMMENT '数量',
   `default_unit` int(11) DEFAULT NULL COMMENT '基本单位',
   `basic_nmber` double(15,4) DEFAULT '0.0000' COMMENT '基本数量',
-  `unit_price` double(15,4) DEFAULT '0.0000' COMMENT '购货单价',
+  `unit_price` double(15,4) DEFAULT '0.0000' COMMENT '采购单价',
   `cost_price` double(15,4) DEFAULT NULL COMMENT '成本价',
   `tax_included` double(15,4) DEFAULT '0.0000' COMMENT '含税单价',
   `discount` float(5,2) DEFAULT '0.00' COMMENT '折扣率',
@@ -5199,10 +5201,10 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_sales_exchange_info` (
   `money_tax_price` double(15,4) DEFAULT '0.0000' COMMENT '价税合计',
   `remark` varchar(255) DEFAULT NULL COMMENT '备注',
   `purchase_order_id` varchar(50) DEFAULT NULL COMMENT '购货订单号',
-  `purchase_id` varchar(50) DEFAULT NULL COMMENT '购货单号',
+  `purchase_id` varchar(50) DEFAULT NULL COMMENT '采购单号',
   `sales_order_id` varchar(50) DEFAULT NULL COMMENT '销货订单号',
   `returns_order_id` varchar(50) DEFAULT NULL COMMENT '退货订单号',
-  `purchase_info_id` int(11) DEFAULT NULL COMMENT '购货单详情ID',
+  `purchase_info_id` int(11) DEFAULT NULL COMMENT '采购单详情ID',
   `preferential_rate` float(5,2) DEFAULT '0.00' COMMENT '优惠率',
   `preferential_money` float(11,2) DEFAULT '0.00' COMMENT '优惠额',
   `real_money` float(11,2) DEFAULT '0.00' COMMENT '优惠后金额',
@@ -5239,6 +5241,7 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_sales_info` (
   `purchase_type` enum('1','2') DEFAULT '1' COMMENT '类型:1=销货,2=退货',
   `purchase_time` bigint(16) DEFAULT NULL COMMENT '单据日期',
   `delivery_time` bigint(16) DEFAULT NULL COMMENT '交货时间',
+  `delivery_mode` enum('direct','dropship') NOT NULL DEFAULT 'direct' COMMENT '发货方式:direct=直发,dropship=代发',
   `customers_id` int(11) DEFAULT NULL COMMENT '客户',
   `receiving_address` varchar(255) DEFAULT NULL COMMENT '收货地址',
   `sale_user` int(11) DEFAULT NULL COMMENT '销售员',
@@ -5298,6 +5301,7 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_sales_order` (
   `purchase_type` enum('1','2') DEFAULT '1' COMMENT '类型:1=销货,2=退货',
   `purchase_time` bigint(16) DEFAULT NULL COMMENT '单据日期',
   `delivery_time` bigint(16) DEFAULT NULL COMMENT '交货时间',
+  `delivery_mode` enum('direct','dropship') NOT NULL DEFAULT 'direct' COMMENT '发货方式:direct=直发,dropship=代发',
   `customers_id` int(11) DEFAULT NULL COMMENT '客户',
   `receiving_address` varchar(255) DEFAULT NULL COMMENT '收货地址',
   `sale_user` int(11) DEFAULT NULL COMMENT '销售员',
@@ -5313,6 +5317,7 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_sales_order` (
   `tax_money` double(15,4) DEFAULT NULL COMMENT '税额',
   `money_tax_price` double(15,4) DEFAULT '0.0000' COMMENT '价税合计',
   `purchase_money` double(15,4) DEFAULT '0.0000' COMMENT '采购费用',
+  `customers_money` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '客户承担费用',
   `preparation_id` int(11) DEFAULT NULL COMMENT '制单人',
   `examine_id` int(11) DEFAULT NULL COMMENT '审核人',
   `operation_id` int(11) DEFAULT NULL COMMENT '最后操作人',
@@ -5340,6 +5345,7 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_sales_order_info` (
   `purchase_type` enum('1','2') DEFAULT '1' COMMENT '类型:1=销货,2=退货',
   `purchase_time` bigint(16) DEFAULT NULL COMMENT '单据日期',
   `delivery_time` bigint(16) DEFAULT NULL COMMENT '交货时间',
+  `delivery_mode` enum('direct','dropship') NOT NULL DEFAULT 'direct' COMMENT '发货方式:direct=直发,dropship=代发',
   `customers_id` int(11) DEFAULT NULL COMMENT '客户',
   `receiving_address` varchar(255) DEFAULT NULL COMMENT '收货地址',
   `sale_user` int(11) DEFAULT NULL COMMENT '销售员',
@@ -5350,10 +5356,10 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_sales_order_info` (
   `stores_id` int(11) DEFAULT NULL COMMENT '仓库',
   `allow_stock` double(15,4) DEFAULT '0.0000' COMMENT '可用库存',
   `number` double(15,4) DEFAULT '0.0000' COMMENT '数量',
-  `purchase_number` double(15,4) DEFAULT '0.0000' COMMENT '可生成购货单数量',
+  `purchase_number` double(15,4) DEFAULT '0.0000' COMMENT '可生成采购单数量',
   `default_unit` int(11) DEFAULT NULL COMMENT '基本单位',
   `basic_nmber` double(15,4) DEFAULT '0.0000' COMMENT '基本数量',
-  `unit_price` double(15,4) DEFAULT '0.0000' COMMENT '购货单价',
+  `unit_price` double(15,4) DEFAULT '0.0000' COMMENT '采购单价',
   `cost_price` double(15,4) DEFAULT NULL COMMENT '成本价',
   `tax_included` double(15,4) DEFAULT '0.0000' COMMENT '含税单价',
   `discount` double(15,4) DEFAULT '0.0000' COMMENT '折扣率',
@@ -5363,13 +5369,14 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_sales_order_info` (
   `tax_money` double(15,4) DEFAULT '0.0000' COMMENT '税额',
   `money_tax_price` double(15,4) DEFAULT '0.0000' COMMENT '价税合计',
   `remark` varchar(255) DEFAULT NULL COMMENT '备注',
-  `purchase_id` varchar(50) DEFAULT NULL COMMENT '购货单号',
+  `purchase_id` varchar(50) DEFAULT NULL COMMENT '采购单号',
   `sales_order_id` varchar(50) DEFAULT NULL COMMENT '销货订单号',
   `returns_order_id` varchar(50) DEFAULT NULL COMMENT '退货订单号',
   `preferential_rate` float(5,2) DEFAULT '0.00' COMMENT '优惠率',
   `preferential_money` float(11,2) DEFAULT '0.00' COMMENT '优惠额',
   `real_money` float(11,2) DEFAULT '0.00' COMMENT '优惠后金额',
   `purchase_money` float(11,2) DEFAULT '0.00' COMMENT '采购费用',
+  `customers_money` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '客户承担费用',
   `preparation_id` int(11) DEFAULT NULL COMMENT '制单人',
   `examine_id` int(11) DEFAULT NULL COMMENT '审核人',
   `operation_id` int(11) DEFAULT NULL COMMENT '最后操作人',
@@ -5434,7 +5441,7 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_sales_summary` (
   `number` double(15,4) DEFAULT '0.0000' COMMENT '数量',
   `default_unit` int(11) DEFAULT NULL COMMENT '基本单位',
   `basic_nmber` double(15,4) DEFAULT '0.0000' COMMENT '基本数量',
-  `unit_price` double(15,4) DEFAULT '0.0000' COMMENT '购货单价',
+  `unit_price` double(15,4) DEFAULT '0.0000' COMMENT '采购单价',
   `cost_price` double(15,4) DEFAULT NULL,
   `tax_included` double(15,4) DEFAULT NULL COMMENT '含税单价',
   `discount` float(5,2) DEFAULT '0.00' COMMENT '折扣率',
@@ -5485,8 +5492,8 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_serial` (
   `status` enum('1','2','3','4','5','6','7','8','9','10','11','12','13','14') DEFAULT '1' COMMENT '状态:1=购货,2=购货退货,3=销货,4=销货退货,5=盘点,6=其他,7=盘盈,8=其他入库,9=盘亏,10=其他出库,11=组合单,12=组合单,13=拆卸单,14=拆卸单',
   `store_status` enum('0','1','2') DEFAULT '0' COMMENT '在库状态:0=未入库,1=在库,2=出库',
   `remark` varchar(255) DEFAULT NULL COMMENT '备注',
-  `purchase_id` int(11) DEFAULT NULL COMMENT '购货单ID',
-  `purchase_code` varchar(30) DEFAULT NULL COMMENT '购货单单号',
+  `purchase_id` int(11) DEFAULT NULL COMMENT '采购单ID',
+  `purchase_code` varchar(30) DEFAULT NULL COMMENT '采购单单号',
   `purchase_exchange_id` int(11) DEFAULT NULL COMMENT '购货退货单ID',
   `purchase_exchange_code` varchar(30) DEFAULT NULL COMMENT '购货退货单单号',
   `sale_id` int(11) DEFAULT NULL COMMENT '销货单ID',
@@ -5871,7 +5878,7 @@ INSERT INTO `__PREFIX__kuerp_prefix` (`id`, `admin_id`, `type`, `name`, `prefix`
 (5,1,5,'账户','ZH','2','2','2','2','2','2',1,3,'ZH001','kuerp_accounts','account_coding'),
 (6,1,6,'商品','SP','2','2','2','2','2','2',1,3,'SP001','kuerp_goods','goods_code'),
 (7,1,7,'购货订单','GHDD','1','1','1','2','2','2',1,3,'GHDD20210925001','kuerp_goods_purchase_order','purchase_code'),
-(8,1,8,'购货单','GHD','1','1','1','2','2','2',1,3,'GHD20210925001','kuerp_goods_purchase','purchase_code'),
+(8,1,8,'采购单','GHD','1','1','1','2','2','2',1,3,'GHD20210925001','kuerp_goods_purchase','purchase_code'),
 (9,1,9,'购货退货单','GHTH','1','1','1','2','2','2',1,3,'GHTH20210925001','kuerp_goods_exchange','purchase_code'),
 (10,1,10,'销货订单','XHDD','1','1','1','2','2','2',1,3,'XHDD20210925001','kuerp_goods_sales_order','purchase_code'),
 (11,1,11,'销货单','XHD','1','1','1','2','2','2',1,3,'XHD20210925001','kuerp_goods_sales','purchase_code'),
@@ -6186,6 +6193,7 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_suppliers` (
   `identification` varchar(50) DEFAULT NULL COMMENT '纳税人识别号',
   `deposit_bank` varchar(150) DEFAULT NULL COMMENT '开户银行',
   `bank_number` varchar(30) DEFAULT NULL COMMENT '银行卡号',
+  `contract` varchar(255) NOT NULL DEFAULT '' COMMENT '合同附件',
   `status` enum('0','1') NOT NULL DEFAULT '1' COMMENT '状态:0=禁用,1=正常',
   `createtime` bigint(16) DEFAULT NULL COMMENT '创建时间',
   `updatetime` bigint(16) DEFAULT NULL COMMENT '更新时间',
@@ -6458,7 +6466,8 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_writeoff_source` (
 
 CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_enclosure` (
    `id` int(11) NOT NULL AUTO_INCREMENT,
-   `image` varchar(255) NOT NULL DEFAULT '' COMMENT '图片',
+   `image` varchar(255) NOT NULL DEFAULT '' COMMENT '原始单据文件路径',
+   `name` varchar(255) NOT NULL DEFAULT '' COMMENT '文件名称',
    `type` enum('1','2') DEFAULT '1' COMMENT '类型:1=购货,2=销货',
    `status` enum('0','1') DEFAULT '1' COMMENT '状态:0=禁用,1=启用',
    `upload_date` varchar(30) DEFAULT NULL COMMENT '上传日期',
@@ -6472,7 +6481,7 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_enclosure_log` (
    `enclosure_id` int(11) NOT NULL DEFAULT '0' COMMENT '附件ID',
    `order_id` int(11) DEFAULT '0' COMMENT '单据ID',
    `purchase_code` varchar(50) DEFAULT NULL COMMENT '单据编号',
-   `type` enum('1','2','3','4','5','6') DEFAULT NULL COMMENT '单据类型:1=购货订单,2:购货单,3:购货退货单,4:销货订单,5:销货单,6:销货退货单',
+   `type` enum('1','2','3','4','5','6') DEFAULT NULL COMMENT '单据类型:1=购货订单,2:采购单,3:购货退货单,4:销货订单,5:销货单,6:销货退货单',
    PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COMMENT='原始单据关联表';
 
@@ -6516,7 +6525,8 @@ ALTER TABLE `__PREFIX__kuerp_income_type` ADD COLUMN `path` varchar(255) NULL DE
 --
 CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_enclosure` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `image` varchar(255) NOT NULL DEFAULT '' COMMENT '图片',
+  `image` varchar(255) NOT NULL DEFAULT '' COMMENT '原始单据文件路径',
+  `name` varchar(255) NOT NULL DEFAULT '' COMMENT '文件名称',
   `type` enum('1','2') DEFAULT '1' COMMENT '类型:1=购货,2=销货',
   `status` enum('0','1') DEFAULT '1' COMMENT '状态:0=禁用,1=启用',
   `upload_date` varchar(30) DEFAULT NULL COMMENT '上传日期',
@@ -6530,7 +6540,7 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_enclosure_log` (
   `enclosure_id` int(11) NOT NULL DEFAULT '0' COMMENT '附件ID',
   `order_id` int(11) DEFAULT '0' COMMENT '单据ID',
   `purchase_code` varchar(50) DEFAULT NULL COMMENT '单据编号',
-  `type` enum('1','2','3','4','5','6') DEFAULT NULL COMMENT '单据类型:1=购货订单,2:购货单,3:购货退货单,4:销货订单,5:销货单,6:销货退货单',
+  `type` enum('1','2','3','4','5','6') DEFAULT NULL COMMENT '单据类型:1=购货订单,2:采购单,3:购货退货单,4:销货订单,5:销货单,6:销货退货单',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COMMENT='原始单据关联表';
 
@@ -6960,3 +6970,601 @@ ALTER TABLE `__PREFIX__kuerp_sales_invoicing_log` MODIFY COLUMN `bill_time` bigi
 ALTER TABLE `__PREFIX__kuerp_sales_payment_log` MODIFY COLUMN `bill_time` bigint(16) NULL DEFAULT NULL AFTER `business_type`;
 ALTER TABLE `__PREFIX__kuerp_checkout` MODIFY COLUMN `checktime` bigint(16) NULL DEFAULT NULL AFTER `checkdate`;
 ALTER TABLE `__PREFIX__kuerp_checkout` MODIFY COLUMN `preparation_time` bigint(16) NULL DEFAULT NULL AFTER `preparation_id`;
+--
+-- 出库管理(销货出库申请): 计划部门申请出库 → 仓库"出库管理"审核执行
+--
+
+CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_outbound_apply` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `apply_code` varchar(50) NOT NULL DEFAULT '' COMMENT '申请单号 (CKSQ...)',
+  `sales_id` int(11) NOT NULL DEFAULT '0' COMMENT '销货单ID (kuerp_goods_sales.id)',
+  `purchase_code` varchar(50) NOT NULL DEFAULT '' COMMENT '销货单号',
+  `customers_id` int(11) DEFAULT NULL COMMENT '客户ID(冗余,便于列表筛选)',
+  `apply_admin_id` int(11) DEFAULT NULL COMMENT '申请人(admin.id)',
+  `apply_time` bigint(16) DEFAULT NULL COMMENT '申请时间',
+  `status` enum('0','1','2','3') DEFAULT '0' COMMENT '状态:0=待审核,1=已同意出库,2=已拒绝,3=已撤销',
+  `examine_admin_id` int(11) DEFAULT NULL COMMENT '审核人/撤销人(admin.id)',
+  `examine_time` bigint(16) DEFAULT NULL COMMENT '审核时间/撤销时间',
+  `out_data` text COMMENT '实际同意出库数量JSON {sales_info_id:数量}(审核同意后写入,审计用)',
+  `express_data` text COMMENT '快递信息JSON [{code,company,no}]（申请出库时填写,一次出库可多条）',
+  `refuse_reason` varchar(255) DEFAULT '' COMMENT '拒绝原因',
+  `remark` varchar(255) DEFAULT '' COMMENT '申请备注',
+  `createtime` int(11) DEFAULT NULL,
+  `updatetime` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `sales_id` (`sales_id`),
+  KEY `status` (`status`),
+  KEY `apply_code` (`apply_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='销货单出库申请';
+
+CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_outbound_apply_info` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `apply_id` int(11) NOT NULL DEFAULT '0' COMMENT '申请ID (kuerp_goods_outbound_apply.id)',
+  `sales_info_id` int(11) NOT NULL DEFAULT '0' COMMENT '销货单明细ID (kuerp_goods_sales_info.id)',
+  `goods_id` int(11) DEFAULT NULL COMMENT '商品ID',
+  `goods_code` varchar(30) NOT NULL DEFAULT '' COMMENT '商品编号(冗余)',
+  `stores_id` int(11) DEFAULT NULL COMMENT '仓库ID(冗余)',
+  `number` double(15,4) DEFAULT '0.0000' COMMENT '本次申请出库数量',
+  `createtime` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `apply_id` (`apply_id`),
+  KEY `sales_info_id` (`sales_info_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='销货单出库申请明细';
+
+INSERT INTO `__PREFIX__kuerp_prefix` (`id`, `admin_id`, `type`, `name`, `prefix`, `year`, `month`, `day`, `hour`, `minute`, `second`, `start`, `strlen`, `example`, `dbname`, `field`) VALUES
+(28,1,29,'出库申请','CKSQ','1','1','1','2','2','2',1,3,'CKSQ20261018001','kuerp_goods_outbound_apply','apply_code');
+
+--
+-- 1.6.12
+-- 原始单据（采购/销售）支持任意文件上传 + 文件名称
+-- image 由「仅图片」改为「任意文件路径」（图片/PDF/Excel/压缩包等），新增 name 字段
+--
+
+ALTER TABLE `__PREFIX__kuerp_enclosure` MODIFY COLUMN `image` varchar(255) NOT NULL DEFAULT '' COMMENT '原始单据文件路径';
+ALTER TABLE `__PREFIX__kuerp_enclosure` ADD COLUMN `name` varchar(255) NOT NULL DEFAULT '' COMMENT '文件名称' AFTER `image`;
+
+--
+-- 1.6.13
+-- 采购入库「操作记录」：新表 kuerp_goods_purchase_storage_log（每次入库一条）
+-- 原始单据关联类型增加 7=入库记录
+--
+
+CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_purchase_storage_log` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `purchase_id` int(11) NOT NULL DEFAULT '0' COMMENT '采购单ID (kuerp_goods_purchase.id)',
+  `purchase_code` varchar(50) NOT NULL DEFAULT '' COMMENT '采购单号',
+  `total_number` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '本次入库总数量',
+  `detail` text COMMENT '本次入库明细JSON',
+  `admin_id` int(11) NOT NULL DEFAULT '0' COMMENT '操作人',
+  `createtime` bigint(16) DEFAULT NULL COMMENT '操作时间',
+  PRIMARY KEY (`id`),
+  KEY `purchase_id` (`purchase_id`),
+  KEY `purchase_code` (`purchase_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='采购单入库操作记录';
+
+ALTER TABLE `__PREFIX__kuerp_enclosure_log`
+  MODIFY COLUMN `type` enum('1','2','3','4','5','6','7') DEFAULT NULL
+  COMMENT '单据类型:1=购货订单,2=采购单,3=购货退货单,4=销货订单,5=销货单,6=销货退货单,7=入库记录';
+
+--
+-- 1.6.14
+-- 供应商新增「合同附件」字段（单文件，选填）
+--
+
+ALTER TABLE `__PREFIX__kuerp_suppliers` ADD COLUMN `contract` varchar(255) NOT NULL DEFAULT '' COMMENT '合同附件' AFTER `bank_number`;
+
+--
+-- 1.6.15
+-- 销货订单新增「发货方式（代发/直发）」标记，并同步到销货单/计划排期
+--
+
+ALTER TABLE `__PREFIX__kuerp_goods_sales_order`
+  ADD COLUMN `delivery_mode` enum('direct','dropship') NOT NULL DEFAULT 'direct'
+  COMMENT '发货方式:direct=直发,dropship=代发' AFTER `delivery_time`;
+ALTER TABLE `__PREFIX__kuerp_goods_sales_order_info`
+  ADD COLUMN `delivery_mode` enum('direct','dropship') NOT NULL DEFAULT 'direct'
+  COMMENT '发货方式:direct=直发,dropship=代发' AFTER `delivery_time`;
+ALTER TABLE `__PREFIX__kuerp_goods_sales`
+  ADD COLUMN `delivery_mode` enum('direct','dropship') NOT NULL DEFAULT 'direct'
+  COMMENT '发货方式:direct=直发,dropship=代发' AFTER `delivery_time`;
+ALTER TABLE `__PREFIX__kuerp_goods_sales_info`
+  ADD COLUMN `delivery_mode` enum('direct','dropship') NOT NULL DEFAULT 'direct'
+  COMMENT '发货方式:direct=直发,dropship=代发' AFTER `delivery_time`;
+
+--
+-- 1.6.16
+-- 销货订单新增「客户承担费用」（原仅销货单可填，生成销货单时自动带出）
+--
+
+ALTER TABLE `__PREFIX__kuerp_goods_sales_order`
+  ADD COLUMN `customers_money` double(15,4) NOT NULL DEFAULT '0.0000'
+  COMMENT '客户承担费用' AFTER `purchase_money`;
+ALTER TABLE `__PREFIX__kuerp_goods_sales_order_info`
+  ADD COLUMN `customers_money` double(15,4) NOT NULL DEFAULT '0.0000'
+  COMMENT '客户承担费用' AFTER `purchase_money`;
+
+--
+-- 1.6.17
+-- 采购对账 + 付款申请
+--   新表：kuerp_purchase_recon / _info / _log / _invoice
+--         kuerp_purchase_payment_apply / _info / _log
+--   采购单增加 recon_id/recon_code（标记已对账）
+--   原始单据关联类型增加 8=对账单 9=发票 10=付款回单
+--   单号前缀 30=采购对账单 31=付款申请；设置项 提前提醒天数/领导审核金额
+--
+
+CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_purchase_recon` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `recon_code` varchar(50) NOT NULL DEFAULT '' COMMENT '对账单号',
+  `supplyer_code` varchar(30) NOT NULL DEFAULT '' COMMENT '供应商编号',
+  `supplyer_name` varchar(100) NOT NULL DEFAULT '' COMMENT '供应商名称',
+  `period_start` bigint(16) DEFAULT NULL COMMENT '对账期间开始',
+  `period_end` bigint(16) DEFAULT NULL COMMENT '对账期间结束',
+  `purchase_count` int(11) NOT NULL DEFAULT '0' COMMENT '采购单数',
+  `total_number` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '采购总数量',
+  `total_money` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '对账金额(Σ采购单价税合计)',
+  `status` enum('0','1','2','3') NOT NULL DEFAULT '0' COMMENT '0草稿 1待财务审核 2已审核 3已驳回',
+  `invoice_status` enum('0','1') NOT NULL DEFAULT '0' COMMENT '0未开票 1已开票',
+  `pay_status` enum('0','1','2') NOT NULL DEFAULT '0' COMMENT '0未付款 1付款申请中 2已付款',
+  `examine_id` int(11) DEFAULT NULL COMMENT '财务审核人',
+  `examine_time` bigint(16) DEFAULT NULL COMMENT '财务审核时间',
+  `reject_reason` varchar(255) NOT NULL DEFAULT '' COMMENT '驳回原因',
+  `remark` varchar(255) NOT NULL DEFAULT '' COMMENT '备注',
+  `preparation_id` int(11) NOT NULL DEFAULT '0' COMMENT '制单人',
+  `operation_id` int(11) NOT NULL DEFAULT '0' COMMENT '最后操作人',
+  `createtime` bigint(16) DEFAULT NULL,
+  `updatetime` bigint(16) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `recon_code` (`recon_code`),
+  KEY `supplyer_code` (`supplyer_code`),
+  KEY `status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='采购对账单';
+
+CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_purchase_recon_info` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `recon_id` int(11) NOT NULL DEFAULT '0',
+  `purchase_id` int(11) NOT NULL DEFAULT '0' COMMENT '采购单ID',
+  `purchase_code` varchar(50) NOT NULL DEFAULT '' COMMENT '采购单号',
+  `purchase_time` bigint(16) DEFAULT NULL COMMENT '采购日期',
+  `number` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '采购数量',
+  `real_money` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '采购单价税合计',
+  `storage_status` tinyint(3) NOT NULL DEFAULT '0' COMMENT '入库状态(冗余快照)',
+  `remark` varchar(255) NOT NULL DEFAULT '',
+  `createtime` bigint(16) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `recon_purchase` (`recon_id`,`purchase_id`),
+  KEY `purchase_code` (`purchase_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='采购对账单明细';
+
+CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_purchase_recon_log` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `recon_id` int(11) NOT NULL DEFAULT '0',
+  `action` varchar(50) NOT NULL DEFAULT '' COMMENT '操作',
+  `note` varchar(500) NOT NULL DEFAULT '' COMMENT '说明',
+  `admin_id` int(11) NOT NULL DEFAULT '0',
+  `createtime` bigint(16) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `recon_id` (`recon_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='采购对账单操作日志';
+
+CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_purchase_recon_invoice` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `recon_id` int(11) NOT NULL DEFAULT '0',
+  `enclosure_id` int(11) NOT NULL DEFAULT '0' COMMENT '发票文件(kuerp_enclosure.id)',
+  `invoice_no` varchar(100) NOT NULL DEFAULT '' COMMENT '发票号',
+  `invoice_amount` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '开票金额',
+  `invoice_date` bigint(16) DEFAULT NULL COMMENT '开票日期',
+  `upload_date` bigint(16) DEFAULT NULL COMMENT '上传日期(账期起算日)',
+  `term_days` int(11) NOT NULL DEFAULT '0' COMMENT '账期天数',
+  `due_date` bigint(16) DEFAULT NULL COMMENT '付款到期日',
+  `admin_id` int(11) NOT NULL DEFAULT '0' COMMENT '上传人',
+  `createtime` bigint(16) DEFAULT NULL,
+  `updatetime` bigint(16) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `recon_id` (`recon_id`),
+  KEY `due_date` (`due_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='采购对账单发票与账期';
+
+CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_purchase_payment_apply` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `apply_code` varchar(50) NOT NULL DEFAULT '' COMMENT '付款申请单号',
+  `supplyer_code` varchar(30) NOT NULL DEFAULT '' COMMENT '供应商编号',
+  `supplyer_name` varchar(100) NOT NULL DEFAULT '' COMMENT '供应商名称',
+  `recon_count` int(11) NOT NULL DEFAULT '0' COMMENT '对账单数',
+  `total_money` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '申请付款金额',
+  `status` enum('0','1','2','3','4','5','6') NOT NULL DEFAULT '0' COMMENT '0草稿 1待财务 2待审计 3待领导 4待出纳 5已付款 6已驳回',
+  `need_leader` tinyint(3) NOT NULL DEFAULT '0' COMMENT '是否需要领导审核(提交时按阈值固化)',
+  `apply_admin_id` int(11) NOT NULL DEFAULT '0' COMMENT '申请人',
+  `apply_time` bigint(16) DEFAULT NULL COMMENT '申请时间',
+  `remark` varchar(255) NOT NULL DEFAULT '' COMMENT '申请说明',
+  `finance_admin_id` int(11) DEFAULT '0' COMMENT '财务审核人',
+  `finance_time` bigint(16) DEFAULT NULL,
+  `finance_remark` varchar(255) NOT NULL DEFAULT '',
+  `audit_admin_id` int(11) DEFAULT '0' COMMENT '审计审核人',
+  `audit_time` bigint(16) DEFAULT NULL,
+  `audit_remark` varchar(255) NOT NULL DEFAULT '',
+  `leader_admin_id` int(11) DEFAULT '0' COMMENT '领导审核人',
+  `leader_time` bigint(16) DEFAULT NULL,
+  `leader_remark` varchar(255) NOT NULL DEFAULT '',
+  `cashier_admin_id` int(11) DEFAULT '0' COMMENT '出纳',
+  `pay_time` bigint(16) DEFAULT NULL COMMENT '付款时间',
+  `payment_id` int(11) NOT NULL DEFAULT '0' COMMENT '生成的付款单ID(kuerp_payment.id)',
+  `pay_account_id` int(11) NOT NULL DEFAULT '0' COMMENT '付款账户(kuerp_accounts.id)',
+  `pay_number` varchar(100) NOT NULL DEFAULT '' COMMENT '银行流水号',
+  `pay_remark` varchar(255) NOT NULL DEFAULT '',
+  `createtime` bigint(16) DEFAULT NULL,
+  `updatetime` bigint(16) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `apply_code` (`apply_code`),
+  KEY `supplyer_code` (`supplyer_code`),
+  KEY `status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='采购付款申请单';
+
+CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_purchase_payment_apply_info` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `apply_id` int(11) NOT NULL DEFAULT '0',
+  `recon_id` int(11) NOT NULL DEFAULT '0',
+  `recon_code` varchar(50) NOT NULL DEFAULT '',
+  `total_money` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '对账金额',
+  `due_date` bigint(16) DEFAULT NULL COMMENT '账期到期日',
+  `remark` varchar(255) NOT NULL DEFAULT '',
+  `createtime` bigint(16) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `apply_recon` (`apply_id`,`recon_id`),
+  KEY `recon_id` (`recon_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='采购付款申请明细';
+
+CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_purchase_payment_apply_log` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `apply_id` int(11) NOT NULL DEFAULT '0',
+  `action` varchar(50) NOT NULL DEFAULT '' COMMENT '操作',
+  `note` varchar(500) NOT NULL DEFAULT '' COMMENT '说明',
+  `admin_id` int(11) NOT NULL DEFAULT '0',
+  `createtime` bigint(16) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `apply_id` (`apply_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='采购付款申请审批日志';
+
+ALTER TABLE `__PREFIX__kuerp_goods_purchase`
+  ADD COLUMN `recon_id` int(11) NOT NULL DEFAULT '0' COMMENT '所属采购对账单ID(0=未对账)' AFTER `check_status`,
+  ADD COLUMN `recon_code` varchar(50) NOT NULL DEFAULT '' COMMENT '所属采购对账单号' AFTER `recon_id`;
+
+ALTER TABLE `__PREFIX__kuerp_enclosure_log`
+  MODIFY COLUMN `type` enum('1','2','3','4','5','6','7','8','9','10') DEFAULT NULL
+  COMMENT '单据类型:1=购货订单,2=采购单,3=购货退货单,4=销货订单,5=销货单,6=销货退货单,7=入库记录,8=采购对账单,9=发票,10=付款回单';
+
+INSERT INTO `__PREFIX__kuerp_prefix` (`admin_id`,`type`,`name`,`prefix`,`year`,`month`,`day`,`hour`,`minute`,`second`,`start`,`strlen`,`example`,`dbname`,`field`)
+VALUES ('1','30','采购对账单','DZD','1','1','1','2','2','2','1','3','DZD20261023001','kuerp_purchase_recon','recon_code'),
+       ('1','31','付款申请','FKSQ','1','1','1','2','2','2','1','3','FKSQ20261023001','kuerp_purchase_payment_apply','apply_code');
+
+INSERT INTO `__PREFIX__kuerp_sets` (`admin_id`,`type`,`name`,`nickname`,`value`,`is_edit`,`notice`,`explain`,`is_checked`)
+VALUES ('1','1','purchase_payment_remind_days','采购付款提前提醒天数','7','0','账期到期前多少天在采购对账列表标黄提醒','到期日 - 提醒天数 <= 今天 且未付款时提醒','0'),
+       ('1','1','purchase_payment_leader_money','付款申请领导审核金额','50000','0','付款申请金额达到该值时，审计审核后需领导审核','0 或留空表示不需要领导审核','0');
+
+-- ============================================================================
+-- 1.6.18 销货对账（客户对账单）
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_sales_recon` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `recon_code` varchar(50) NOT NULL DEFAULT '' COMMENT '对账单号',
+  `customers_id` int(11) NOT NULL DEFAULT '0' COMMENT '客户ID',
+  `customer_name` varchar(150) NOT NULL DEFAULT '' COMMENT '客户名称(快照)',
+  `period_start` bigint(16) DEFAULT NULL COMMENT '对账期间开始',
+  `period_end` bigint(16) DEFAULT NULL COMMENT '对账期间结束',
+  `sales_count` int(11) NOT NULL DEFAULT '0' COMMENT '销货单数',
+  `return_count` int(11) NOT NULL DEFAULT '0' COMMENT '退货单数',
+  `total_number` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '数量净额',
+  `total_money` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '销货合计金额净额',
+  `total_customers_money` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '客户承担费用净额',
+  `total_amount` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '总金额',
+  `recon_status` enum('0','1','2') NOT NULL DEFAULT '0' COMMENT '0待对账 1待二审 2已对账',
+  `examine_id` int(11) DEFAULT NULL,
+  `examine_time` bigint(16) DEFAULT NULL,
+  `second_examine_id` int(11) DEFAULT NULL,
+  `second_examine_time` bigint(16) DEFAULT NULL,
+  `reject_reason` varchar(255) NOT NULL DEFAULT '',
+  `invoice_status` enum('0','1','2') NOT NULL DEFAULT '0' COMMENT '0未开票 1部分开票 2已开票',
+  `invoice_amount` double(15,4) NOT NULL DEFAULT '0.0000',
+  `pay_status` enum('0','1','2') NOT NULL DEFAULT '0' COMMENT '0未收 1部分收款 2已收款',
+  `pay_money` double(15,4) NOT NULL DEFAULT '0.0000',
+  `preparation_id` int(11) NOT NULL DEFAULT '0',
+  `operation_id` int(11) NOT NULL DEFAULT '0',
+  `print_num` int(11) NOT NULL DEFAULT '0',
+  `remark` varchar(255) NOT NULL DEFAULT '',
+  `createtime` bigint(16) DEFAULT NULL,
+  `updatetime` bigint(16) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `recon_code` (`recon_code`),
+  KEY `customers_id` (`customers_id`),
+  KEY `recon_status` (`recon_status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='销货对账单';
+
+CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_sales_recon_doc` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `recon_id` int(11) NOT NULL DEFAULT '0',
+  `doc_type` enum('1','2') NOT NULL DEFAULT '1' COMMENT '1销货单 2销货退货单',
+  `doc_id` int(11) NOT NULL DEFAULT '0',
+  `doc_code` varchar(50) NOT NULL DEFAULT '',
+  `doc_time` bigint(16) DEFAULT NULL,
+  `customers_money` double(15,4) NOT NULL DEFAULT '0.0000',
+  `real_money` double(15,4) NOT NULL DEFAULT '0.0000',
+  `total_amount` double(15,4) NOT NULL DEFAULT '0.0000',
+  `express_no` varchar(100) NOT NULL DEFAULT '',
+  `out_status` tinyint(3) DEFAULT NULL,
+  `pay_money` double(15,4) NOT NULL DEFAULT '0.0000',
+  `sort` int(11) NOT NULL DEFAULT '0',
+  `createtime` bigint(16) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `recon_doc` (`recon_id`,`doc_type`,`doc_id`),
+  KEY `recon_id` (`recon_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='销货对账单据快照';
+
+CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_sales_recon_info` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `recon_id` int(11) NOT NULL DEFAULT '0',
+  `recon_doc_id` int(11) NOT NULL DEFAULT '0',
+  `doc_type` enum('1','2') NOT NULL DEFAULT '1',
+  `doc_id` int(11) NOT NULL DEFAULT '0',
+  `purchase_code` varchar(50) NOT NULL DEFAULT '',
+  `goods_code` varchar(30) NOT NULL DEFAULT '',
+  `goods_name` varchar(150) NOT NULL DEFAULT '',
+  `specification` varchar(100) NOT NULL DEFAULT '',
+  `vendor_name` varchar(100) NOT NULL DEFAULT '',
+  `packaging` varchar(100) NOT NULL DEFAULT '',
+  `goods_attr` int(11) NOT NULL DEFAULT '0',
+  `attr_name` varchar(100) NOT NULL DEFAULT '',
+  `unit_id` int(11) NOT NULL DEFAULT '0',
+  `unit_name` varchar(50) NOT NULL DEFAULT '',
+  `number` double(15,4) NOT NULL DEFAULT '0.0000',
+  `basic_nmber` double(15,4) NOT NULL DEFAULT '0.0000',
+  `unit_price` double(15,4) NOT NULL DEFAULT '0.0000',
+  `tax_included` double(15,4) NOT NULL DEFAULT '0.0000',
+  `tax_rate` double(15,4) NOT NULL DEFAULT '0.0000',
+  `tax_money` double(15,4) NOT NULL DEFAULT '0.0000',
+  `all_money` double(15,4) NOT NULL DEFAULT '0.0000',
+  `money_tax_price` double(15,4) NOT NULL DEFAULT '0.0000',
+  `line_amount` double(15,4) NOT NULL DEFAULT '0.0000',
+  `purchase_order_id` varchar(50) NOT NULL DEFAULT '',
+  `remark` varchar(255) NOT NULL DEFAULT '',
+  `createtime` bigint(16) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `recon_id` (`recon_id`),
+  KEY `recon_doc_id` (`recon_doc_id`),
+  KEY `goods_code` (`goods_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='销货对账商品明细快照';
+
+CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_sales_recon_invoice` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `recon_id` int(11) NOT NULL DEFAULT '0',
+  `enclosure_id` int(11) NOT NULL DEFAULT '0',
+  `invoice_no` varchar(100) NOT NULL DEFAULT '',
+  `invoice_amount` double(15,4) NOT NULL DEFAULT '0.0000',
+  `invoice_date` bigint(16) DEFAULT NULL,
+  `upload_date` bigint(16) DEFAULT NULL,
+  `admin_id` int(11) NOT NULL DEFAULT '0',
+  `createtime` bigint(16) DEFAULT NULL,
+  `updatetime` bigint(16) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `recon_id` (`recon_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='销货对账单发票';
+
+CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_sales_recon_log` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `recon_id` int(11) NOT NULL DEFAULT '0',
+  `action` varchar(50) NOT NULL DEFAULT '',
+  `note` varchar(500) NOT NULL DEFAULT '',
+  `admin_id` int(11) NOT NULL DEFAULT '0',
+  `createtime` bigint(16) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `recon_id` (`recon_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='销货对账单操作日志';
+
+ALTER TABLE `__PREFIX__kuerp_goods_sales`
+  ADD COLUMN `recon_id` int(11) NOT NULL DEFAULT '0' COMMENT '所属销货对账单ID(0=未对账)' AFTER `check_status`,
+  ADD COLUMN `recon_code` varchar(50) NOT NULL DEFAULT '' COMMENT '所属销货对账单号' AFTER `recon_id`,
+  ADD COLUMN `recon_status` enum('0','1','2') NOT NULL DEFAULT '0' COMMENT '对账状态:0未对账 1待二审 2已对账' AFTER `recon_code`;
+
+ALTER TABLE `__PREFIX__kuerp_goods_sales_exchange`
+  ADD COLUMN `recon_id` int(11) NOT NULL DEFAULT '0' COMMENT '所属销货对账单ID(0=未对账)' AFTER `check_status`,
+  ADD COLUMN `recon_code` varchar(50) NOT NULL DEFAULT '' COMMENT '所属销货对账单号' AFTER `recon_id`,
+  ADD COLUMN `recon_status` enum('0','1','2') NOT NULL DEFAULT '0' COMMENT '对账状态:0未对账 1待二审 2已对账' AFTER `recon_code`;
+
+ALTER TABLE `__PREFIX__kuerp_sales_invoicing`
+  ADD COLUMN `recon_id` int(11) NOT NULL DEFAULT '0' COMMENT '来源销货对账单ID' AFTER `invoice_status`;
+
+ALTER TABLE `__PREFIX__kuerp_enclosure_log`
+  MODIFY COLUMN `type` enum('1','2','3','4','5','6','7','8','9','10','11','12') DEFAULT NULL
+  COMMENT '单据类型:1=购货订单,2=采购单,3=购货退货单,4=销货订单,5=销货单,6=销货退货单,7=入库记录,8=采购对账单,9=发票,10=付款回单,11=销货对账单,12=销货发票';
+
+INSERT INTO `__PREFIX__kuerp_prefix` (`admin_id`,`type`,`name`,`prefix`,`year`,`month`,`day`,`hour`,`minute`,`second`,`start`,`strlen`,`example`,`dbname`,`field`)
+VALUES ('1','32','客户对账单','KHDZ','1','1','1','2','2','2','1','3','KHDZ20261027001','kuerp_sales_recon','recon_code');
+
+--
+-- 1.6.18
+-- 采购对账对齐销货对账规则：退货冲减、二审、多张发票/部分开票、单据锁定
+--
+
+ALTER TABLE `__PREFIX__kuerp_goods_purchase`
+  ADD COLUMN `recon_status` enum('0','1','2') NOT NULL DEFAULT '0'
+  COMMENT '对账锁状态:0未对账/可编辑,1已锁定(一审通过),2已对账(二审通过)' AFTER `recon_code`;
+
+ALTER TABLE `__PREFIX__kuerp_goods_exchange`
+  ADD COLUMN `recon_id` int(11) NOT NULL DEFAULT '0' COMMENT '所属采购对账单ID(0=未对账)' AFTER `check_status`,
+  ADD COLUMN `recon_code` varchar(50) NOT NULL DEFAULT '' COMMENT '所属采购对账单号' AFTER `recon_id`,
+  ADD COLUMN `recon_status` enum('0','1','2') NOT NULL DEFAULT '0'
+  COMMENT '对账锁状态:0未对账/可编辑,1已锁定(一审通过),2已对账(二审通过)' AFTER `recon_code`;
+
+ALTER TABLE `__PREFIX__kuerp_purchase_recon`
+  MODIFY COLUMN `status` enum('0','1','2','3','4') NOT NULL DEFAULT '0'
+  COMMENT '0草稿/待对账 1待财务审核 2待二审 3已对账 4已驳回',
+  MODIFY COLUMN `invoice_status` enum('0','1','2') NOT NULL DEFAULT '0'
+  COMMENT '0未开票 1部分开票 2已开票',
+  ADD COLUMN `return_count` int(11) NOT NULL DEFAULT '0' COMMENT '退货单数' AFTER `purchase_count`,
+  ADD COLUMN `invoice_amount` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '累计已开票金额' AFTER `invoice_status`,
+  ADD COLUMN `second_examine_id` int(11) DEFAULT '0' COMMENT '二审人' AFTER `examine_time`,
+  ADD COLUMN `second_examine_time` bigint(16) DEFAULT NULL COMMENT '二审时间' AFTER `second_examine_id`;
+
+ALTER TABLE `__PREFIX__kuerp_purchase_recon_info`
+  ADD COLUMN `doc_type` enum('1','2') NOT NULL DEFAULT '1' COMMENT '单据类型:1采购单,2购货退货单' AFTER `recon_id`,
+  DROP INDEX `recon_purchase`,
+  ADD UNIQUE KEY `recon_doc` (`recon_id`,`doc_type`,`purchase_id`);
+
+--
+-- 1.6.19
+-- 采购预订单按部门隔离：购货订单表增加来源标记，新增「采购预订单(仓库)」菜单
+--
+
+ALTER TABLE `__PREFIX__kuerp_goods_purchase_order`
+  ADD COLUMN `order_source` enum('plan','warehouse','purchase') NOT NULL DEFAULT 'plan'
+  COMMENT '来源:plan=计划部门,warehouse=仓库部门,purchase=购货订单' AFTER `purchase_type`;
+
+--
+-- 1.6.20
+-- 对账差异金额 + 客户信用账期 + 应收账款分析月度快照
+--
+
+CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_sales_recon_diff` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `recon_id` int(11) NOT NULL DEFAULT '0' COMMENT '对账单ID',
+  `doc_type` enum('1','2') NOT NULL DEFAULT '1' COMMENT '1=销货单 2=销货退货单',
+  `doc_id` int(11) NOT NULL DEFAULT '0' COMMENT '源单据ID',
+  `doc_code` varchar(50) NOT NULL DEFAULT '' COMMENT '源单编号',
+  `customers_id` int(11) NOT NULL DEFAULT '0' COMMENT '客户ID',
+  `diff_money` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '差异金额(正=增加应收 负=减少应收)',
+  `reason` varchar(255) NOT NULL DEFAULT '' COMMENT '差异原因备注',
+  `admin_id` int(11) NOT NULL DEFAULT '0' COMMENT '录入人',
+  `createtime` bigint(16) DEFAULT NULL,
+  `updatetime` bigint(16) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `recon_id` (`recon_id`),
+  KEY `doc_code` (`doc_code`),
+  KEY `customers_id` (`customers_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='销货对账差异记录';
+
+CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_ar_analysis` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `period` varchar(7) NOT NULL DEFAULT '' COMMENT '分析月份 YYYY-MM',
+  `customers_id` int(11) NOT NULL DEFAULT '0' COMMENT '客户ID',
+  `customer_name` varchar(150) NOT NULL DEFAULT '' COMMENT '客户名称(快照)',
+  `customer_code` varchar(50) NOT NULL DEFAULT '' COMMENT '客户编号(快照)',
+  `sale_user` int(11) NOT NULL DEFAULT '0' COMMENT '销售负责人(职员ID)',
+  `sale_user_name` varchar(100) NOT NULL DEFAULT '' COMMENT '销售负责人姓名(快照)',
+  `credit_days` int(11) NOT NULL DEFAULT '0' COMMENT '信用账期天数(快照)',
+  `begin_money` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '期初应收账款(上月末余额)',
+  `sale_money` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '本月含税销售总额(新增)',
+  `collection_money` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '本月实际回款总额',
+  `return_money` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '本月退货/红冲金额(正数)',
+  `end_money` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '本月账面应收余额=期初+销售-回款-退货',
+  `overdue_money` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '其中：逾期应收账款',
+  `collection_rate` double(8,4) NOT NULL DEFAULT '0.0000' COMMENT '本月销售回款率',
+  `diff_money` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '对账差异金额(本月新增)',
+  `diff_reason` varchar(500) NOT NULL DEFAULT '' COMMENT '差异原因备注(汇总)',
+  `createtime` bigint(16) DEFAULT NULL,
+  `updatetime` bigint(16) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `period_customer` (`period`,`customers_id`),
+  KEY `period` (`period`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='应收账款分析月度快照';
+
+ALTER TABLE `__PREFIX__kuerp_sales_recon`
+  ADD COLUMN `diff_money` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '对账差异合计(派生)' AFTER `total_amount`;
+
+ALTER TABLE `__PREFIX__kuerp_sales_recon_doc`
+  ADD COLUMN `diff_money` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '该单据的差异合计(派生)' AFTER `total_amount`;
+
+ALTER TABLE `__PREFIX__kuerp_customers`
+  ADD COLUMN `credit_days` int(11) NOT NULL DEFAULT '0'
+  COMMENT '信用账期(天)：0=未设置，逾期从开票日起算' AFTER `customerlevel_id`;
+
+ALTER TABLE `__PREFIX__kuerp_goods_sales`
+  ADD COLUMN `diff_money` double(15,4) NOT NULL DEFAULT '0.0000'
+  COMMENT '对账差异合计(对客户应收的影响,正=多收负=少收)' AFTER `customers_money`;
+
+ALTER TABLE `__PREFIX__kuerp_goods_sales_exchange`
+  ADD COLUMN `diff_money` double(15,4) NOT NULL DEFAULT '0.0000'
+  COMMENT '对账差异合计(对客户应收的影响,正=多收负=少收)' AFTER `customers_money`;
+
+--
+-- 1.6.21
+-- 收发存汇总表（月度快照，每月1日0点由 php think kuerp:stock_summary 生成）
+--
+
+CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_stock_summary` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `period` varchar(7) NOT NULL DEFAULT '' COMMENT '汇总月份 YYYY-MM',
+  `goods_id` int(11) NOT NULL DEFAULT '0' COMMENT '商品ID',
+  `stores_id` int(11) NOT NULL DEFAULT '0' COMMENT '仓库ID',
+  `goods_code` varchar(50) NOT NULL DEFAULT '' COMMENT '物料编码(快照)',
+  `goods_name` varchar(255) NOT NULL DEFAULT '' COMMENT '物料名称(快照)',
+  `goods_spec` varchar(100) NOT NULL DEFAULT '' COMMENT '规格型号(快照)',
+  `goods_unit` varchar(50) NOT NULL DEFAULT '' COMMENT '单位名称(快照)',
+  `begin_qty` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '期初数量(上一期期末)',
+  `begin_price` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '期初单价(上一期期末)',
+  `begin_money` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '期初金额(上一期期末)',
+  `in_qty` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '本期入库数量',
+  `in_price` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '本期入库单价=入库金额/入库数量',
+  `in_money` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '本期入库金额(含成本调整)',
+  `out_qty` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '本期出库数量',
+  `out_price` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '本期出库单价=(期初金额+入库金额)/(期初数量+入库数量)',
+  `out_money` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '本期出库金额(单据实际成本)',
+  `transfer_in_qty` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '本期调拨入库数量(仅单仓库查看时计入)',
+  `transfer_in_money` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '本期调拨入库金额',
+  `transfer_out_qty` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '本期调拨出库数量(仅单仓库查看时计入)',
+  `transfer_out_money` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '本期调拨出库金额',
+  `end_qty` double(15,4) DEFAULT NULL COMMENT '期末数量=期初+入库-出库(未满月份为NULL)',
+  `end_price` double(15,4) DEFAULT NULL COMMENT '期末单价=期末金额/期末数量(未满月份为NULL)',
+  `end_money` double(15,4) DEFAULT NULL COMMENT '期末金额=期初+入库-出库(未满月份为NULL)',
+  `is_complete` tinyint(1) NOT NULL DEFAULT '1' COMMENT '月份是否已结束:1=是(期末已算),0=否(期末留空)',
+  `createtime` bigint(16) DEFAULT NULL,
+  `updatetime` bigint(16) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `period_goods_stores` (`period`,`goods_id`,`stores_id`),
+  KEY `period` (`period`),
+  KEY `goods_code` (`goods_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='收发存汇总月度快照';
+
+--
+-- 1.6.22
+-- 销货对账：账期起算 + 收款到期日 + 到期提醒
+--
+
+ALTER TABLE `__PREFIX__kuerp_sales_recon_invoice`
+  ADD COLUMN `term_days` int(11) NOT NULL DEFAULT '0' COMMENT '账期天数(开票时快照客户信用账期)' AFTER `invoice_date`,
+  ADD COLUMN `due_date` bigint(16) DEFAULT NULL COMMENT '收款到期日=开票日+账期天数' AFTER `term_days`,
+  ADD KEY `due_date` (`due_date`);
+
+ALTER TABLE `__PREFIX__kuerp_sales_recon`
+  ADD COLUMN `due_date` bigint(16) DEFAULT NULL COMMENT '收款到期日(所含发票最早到期日,派生)' AFTER `pay_money`,
+  ADD KEY `due_date` (`due_date`);
+
+INSERT INTO `__PREFIX__kuerp_sets` (`type`,`is_edit`,`name`,`nickname`,`value`,`admin_id`,`notice`,`explain`,`is_checked`)
+VALUES ('1','0','sales_collection_remind_days','销货收款提前提醒天数','7','0',
+        '账期到期前多少天在销货对账列表标黄提醒','到期日 - 提醒天数 <= 今天 且未收款时提醒','0');
+
+--
+-- 1.6.23
+-- 计划排期：排产时填写生产日期；预计交付日期更名为预计生产完成日期
+--
+
+ALTER TABLE `__PREFIX__kuerp_goods_sales`
+  ADD COLUMN `production_date` varchar(10) NULL DEFAULT NULL COMMENT '生产日期(计划排期排产时填写)' AFTER `delivery_time`;
+
+ALTER TABLE `__PREFIX__kuerp_goods_sales`
+  MODIFY COLUMN `expected_delivery_date` varchar(10) NULL DEFAULT NULL COMMENT '预计生产完成日期(计划排期审核时填写,可二次修改,不打印)';
+
+--
+-- 1.6.24
+-- 出库申请填写快递信息 + 送货单打印（销货订单列表「发货」按钮隐藏）
+--
+
+ALTER TABLE `__PREFIX__kuerp_goods_outbound_apply`
+  ADD COLUMN `express_data` text COMMENT '快递信息JSON [{code,company,no}]（申请出库时填写,一次出库可多条）' AFTER `out_data`;
+
+--
+-- 1.6.25
+-- 销货预订单允许库存 0/负数下单 + 销售出库允许把仓库库存扣成负数
+-- （商品无首选仓库时按商品类型兜底仓库：零件→零件仓、成品→成品仓、半成品→半成品仓）
+--
+
+ALTER TABLE `__PREFIX__kuerp_goods_stock`
+  MODIFY COLUMN `stock` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '库存（允许负数：销售先出库，采购/组装/外协入库后补平）';

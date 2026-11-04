@@ -124,6 +124,13 @@ class GoodsSalesOrder extends Backend
                     $row->getRelation('secondExamine')->visible(['nickname']);
                 }
             }
+            // 订单状态由销货单的实际出库数量决定（不随发货/生成销货单变化）
+            $orderCodes = [];
+            foreach ($list as $list_v) {
+                $orderCodes[] = $list_v['purchase_code'];
+            }
+            $statusMap = \app\admin\model\kuerp\GoodsSalesOrder::syncStatusByOutbound($orderCodes);
+
             foreach ($list as $list_k=>$list_v){
                 if(isset($list_v['print_num']) && empty($list_v['print_num'])){
                     $list[$list_k]['print_num'] = 0;
@@ -131,6 +138,9 @@ class GoodsSalesOrder extends Backend
                 $purchase_id = Db::name('kuerp_goods_saleord')->where(['order_id'=>$list_v['id']])->column('purchase_id');
                 $purchase = Db::name('kuerp_goods_sales')->where(['id'=>['in',$purchase_id]])->column('purchase_code');
                 $list[$list_k]['purchase_id'] = implode(',',$purchase);
+                if(isset($statusMap[$list_v['purchase_code']])){
+                    $list[$list_k]['status'] = $statusMap[$list_v['purchase_code']];
+                }
             }
 
             $result = array("total" => $list->total(), "rows" => $list->items());
@@ -151,6 +161,10 @@ class GoodsSalesOrder extends Backend
                     $this->error($checkout);
                 }
                 $params = $this->preExcludeFields($params);
+                // 发货方式：整单一个标记，默认直发
+                $delivery_mode = $this->normalizeDeliveryMode(isset($params['delivery_mode']) ? $params['delivery_mode'] : '', 'direct');
+                // 客户承担费用（生成销货单时带出）
+                $customers_money = isset($params['customers_money']) ? (float)$params['customers_money'] : 0;
                 $admin = Session::get('admin');
 
                 // 普通销售员强制绑定自己为销售员，不可选择他人
@@ -178,14 +192,18 @@ class GoodsSalesOrder extends Backend
                         $all_money+=$params['all_money'][$k];
                         $tax_money += (float)$params['tax_money'][$k];
                         $money_tax_price += (float)$params['money_tax_price'][$k];
-                        if(!isset($params['stores_id'][$k]) || empty($params['stores_id'][$k])){
-                            $this->error('请选择仓库');
-                        }
-
                         $goods = Db::name('kuerp_goods')->where(['goods_code'=>$v])->find();
                         if(empty($goods)){
                             $this->error('商品不存在');
-                        }elseif ($goods['auxiliary']==1 && empty($params['goods_attr'][$k])){
+                        }
+                        //仓库取自商品档案的首选仓库（销货订单页不显示仓库列，无法手工选择）；
+                        //首选仓库为空（=0）时按商品类型兜底：零件→零件仓、成品→成品仓、半成品→半成品仓。
+                        //库存为 0/负数不拦截：允许先下单，待采购单/组装单/外协加工单入库后自动补平。
+                        $stores_id = $this->resolveStoresId(isset($params['stores_id'][$k]) ? $params['stores_id'][$k] : 0, $goods);
+                        if(empty($stores_id)){
+                            $this->error('商品'.$goods['goods_name'].'未设置仓库，请先在仓库资料中启用仓库');
+                        }
+                        if($goods['auxiliary']==1 && empty($params['goods_attr'][$k])){
                             $this->error('请选择商品属性');
                         }
 
@@ -194,6 +212,7 @@ class GoodsSalesOrder extends Backend
                             'purchase_type'     =>  $params['purchase_type'],
                             'purchase_time'     =>  strtotime($params['purchase_time']),
                             'delivery_time'     =>  strtotime($params['delivery_time']),
+                            'delivery_mode'     =>  $delivery_mode,
                             'customers_id'      =>  (int)$params['customers_id'],//客户
                             'sale_user'         =>  (int)$params['sale_user'],//销售员
                             'receiving_address' =>  $params['receiving_address'],
@@ -202,14 +221,14 @@ class GoodsSalesOrder extends Backend
                             'goods_note'        =>  $params['goods_note'][$k],
                             'goods_unit'        =>  (int)$params['goods_unit'][$k],
 
-                            'stores_id'         =>  (int)$params['stores_id'][$k],
+                            'stores_id'         =>  $stores_id,
                             'allow_stock'       =>  (float)$params['allow_stock'][$k],
                             'number'            =>  (float)$params['number'][$k],
                             'purchase_number'   =>  (float)$params['number'][$k],
                             'default_unit'      =>  (float)$params['default_unit'][$k],
                             'basic_nmber'       =>  (float)$params['basic_nmber'][$k],
                             'unit_price'        =>  (float)$params['unit_price'][$k],
-                            'cost_price'        =>  \addons\kuerp\library\Goods::getCost_Price($v,$params['stores_id'][$k]),
+                            'cost_price'        =>  \addons\kuerp\library\Goods::getCost_Price($v,$stores_id),
                             'discount'          =>  (float)$params['discount'][$k],
                             'dis_money'         =>  (float)$params['dis_money'][$k],
                             'all_money'         =>  (float)$params['all_money'][$k],
@@ -225,6 +244,7 @@ class GoodsSalesOrder extends Backend
                             'tax_rate'          =>  (float)$params['tax_rate'][$k],
                             'tax_money'         =>  (float)$params['tax_money'][$k],
                             'money_tax_price'   =>  (float)$params['money_tax_price'][$k],
+                            'customers_money'   =>  $customers_money,
 
                             'preparation_id'    =>  $admin['id'],
                             'operation_id'      =>  $admin['id'],
@@ -243,6 +263,7 @@ class GoodsSalesOrder extends Backend
                         'purchase_type'     =>  $params['purchase_type'],
                         'purchase_time'     =>  strtotime($params['purchase_time']),
                         'delivery_time'     =>  strtotime($params['delivery_time']),
+                        'delivery_mode'     =>  $delivery_mode,
                         'customers_id'      =>  (int)$params['customers_id'],//客户
                         'sale_user'         =>  (int)$params['sale_user'],//销售员
                         'receiving_address' =>  $params['receiving_address'],
@@ -251,6 +272,7 @@ class GoodsSalesOrder extends Backend
 
                         'tax_money'         =>  $tax_money,
                         'money_tax_price'   =>  $money_tax_price,
+                        'customers_money'   =>  $customers_money,
 
                         'preferential_rate' =>  (float)$params['preferential_rate'],
                         'preferential_money'=>  (float)$params['preferential_money'],
@@ -337,6 +359,8 @@ class GoodsSalesOrder extends Backend
         }
         $code = \addons\kuerp\library\Goods::getCodes('',10);
         $this->view->assign("code", $code);
+        // 发货方式默认直发
+        $this->view->assign("delivery_mode", 'direct');
 
         $last_customer = Db::name('kuerp_sets')->where(['name'=>'customer'])->value('is_checked');
         $set_customer = '';
@@ -401,6 +425,10 @@ class GoodsSalesOrder extends Backend
             $params = $this->request->post("row/a");
             if ($params) {
                 $params = $this->preExcludeFields($params);
+                // 发货方式：整单一个标记；参数缺失（如只读表单）时保留原值
+                $delivery_mode = $this->normalizeDeliveryMode(isset($params['delivery_mode']) ? $params['delivery_mode'] : '', isset($row['delivery_mode']) ? $row['delivery_mode'] : 'direct');
+                // 客户承担费用：表单未提交（如只读）时保留原值
+                $customers_money = isset($params['customers_money']) && $params['customers_money'] !== '' ? (float)$params['customers_money'] : (isset($row['customers_money']) ? (float)$row['customers_money'] : 0);
 
                 // 普通销售员强制绑定自己为销售员，不可选择他人
                 if (!empty($this->currentSaleUserId)) {
@@ -430,14 +458,18 @@ class GoodsSalesOrder extends Backend
                         $tax_money += (float)$params['tax_money'][$k];
                         $money_tax_price += (float)$params['money_tax_price'][$k];
 
-                        if(!isset($params['stores_id'][$k]) || empty($params['stores_id'][$k])){
-                            $this->error('请选择仓库');
-                        }
-
                         $goods = Db::name('kuerp_goods')->where(['goods_code'=>$v])->find();
                         if(empty($goods)){
                             $this->error('商品不存在');
-                        }elseif ($goods['auxiliary']==1 && empty($params['goods_attr'][$k])){
+                        }
+                        //仓库取自商品档案的首选仓库（销货订单页不显示仓库列，无法手工选择）；
+                        //首选仓库为空（=0）时按商品类型兜底：零件→零件仓、成品→成品仓、半成品→半成品仓。
+                        //库存为 0/负数不拦截：允许先下单，待采购单/组装单/外协加工单入库后自动补平。
+                        $stores_id = $this->resolveStoresId(isset($params['stores_id'][$k]) ? $params['stores_id'][$k] : 0, $goods);
+                        if(empty($stores_id)){
+                            $this->error('商品'.$goods['goods_name'].'未设置仓库，请先在仓库资料中启用仓库');
+                        }
+                        if($goods['auxiliary']==1 && empty($params['goods_attr'][$k])){
                             $this->error('请选择商品属性');
                         }
 
@@ -446,6 +478,7 @@ class GoodsSalesOrder extends Backend
                             'purchase_type'     =>  $params['purchase_type'],
                             'purchase_time'     =>  strtotime($params['purchase_time']),
                             'delivery_time'     =>  strtotime($params['delivery_time']),
+                            'delivery_mode'     =>  $delivery_mode,
                             'customers_id'      =>  (int)$params['customers_id'],//客户
                             'sale_user'         =>  (int)$params['sale_user'],//销售员
                             'receiving_address' =>  $params['receiving_address'],
@@ -454,14 +487,14 @@ class GoodsSalesOrder extends Backend
                             'goods_note'        =>  $params['goods_note'][$k],
                             'goods_unit'        =>  (float)$params['goods_unit'][$k],
 
-                            'stores_id'         =>  (float)$params['stores_id'][$k],
+                            'stores_id'         =>  $stores_id,
                             'allow_stock'       =>  (float)$params['allow_stock'][$k],
                             'number'            =>  (float)$params['number'][$k],
                             'purchase_number'   =>  (float)$params['number'][$k],
                             'default_unit'      =>  (float)$params['default_unit'][$k],
                             'basic_nmber'       =>  (float)$params['basic_nmber'][$k],
                             'unit_price'        =>  (float)$params['unit_price'][$k],
-                            'cost_price'        =>  \addons\kuerp\library\Goods::getCost_Price($v,$params['stores_id'][$k]),
+                            'cost_price'        =>  \addons\kuerp\library\Goods::getCost_Price($v,$stores_id),
                             'discount'          =>  (float)$params['discount'][$k],
                             'dis_money'         =>  (float)$params['dis_money'][$k],
                             'all_money'         =>  (float)$params['all_money'][$k],
@@ -477,6 +510,7 @@ class GoodsSalesOrder extends Backend
                             'tax_rate'          =>  (float)$params['tax_rate'][$k],
                             'tax_money'         =>  (float)$params['tax_money'][$k],
                             'money_tax_price'   =>  (float)$params['money_tax_price'][$k],
+                            'customers_money'   =>  $customers_money,
 
                             'library_number'    =>  (float)$params['number'][$k],
                             'library_money'     =>  (float)$params['all_money'][$k],
@@ -494,6 +528,7 @@ class GoodsSalesOrder extends Backend
                         'purchase_type'     =>  $params['purchase_type'],
                         'purchase_time'     =>  strtotime($params['purchase_time']),
                         'delivery_time'     =>  strtotime($params['delivery_time']),
+                        'delivery_mode'     =>  $delivery_mode,
                         'customers_id'      =>  (int)$params['customers_id'],//客户
                         'sale_user'         =>  (int)$params['sale_user'],//销售员
                         'receiving_address' =>  $params['receiving_address'],
@@ -502,6 +537,7 @@ class GoodsSalesOrder extends Backend
 
                         'tax_money'         =>  $tax_money,
                         'money_tax_price'   =>  $money_tax_price,
+                        'customers_money'   =>  $customers_money,
 
                         'preferential_rate' =>  $params['preferential_rate'],
                         'preferential_money'=>  $params['preferential_money'],
@@ -1100,6 +1136,31 @@ class GoodsSalesOrder extends Backend
     }
 
     /**
+     * 规范化发货方式：direct=直发（默认），dropship=代发
+     */
+    protected function normalizeDeliveryMode($value, $default = 'direct')
+    {
+        $value = is_string($value) ? trim($value) : '';
+        if (in_array($value, ['direct', 'dropship'], true)) {
+            return $value;
+        }
+        return in_array($default, ['direct', 'dropship'], true) ? $default : 'direct';
+    }
+
+    /**
+     * 解析单据行的仓库：表单仓库 > 商品首选仓库 > 按商品类型兜底（零件仓/成品仓/半成品仓）。
+     * 具体规则见 \addons\kuerp\library\Goods::resolveStoreId()。
+     *
+     * @param int|string $storesId  表单提交的仓库ID
+     * @param array      $goods     商品档案行（需含 manager_warehouse_id、product_type）
+     * @return int      0 表示一个可用仓库都没有
+     */
+    protected function resolveStoresId($storesId, $goods)
+    {
+        return \addons\kuerp\library\Goods::resolveStoreId($storesId, $goods);
+    }
+
+    /**
      * 获取客户绑定的销售员ID
      */
     public function getCustomerSaleUser()
@@ -1215,9 +1276,8 @@ class GoodsSalesOrder extends Backend
                     GoodsSalesOrderLog::writeLog($ids, '发货', '销货订单发货，发货单号：' . $deliveryData['delivery_no'] . '，配送方式：' . ($params['delivery_type'] == 'logistics' ? '物流配送' : '专业配送'), 'sales_order', $ids);
                 }
 
-                // 更新订单状态为"全部出库"
+                // 发货不改变订单出库状态：订单状态只由销货单的实际出库数量决定
                 $this->model->where(['id' => $ids])->update([
-                    'status'       => 1,
                     'operation_id' => $admin['id'],
                     'updatetime'   => time(),
                 ]);
@@ -1266,18 +1326,11 @@ class GoodsSalesOrder extends Backend
         try {
             Db::name('kuerp_goods_sales_order_delivery')->where(['id' => $id])->delete();
 
-            // 检查是否还有发货记录
-            $remainingCount = Db::name('kuerp_goods_sales_order_delivery')
-                ->where(['order_id' => $orderId])
-                ->count();
-            if ($remainingCount == 0) {
-                // 无发货记录时恢复订单状态
-                $this->model->where(['id' => $orderId])->update([
-                    'status'       => 0,
-                    'operation_id' => Session::get('admin')['id'] ?? 0,
-                    'updatetime'   => time(),
-                ]);
-            }
+            // 删除发货记录不改变订单出库状态：订单状态只由销货单的实际出库数量决定
+            $this->model->where(['id' => $orderId])->update([
+                'operation_id' => Session::get('admin')['id'] ?? 0,
+                'updatetime'   => time(),
+            ]);
 
             // 写入操作日志
             GoodsSalesOrderLog::writeLog($orderId, '删除发货', '删除发货记录：' . $delivery['delivery_no'], 'sales_order', $orderId);

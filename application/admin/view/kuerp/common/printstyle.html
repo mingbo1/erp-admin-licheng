@@ -1,0 +1,78 @@
+<style>
+    /* ===== kuerp 单据打印统一版式（2026-10-27）=====
+       目标：屏幕预览 = 打印输出。
+       打印页由后台框架渲染在 body > #main > .tab-content > #content 里，
+       所以纸张模拟作用在 #content 上：
+         屏幕 → #content 当一张 A4 纸（210mm 纸宽 + 10mm 内边距 = 190mm 内容宽）
+         打印 → @page 边距 10mm，内容宽同为 190mm
+       两侧内容宽度一致，排版因此逐字相同。
+       用法：在打印页模板的 </head> 前 include 本文件即可。 */
+    @page { size: A4 portrait; margin: 10mm; }
+
+    @media screen {
+        body { background: #e9ebee !important; }
+        #content {
+            width: 210mm;
+            max-width: none;
+            box-sizing: border-box;
+            margin: 8mm auto;
+            padding: 10mm;
+            background: #fff;
+            box-shadow: 0 2px 14px rgba(0, 0, 0, 0.18);
+        }
+        /* 浏览器页眉页脚页面控制不了，只能在预览页提示用户关掉，否则打印出来会多出网址/日期/页码 */
+        .no-print::after,
+        .btn-bar::after {
+            content: "提示：打印时缩放选“默认”，勾选“背景图形”，并取消“页眉和页脚”，即可与预览完全一致";
+            display: block;
+            margin-top: 6px;
+            font-size: 12px;
+            color: #999;
+        }
+    }
+
+    /* 框架在 #content 里又套了 Bootstrap 栅格（.row > .col-* > .content，各带 15px 内边距），
+       这一层在预览和打印里都必须清零，否则两边内容宽度会差 30px。只作用于最外层直属子元素，
+       模板内容里的 .row/.col-* 不受影响。 */
+    #content > .row,
+    #content > .row > [class*="col-"],
+    #content > .row > [class*="col-"] > .content {
+        /* 必须是 100%：这些是 float 元素，写成 auto 会变成收缩到内容宽度 */
+        width: 100%;
+        max-width: none;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    @media print {
+        html, body { background: #fff !important; }
+        body,
+        #main,
+        .tab-content,
+        #content {
+            width: auto !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            background: transparent !important;
+        }
+        .no-print, .btn-bar { display: none !important; }
+
+        /* 打印页被后台布局套了 Bootstrap 3，它的 @media print 里有
+           *{background:transparent!important;color:#000!important} 会把表头底色全清掉，
+           这里用同权重 !important 改回来（另需在打印对话框勾选“背景图形”才会输出底色）。 */
+        th { background: #f0f0f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        tr.sum td,
+        .total-row td { background: #fafafa !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+        /* 不依赖底色的表头标识：未勾选“背景图形”时靠加粗 + 深色下边框也能分辨 */
+        thead th { border-bottom: 2px solid #333 !important; font-weight: bold; }
+
+        /* 分页：表头跨页重复，行/信息块不被劈开 */
+        thead { display: table-header-group; }
+        tfoot { display: table-footer-group; }
+        tr, img, .info-grid, .info-grid .item { page-break-inside: avoid; break-inside: avoid; }
+        .print-title, .section-title, h1, h2 { page-break-after: avoid; break-after: avoid; }
+    }
+</style>

@@ -10,7 +10,7 @@ use traits\model\SoftDelete;
 class GoodsPurchasePlan extends Model
 {
 
-    // 表名 — 复用购货单表
+    // 表名 — 复用采购单表
     protected $name = 'kuerp_goods_purchase';
 
     // 自动写入时间戳字段

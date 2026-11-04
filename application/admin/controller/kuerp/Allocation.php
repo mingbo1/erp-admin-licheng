@@ -1234,7 +1234,8 @@ class Allocation extends Backend
         }
         $goods_id = isset($row['id'])?$row['id']:0;
         if(empty($row)){
-            return [];
+            //商品档案已删除的孤儿单据行：统一返回JSON串，避免调用方 json_decode() 收到数组报错
+            return json_encode(['unit'=>[],'attr'=>[],'goods'=>[]]);
         }
 
         $auxiliary = Db::name('kuerp_auxiliary')->where(['status'=>1])->column('name','id');

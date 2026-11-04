@@ -10,6 +10,8 @@
         .print-title { text-align: center; font-size: 22px; font-weight: bold; margin-bottom: 20px; }
         .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; margin-bottom: 15px; }
         .info-grid .item { padding: 4px 0; }
+        /* 占满整行的一项（交货日期 + 需求方 + 需求电话 同一行显示） */
+        .info-grid .item-wide { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 2px 40px; }
         .goods-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
         .goods-table th, .goods-table td { padding: 6px 8px; border: 1px solid #666; text-align: center; }
         .goods-table th { background: #f0f0f0; font-weight: bold; }
@@ -29,6 +31,16 @@
         .no-print { text-align: center; margin-bottom: 20px; }
         .no-print button { padding: 8px 30px; font-size: 16px; cursor: pointer; }
     </style>
+{include file="kuerp/common/printstyle" /}
+<style>
+    /* 本单据字段较多，单独改为 A4 横向打印（覆盖 common/printstyle 的竖向纸张设置）。
+       屏幕预览同步按横向 A4 纸显示，保证「预览 = 打印」。 */
+    @page { size: A4 landscape; margin: 10mm; }
+    @media screen {
+        #content { width: 297mm; }
+    }
+    .print-wrap { max-width: none; }
+</style>
 </head>
 <body>
 <div class="no-print">
@@ -42,55 +54,71 @@
         <div class="item"><strong>{:__('Purchase_code')}：</strong>{$row.purchase_code|htmlentities}</div>
         <div class="item"><strong>{:__('Purchase_time')}：</strong>{$row.purchase_time|date='Y-m-d',###}</div>
         <div class="item"><strong>{:__('Supplyer_code')}：</strong>{$row.supplyer_code|htmlentities} {$row.supplyer_name|htmlentities}</div>
-        <div class="item"><strong>{:__('Purchase_type')}：</strong>{if condition="$row.purchase_type==1"}购货{else/}退货{/if}</div>
-        <div class="item"><strong>{:__('Preparation_name')}：</strong>{$row.preparation_name|htmlentities}</div>
-        <div class="item"><strong>{:__('Examine_name')}：</strong>{$row.examine_name|htmlentities}</div>
-        <div class="item"><strong>{:__('Examine_status')}：</strong>{if condition="$row.examine_status==1"}已审核{else/}未审核{/if}</div>
-        <div class="item"><strong>{:__('Check_status')}：</strong>{if condition="$row.check_status==1"}已对单{else/}未对单{/if}</div>
+        <div class="item"><strong>供应商电话：</strong>{$row.supplyer_phone|htmlentities}</div>
+        <div class="item item-wide">
+            <span><strong>{:__('Delivery_time')}：</strong>{if condition="!empty($row.delivery_time)"}{$row.delivery_time|date='Y-m-d',###}{/if}</span>
+            <span><strong>需求方：</strong>{$row.company_name|htmlentities}</span>
+            <span><strong>需求电话：</strong>{$row.company_phone|htmlentities}</span>
+        </div>
     </div>
 
     <table class="goods-table">
         <thead>
             <tr>
                 <th>序号</th>
-                <th>{:__('Goods_code')}</th>
                 <th>{:__('Goods_name')}</th>
+                <th>型号</th>
+                <th>规格2/厂商</th>
+                <th>规格3/封装</th>
                 <th>{:__('Goods_note')}</th>
                 <th>{:__('Unit_name')}</th>
-                <th>{:__('Stores_name')}</th>
                 <th>{:__('Number')}</th>
-                <th>{:__('Unit_price')}</th>
-                <th>{:__('All_money')}</th>
+                {if condition="isset($set['taxes']['is_checked']) && $set['taxes']['is_checked']==1"}
+                <th>{:__('Tax_included')}</th>
+                <th>{:__('Tax_rate')}</th>
+                <th>{:__('Money_tax_price')}</th>
+                {/if}
                 <th>{:__('Remark')}</th>
             </tr>
         </thead>
         <tbody>
-            {php}$total_number = 0;$total_money = 0;{/php}
+            {php}$total_number = 0;$total_tax_price = 0;{/php}
             {foreach name="purchase_info" item="info" key="k"}
-            {php}$total_number += $info['number'];$total_money += $info['all_money'];{/php}
+            {php}$total_number += $info['number'];$total_tax_price += $info['money_tax_price'];{/php}
             <tr>
                 <td>{$k+1}</td>
-                <td>{$info.goods_code|htmlentities}</td>
                 <td class="left">{$info.goods_name|htmlentities}</td>
+                <td class="left">{$info.goods_specification_id|htmlentities}</td>
+                <td class="left">{$info.vendor_name|htmlentities}</td>
+                <td class="left">{$info.packaging|htmlentities}</td>
                 <td class="left">{$info.goods_note|htmlentities}</td>
                 <td>{$info.unit_name|htmlentities}</td>
-                <td>{$info.stores_name|htmlentities}</td>
                 <td class="right">{$info.number|htmlentities}</td>
-                <td class="right">{$info.unit_price|htmlentities}</td>
-                <td class="right">{$info.all_money|htmlentities}</td>
+                {if condition="isset($set['taxes']['is_checked']) && $set['taxes']['is_checked']==1"}
+                <td class="right">{$info.tax_included|htmlentities}</td>
+                <td class="right">{$info.tax_rate|htmlentities}</td>
+                <td class="right">{$info.money_tax_price|htmlentities}</td>
+                {/if}
                 <td class="left">{$info.remark|htmlentities}</td>
             </tr>
             {/foreach}
             {if condition="empty($purchase_info)"}
-            <tr><td colspan="10">无明细数据</td></tr>
+            {if condition="isset($set['taxes']['is_checked']) && $set['taxes']['is_checked']==1"}
+            <tr><td colspan="12">无明细数据</td></tr>
+            {else/}
+            <tr><td colspan="9">无明细数据</td></tr>
+            {/if}
             {/if}
         </tbody>
         <tfoot>
             <tr>
-                <th colspan="6">合计</th>
+                <th colspan="7">合计</th>
                 <th class="right">{$total_number}</th>
+                {if condition="isset($set['taxes']['is_checked']) && $set['taxes']['is_checked']==1"}
                 <th></th>
-                <th class="right">{$total_money}</th>
+                <th></th>
+                <th class="right">{$total_tax_price}</th>
+                {/if}
                 <th></th>
             </tr>
         </tfoot>

@@ -313,6 +313,9 @@ class Process extends Backend
                     $this->error('入库成品信息不能为空');
                 }
 
+                // 补算出库原材料成本（未填成本价时按统一取价规则）
+                $this->applyProcessMaterialCost($data);
+
                 if (!empty($data)) {
                     $row = \addons\kuerp\library\Goods::setDataInfo([
                         'process_code'   => $params['process_code'],
@@ -669,6 +672,9 @@ class Process extends Backend
                     $this->error('入库成品信息不能为空');
                 }
 
+                // 补算出库原材料成本（未填成本价时按统一取价规则）
+                $this->applyProcessMaterialCost($data);
+
                 if (!empty($data)) {
                     $rowdata = \addons\kuerp\library\Goods::setDataInfo([
                         'process_code'   => $params['process_code'],
@@ -914,6 +920,9 @@ class Process extends Backend
                 }
                 $this->error('请选择需要审核的数据');
             }
+
+            // 补算原材料成本（历史单据/尚未计算成本时）
+            $this->ensureProcessMaterialCost($process_code);
 
             $admin = Session::get('admin');
 
@@ -1400,6 +1409,69 @@ class Process extends Backend
      * 审核: 需先完成原料出库审核, 仅更新状态 (实际入库通过 outboundEdit 页面分批填写)
      * 反审核: 需无任何实际入库记录
      */
+    /**
+     * 补算出库原材料成本（未填写成本价时按统一取价规则）
+     * 成品(type=2)的成本在入库时按「原材料成本 + 加工费」计算，不在此处理。
+     *
+     * @param array $rows 加工单明细行（引用）
+     * @return void
+     */
+    private function applyProcessMaterialCost(array &$rows)
+    {
+        foreach ($rows as $k => $row) {
+            if (!isset($row['type']) || $row['type'] != 1) {
+                continue;
+            }
+            if ((float)$row['unit_cost'] > 0) {
+                continue;
+            }
+            $price = \addons\kuerp\library\Goods::getCostPrice(
+                isset($row['goods_code']) ? $row['goods_code'] : '',
+                isset($row['stores_id']) ? $row['stores_id'] : 0,
+                isset($row['goods_attr']) ? $row['goods_attr'] : 0
+            );
+            $rows[$k]['unit_cost'] = round($price, 4);
+            $rows[$k]['cost_money'] = round($price * (float)$row['basic_number'], 4);
+        }
+    }
+
+    /**
+     * 补算已保存加工单的原材料成本（历史单据或尚未计算成本时）
+     *
+     * @param array|string $processCodes 加工单号
+     * @return void
+     */
+    private function ensureProcessMaterialCost($processCodes)
+    {
+        $codes = is_array($processCodes) ? $processCodes : [$processCodes];
+        $codes = array_values(array_filter($codes, function ($v) {
+            return $v !== '' && $v !== null;
+        }));
+        if (empty($codes)) {
+            return;
+        }
+        $rows = Db::name('kuerp_process_info')
+            ->where(['process_code' => ['in', $codes], 'type' => '1'])->select();
+        foreach ($rows as $row) {
+            if ((float)$row['unit_cost'] > 0) {
+                if ((float)$row['cost_money'] <= 0) {
+                    Db::name('kuerp_process_info')->where(['id' => $row['id']])->update([
+                        'cost_money' => round((float)$row['unit_cost'] * (float)$row['basic_number'], 4),
+                    ]);
+                }
+                continue;
+            }
+            $price = \addons\kuerp\library\Goods::getCostPrice($row['goods_code'], $row['stores_id'], $row['goods_attr']);
+            if ($price <= 0) {
+                continue;
+            }
+            Db::name('kuerp_process_info')->where(['id' => $row['id']])->update([
+                'unit_cost'  => round($price, 4),
+                'cost_money' => round($price * (float)$row['basic_number'], 4),
+            ]);
+        }
+    }
+
     public function examineInbound($ids = null, $examine = 1)
     {
         $examine_set = Db::name('kuerp_sets')->where(['name' => 'examine'])->value('is_checked');
@@ -1599,7 +1671,7 @@ class Process extends Backend
             ->join('kuerp_goods g', 'g.id=a.goods_id')
             ->where(['a.purchase_code' => $row['process_code'], 'a.business_type' => ['in', '16,17']])
             ->field('a.*,g.goods_name,g.goods_specification_id,g.vendor_name,g.packaging')
-            ->order('a.createtime ASC, a.id ASC')
+            ->order('a.createtime DESC, a.id DESC')
             ->select();
         foreach ($log_list as &$lv) {
             $lv['is_out'] = $lv['business_type'] == 16;
@@ -1647,6 +1719,9 @@ class Process extends Backend
         if ($checkout !== true) {
             $this->error($checkout);
         }
+
+        // 补算原材料成本（历史单据/尚未计算成本时）
+        $this->ensureProcessMaterialCost($row['process_code']);
 
         $serial_set = Db::name('kuerp_sets')->where(['name' => 'serial'])->value('is_checked');
         $batch_set = Db::name('kuerp_sets')->where(['name' => 'batch'])->value('is_checked');
@@ -1725,6 +1800,10 @@ class Process extends Backend
                 // 按比例折算基本数量与成本
                 $basic_number = round(($info['basic_number'] / max($info['number'], 0.0001)) * $out_number, 4);
                 $unit_cost = (float)$info['unit_cost'];
+                if ($unit_cost <= 0) {
+                    // 单据未填成本价时按统一取价规则补算
+                    $unit_cost = \addons\kuerp\library\Goods::getCostPrice($info['goods_code'], $info['stores_id'], $info['goods_attr']);
+                }
                 $cost_money = round($unit_cost * $basic_number, 4);
 
                 // 商品表库存扣减
@@ -1900,6 +1979,20 @@ class Process extends Backend
         $total_in_number = 0;
         $in_log_names = [];
 
+        // 本批成品入库成本 = 分摊的原材料成本 + 本批加工费（手工填写入库单价时以手填为准）
+        $materialTotal = 0;
+        $planInNumber = 0;
+        $totalInNumberThis = 0;
+        if (!empty($in_data)) {
+            $materialTotal = (float)Db::name('kuerp_process_info')
+                ->where(['process_code' => $row['process_code'], 'type' => '1'])->sum('cost_money');
+            $planInNumber = (float)Db::name('kuerp_process_info')
+                ->where(['process_code' => $row['process_code'], 'type' => '2'])->sum('number');
+            foreach ($in_data as $r) {
+                $totalInNumberThis += max(0, (float)(isset($r['in_number']) ? $r['in_number'] : 0));
+            }
+        }
+
         if (!empty($in_data)) {
             foreach ($in_data as $info_id => $in_row) {
                 $in_number = isset($in_row['in_number']) ? (float)$in_row['in_number'] : 0;
@@ -1922,7 +2015,25 @@ class Process extends Backend
                 $goods = Db::name('kuerp_goods')->where(['id' => $info['goods_id']])->field('id,goods_code,goods_name,inventory,batch,serial')->find();
                 // 按比例折算基本数量
                 $basic_number = round(($info['basic_number'] / max($info['number'], 0.0001)) * $in_number, 4);
-                $cost_money = round($unit_cost * $in_number, 4);
+                // 本批原材料成本：按计划入库数量比例分摊（最后一批吃尾差）
+                $line_material = $planInNumber > 0 ? $materialTotal * ((float)$info['number'] / $planInNumber) : 0;
+                $already_number = (float)$info['in_number'];
+                if ($info['number'] > 0 && $already_number + $in_number >= $info['number'] - 0.0001) {
+                    $batch_material = round($line_material * (1 - $already_number / $info['number']), 4);
+                } else {
+                    $batch_material = round($line_material * ($in_number / max($info['number'], 0.0001)), 4);
+                }
+                // 本批加工费：按本批入库数量占本次提交总入库数量的比例分摊
+                $batch_fee = ($total_process_fee > 0 && $totalInNumberThis > 0)
+                    ? round($total_process_fee * ($in_number / $totalInNumberThis), 4) : 0;
+                if ($unit_cost > 0) {
+                    // 手工填写了入库单价：以手填为准
+                    $cost_money = round($unit_cost * $basic_number, 4);
+                } else {
+                    // 未手填：成本 = 分摊原材料成本 + 本批加工费
+                    $cost_money = round($batch_material + $batch_fee, 4);
+                    $unit_cost = $basic_number > 0 ? round($cost_money / $basic_number, 4) : 0;
+                }
                 // 优先使用提交的仓库，未选则用计划仓库
                 $stores_id = isset($in_row['stores_id']) && !empty($in_row['stores_id']) ? (float)$in_row['stores_id'] : (float)$info['stores_id'];
 
@@ -2230,7 +2341,7 @@ class Process extends Backend
                 foreach ($update_in_info as $ui) {
                     Db::name('kuerp_process_info')->where(['id' => $ui['id']])->inc('in_number', round($ui['in_delta'], 4))->update([
                         'unit_cost'  => $ui['unit_cost'],
-                        'cost_money' => Db::raw('cost_money + ' . $ui['cost_money']),
+                        'cost_money' => Db::raw('IFNULL(cost_money, 0) + ' . $ui['cost_money']),
                         'updatetime' => time(),
                     ]);
                 }

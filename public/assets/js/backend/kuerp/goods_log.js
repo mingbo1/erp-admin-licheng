@@ -12,6 +12,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     el: '#stores',
                     language: 'zn',
                     tips: '仓库',
+                    filterable: true,
+                    searchTips: '输入关键字搜索',
                     data: storesList
                 });
 
@@ -20,6 +22,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     el: '#goods',
                     language: 'zn',
                     tips: '商品',
+                    filterable: true,
+                    searchTips: '输入关键字搜索',
                     data: goodsList
                 });
 
@@ -94,16 +98,14 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'customer_id', title: __('往来单位'), rowspan: 2},
                         {field: 'unit_name', title: __('单位'), rowspan: 2},
                         {field: 'remark', title: __('备注'), rowspan: 2},
-                        {field: 'enter_store', title: __('入库'),colspan:4},
-                        {field: 'out_store', title: __('出库'),colspan:4},
-                        {field: 'balance', title: __('结存'),colspan:4},
+                        {field: 'enter_store', title: __('入库'),colspan:3},
+                        {field: 'out_store', title: __('出库'),colspan:3},
+                        {field: 'balance', title: __('结存'),colspan:3},
                     ],[
                         {field: 'enter_number', title: __('入库数量')},
-                        {field: 'enter_basics', title: __('基本单位数量'),totalRow:true},
                         {field: 'enter_unit', title: __('单位成本')},
                         {field: 'enter_cost', title: __('成本'),totalRow:true},
                         {field: 'out_number', title: __('出库数量')},
-                        {field: 'out_basics', title: __('基本单位数量'),totalRow:true},
                         {field: 'out_unit', title: __('单位成本')},
                         {field: 'out_cost', title: __('成本'),totalRow:true},
                         {field: 'balance_basics', title: __('库存数量')},

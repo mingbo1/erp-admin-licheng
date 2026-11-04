@@ -56,12 +56,13 @@ class GoodsPurchasePlan extends Backend
                 return $this->selectpage();
             }
             list($where, $sort, $order, $offset, $limit) = $this->buildparams();
-            $sort = 'purchase_time';$order='DESC';
+            // 排序：同一采购订单(GHDD)的采购单排在一起，分组按采购订单创建时间倒序；
+            // 没有关联采购订单的采购单按自身创建时间参与排序（规则见模型方法）
+            $mainAlias = \think\Loader::parseName(basename(str_replace('\\', '/', get_class($this->model))));
             $list = $this->model
                 ->with(['suppliers','preparation','examine'])
                 ->where($where)
-                ->order($sort, $order)
-                ->order('purchase_code', 'DESC')
+                ->orderRaw(\app\admin\model\kuerp\GoodsPurchase::orderSqlByPurchaseOrder($mainAlias))
                 ->paginate($limit);
 
             foreach ($list as $row) {
@@ -73,6 +74,16 @@ class GoodsPurchasePlan extends Backend
                 if(isset($list_v['print_num']) && empty($list_v['print_num'])){
                     $list[$list_k]['print_num'] = 0;
                 }
+            }
+            //入库状态：未入库/部分入库/已入库（退货单不适用，返回空串由前端显示 —）
+            //采购单(仓库)继承本方法，同样生效
+            $storageStatusMap = \app\admin\model\kuerp\GoodsPurchase::storageStatusMap(array_column($list->items(), 'purchase_code'));
+            foreach ($list as $list_k=>$list_v){
+                if($list_v['purchase_type']!=1){
+                    $list[$list_k]['storage_status'] = '';
+                    continue;
+                }
+                $list[$list_k]['storage_status'] = isset($storageStatusMap[$list_v['purchase_code']]) ? $storageStatusMap[$list_v['purchase_code']] : 0;
             }
             $result = array("total" => $list->total(), "rows" => $list->items());
 
@@ -563,7 +574,8 @@ class GoodsPurchasePlan extends Backend
             $row = Db::name('kuerp_goods')->where(['id'=>$goods_id])->field('batch,serial,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,warehousing,warehouse,goods_specification_id,vendor_name,packaging')->find();
         }
         if(empty($row)){
-            return [];
+            //商品档案已删除的孤儿单据行：统一返回JSON串，避免调用方 json_decode() 收到数组报错
+            return json_encode(['unit'=>[],'attr'=>[],'goods'=>[]]);
         }
 
         $auxiliary = Db::name('kuerp_auxiliary')->where(['status'=>1])->column('name','id');

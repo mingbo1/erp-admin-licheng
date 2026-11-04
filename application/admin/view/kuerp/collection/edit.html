@@ -1,5 +1,11 @@
 {include file="kuerp/common/menu" /}
 <form id="edit-form" class="form-horizontal" role="form" data-toggle="validator" method="POST" action="">
+
+    {if condition="isset($set['examine']['is_checked']) && $set['examine']['is_checked']==1"}
+    <div class="alert alert-warning" style="margin:8px 0;">
+        <i class="fa fa-info-circle"></i> 本系统开启了单据审核：收款单保存后为「未审核」草稿，需到【收款单】列表勾选该单据点【审核】后，收款金额才会核销到销货单/销货对账单。
+    </div>
+    {/if}
     <div class="row">
         <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
             <div class="form-group">

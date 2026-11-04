@@ -228,7 +228,7 @@
     <div class="list more_unit" style="display: none">
         <table>
             <tr>
-                <th></th><th>{:__('Unit')}</th><th>{:__('Market_sell_price')}</th><th>{:__('Wholesale_price')}</th>
+                <th></th><th>{:__('Unit')}</th><th>{:__('Market_sell_price')}</th>
                 <th>{:__('Vip_price')}</th><th>{:__('Discount')}</th><th>{:__('Discount2')}</th>
                 <th>{:__('Purchase')}</th>
             </tr>
@@ -239,7 +239,6 @@
                 <td style="white-space:nowrap">基本单位</td>
                 <td><div id="more_unit_div1">{$units.unit_name}</div><input id="more_unit_id1" type="hidden" value="{$units.id}" name="more_unit[id][]"></td>
                 <td><div><input type="number" class="price_decimal" name="more_unit[market_sell_price][]"></div></td>
-                <td><div><input type="number" class="price_decimal" name="more_unit[wholesale_price][]"></div></td>
                 <td><div><input type="number" class="price_decimal" name="more_unit[vip_price][]"></div></td>
                 <td><div><input type="number" name="more_unit[discount][]"></div></td>
                 <td><div><input type="number" name="more_unit[discount2][]"></div></td>
@@ -250,7 +249,6 @@
                 <td style="white-space:nowrap">基本单位</td>
                 <td><div id="more_unit_div1"></div><input id="more_unit_id1" type="hidden" name="more_unit[id][]"></td>
                 <td><div><input type="number" class="price_decimal" name="more_unit[market_sell_price][]"></div></td>
-                <td><div><input type="number" class="price_decimal" name="more_unit[wholesale_price][]"></div></td>
                 <td><div><input type="number" class="price_decimal" name="more_unit[vip_price][]"></div></td>
                 <td><div><input type="number" name="more_unit[discount][]"></div></td>
                 <td><div><input type="number" name="more_unit[discount2][]"></div></td>
@@ -262,7 +260,6 @@
                 <td style="white-space:nowrap">基本单位</td>
                 <td><div id="more_unit_div1"></div><input id="more_unit_id1" type="hidden" name="more_unit[id][]"></td>
                 <td><div><input type="number" class="price_decimal" name="more_unit[market_sell_price][]"></div></td>
-                <td><div><input type="number" class="price_decimal" name="more_unit[wholesale_price][]"></div></td>
                 <td><div><input type="number" class="price_decimal" name="more_unit[vip_price][]"></div></td>
                 <td><div><input type="number" name="more_unit[discount][]"></div></td>
                 <td><div><input type="number" name="more_unit[discount2][]"></div></td>
@@ -279,7 +276,6 @@
                 <td style="white-space:nowrap">副单位</td>
                 <td><div id="more_unit_div{$key}">{$vo.name}</div><input id="more_unit_id{$key}" type="hidden" value="{$vo.vice_unit}" name="more_unit[id][]"></td>
                 <td><div><input type="number" class="price_decimal" name="more_unit[market_sell_price][]"></div></td>
-                <td><div><input type="number" class="price_decimal" name="more_unit[wholesale_price][]"></div></td>
                 <td><div><input type="number" class="price_decimal" name="more_unit[vip_price][]"></div></td>
                 <td><div><input type="number" name="more_unit[discount][]"></div></td>
                 <td><div><input type="number" name="more_unit[discount2][]"></div></td>
@@ -308,14 +304,6 @@
                     <label class="control-label col-xs-12 col-sm-3">{:__('Market_sell_price')}:</label>
                     <div class="col-xs-12 col-sm-8">
                         <input id="c-market_sell_price" class="form-control price_decimal" name="row[market_sell_price]" type="number" value="" placeholder="{:__('Market_sell_price')}">
-                    </div>
-                </div>
-            </div>
-            <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
-                <div class="form-group">
-                    <label class="control-label col-xs-12 col-sm-3">{:__('Wholesale_price')}:</label>
-                    <div class="col-xs-12 col-sm-8">
-                        <input id="c-wholesale_price" class="form-control price_decimal" name="row[wholesale_price]" type="number" value="" placeholder="{:__('Wholesale_price')}">
                     </div>
                 </div>
             </div>
@@ -529,9 +517,9 @@
                         {foreach name="auxiliary" item="vo"}
                         <th class="aux_tab aux_tab{$vo.id}" style="display: none">{$vo.name}</th>
                         {/foreach}
-                        <th><span class="must">*</span>属性编号</th><th>属性条码</th><th>零售价</th><th>批发价</th>
+                        <th><span class="must">*</span>属性编号</th><th>属性条码</th><th>零售价</th>
                         <!-- <th>VIP会员价</th><th>折扣率一</th><th>折扣率二</th> -->
-                        <th>预计采购价</th>
+                        <th>预估成本</th>
                     </tr>
                     <tbody id="auxiliary_table_tbody">
                     <tr id="example" class="auxiliary_example">
@@ -558,7 +546,6 @@
                         <td><div><input type="text" class="ipts auxiliary_code" name="auxiliary[code][]"></div></td>
                         <td><div><input type="text" class="ipts" name="auxiliary[barcode][]"></div></td>
                         <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[market_sell_price][]"></div></td>
-                        <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[wholesale_price][]"></div></td>
                         <!-- <td><div><input type="number" class="ipts aux_price_set price_decimal" name="auxiliary[vip_price][]"></div></td>
                         <td><div><input type="number" class="ipts aux_price_set" name="auxiliary[discount][]"></div></td>
                         <td><div><input type="number" class="ipts aux_price_set" name="auxiliary[discount2][]"></div></td> -->

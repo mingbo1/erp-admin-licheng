@@ -30,6 +30,7 @@
         .print-field-option { display: inline-block; margin-right: 20px; font-size: 15px; cursor: pointer; vertical-align: middle; }
         .print-field-option input { vertical-align: middle; margin-right: 4px; }
     </style>
+{include file="kuerp/common/printstyle" /}
 </head>
 <body>
 <div class="no-print">
@@ -49,6 +50,7 @@
         <div class="item"><strong>{:__('Purchase_type')}：</strong>{if condition="$row.purchase_type==1"}销货{else/}退货{/if}</div>
         <div class="item"><strong>{:__('Sale_user_name')}：</strong>{$row.sale_user_name|htmlentities}</div>
         <div class="item"><strong>{:__('Receiving_address')}：</strong>{$row.receiving_address|htmlentities}</div>
+        <div class="item"><strong>{:__('Delivery_mode')}：</strong>{$row.delivery_mode_text|default=''}</div>
     </div>
 
     <table class="goods-table">
@@ -62,13 +64,19 @@
                 <th>{:__('Number')}</th>
                 <th>{:__('Unit_price')}</th>
                 <th>{:__('All_money')}</th>
+                {if condition="isset($set['taxes']['is_checked']) && $set['taxes']['is_checked']==1"}
+                <th>{:__('Tax_included')}</th>
+                <th>{:__('Tax_rate')}</th>
+                <th>{:__('Tax_money')}</th>
+                <th>{:__('Money_tax_price')}</th>
+                {/if}
                 <th>品号与功率</th>
             </tr>
         </thead>
         <tbody>
-            {php}$total_number = 0;$total_money = 0;{/php}
+            {php}$total_number = 0;$total_money = 0;$total_tax = 0;$total_tax_price = 0;{/php}
             {foreach name="purchase_info" item="info" key="k"}
-            {php}$total_number += $info['number'];$total_money += $info['all_money'];{/php}
+            {php}$total_number += $info['number'];$total_money += $info['all_money'];$total_tax += $info['tax_money'];$total_tax_price += $info['money_tax_price'];{/php}
             <tr>
                 <td>{$k+1}</td>
                 <td>{$info.goods_code|htmlentities}</td>
@@ -78,11 +86,21 @@
                 <td class="right">{$info.number|htmlentities}</td>
                 <td class="right">{$info.unit_price|htmlentities}</td>
                 <td class="right">{$info.all_money|htmlentities}</td>
+                {if condition="isset($set['taxes']['is_checked']) && $set['taxes']['is_checked']==1"}
+                <td class="right">{$info.tax_included|htmlentities}</td>
+                <td class="right">{$info.tax_rate|htmlentities}</td>
+                <td class="right">{$info.tax_money|htmlentities}</td>
+                <td class="right">{$info.money_tax_price|htmlentities}</td>
+                {/if}
                 <td class="left">{$info.remark|htmlentities}</td>
             </tr>
             {/foreach}
             {if condition="empty($purchase_info)"}
+            {if condition="isset($set['taxes']['is_checked']) && $set['taxes']['is_checked']==1"}
+            <tr><td colspan="13">无明细数据</td></tr>
+            {else/}
             <tr><td colspan="9">无明细数据</td></tr>
+            {/if}
             {/if}
         </tbody>
         <tfoot>
@@ -91,6 +109,12 @@
                 <th class="right">{$total_number}</th>
                 <th></th>
                 <th class="right">{$total_money}</th>
+                {if condition="isset($set['taxes']['is_checked']) && $set['taxes']['is_checked']==1"}
+                <th></th>
+                <th></th>
+                <th class="right">{$total_tax}</th>
+                <th class="right">{$total_tax_price}</th>
+                {/if}
                 <th></th>
             </tr>
         </tfoot>

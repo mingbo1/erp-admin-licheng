@@ -16,7 +16,7 @@ return [
     'Vip_price'                    => 'vip会员价',
     'Discount'                     => '折扣率1',
     'Discount2'                    => '折扣率2',
-    'Purchase'                     => '预计采购价',
+    'Purchase'                     => '预估成本',
     'Goods_image'                  => '商品主图',
     'Goods_images'                 => '商品图集',
     'Inventory'                    => '总库存',

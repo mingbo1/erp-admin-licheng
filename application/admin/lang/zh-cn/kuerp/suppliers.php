@@ -18,6 +18,7 @@ return [
     'Identification'                  => '纳税人识别号',
     'Deposit_bank'                    => '开户银行',
     'Bank_number'                     => '银行卡号',
+    'Contract'                        => '合同',
     'Status'                          => '状态',
     'Status 0'                        => '禁用',
     'Status 1'                        => '正常',

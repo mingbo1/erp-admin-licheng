@@ -1,0 +1,79 @@
+{include file="kuerp/common/menu" /}
+<form id="invoice-form" class="form-horizontal" role="form" data-toggle="validator" method="POST" action=""
+      data-recon-id="{$row.id}">
+    <div class="panel panel-default">
+        <div class="panel-heading"><b>上传发票 / 账期记录</b> <span style="color:#999;">（{$row.recon_code}）</span></div>
+        <div class="panel-body">
+            <div class="row" style="margin-bottom:10px;">
+                <div class="col-xs-12 col-sm-4"><b>对账净额：</b><span style="color:#ff5722;font-weight:bold;">￥{:number_format($row['total_money'], 2, '.', '')}</span></div>
+                <div class="col-xs-12 col-sm-4"><b>已开票：</b>￥{:number_format($invoiced, 2, '.', '')}</div>
+                <div class="col-xs-12 col-sm-4"><b>剩余可开：</b><span style="color:#1E9FFF;font-weight:bold;">￥{:number_format($remaining, 2, '.', '')}</span></div>
+            </div>
+
+            {if condition="!empty($invoices)"}
+            <table class="table table-bordered" style="margin-bottom:12px;">
+                <thead><tr><th>发票号</th><th style="width:110px;text-align:right;">金额</th><th style="width:110px;">开票日期</th><th style="width:130px;">付款到期日</th><th>文件</th></tr></thead>
+                <tbody>
+                    {foreach name="invoices" item="inv"}
+                    <tr>
+                        <td>{$inv.invoice_no|htmlentities}</td>
+                        <td style="text-align:right;">￥{:number_format($inv['invoice_amount'], 2, '.', '')}</td>
+                        <td>{$inv.invoice_date_text}</td>
+                        <td>{$inv.due_date_text}</td>
+                        <td>
+                            {if condition="!empty($inv['file'])"}<a href="{$inv.file.url}" target="_blank">{$inv.file.name|htmlentities}</a>{/if}
+                        </td>
+                    </tr>
+                    {/foreach}
+                </tbody>
+            </table>
+            {/if}
+
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3"><span class="must">*</span> 发票文件:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input type="file" id="invoice_file" accept="image/*,.pdf,.ofd,.zip,.rar,.xlsx,.xls,.doc,.docx">
+                    <input type="hidden" name="enclosure_id" id="enclosure_id" value="">
+                    <div id="upload-tip" style="color:#999;font-size:12px;margin-top:4px;">支持图片、PDF、OFD、压缩包等；可多次上传不同发票</div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">发票号:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input type="text" name="invoice_no" class="form-control" placeholder="发票号（同一对账单内不可重复）">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3"><span class="must">*</span> 开票金额:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input type="number" step="0.01" min="0" name="invoice_amount" id="invoice_amount" class="form-control"
+                           value="{$remaining}">
+                    <div style="color:#999;font-size:12px;margin-top:4px;">不超过剩余可开票金额 ￥{:number_format($remaining, 2, '.', '')}</div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">开票日期:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input type="date" name="invoice_date" class="form-control" value="{:date('Y-m-d')}">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3"><span class="must">*</span> 账期天数:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <div class="input-group">
+                        <input type="number" min="0" step="1" name="term_days" id="term_days" class="form-control" value="30">
+                        <span class="input-group-addon">天</span>
+                    </div>
+                    <div style="color:#999;font-size:12px;margin-top:4px;">
+                        从发票上传当天起算，预计付款到期日：<b id="due-preview" style="color:#ff5722;"></b>
+                        （到期前 {$remindDays} 天标黄提醒）
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="form-group layer-footer" style="text-align:center;">
+        <button type="submit" class="btn btn-success btn-embossed">保存发票与账期</button>
+        <button type="button" class="btn btn-default btn-embossed layer-close">取消</button>
+    </div>
+</form>

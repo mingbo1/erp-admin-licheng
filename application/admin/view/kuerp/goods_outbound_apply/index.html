@@ -1,0 +1,67 @@
+{include file="kuerp/common/menu" /}
+<div class="panel panel-default panel-intro">
+    <div class="panel-body">
+        <div id="myTabContent" class="tab-content">
+            <div class="tab-pane fade active in" id="one">
+                <div class="widget-body no-padding">
+
+                    <script type="text/html" id="thisToolbar">
+                        <div class="layui-btn-container">
+                           <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-cyan btn-refresh" lay-event="refresh"><i class="layui-icon">&#xe669;</i> {:__('Refresh')}</button>
+                        </div>
+                    </script>
+
+                    <form class="layui-form layui-search" id="layui-search">
+
+                        <div class="layui-input-inline">
+                            <input type="text" name="apply_code" id="apply_code" autocomplete="off" placeholder="{:__('Apply_code')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="purchase_code" id="purchase_code" autocomplete="off" placeholder="{:__('Purchase_code')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="status" id="status" placeholder="{:__('Status')}" class="layui-input">
+                                <option value="">请选择{:__('Status')}</option>
+                                <option value="0">{:__('Status 0')}</option>
+                                <option value="1">{:__('Status 1')}</option>
+                                <option value="2">{:__('Status 2')}</option>
+                                <option value="3">{:__('Status 3')}</option>
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="apply_time" id="apply_time" autocomplete="off" placeholder="{:__('Apply_time')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline " style="width: 90px">
+                            <button class="layui-btn layui-btn-sm" type="button" id="search" data-type="reload">
+                                 <i class="layui-icon"></i> {:__('Search')}
+                            </button>
+                         </div>
+                    </form>
+                    <table id="table" class="table table-striped table-bordered table-hover table-nowrap"
+                           width="100%" lay-filter="table">
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- 行操作模板：ID 必须区别于 menu.html 全局默认的 #barDemo（编辑/删除），否则 layui 会取 DOM 第一个导致行按钮被顶掉（仿 barDemoOutbound 先例） -->
+<script type="text/html" id="barDemoApply">
+    <a class="layui-btn layui-btn-xs" lay-event="detail">详情</a>
+    <!-- 打印：待审核/已同意出库打印送货单（与销货出库页同一版式）；已拒绝/已撤销保留原出库申请单打印 -->
+    {{# if(d.status == '0' || d.status == '1'){ }}
+    <a class="layui-btn layui-btn-xs layui-btn-primary" lay-event="deliverynote">送货单</a>
+    {{# } else { }}
+    <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="print">打印申请单</a>
+    {{# } }}
+    {{# if(d.status == '0'){ }}
+    <a class="layui-btn layui-btn-xs layui-bg-blue {if condition="$auth->check($nowmenu.'/examine')!=1"}hiddens{/if}" lay-event="examine">审核出库</a>
+    <a class="layui-btn layui-btn-xs layui-btn-danger {if condition="$auth->check($nowmenu.'/refuse')!=1"}hiddens{/if}" lay-event="refuse">拒绝</a>
+    <a class="layui-btn layui-btn-xs layui-btn-warm {if condition="$auth->check($nowmenu.'/edit')!=1"}hiddens{/if}" lay-event="edit">编辑</a>
+    {{# } }}
+    {{# if(d.status != '1'){ }}
+    <a class="layui-btn layui-btn-xs layui-btn-danger {if condition="$auth->check($nowmenu.'/del')!=1"}hiddens{/if}" lay-event="del">删除</a>
+    {{# } }}
+</script>

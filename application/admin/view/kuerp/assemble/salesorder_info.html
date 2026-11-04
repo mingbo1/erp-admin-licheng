@@ -1,0 +1,39 @@
+{if condition="!empty($salesOrderInfo)"}
+<!-- 关联销货订单信息：订单号 / 订单备注 / 明细行的品号与功率、生产备注（add/edit 共用） -->
+<div class="panel panel-info salesorder-info-panel" style="margin-bottom:10px;">
+    <div class="panel-heading" style="padding:6px 12px;">
+        <strong>销货订单信息</strong>
+        <span style="margin-left:16px;">销货订单号：<span style="color:#1890ff;">{$salesOrderInfo.purchase_code|default=''|htmlentities}</span></span>
+    </div>
+    <div class="panel-body" style="padding:8px 12px;">
+        {if condition="!empty($salesOrderInfo['note'])"}
+        <div style="margin-bottom:8px;">
+            <strong>销货订单备注：</strong><span style="white-space:pre-wrap;">{$salesOrderInfo.note|default=''|htmlentities}</span>
+        </div>
+        {/if}
+        <table class="table table-bordered table-condensed" style="margin-bottom:0;width:100%;">
+            <thead>
+            <tr>
+                <th style="width:15%;">商品编号</th>
+                <th style="width:30%;">商品名称</th>
+                <th style="width:27.5%;">品号与功率</th>
+                <th style="width:27.5%;">生产备注</th>
+            </tr>
+            </thead>
+            <tbody>
+            {foreach name="salesOrderInfo.items" item="soi"}
+            <tr>
+                <td>{$soi.goods_code|default=''|htmlentities}</td>
+                <td>{$soi.goods_name|default=''|htmlentities}</td>
+                <td>{$soi.remark|default=''|htmlentities}</td>
+                <td>{$soi.production_remark|default=''|htmlentities}</td>
+            </tr>
+            {/foreach}
+            {if condition="empty($salesOrderInfo['items'])"}
+            <tr><td colspan="4" style="text-align:center;color:#999;">该销货订单没有商品明细</td></tr>
+            {/if}
+            </tbody>
+        </table>
+    </div>
+</div>
+{/if}

@@ -60,7 +60,7 @@ addons/kuerp/
 ├── 数据面板 (datainfo)
 ├── 购货 (buy)
 │   ├── 购货订单 → 查看/添加/编辑/删除/审核
-│   ├── 购货单 → 查看/添加/编辑/删除/审核/对单
+│   ├── 采购单 → 查看/添加/编辑/删除/审核/对单
 │   ├── 购货退货单 → 查看/添加/编辑/删除/审核/对单
 │   ├── 采购明细表/采购订单跟踪表
 │   ├── 采购汇总表(按商品/供应商)
@@ -112,9 +112,9 @@ addons/kuerp/
 ### 3.1 采购业务流程
 
 ```
-购货订单 → 审核 → 生成购货单（部分/全部）
+购货订单 → 审核 → 生成采购单（部分/全部）
                                        
-购货单 → 审核 → 更新库存 + 生成采购明细
+采购单 → 审核 → 更新库存 + 生成采购明细
        → 对单 → 标记对账状态
                                        
 购货退货单 → 审核 → 冲减库存
@@ -251,7 +251,7 @@ $cost = $now_all_money / $now_nmbers;  // 单位成本
 |------|------|---------|
 | `kuerp_goods` | 商品主表 | goods_code, purchase, unit_id, more_unit, auxiliary, batch, serial |
 | `kuerp_goods_stock` | 商品库存 | goods_code, stores_id, stock |
-| `kuerp_goods_purchase` | 购货单 | purchase_code, suppliers_code, examine_status, all_money |
+| `kuerp_goods_purchase` | 采购单 | purchase_code, suppliers_code, examine_status, all_money |
 | `kuerp_goods_purchase_info` | 购货明细 | purchase_code, goods_code, basic_nmber, unit_price, all_money |
 | `kuerp_goods_purchase_order` | 购货订单 | purchase_code, examine_status |
 | `kuerp_goods_sales` | 销货单 | purchase_code, examine_status, all_money |

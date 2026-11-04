@@ -71,9 +71,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 table.on('tool(table)', function (obj) {
                     var data = obj.data;
                     if (obj.event === 'chart') {
-                        Fast.api.open("kuerp/process_board/chart?ids=" + data.id, "工序小时看板 - " + layui.util.toDateString(data.board_date * 1000, "yyyy-MM-dd"), {
-                            area: ['95%', '92%'],
-                        });
+                        // 新浏览器窗口/标签页打开, 便于浏览器全屏查看大屏
+                        window.open(Fast.api.fixurl("kuerp/process_board/chart?ids=" + data.id), "_blank");
                     } else if (obj.event === 'edit') {
                         Fast.api.open("kuerp/process_board/edit?ids=" + data.id, "编辑工序小时看板", {
                             callback: function () { $('.btn-refresh').click(); },

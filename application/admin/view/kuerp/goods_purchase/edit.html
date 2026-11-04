@@ -42,6 +42,14 @@
                 </div>
             </div>
         </div>
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Delivery_time')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-delivery_time" class="form-control" name="row[delivery_time]" type="text" value="{if condition='!empty($row.delivery_time)'}{$row.delivery_time|date='Y-m-d',###}{/if}" placeholder="{:__('Delivery_time')}">
+                </div>
+            </div>
+        </div>
         <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3" style="display: none">
             <div class="form-group">
                 <label class="control-label col-xs-12 col-sm-4">{:__('Purchase_type')}:</label>
@@ -51,6 +59,26 @@
                         <label for="row[purchase_type]-{$key}"><input id="row[purchase_type]-{$key}" name="row[purchase_type]" type="radio" value="{$key}" {in name="key" value="$row.purchase_type"}checked{/in} /> {$vo}</label>
                         {/foreach}
                     </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">供应商电话:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-supplyer_phone" class="form-control" type="text" value="{$supplyer_phone|default=''}" readonly>
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-6 col-md-6 col-lg-6">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-2">需求方:</label>
+                <div class="col-xs-12 col-sm-4">
+                    <input id="c-company_name" class="form-control" type="text" value="{$company_name|default=''}" readonly>
+                </div>
+                <label class="control-label col-xs-12 col-sm-2">需求电话:</label>
+                <div class="col-xs-12 col-sm-4">
+                    <input id="c-company_phone" class="form-control" type="text" value="{$company_phone|default=''}" readonly>
                 </div>
             </div>
         </div>

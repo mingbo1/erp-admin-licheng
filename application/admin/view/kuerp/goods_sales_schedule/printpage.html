@@ -35,6 +35,7 @@
         .no-print { text-align: center; margin-bottom: 20px; }
         .no-print button { padding: 8px 30px; font-size: 16px; cursor: pointer; }
     </style>
+{include file="kuerp/common/printstyle" /}
 </head>
 <body>
 <div class="no-print">
@@ -50,6 +51,7 @@
         <div class="item"><strong>{:__('Customers_id')}：</strong>{$row.customer_name|htmlentities}</div>
         <div class="item"><strong>{:__('Delivery_time')}：</strong>{if condition="!empty($row['delivery_time'])"}{$row.delivery_time|date='Y-m-d',###}{else/}/{/if}</div>
         <div class="item"><strong>销货订单号：</strong>{$row.purchase_order_id|htmlentities}</div>
+        <div class="item"><strong>{:__('Delivery_mode')}：</strong>{$row.delivery_mode_text|default=''}</div>
         <div class="item"><strong>{:__('Production_status')}：</strong>{if condition="$row.production_status==1"}<span class="status-yes">{:__('Production_status 1')}</span>{else/}<span class="status-no">{:__('Production_status 0')}</span>{/if}</div>
         <div class="item"><strong>{:__('Preparation_name')}：</strong>{$row.preparation_name|htmlentities}</div>
         <div class="item"><strong>{:__('Examine_status')}：</strong>{if condition="$row.examine_status==1"}已审核{else/}未审核{/if}</div>

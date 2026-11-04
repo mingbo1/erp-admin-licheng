@@ -1,0 +1,89 @@
+{include file="kuerp/common/menu" /}
+<div class="panel panel-default panel-intro">
+    <div class="panel-body">
+        <div id="myTabContent" class="tab-content">
+            <div class="tab-pane fade active in" id="one">
+                <div class="widget-body no-padding">
+
+                    <script type="text/html" id="thisToolbar">
+                        <div class="layui-btn-container">
+                            {if condition="$auth->check($nowmenu.'/add')==1"}
+                            <a class="layui-btn layui-btn-sm layui-bg-blue" lay-event="add"><i class="layui-icon">&#xe654;</i> 新建对账单</a>
+                            {/if}
+                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-cyan btn-refresh" lay-event="refresh"><i class="layui-icon">&#xe669;</i> {:__('Refresh')}</button>
+                        </div>
+                    </script>
+
+                    <form class="layui-form layui-search" id="layui-search">
+                        <div class="layui-input-inline">
+                            <input type="text" name="recon_code" id="recon_code" autocomplete="off" placeholder="对账单号" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="supplyer_code" id="supplyer_code" placeholder="供应商" class="layui-input">
+                                <option value="">请选择供应商</option>
+                                {foreach name="suppliers" item="vo"}
+                                <option value="{$vo.supplyer_code}">{$vo.supplyer_code} {$vo.supplyer_name}</option>
+                                {/foreach}
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="status" id="status" placeholder="对账状态" class="layui-input">
+                                <option value="">请选择对账状态</option>
+                                <option value="0">待对账</option>
+                                <option value="1">待财务审核</option>
+                                <option value="2">待二审</option>
+                                <option value="3">已对账</option>
+                                <option value="4">已驳回</option>
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="pay_status" id="pay_status" placeholder="付款状态" class="layui-input">
+                                <option value="">请选择付款状态</option>
+                                <option value="0">未付款</option>
+                                <option value="1">付款申请中</option>
+                                <option value="2">已付款</option>
+                            </select>
+                        </div>
+                        <div class="layui-input-inline" style="width: 90px">
+                            <button class="layui-btn layui-btn-sm" type="button" id="search" data-type="reload">
+                                <i class="layui-icon"></i> {:__('Search')}
+                            </button>
+                        </div>
+                    </form>
+
+                    <table id="table" class="table table-striped table-bordered table-hover table-nowrap"
+                           width="100%" lay-filter="table">
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="text/html" id="barDemoRecon">
+    <a class="layui-btn layui-btn-xs layui-bg-blue" lay-event="detail">详情</a>
+    {{# if(d.status == '0' || d.status == '4'){ }}
+    <a class="layui-btn layui-btn-xs layui-btn-warm {if condition="$auth->check($nowmenu.'/edit')!=1"}hiddens{/if}" lay-event="edit">编辑</a>
+    <a class="layui-btn layui-btn-xs layui-bg-green {if condition="$auth->check($nowmenu.'/submit')!=1"}hiddens{/if}" lay-event="submit">提交审核</a>
+    {{# } }}
+    {{# if(d.status == '1'){ }}
+    <a class="layui-btn layui-btn-xs layui-bg-orange {if condition="$auth->check($nowmenu.'/audit')!=1"}hiddens{/if}" lay-event="audit">财务一审</a>
+    {{# } }}
+    {{# if(d.status == '2'){ }}
+    <a class="layui-btn layui-btn-xs layui-bg-orange {if condition="$auth->check($nowmenu.'/secondaudit')!=1"}hiddens{/if}" lay-event="secondaudit">二审</a>
+    {{# } }}
+    {{# if(d.status == '3'){ }}
+    <a class="layui-btn layui-btn-xs layui-bg-blue {if condition="$auth->check($nowmenu.'/invoice')!=1"}hiddens{/if}" lay-event="invoice">上传发票</a>
+    {{# if(d.invoice_status == '2' && d.pay_status == '0'){ }}
+    <a class="layui-btn layui-btn-xs layui-bg-green {if condition="$auth->check('kuerp/purchase_payment_apply/add')!=1"}hiddens{/if}" lay-event="applypay">付款申请</a>
+    {{# } }}
+    {{# if(d.invoice_status == '0' && d.pay_status == '0'){ }}
+    <a class="layui-btn layui-btn-xs layui-btn-danger {if condition="$auth->check($nowmenu.'/revoke')!=1"}hiddens{/if}" lay-event="revoke">撤销对账</a>
+    {{# } }}
+    {{# } }}
+    <a class="layui-btn layui-btn-xs {if condition="$auth->check($nowmenu.'/export')!=1"}hiddens{/if}" lay-event="export">导出</a>
+    <a class="layui-btn layui-btn-xs {if condition="$auth->check($nowmenu.'/printpage')!=1"}hiddens{/if}" lay-event="print">打印</a>
+    {{# if((d.status == '0' || d.status == '4') && d.pay_status == '0'){ }}
+    <a class="layui-btn layui-btn-xs layui-btn-danger {if condition="$auth->check($nowmenu.'/del')!=1"}hiddens{/if}" lay-event="del">删除</a>
+    {{# } }}
+</script>

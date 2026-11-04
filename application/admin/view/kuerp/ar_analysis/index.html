@@ -1,0 +1,55 @@
+{include file="kuerp/common/menu" /}
+<div class="panel panel-default panel-intro">
+    <div class="panel-body">
+        <div id="myTabContent" class="tab-content">
+            <div class="tab-pane fade active in" id="one">
+                <div class="widget-body no-padding">
+
+                    <script type="text/html" id="arToolbar">
+                        <div class="layui-btn-container">
+                            <button class="layui-btn layui-btn-sm layui-bg-cyan btn-refresh" lay-event="refresh"><i class="layui-icon">&#xe669;</i> {:__('Refresh')}</button>
+                            {if condition="$auth->check('kuerp/ar_analysis/rebuild')==1"}
+                            <button class="layui-btn layui-btn-sm layui-bg-green" lay-event="rebuild"><i class="layui-icon">&#xe63f;</i> 重新分析</button>
+                            {/if}
+                            {if condition="$auth->check('kuerp/ar_analysis/export')==1"}
+                            <button class="layui-btn layui-btn-sm layui-bg-blue" lay-event="export"><i class="layui-icon">&#xe608;</i> 导出Excel</button>
+                            {/if}
+                        </div>
+                    </script>
+
+                    <form class="layui-form layui-search" id="layui-search">
+                        <div class="layui-input-inline" style="width:150px;">
+                            <select name="period" id="period" lay-filter="period">
+                                {foreach $periods as $vo}
+                                <option value="{$vo.value}" {if condition="$vo['value']==$period"}selected{/if}>{$vo.text}</option>
+                                {/foreach}
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="customer_name" id="customer_name" autocomplete="off" placeholder="客户名称" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="sale_user_name" id="sale_user_name" autocomplete="off" placeholder="销售负责人" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline" style="width: 90px">
+                            <button class="layui-btn layui-btn-sm" type="button" id="search" data-type="reload">
+                                <i class="layui-icon"></i> {:__('Search')}
+                            </button>
+                        </div>
+                    </form>
+
+                    <table id="table" class="table table-striped table-bordered table-hover table-nowrap"
+                           width="100%" lay-filter="table">
+                    </table>
+
+                    <div class="well well-sm" style="margin-top:10px;font-size:13px;">
+                        说明：统计口径见 <code>资料/财务功能/应收账款及考核.xlsx</code>；
+                        每月 <b>1 日 0 点</b> 由定时任务自动生成上个月快照
+                        （<code>php think kuerp:ar_analysis</code>），也可点【重新分析】手动补算。
+                        逾期按「开票日 + 客户信用账期」判断，信用账期在 客户档案 中维护（0=不判断）。
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

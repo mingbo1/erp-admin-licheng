@@ -1,4 +1,5 @@
 {include file="kuerp/common/menu" /}
+{if condition="empty($salesOrderInfo)"}<style>.so_col{display:none;}</style>{/if}
 <form id="add-form" class="form-horizontal assemble_form" role="form" data-toggle="validator" method="POST" action="">
 
     <div class="row">
@@ -18,7 +19,17 @@
                 </div>
             </div>
         </div>
+        <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-4">{:__('Produce_date')}:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <input id="c-produce_date" class="form-control datetime" data-use-current="true" name="row[produce_date]" type="text" value="" placeholder="{:__('Produce_date')}">
+                </div>
+            </div>
+        </div>
     </div>
+
+    {include file="kuerp/assemble/salesorder_info" /}
 
     <div class="table_box">
         <div class="row">
@@ -58,6 +69,8 @@
                     <th>{:__('Number')}</th>
                     <!-- <th>{:__('入库单位成本')}</th><th>{:__('入库成本')}</th> -->
                     <th>{:__('Remark')}</th>
+                    <th class="so_col">品号与功率</th>
+                    <th class="so_col">生产备注</th>
                 </tr>
                 <tr>
                     <td>
@@ -83,13 +96,17 @@
                         </div>
                     </td>
                     <td>
-                        <div>
-                            <select name="row[stores_id][]" class="form-control stores_id">
-                                <option value=""></option>
-                                {foreach name="storesList" item="vo"}
-                                <option value="{$vo.id}">{$vo.name}</option>
-                                {/foreach}
-                            </select>
+                        <!-- 仓库自动取商品档案的默认仓库，不需要手动选择；商品未设置默认仓库时才回退为下拉选择 -->
+                        <div class="stores_box">
+                            <input type="text" class="form-control stores_name" readonly placeholder="默认仓库">
+                            <div class="stores_select_wrap" data-select-enhance="skip" style="display:none">
+                                <select name="row[stores_id][]" class="form-control stores_id">
+                                    <option value="">请选择仓库</option>
+                                    {foreach name="storesList" item="vo"}
+                                    <option value="{$vo.id}">{$vo.name}</option>
+                                    {/foreach}
+                                </select>
+                            </div>
                         </div>
                     </td>
                     <td><div><input type="number" name="row[allow_stock][]" class="allow_stock" readonly><input type="hidden" name="row[info_id][]" value=""></div></td>
@@ -115,6 +132,9 @@
                     <!-- <td><div><input type="number" name="row[unit_cost][]" class="unit_price price_decimal"></div></td>
                     <td><div><input type="number" name="row[cost_money][]" class="all_money"></div></td> -->
                     <td><div><input type="text" name="row[remark][]" class="remark"></div></td>
+                    <!-- 销货订单明细带出（只读，不参与提交） -->
+                    <td class="so_col"><div><input type="text" class="so_remark" readonly></div></td>
+                    <td class="so_col"><div><input type="text" class="so_production_remark" readonly></div></td>
                 </tr>
             </table>
         </div>
@@ -123,7 +143,7 @@
                 <div class="form-group" style="display:flex;align-items:center;">
                     <label class="control-label" style="text-align: left;font-weight: bold;">子件：</label>
                     {if $canShortagePurchase}
-                    <button type="button" class="btn btn-success btn-embossed btn-sm shortage_purchase" style="margin-left:10px;" title="子件可用库存不足时，按缺口数量预填购货订单"><i class="fa fa-shopping-cart"></i> 一键生成采购单</button>
+                    <button type="button" class="btn btn-success btn-embossed btn-sm shortage_purchase" style="margin-left:10px;" title="子件可用库存不足时，按缺口数量预填采购预订单(计划)"><i class="fa fa-shopping-cart"></i> 一键生成采购预订单(计划)</button>
                     {/if}
                 </div>
             </div>
@@ -176,13 +196,17 @@
                         </div>
                     </td>
                     <td>
-                        <div>
-                            <select name="row[stores_id][]" class="form-control stores_id">
-                                <option value=""></option>
-                                {foreach name="storesList" item="vo"}
-                                <option value="{$vo.id}">{$vo.name}</option>
-                                {/foreach}
-                            </select>
+                        <!-- 仓库自动取商品档案的默认仓库，不需要手动选择；商品未设置默认仓库时才回退为下拉选择 -->
+                        <div class="stores_box">
+                            <input type="text" class="form-control stores_name" readonly placeholder="默认仓库">
+                            <div class="stores_select_wrap" data-select-enhance="skip" style="display:none">
+                                <select name="row[stores_id][]" class="form-control stores_id">
+                                    <option value="">请选择仓库</option>
+                                    {foreach name="storesList" item="vo"}
+                                    <option value="{$vo.id}">{$vo.name}</option>
+                                    {/foreach}
+                                </select>
+                            </div>
                         </div>
                     </td>
                     <td><div><input type="number" name="row[allow_stock][]" class="allow_stock" readonly><input type="hidden" name="row[info_id][]" value=""></div></td>
@@ -235,13 +259,17 @@
                         </div>
                     </td>
                     <td>
-                        <div>
-                            <select name="row[stores_id][]" class="form-control stores_id">
-                                <option value=""></option>
-                                {foreach name="storesList" item="vo"}
-                                <option value="{$vo.id}">{$vo.name}</option>
-                                {/foreach}
-                            </select>
+                        <!-- 仓库自动取商品档案的默认仓库，不需要手动选择；商品未设置默认仓库时才回退为下拉选择 -->
+                        <div class="stores_box">
+                            <input type="text" class="form-control stores_name" readonly placeholder="默认仓库">
+                            <div class="stores_select_wrap" data-select-enhance="skip" style="display:none">
+                                <select name="row[stores_id][]" class="form-control stores_id">
+                                    <option value="">请选择仓库</option>
+                                    {foreach name="storesList" item="vo"}
+                                    <option value="{$vo.id}">{$vo.name}</option>
+                                    {/foreach}
+                                </select>
+                            </div>
                         </div>
                     </td>
                     <td><div><input type="number" name="row[allow_stock][]" class="allow_stock" readonly><input type="hidden" name="row[info_id][]" value=""></div></td>

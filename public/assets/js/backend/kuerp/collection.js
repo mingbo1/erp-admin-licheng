@@ -372,63 +372,66 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
 
                 //选择源单
                 var key=1;
+                //把源单数组填入 sale_table（选择弹窗回调 与 销货对账「去收款」预填 共用）
+                function appendSources(goodsData){
+                    if(!goodsData || !goodsData.length){
+                        return;
+                    }
+                    var lawtable = document.getElementById("sale_table");
+                    var rows = lawtable.rows;//获取所有行
+                    var add = true;
+                    var obj = rows[rows.length-2];
+                    for(var k=0;k<rows.length;k++){
+                        if(k>1 && rows[k].cells[1].childNodes[0].value==''){
+                            add = false;
+                            obj = rows[k];
+                            break;
+                        }
+                    }
+
+                    var htmlp = rows[1].innerHTML;
+                    var html = '';
+                    $(goodsData).each(function (k,v) {
+                        var thisobj = obj;
+                        if(add){
+                            html = '<tr class="goods_id'+v.purchase_type_id+'">'+htmlp+'</tr>';
+                            $(obj).after(html);
+                            thisobj = $('.goods_id'+v.purchase_type_id);
+                            thisobj.find('.purchase_number').val(v.purchase_number);
+                            thisobj.find('.business_type').val(v.business_type);
+                            thisobj.find('.times').val(v.times);
+                            thisobj.find('.sale_money').val(v.sale_money);
+                            thisobj.find('.write_off').val(v.write_off);
+                            thisobj.find('.write_off_money').val(v.write_off_price);
+                            thisobj.find('.write_off_price').val(v.write_off_price);
+                            thisobj.find('.sale_remark').val(v.remark);
+                            thisobj.find('.purchase_type').val(v.purchase_type_id);
+                            thisobj.find('.purchase_numbers').val(v.purchase_numbers);
+                            key++;
+                        }else{
+                            thisobj.cells[1].childNodes[0].value=v.purchase_number;
+                            thisobj.cells[2].childNodes[0].value=v.business_type;
+                            thisobj.cells[3].childNodes[0].value=v.times;
+                            thisobj.cells[4].childNodes[0].value=v.sale_money;
+                            thisobj.cells[5].childNodes[0].value=v.write_off;
+                            thisobj.cells[6].childNodes[0].value=v.write_off_price;
+                            thisobj.cells[7].childNodes[0].value=v.write_off_price;
+                            thisobj.cells[8].childNodes[0].value=v.remark;
+                            thisobj.cells[9].childNodes[0].value=v.purchase_type_id;
+                            thisobj.cells[10].childNodes[0].value=v.purchase_numbers;
+                            add = true;
+                        }
+                    });
+                    changeSaleInfo();
+                }
                 $(document).on("click", "#chose", function(){
                     var customers_id = $('#customers_id').val();
                     if(customers_id==''){
                         Toastr.error('请先选择客户！');return;
                     }
-                    var lawtable = document.getElementById("sale_table");
-                    var rows = lawtable.rows;//获取所有行
-                    var add = true;
-                    for(var k=0;k<rows.length;k++){
-                        if(k>1 && rows[k].cells[1].childNodes[0].value==''){
-                            add = false;
-                            var obj = rows[k];
-                            break;
-                        }
-                    }
-                    if(add){
-                        var obj = rows[rows.length-2];
-                    }
-
-                    var htmlp = rows[1].innerHTML;
-                    var html = '';
                     parent.Fast.api.open("kuerp/writeoff/chosereceivable?customers_id="+customers_id, "选择源单",{area:['80%','75%'],callback:function(goodsData){
-                            if(goodsData!=undefined){
-                                $(goodsData).each(function (k,v) {
-                                    var thisobj = obj;
-                                    if(add){
-                                        html = '<tr class="goods_id'+v.purchase_type_id+'">'+htmlp+'</tr>';
-                                        $(obj).after(html);
-                                        thisobj = $('.goods_id'+v.purchase_type_id);
-                                        thisobj.find('.purchase_number').val(v.purchase_number);
-                                        thisobj.find('.business_type').val(v.business_type);
-                                        thisobj.find('.times').val(v.times);
-                                        thisobj.find('.sale_money').val(v.sale_money);
-                                        thisobj.find('.write_off').val(v.write_off);
-                                        thisobj.find('.write_off_money').val(v.write_off_price);
-                                        thisobj.find('.write_off_price').val(v.write_off_price);
-                                        thisobj.find('.sale_remark').val(v.remark);
-                                        thisobj.find('.purchase_type').val(v.purchase_type_id);
-                                        thisobj.find('.purchase_numbers').val(v.purchase_numbers);
-                                        key++;
-                                    }else{
-                                        thisobj.cells[1].childNodes[0].value=v.purchase_number;
-                                        thisobj.cells[2].childNodes[0].value=v.business_type;
-                                        thisobj.cells[3].childNodes[0].value=v.times;
-                                        thisobj.cells[4].childNodes[0].value=v.sale_money;
-                                        thisobj.cells[5].childNodes[0].value=v.write_off;
-                                        thisobj.cells[6].childNodes[0].value=v.write_off_price;
-                                        thisobj.cells[7].childNodes[0].value=v.write_off_price;
-                                        thisobj.cells[8].childNodes[0].value=v.remark;
-                                        thisobj.cells[9].childNodes[0].value=v.purchase_type_id;
-                                        thisobj.cells[10].childNodes[0].value=v.purchase_numbers;
-                                        add = true;
-                                    }
-                                });
-                                changeSaleInfo();
-                            }
-                        }});
+                        appendSources(goodsData);
+                    }});
                 });
                 //核销金额变动
                 $(document).on("change", ".write_off_price", function(){
@@ -620,9 +623,43 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     }
                 });
 
+                //从销货对账「去收款」进入：客户已由服务端预选，这里自动铺源单并刷新总欠款
+                if(Config.reconId){
+                    appendSources(Config.presetSources || []);
+                    if(!Config.presetSources || !Config.presetSources.length){
+                        Toastr.warning('该对账单所含销货单已全部核销，无需再次收款');
+                    }
+                    $('#customers_id').trigger('change');
+                }
+
                 Form.api.bindevent($("form[role=form]"), function(data, ret){
+                    // 开启单据审核时，保存只是草稿：对账单的收款状态要等收款单审核后才更新，这里明确提示
+                    try {
+                        if (parseInt(Config.set.examine.is_checked) === 1) {
+                            parent.Toastr.success('收款单已保存，需到【收款单】列表点【审核】后才会核销到销货单/销货对账单', null, {timeOut: 8000});
+                        }
+                    } catch (e) {
+                    }
                     if(reloadStatus){
-                        parent.location.reload();
+                        if(window.name){
+                            //弹层内打开（收款单列表点【添加】）：parent 就是列表页，重载它即可
+                            parent.location.reload();
+                        }else{
+                            //标签页方式打开（销货对账【去收款】）：parent 是后台外壳，
+                            //parent.location.reload() 会整页重载，把所有已打开的标签全部关掉。
+                            //这里只关掉当前标签，并刷新回到的那个列表页
+                            try{
+                                var shell = parent;
+                                if(shell.Backend && shell.Backend.api && shell.Backend.api.closetabs){
+                                    shell.Backend.api.closetabs();
+                                }
+                                var prevFrame = shell.$('.tab-addtabs .tab-pane.active iframe')[0];
+                                if(prevFrame && prevFrame.contentWindow && prevFrame.contentWindow.$){
+                                    prevFrame.contentWindow.$('.btn-refresh').trigger('click');
+                                }
+                            }catch(e){
+                            }
+                        }
                     }else{
                         $('.btn-refresh').click();
                     }

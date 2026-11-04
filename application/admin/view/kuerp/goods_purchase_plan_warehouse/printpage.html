@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>{:__('Plan_detail')} - {$row.purchase_code|htmlentities}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: "Microsoft YaHei", "SimSun", Arial, sans-serif; font-size: 14px; color: #333; padding: 20px; }
+        .print-wrap { max-width: 800px; margin: 0 auto; }
+        .print-title { text-align: center; font-size: 22px; font-weight: bold; margin-bottom: 20px; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; margin-bottom: 15px; }
+        .info-grid .item { padding: 4px 0; }
+        .goods-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        .goods-table th, .goods-table td { padding: 6px 8px; border: 1px solid #666; text-align: center; }
+        .goods-table th { background: #f0f0f0; font-weight: bold; }
+        .goods-table td { text-align: center; }
+        .goods-table td.left { text-align: left; }
+        .goods-table td.right { text-align: right; }
+        .summary-row { text-align: right; margin-bottom: 15px; }
+        .summary-row span { display: inline-block; margin-left: 20px; font-size: 15px; }
+        .summary-row .bold { font-weight: bold; font-size: 16px; }
+        .footer-info { margin-top: 30px; }
+        .footer-info span { display: inline-block; margin-right: 30px; }
+        .print-time { text-align: right; color: #999; margin-top: 20px; font-size: 12px; }
+        @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+            @page { size: A4; margin: 12mm 10mm; }
+            thead { display: table-header-group; }
+            tfoot { display: table-footer-group; }
+            tr { page-break-inside: avoid; }
+            .info-grid { page-break-inside: avoid; }
+            .print-title { page-break-after: avoid; }
+        }
+        .no-print { text-align: center; margin-bottom: 20px; }
+        .no-print button { padding: 8px 30px; font-size: 16px; cursor: pointer; }
+    </style>
+{include file="kuerp/common/printstyle" /}
+</head>
+<body>
+<div class="no-print">
+    <button onclick="window.print()">🖨 {:__('Print')}</button>
+</div>
+
+<div class="print-wrap">
+    <div class="print-title">{:__('Plan_detail')}</div>
+
+    <div class="info-grid">
+        <div class="item"><strong>{:__('Purchase_code')}：</strong>{$row.purchase_code|htmlentities}</div>
+        <div class="item"><strong>{:__('Purchase_time')}：</strong>{$row.purchase_time|date='Y-m-d',###}</div>
+        <div class="item"><strong>{:__('Supplyer_code')}：</strong>{$row.supplyer_code|htmlentities} {$row.supplyer_name|htmlentities}</div>
+        <div class="item"><strong>{:__('Preparation_name')}：</strong>{$row.preparation_name|htmlentities}</div>
+        <div class="item"><strong>{:__('Examine_name')}：</strong>{$row.examine_name|htmlentities}</div>
+        <div class="item"><strong>{:__('Examine_status')}：</strong>{if condition="$row.examine_status==1"}已审核{else/}未审核{/if}</div>
+    </div>
+
+    <table class="goods-table">
+        <thead>
+            <tr>
+                <th>序号</th>
+                <th>{:__('Goods_code')}</th>
+                <th>{:__('Goods_name')}</th>
+                <th>{:__('Goods_note')}</th>
+                <th>{:__('Unit_name')}</th>
+                <th>{:__('Stores_name')}</th>
+                <th>{:__('Number')}</th>
+                <th>{:__('Remark')}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {php}$total_number = 0;{/php}
+            {foreach name="purchase_info" item="info" key="k"}
+            {php}$total_number += $info['number'];{/php}
+            <tr>
+                <td>{$k+1}</td>
+                <td>{$info.goods_code|htmlentities}</td>
+                <td class="left">{$info.goods_name|htmlentities}</td>
+                <td class="left">{$info.goods_note|htmlentities}</td>
+                <td>{$info.unit_name|htmlentities}</td>
+                <td>{$info.stores_name|htmlentities}</td>
+                <td class="right">{$info.number|htmlentities}</td>
+                <td class="left">{$info.remark|htmlentities}</td>
+            </tr>
+            {/foreach}
+            {if condition="empty($purchase_info)"}
+            <tr><td colspan="8">无明细数据</td></tr>
+            {/if}
+        </tbody>
+        <tfoot>
+            <tr>
+                <th colspan="6">合计</th>
+                <th class="right">{$total_number}</th>
+                <th></th>
+            </tr>
+        </tfoot>
+    </table>
+
+    {if condition="!empty($row['note'])"}
+    <div class="footer-info">
+        <strong>{:__('Note')}：</strong>{$row.note|htmlentities}
+    </div>
+    {/if}
+
+    <div class="print-time">
+        打印时间：{:date('Y-m-d H:i:s')} &nbsp;|&nbsp; 打印次数：{$row.print_num + 1}
+    </div>
+</div>
+
+<script>
+    // 页面加载完成后自动弹出打印
+    window.onload = function() {
+        setTimeout(function() {
+            window.print();
+        }, 500);
+    };
+</script>
+</body>
+</html>

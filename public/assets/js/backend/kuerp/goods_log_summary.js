@@ -12,7 +12,17 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     el: '#stores',
                     language: 'zn',
                     tips: '仓库',
-                    data: storesList
+                    filterable: true,
+                    searchTips: '输入关键字搜索',
+                    data: storesList,
+                    on: function (data) {
+                        //仓库/商品联动：选仓库后，商品下拉只保留该仓库下有收发记录的商品
+                        var stores_id = [];
+                        $(data.arr).each(function (k, v) {
+                            stores_id.push(v.value);
+                        });
+                        loadGoods(stores_id.join(','));
+                    }
                 });
 
                 var goodsList = Config.goodsList;
@@ -20,8 +30,31 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     el: '#goods',
                     language: 'zn',
                     tips: '商品',
+                    filterable: true,
+                    searchTips: '输入关键字搜索',
                     data: goodsList
                 });
+
+                //按仓库重新加载商品下拉（stores_id 为空=全部仓库，即全部商品）
+                var loadGoods = function (stores_id) {
+                    $.ajax({
+                        url: 'kuerp/goods_log_summary/getgoods',
+                        type: 'GET',
+                        dataType: 'json',
+                        data: {stores_id: stores_id},
+                        success: function (res) {
+                            if (res.code == 1) {
+                                goods.setValue([]);
+                                goods.update({data: res.data || []});
+                            } else {
+                                Toastr.error(res.msg || '商品加载失败');
+                            }
+                        },
+                        error: function () {
+                            Toastr.error('商品加载失败');
+                        }
+                    });
+                };
 
                 table.render({
                     elem: '#table'
@@ -32,12 +65,12 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             "msg": '', //解析提示文本
                             "count": res.total, //解析数据长度
                             "data": res.rows, //解析数据列表
-                            "countsum": res.count,
-                            "balance": res.balance
+                            "totalRowData": res.total_row //合计行（服务端按全部数据算，非当前页）
                          };
                     }
                     ,toolbar: '#thisToolbar' //开启头部工具栏，并为其绑定左侧模板
                     ,page: true
+                    ,limit: 20 //默认每页 20 条
                     ,totalRow: true
                     ,cellMinWidth: 100 //全局定义常规单元格的最小宽度，layui 2.2.1 新增
                     ,cols: [[
@@ -84,9 +117,12 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'balance_cost', title: __('成本'),totalRow:true},
                     ]],
                     done: function(res, curr, count){
+                        //合计行用服务端返回的「全部数据」合计覆盖 layui 默认的「当前页」合计
                         var obj = this.elem.next();
-                        obj.find('.layui-table-total td[data-field="balance_basics"] .layui-table-cell').text(res.countsum);
-                        obj.find('.layui-table-total td[data-field="balance_cost"] .layui-table-cell').text(res.balance);
+                        var totalRow = res.totalRowData || {};
+                        for (var field in totalRow) {
+                            obj.find('.layui-table-total td[data-field="' + field + '"] .layui-table-cell').text(totalRow[field]);
+                        }
                     }
                 });
 
@@ -152,6 +188,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 });
                 function reloadTable(){
                     table.reload('table', {
+                        //重新查询要回到第 1 页，否则筛选后页数变少会停在空页上
+                        page: {curr: 1},
                         where: {
                             filter:JSON.stringify(getSearch()),
                             op:JSON.stringify(getOp()),
@@ -184,6 +222,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 //搜索事件
                 $('#search').on('click', function () {
                     table.reload('table', {
+                        page: {curr: 1},
                         where: {
                             filter:JSON.stringify(getSearch()),
                             op:JSON.stringify(getOp()),

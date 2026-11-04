@@ -1,0 +1,57 @@
+{include file="kuerp/common/menu" /}
+<form id="step-examine-form" class="form-horizontal" role="form" data-toggle="validator" method="POST" action="">
+    <div class="panel panel-default">
+        <div class="panel-heading"><b>{$stepName}审核</b></div>
+        <div class="panel-body">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">付款申请单号:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <p class="form-control-static"><b>{$row.apply_code|htmlentities}</b></p>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">供应商:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <p class="form-control-static">{$row.supplyer_code|htmlentities} {$row.supplyer_name|htmlentities}</p>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">申请金额:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <p class="form-control-static" style="color:#ff5722;font-weight:bold;">￥{:number_format($row['total_money'], 2, '.', '')}</p>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">对账单数:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <p class="form-control-static">{$row.recon_count} 张</p>
+                </div>
+            </div>
+            {if condition="!empty($row['remark'])"}
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3">申请说明:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <p class="form-control-static">{$row.remark|htmlentities}</p>
+                </div>
+            </div>
+            {/if}
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-3"><span class="must">*</span> 审核结果:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <label class="radio-inline"><input type="radio" name="result" value="1" checked> 通过</label>
+                    <label class="radio-inline"><input type="radio" name="result" value="2"> 驳回</label>
+                </div>
+            </div>
+            <div class="form-group" id="remark-wrap" style="display:none;">
+                <label class="control-label col-xs-12 col-sm-3"><span class="must">*</span> 驳回原因:</label>
+                <div class="col-xs-12 col-sm-8">
+                    <textarea name="remark" class="form-control" rows="3" placeholder="驳回时必填"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="form-group layer-footer" style="text-align:center;">
+        <button type="submit" class="btn btn-success btn-embossed">确定</button>
+        <button type="button" class="btn btn-default btn-embossed layer-close">取消</button>
+    </div>
+</form>

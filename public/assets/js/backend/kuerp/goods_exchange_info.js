@@ -46,8 +46,6 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'stores_id', title: __('Stores_id')},
                         {field: 'allow_stock', title: __('Allow_stock'), operate:'BETWEEN'},
                         {field: 'number', title: __('Number'), operate:'BETWEEN'},
-                        {field: 'default_unit', title: __('Default_unit')},
-                        {field: 'basic_nmber', title: __('Basic_nmber')},
                         {field: 'unit_price', title: __('Unit_price'), operate:'BETWEEN'},
                         {field: 'discount', title: __('Discount'), operate:'BETWEEN'},
                         {field: 'dis_money', title: __('Dis_money'), operate:'BETWEEN'},

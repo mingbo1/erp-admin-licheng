@@ -4,6 +4,7 @@ return [
     'Customertype_id'        => '客户类别',
     'Customerlevel_id'       => '客户等级',
     'Customer_name'          => '客户名称',
+    '信用账期天数'            => '信用账期天数',
     'Saler'                  => '销售人员',
     'Connet_name'            => '联系人',
     'Customer_mobile'        => '客户手机',

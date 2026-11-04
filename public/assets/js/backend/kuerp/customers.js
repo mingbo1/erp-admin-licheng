@@ -30,13 +30,6 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                     return '';
                                 }
                             }},
-                        {field: 'customerlevel_id', title: __('Customerlevel_id'),templet: function (d) {
-                                if(d.customerlevel.name!=null){
-                                    return d.customerlevel.name;
-                                }else{
-                                    return '';
-                                }
-                            }},
                         {field: 'customer_code', title: __('客户编号'), operate: 'LIKE'},
                         {field: 'customer_name', title: __('Customer_name'), operate: 'LIKE'},
                         {field: 'saler', title: __('Saler'),templet: function (d) {
@@ -50,6 +43,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'customer_mobile', title: __('Customer_mobile'), operate: 'LIKE'},
                         {field: 'customer_phone', title: __('Customer_phone'), operate: 'LIKE'},
                         {field: 'qq_wx_email', title: __('Qq_wx_email'), operate: 'LIKE'},
+                        {field: 'credit_days', title: __('信用账期天数'), width: 110, align: 'center', templet: function (d) {
+                                var v = parseInt(d.credit_days, 10);
+                                return (v > 0) ? (v + ' 天') : '<span style="color:#ccc;">—</span>';
+                            }},
                         {field: 'need_receive_account', title: __('Need_receive_account'), operate:'BETWEEN'},
                         {field: 'getgoods_address', title: __('Getgoods_address'), operate: 'LIKE'},
                         {field: 'note', title: __('Note'), operate: 'LIKE'},
@@ -201,6 +198,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     var customer_mobile = $('#customer_mobile').val();
                     if(customer_mobile!=''){
                         search.customer_mobile = customer_mobile;
+                    }
+                    var staff_member_id = $('#staff_member_id').val();
+                    if(staff_member_id!=''){
+                        search.staff_member_id = staff_member_id;
                     }
                     return search;
                 }

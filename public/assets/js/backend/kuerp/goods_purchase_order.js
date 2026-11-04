@@ -373,6 +373,12 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     $('select').attr('disabled','true');
                     $('textarea').attr('disabled','true');
                     $('.btn').attr('disabled','true');
+                    // 导出为只读操作，已审核单据也允许（导入会替换明细，保持禁用）
+                    $('#btn-po-export').removeAttr('disabled');
+                }
+                // 服务端算好的导入拦截原因（已审核 / 已生成采购单 / 已生成退货单 / 已结账）
+                if(Config.importBlockReason){
+                    $('#btn-po-import').attr('disabled', true).attr('title', Config.importBlockReason);
                 }
 
                 initlist();
@@ -442,6 +448,242 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     }
                 }
 
+                // ===== 调用BOM：选BOM模板 → 子商品即明细商品；父商品数量自动计算子商品数量 =====
+                $(document).on("click", ".mb_bom_call", function(){
+                    parent.Fast.api.open("kuerp/goods_bom/chosebom", "选择BOM模板", { area: ['90%', '75%'], callback: function(goodsData){
+                        if(goodsData == undefined || goodsData.length < 1){ return; }
+                        $.ajax({
+                            url: "kuerp/goods_bom/getbomdetail",
+                            type: "POST",
+                            data: { 'id': goodsData[0].id },
+                            success: function(res){
+                                if(res.code != 1){ Toastr.error(res.msg); return; }
+                                var parentInfo = res.data.parent || {};
+                                var children = res.data.children || [];
+                                if(children.length < 1){ Toastr.error('该BOM模板没有子商品'); return; }
+
+                                var set = Config.set;
+                                var number_decimal = parseInt(set.number_decimal.value);
+                                if(isNaN(number_decimal)){ number_decimal = 1; }
+
+                                var parentNumber = parseFloat($('.bom_parent_number').val());
+                                if(isNaN(parentNumber) || parentNumber <= 0){
+                                    parentNumber = 1;
+                                }
+
+                                // 先清理空行与上一次BOM生成的行（已手工录入的其它商品行保留）
+                                var lawtable = document.getElementById("goods_table");
+                                var rows = lawtable.rows;
+                                for(var i = rows.length - 1; i >= 2; i--){
+                                    var oldRow = $(rows[i]);
+                                    if(oldRow.attr('data-bom-ratio') !== undefined || !oldRow.find('.goods_code').val()){
+                                        oldRow.remove();
+                                    }
+                                }
+
+                                // 以隐藏模板行克隆生成子商品行
+                                var templateHtml = rows[1].innerHTML;
+                                var parentStore = parentInfo.manager_warehouse_id > 0 ? parentInfo.manager_warehouse_id : '';
+                                $(children).each(function(k, v){
+                                    var newRow = $('<tr>' + templateHtml + '</tr>');
+                                    $('#goods_table').append(newRow);
+                                    var ratio = parseFloat(v.number) || 0;
+                                    newRow.find('.goods_code').val(v.goods_code);
+                                    newRow.find('.goods_name').val(v.goods_code + ' ' + (v.goods_name || ''));
+                                    newRow.attr('data-bom-ratio', ratio);
+                                    var childStore = v.manager_warehouse_id > 0 ? v.manager_warehouse_id : parentStore;
+                                    changeGoods(v.goods_code, childStore, '', newRow, v.unit_id > 0 ? v.unit_id : '', ratio * parentNumber);
+                                });
+                                changeWidth();
+
+                                $('.bom_title').text(res.data.bom ? res.data.bom.bom_name : '');
+                                $('.bom_parent').text((parentInfo.goods_code || '') + ' ' + (parentInfo.parent_name || ''));
+                                $('.bom_parent_number').val(parentNumber);
+                                $('.bom_bar').show();
+                            }
+                        });
+                    }});
+                });
+
+                // 父商品数量变化 → 子商品数量按BOM比例自动重算
+                $(document).on("input change", ".bom_parent_number", function(){
+                    var set = Config.set;
+                    var number_decimal = parseInt(set.number_decimal.value);
+                    if(isNaN(number_decimal)){ number_decimal = 1; }
+                    var parentNumber = parseFloat($(this).val());
+                    if(isNaN(parentNumber) || parentNumber < 0){ parentNumber = 0; }
+                    $('#goods_table tr[data-bom-ratio]').each(function(){
+                        var ratio = parseFloat($(this).attr('data-bom-ratio'));
+                        if(isNaN(ratio)){ return; }
+                        $(this).find('.number').val((ratio * parentNumber).toFixed(number_decimal));
+                        changeGoodsInfo($(this), 'number');
+                    });
+                });
+
+                // 清除BOM生成的明细行
+                $(document).on("click", ".bom_clear", function(){
+                    $('#goods_table tr[data-bom-ratio]').remove();
+                    $('.bom_bar').hide();
+                    $('.bom_title, .bom_parent').text('');
+                    $('.bom_parent_number').val(1);
+                    // 清除后若已无商品行，补一行空白行方便手工录入
+                    var dataRows = 0;
+                    $('#goods_table tr').each(function(){
+                        if(!$(this).hasClass('goods_id0') && $(this).find('.goods_code').length){ dataRows++; }
+                    });
+                    if(dataRows === 0){
+                        var rows = document.getElementById('goods_table').rows;
+                        $('#goods_table').append('<tr>' + rows[1].innerHTML + '</tr>');
+                    }
+                    changeInfo();
+                });
+
+                // ===== 明细 Excel 导出 / 导入（导出与导入共用同一份模板） =====
+                // 收集当前明细行（跳过表头行、隐藏模板行、供应商分组标题行、空行）
+                function collectPoRows(){
+                    var rows = [];
+                    var tableRows = document.getElementById('goods_table').rows;
+                    for(var i = 2; i < tableRows.length; i++){
+                        var tr = $(tableRows[i]);
+                        if(tr.hasClass('supplier-group-header')){ continue; }
+                        var goodsCode = tr.find('.goods_code').val();
+                        if(!goodsCode){ continue; }
+                        rows.push({
+                            goods_code: goodsCode,
+                            unit_name: tr.find('.goods_unit option:selected').text().trim(),
+                            store_name: tr.find('.stores_id option:selected').text().trim(),
+                            supplier_label: tr.find('.row-supplyer_code option:selected').text().trim(),
+                            number: tr.find('.number').val(),
+                            unit_price: tr.find('.unit_price').val(),
+                            discount: tr.find('.discount').val(),
+                            tax_rate: tr.find('.tax_rate').val(),
+                            remark: tr.find('.remark').val()
+                        });
+                    }
+                    return rows;
+                }
+
+                // 导出：ajax 拿不到二进制流，必须走隐藏 form POST（target 指向隐藏 iframe）
+                $(document).on("click", "#btn-po-export", function(){
+                    var rows = collectPoRows();
+                    if($('#po-export-frame').length === 0){
+                        $('<iframe id="po-export-frame" name="po-export-frame" style="display:none;"></iframe>').appendTo('body');
+                    }
+                    var $form = $('<form method="POST" style="display:none;"></form>')
+                        .attr('action', Fast.api.fixurl('kuerp/goods_purchase_order/export'))
+                        .attr('target', 'po-export-frame');
+                    $form.append($('<input type="hidden" name="rows">').val(JSON.stringify(rows)));
+                    $form.append($('<input type="hidden" name="purchase_code">').val($('#c-purchase_code').val() || ''));
+                    $form.appendTo('body');
+                    $form[0].submit();
+                    setTimeout(function(){ $form.remove(); }, 3000);
+                });
+
+                // 导入：选择文件 → 一次请求解析（不写库）→ 替换页面明细行
+                $(document).on("click", "#btn-po-import", function(){
+                    if($(this).attr('disabled')){ return; }
+                    $('#po-import-file').val('').trigger('click');
+                });
+                $(document).on("change", "#po-import-file", function(){
+                    var file = this.files && this.files[0];
+                    if(!file){ return; }
+                    var $btn = $('#btn-po-import');
+                    var wasDisabled = $btn.attr('disabled') ? true : false;
+                    $btn.attr('disabled', true);
+                    var restoreBtn = function(){
+                        $('#po-import-file').val('');
+                        if(wasDisabled){ $btn.attr('disabled', true); }else{ $btn.removeAttr('disabled'); }
+                    };
+                    var fd = new FormData();
+                    fd.append('file', file);
+                    $.ajax({
+                        url: 'kuerp/goods_purchase_order/parseimport',
+                        type: 'POST',
+                        data: fd,
+                        processData: false,
+                        contentType: false,
+                        success: function(res){
+                            restoreBtn();
+                            if(!res || res.code != 1){
+                                Toastr.error((res && res.msg) ? res.msg : '导入解析失败');
+                                return;
+                            }
+                            var rows = (res.data && res.data.rows) ? res.data.rows : [];
+                            if(!rows.length){ Toastr.error('未读取到有效的明细行'); return; }
+                            var doApply = function(){
+                                applyImportedRows(rows);
+                                if(res.data.warnings && res.data.warnings.length){
+                                    Toastr.warning(res.data.warnings.join('；'), '导入提示');
+                                }else{
+                                    Toastr.success('已导入 ' + rows.length + ' 行明细');
+                                }
+                            };
+                            var hasData = false;
+                            var tableRows = document.getElementById('goods_table').rows;
+                            for(var i = 2; i < tableRows.length; i++){
+                                if($(tableRows[i]).find('.goods_code').val()){ hasData = true; break; }
+                            }
+                            if(hasData){
+                                Layer.confirm('导入会替换当前全部明细行（包括手工录入的商品），是否继续？', {icon: 3, title: '导入确认'}, function(index){
+                                    Layer.close(index);
+                                    doApply();
+                                });
+                            }else{
+                                doApply();
+                            }
+                        },
+                        error: function(){
+                            restoreBtn();
+                            Toastr.error('导入失败，请检查文件或网络后重试');
+                        }
+                    });
+                });
+
+                // 把导入解析出的行填进明细表格（替换除表头、模板行外的全部行）
+                function applyImportedRows(rows){
+                    var lawtable = document.getElementById('goods_table');
+                    var tableRows = lawtable.rows;
+
+                    // 页面上不可手工填写的只读字段，替换后按商品编号回填（否则「导出→导入」往返会丢失）
+                    var keepByGoods = {};
+                    for(var i = 2; i < tableRows.length; i++){
+                        var oldTr = $(tableRows[i]);
+                        if(oldTr.hasClass('supplier-group-header')){ continue; }
+                        var oldCode = oldTr.find('.goods_code').val();
+                        if(!oldCode || keepByGoods[oldCode]){ continue; }
+                        keepByGoods[oldCode] = {
+                            sales_order_id: oldTr.find('[name="row[sales_order_id][]"]').val() || '',
+                            goods_note: oldTr.find('.goods_note').val() || ''
+                        };
+                    }
+
+                    // 保留第 0 行（表头）与第 1 行（隐藏模板行），其余整体移除
+                    for(var i = tableRows.length - 1; i >= 2; i--){ $(tableRows[i]).remove(); }
+
+                    var templateHtml = tableRows[1].innerHTML;
+                    $(rows).each(function(k, v){
+                        var tr = $('<tr>' + templateHtml + '</tr>');
+                        $('#goods_table').append(tr);
+                        tr.find('.goods_code').val(v.goods_code);
+                        tr.find('.goods_name').val(v.goods_code + ' ' + (v.goods_name || ''));
+                        tr.find('.remark').val(v.remark || '');
+                        if(v.stores_id){ tr.find('.stores_id').val(v.stores_id); }
+                        if(v.supplyer_code){ tr.find('.row-supplyer_code').val(v.supplyer_code); }
+                        var keep = keepByGoods[v.goods_code];
+                        if(keep){
+                            tr.find('[name="row[sales_order_id][]"]').val(keep.sales_order_id);
+                            tr.find('.goods_note').val(keep.goods_note);
+                        }
+                        changeGoods(v.goods_code, v.stores_id ? v.stores_id : '', '', tr, v.goods_unit ? v.goods_unit : '', v.number, '', {
+                            unit_price: v.unit_price,
+                            discount: v.discount,
+                            tax_rate: v.tax_rate
+                        });
+                    });
+                    changeWidth();
+                    changeInfo();
+                }
+
                 //数量格式化
                 $(document).on("change", ".number_decimal", function(){
                     var set = Config.set;
@@ -474,7 +716,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 });
 
                 //初始获取商品信息
-                function formatInfo(obj,number,stock,name,id,basic_nmber,purchase,tax_included,tax_rate,discount,thisobj='') {
+                function formatInfo(obj,number,stock,name,id,basic_nmber,purchase,tax_included,tax_rate,discount,thisobj='',now_field='') {
                     $.ajax( {
                         url: "kuerp/goods_purchase/formatInfo",
                         type: "POST",
@@ -497,7 +739,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 }
                             });
                             if(thisobj!=''){
-                                changeGoodsInfo(thisobj,'tax_included')
+                                // now_field 为空时保持原有行为（按含税单价回算）
+                                changeGoodsInfo(thisobj, now_field !== '' ? now_field : 'tax_included')
                             }else{
                                 changeInfo();
                             }
@@ -505,7 +748,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     });
                 }
                 var goods;
-                function changeGoods(goods_code,store,attr,obj,goods_unit,number,buy_price='') {
+                function changeGoods(goods_code,store,attr,obj,goods_unit,number,buy_price='',opts) {
+                    // opts（可选）：{unit_price, discount, tax_rate}，供 Excel 导入时按导入值定价；
+                    // 不传时行为与改动前完全一致
+                    opts = opts || {};
                     var set = Config.set;
                     var number_decimal = parseInt(set.number_decimal.value);
                     if(isNaN(number_decimal)){
@@ -572,6 +818,23 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             }
                             unit = res.unit;
                             var unit_html = '';
+                            // 统一的定价入口：
+                            // - 传了 opts.unit_price（Excel 导入）→ 以「不含税单价」为准回算，formatInfo2 用 now_field=unit_price
+                            // - 否则保持原逻辑（buy_price 含税单价优先，其次商品默认价）
+                            var doFormatInfo = function(v){
+                                var rowNumber = obj.find('.number').val();
+                                var discount  = 0;
+                                var hasOptPrice = (opts.unit_price !== undefined && opts.unit_price !== null && opts.unit_price !== '');
+                                if(hasOptPrice){
+                                    var optTaxRate  = (opts.tax_rate  !== undefined && opts.tax_rate  !== null && opts.tax_rate  !== '') ? opts.tax_rate  : v.tax_rate;
+                                    var optDiscount = (opts.discount  !== undefined && opts.discount  !== null && opts.discount  !== '') ? opts.discount  : 0;
+                                    formatInfo(obj,rowNumber,v.stock,v.name,v.id,v.basic_nmber,opts.unit_price,v.tax_included,optTaxRate,optDiscount,obj,'unit_price');
+                                }else if(buy_price!=''){
+                                    formatInfo(obj,rowNumber,v.stock,v.name,v.id,v.basic_nmber,v.purchase,buy_price,v.tax_rate,discount,obj);
+                                }else{
+                                    formatInfo(obj,rowNumber,v.stock,v.name,v.id,v.basic_nmber,v.purchase,v.tax_included,v.tax_rate,discount);
+                                }
+                            };
                             $(unit).each(function (k,v) {
                                 unit_html += '<option value="'+v.id+'">'+v.name+'</option>';
                                 var number = obj.find('.number').val();
@@ -583,17 +846,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 if(v.is_default==1 && goods_unit==''){
                                     obj.find('.default_unit').val(v.name);
                                     obj.find('.default_unit_id').val(v.id);
-                                    if(buy_price!=''){
-                                        formatInfo(obj,number,v.stock,v.name,v.id,v.basic_nmber,v.purchase,buy_price,v.tax_rate,discount,obj);
-                                    }else{
-                                        formatInfo(obj,number,v.stock,v.name,v.id,v.basic_nmber,v.purchase,v.tax_included,v.tax_rate,discount);
-                                    }
+                                    doFormatInfo(v);
                                 }else if(goods_unit!='' && v.id==goods_unit){
-                                    if(buy_price!=''){
-                                        formatInfo(obj,number,v.stock,v.name,v.id,v.basic_nmber,v.purchase,buy_price,v.tax_rate,discount,obj);
-                                    }else{
-                                        formatInfo(obj,number,v.stock,v.name,v.id,v.basic_nmber,v.purchase,v.tax_included,v.tax_rate,discount);
-                                    }
+                                    doFormatInfo(v);
                                 }
                             });
                             obj.find('.goods_unit').html(unit_html);
@@ -978,6 +1233,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 // 数量
                 $(document).on("change", ".number", function(){
                     var obj = $(this).parents('tr');
+                    // 手动修改过数量的行解除BOM联动（再改父商品数量不会覆盖该行）
+                    obj.removeAttr('data-bom-ratio');
                     changeGoodsInfo(obj,'number')
                 });
                 // 含税单价
@@ -1304,7 +1561,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             }
                     }});
                 });
-                //查看原始单据
+                //查看原始单据：图片用相册预览，PDF/Excel/Word 等文件用链接打开
                 $(document).on("click", ".voucherAttachment", function(){
                     var id = $('#c-enclosure').val();
                     $.ajax( {
@@ -1314,11 +1571,35 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             'searchIds':id,
                         },
                         success: function(res){
-                            layer.photos({
-                                photos: res.rows
-                                ,anim: 5 //0-6的选择，指定弹出图片动画类型，默认随机（请注意，3.0之前的版本用shift参数）
+                            var rows = (res.rows && res.rows.data) ? res.rows.data : [];
+                            var images = [], files = [];
+                            $(rows).each(function (k, v) {
+                                if (v.is_image == 1) {
+                                    images.push({src: v.src});
+                                } else {
+                                    files.push(v);
+                                }
                             });
-                            console.log(res);
+                            if (images.length > 0) {
+                                layer.photos({
+                                    photos: {data: images}
+                                    ,anim: 5 //0-6的选择，指定弹出图片动画类型，默认随机（请注意，3.0之前的版本用shift参数）
+                                });
+                            }
+                            if (files.length > 0) {
+                                var html = '<div style="padding:12px 16px;">';
+                                $(files).each(function (k, v) {
+                                    html += '<p style="margin-bottom:8px;"><a href="' + v.url + '" target="_blank"><i class="fa fa-file-o"></i> ' + v.name + '</a></p>';
+                                });
+                                html += '</div>';
+                                layer.open({
+                                    type: 1,
+                                    title: '原始单据文件',
+                                    area: ['420px', 'auto'],
+                                    shadeClose: true,
+                                    content: html
+                                });
+                            }
                         }
                     });
                 });

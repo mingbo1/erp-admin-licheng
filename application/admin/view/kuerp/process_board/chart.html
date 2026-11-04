@@ -143,7 +143,7 @@
             statuses.push((parseFloat(r.first_pass_qty) || 0) >= (parseFloat(r.target) || 0) ? 'OK' : 'NG');
         }
         var chart = echarts.init(el);
-        var okColor = new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: '#3ef2d0' }, { offset: 1, color: '#0e8fb8' }]);
+        var okColor = new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: '#A8E06A' }, { offset: 1, color: '#5D9C28' }]);
         var ngColor = new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: '#ff7a6e' }, { offset: 1, color: '#c0392b' }]);
         var actualData = [];
         for (var j = 0; j < actuals.length; j++) {

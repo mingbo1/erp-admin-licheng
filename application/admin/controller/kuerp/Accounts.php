@@ -200,7 +200,7 @@ class Accounts extends Backend
 
             foreach ($list as $k => $v) {
                 $arr = [
-                    'kuerp_goods_purchase' => '购货单',
+                    'kuerp_goods_purchase' => '采购单',
                     'kuerp_goods_exchange' => '购货退货单',
                     'kuerp_goods_sales' => '销货单',
                     'kuerp_goods_sales_exchange' => '销货退货单',

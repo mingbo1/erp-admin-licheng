@@ -60,6 +60,18 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 }
                             });
                         }
+                        // 主表行可能因单元格换行（对账状态带单号、备注多行）而高于固定列默认行高，
+                        // 逐行把主表行高同步到右侧固定列，否则操作列会逐行上漂
+                        $(".layui-table-main tr").each(function (index, val) {
+                            $(".layui-table-fixed").each(function () {
+                                $($(this).find(".layui-table-body tbody tr")[index]).height($(val).height());
+                            });
+                        });
+                        $(".layui-table-header tr").each(function (index, val) {
+                            $(".layui-table-fixed").each(function () {
+                                $($(this).find(".layui-table-header thead tr")[index]).height($(val).height());
+                            });
+                        });
                     }
                     ,cols: [[
                         {checkbox: true},
@@ -71,6 +83,12 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 return d.customers.customer_name;
                             }},
                         {field: 'purchase_order_id', title: __('销货订单号'), operate: 'LIKE'},
+                        {field: 'delivery_mode', title: __('Delivery_mode'), width: 90, templet: function (d) {
+                                if(d.delivery_mode=='dropship'){
+                                    return '<span style="color:#ff5722">'+__('Delivery_mode dropship')+'</span>';
+                                }
+                                return __('Delivery_mode direct');
+                            }},
                         {field: 'returns_order_id', title: __('Returns_order_id'), operate: 'LIKE'},
                         {field: 'number', title: __('Number'),templet: function (d) {
                                 return (d.number).toFixed(number_decimal);
@@ -113,6 +131,16 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 if(d.check_status==1){
                                     return __('Check_status 1');
                                 }
+                            }},
+                        {field: 'recon_status', title: '对账状态', width: 110, templet: function (d) {
+                                var text = d.recon_status_text || '未对账';
+                                var color = d.recon_status == 2 ? '#5fb878' : (d.recon_status == 1 ? '#1E9FFF' : '#999');
+                                return '<span style="color:' + color + '">' + text + '</span>' + (d.recon_code ? '<br><span style="color:#999;font-size:11px">' + d.recon_code + '</span>' : '');
+                            }},
+                        {field: 'invoice_status', title: '开票状态', width: 90, templet: function (d) {
+                                if (d.invoice_status == 2) return '<span style="color:#5fb878">已开票</span>';
+                                if (d.invoice_status == 1) return '<span style="color:#ffb800">部分开票</span>';
+                                return '<span style="color:#999">未开票</span>';
                             }},
                         {field: 'pay_money', title: __('Pay_money'),templet: function (d) {
                                 return (d.pay_money).toFixed(price_decimal);
@@ -398,7 +426,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             }
                         }});
                 });
-                //查看原始单据
+                //查看原始单据：图片用相册预览，PDF/Excel/Word 等文件用链接打开
                 $(document).on("click", ".voucherAttachment", function(){
                     var id = $('#c-enclosure').val();
                     $.ajax( {
@@ -408,11 +436,35 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             'searchIds':id,
                         },
                         success: function(res){
-                            layer.photos({
-                                photos: res.rows
-                                ,anim: 5 //0-6的选择，指定弹出图片动画类型，默认随机（请注意，3.0之前的版本用shift参数）
+                            var rows = (res.rows && res.rows.data) ? res.rows.data : [];
+                            var images = [], files = [];
+                            $(rows).each(function (k, v) {
+                                if (v.is_image == 1) {
+                                    images.push({src: v.src});
+                                } else {
+                                    files.push(v);
+                                }
                             });
-                            console.log(res);
+                            if (images.length > 0) {
+                                layer.photos({
+                                    photos: {data: images}
+                                    ,anim: 5 //0-6的选择，指定弹出图片动画类型，默认随机（请注意，3.0之前的版本用shift参数）
+                                });
+                            }
+                            if (files.length > 0) {
+                                var html = '<div style="padding:12px 16px;">';
+                                $(files).each(function (k, v) {
+                                    html += '<p style="margin-bottom:8px;"><a href="' + v.url + '" target="_blank"><i class="fa fa-file-o"></i> ' + v.name + '</a></p>';
+                                });
+                                html += '</div>';
+                                layer.open({
+                                    type: 1,
+                                    title: '原始单据文件',
+                                    area: ['420px', 'auto'],
+                                    shadeClose: true,
+                                    content: html
+                                });
+                            }
                         }
                     });
                 });

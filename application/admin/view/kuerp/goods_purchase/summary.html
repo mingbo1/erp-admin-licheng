@@ -4,8 +4,10 @@
 {/if}
 <style>
     .summary-wrap { padding: 20px; background: #fff; }
+    .summary-head { overflow: hidden; margin-bottom: 18px; }
     .summary-title { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
-    .summary-subtitle { font-size: 13px; color: #909399; margin-bottom: 18px; }
+    .summary-subtitle { font-size: 13px; color: #909399; }
+    .summary-export { float: right; margin-top: 6px; }
     .summary-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .summary-table th, .summary-table td { padding: 8px 10px; border: 1px solid #e4e7ed; text-align: center; white-space: nowrap; }
     .summary-table th { background: #f5f7fa; font-weight: 600; color: #303133; }
@@ -17,24 +19,33 @@
 </style>
 
 <div class="summary-wrap">
-    <div class="summary-title"><i class="fa fa-list"></i> 采购汇总</div>
-    <div class="summary-subtitle">已选择采购单，按商品+仓库汇总</div>
+    <div class="summary-head">
+        <button type="button" class="btn btn-success summary-export" onclick="exportSummary()"><i class="fa fa-download"></i> 导出Excel</button>
+        <div class="summary-title"><i class="fa fa-list"></i> 采购汇总</div>
+        <div class="summary-subtitle">已选择采购单，按 单号+商品+属性 汇总</div>
+    </div>
+
+    <form id="summary-export-form" method="post" action="{:url('kuerp/goods_purchase/export')}" style="display:none;">
+        <input type="hidden" name="ids" value="{$ids|default=''}">
+    </form>
 
     <table class="table table-bordered table-hover summary-table">
         <thead>
             <tr>
+                <th>序号</th>
+                <th>日期</th>
+                <th>单号</th>
+                <th>供应商名称</th>
                 <th>供应商类别</th>
                 <th>商品编号</th>
                 <th>商品名称</th>
-                <th class="goods_attr_sd">型号</th>
-                <th>仓库</th>
-                <th>单位换算</th>
-                <th>副单位数</th>
+                <th>型号</th>
+                <th>规格2/厂商</th>
+                <th>规格3/封装</th>
+                <th class="goods_attr_sd">属性</th>
                 <th>计量单位</th>
-                <th>基本单位数量</th>
                 <th>单价</th>
                 <th>购货金额</th>
-                <th>采购费用</th>
                 {if $taxes == 1}
                 <th>税额</th>
                 <th>价税合计</th>
@@ -44,22 +55,20 @@
         <tbody>
             {foreach name="list" item="row"}
             <tr>
+                <td>{$row.seq}</td>
+                <td>{$row.purchase_date|default=''}</td>
+                <td>{$row.purchase_code|default=''}</td>
+                <td class="left">{$row.supplyer_name|default=''}</td>
                 <td class="left">{$row.supplier_type_name|default=''}</td>
                 <td>{$row.goods_code}</td>
                 <td class="left">{$row.goods_name|default=''}</td>
-                <td class="goods_attr_sd">{if !empty($row.attr_name)}{$row.attr_name}{else}{$row.goods_specification_id|default=''}{/if}</td>
-                <td>{$row.s_name|default=''}</td>
-                <td>
-                    {if !empty($row.unit_conversion)}
-                    1{$row.u_name}={$row.unit_conversion}{$row.u_name}
-                    {/if}
-                </td>
-                <td>{$row.basic_nmber_display|default=''}</td>
+                <td>{$row.goods_specification_id|default=''}</td>
+                <td>{$row.vendor_name|default=''}</td>
+                <td>{$row.packaging|default=''}</td>
+                <td class="goods_attr_sd">{$row.attr_name|default=''}</td>
                 <td>{$row.u_name|default=''}</td>
-                <td class="right">{:round((float)$row.i_number, (int)$number_decimal)}</td>
                 <td class="right">{:round((float)$row.unit_price, (int)$price_decimal)}</td>
                 <td class="right">{:round((float)$row.all_money, (int)$price_decimal)}</td>
-                <td class="right">{:round((float)$row.purchase_money, (int)$price_decimal)}</td>
                 {if $taxes == 1}
                 <td class="right">{:round((float)$row.tax_money, (int)$price_decimal)}</td>
                 <td class="right">{:round((float)$row.money_tax_price, (int)$price_decimal)}</td>
@@ -69,11 +78,10 @@
         </tbody>
         <tfoot>
             <tr class="total-row">
-                <td colspan="8">合计</td>
-                <td class="right">{:round((float)$totals.i_number, (int)$number_decimal)}</td>
+                {// 属性列 goods_attr_sd 被 display:none 隐藏后不再占表格列位，colspan 必须同步减 1，否则合计数字整体右移一列 }
+                <td colspan="{if condition="isset($set['auxiliary']['is_checked']) && $set['auxiliary']['is_checked']==1"}12{else/}11{/if}">合计</td>
                 <td class="right">{:round((float)$totals.unit_price, (int)$price_decimal)}</td>
                 <td class="right">{:round((float)$totals.all_money, (int)$price_decimal)}</td>
-                <td class="right">{:round((float)$totals.purchase_money, (int)$price_decimal)}</td>
                 {if $taxes == 1}
                 <td class="right">{:round((float)$totals.tax_money, (int)$price_decimal)}</td>
                 <td class="right">{:round((float)$totals.money_tax_price, (int)$price_decimal)}</td>
@@ -82,3 +90,15 @@
         </tfoot>
     </table>
 </div>
+
+<script>
+    // form提交才能触发文件下载（ajax拿不到二进制流）；本页无 jQuery，用原生写法
+    function exportSummary() {
+        var form = document.getElementById('summary-export-form');
+        if (!form || !form.ids.value) {
+            alert('没有可导出的数据');
+            return;
+        }
+        form.submit();
+    }
+</script>

@@ -42,6 +42,12 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'purchase_time', title: __('Purchase_time'),templet: function (d) {
                                 return layui.util.toDateString(d.purchase_time*1000,"yyyy-MM-dd");
                             },width:110},
+                        {field: 'delivery_time', title: __('Delivery_time'),width:110,templet: function (d) {
+                                if (d.delivery_time) {
+                                    return layui.util.toDateString(d.delivery_time*1000,"yyyy-MM-dd");
+                                }
+                                return '<span style="color:#ccc">—</span>';
+                            }},
                         {field: 'purchase_code', title: __('Purchase_code'),width:150, operate: 'LIKE'},
                         {field: 'supplyer_code', title: __('Supplyer_code'),templet: function (d) {
                                 if(d.suppliers){
@@ -80,6 +86,18 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             if(d.check_status==1){
                                 return __('Check_status 1');
                             }
+                        }},
+                        {field: 'storage_status', title: __('Storage_status'),templet: function (d) {
+                            if(d.storage_status===''||d.storage_status===null||d.storage_status===undefined){
+                                return '<span style="color:#ccc">—</span>';
+                            }
+                            if(d.storage_status==2){
+                                return '<span style="color:#5fb878">'+__('Storage_status 2')+'</span>';
+                            }
+                            if(d.storage_status==1){
+                                return '<span style="color:#ffb800">'+__('Storage_status 1')+'</span>';
+                            }
+                            return '<span style="color:#999">'+__('Storage_status 0')+'</span>';
                         }},
                         {field: 'note', title: __('Note')},
                         {fixed: 'right', title:__('Operate'), toolbar: '#barDemoStorage', width:180}
@@ -191,6 +209,79 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
         },
         add: function () { Controller.api.bindevent(); },
         edit: function () { Controller.api.bindevent(false); },
+        // 入库弹窗里「选择原始单据」的候选列表（供「本次入库关联原始单据」使用）
+        enclosurepicker: function () {
+            layui.use(['table'], function () {
+                var table = layui.table;
+                var iconUrl = Fast.api.fixurl('ajax/icon');
+
+                function esc(s) {
+                    return String(s == null ? '' : s)
+                        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                }
+
+                table.render({
+                    elem: '#choseTable'
+                    ,url: 'kuerp/goods_purchase_storage/enclosurelist'
+                    ,parseData: function (res) {
+                        return {
+                            "code": 0,
+                            "msg": '',
+                            "count": res.total,
+                            "data": res.rows
+                        };
+                    }
+                    ,toolbar: '#btnToolbar'
+                    ,page: true
+                    ,cellMinWidth: 100
+                    ,cols: [[
+                        {checkbox: true},
+                        {field: 'name', title: '文件名称', templet: function (d) {
+                            return "<span title='" + esc(d.name) + "'>" + esc(d.name) + "</span>";
+                        }},
+                        {field: 'url', title: '原始单据', templet: function (d) {
+                            if (!d.url) return '';
+                            var url = esc(d.url);
+                            var suffix = esc((d.file_suffix || '').toLowerCase());
+                            if (parseInt(d.is_image, 10) === 1) {
+                                return '<a href="' + url + '" target="_blank"><img src="' + url + '" style="max-height:36px;"></a>';
+                            }
+                            return '<a href="' + url + '" target="_blank"><img src="' + iconUrl + '?suffix=' + suffix +
+                                '"><span style="margin-left:4px;">' + suffix.toUpperCase() + '</span></a>';
+                        }},
+                        {field: 'upload_date', title: '上传日期'}
+                    ]]
+                });
+
+                table.on('toolbar(table)', function (obj) {
+                    if (obj.event !== 'sure') return;
+                    var data = table.checkStatus(obj.config.id).data;
+                    var ids = [];
+                    $(data).each(function (k, v) {
+                        ids.push(v.id);
+                    });
+                    if (!ids.length) {
+                        Toastr.warning('请选择原始单据');
+                        return;
+                    }
+                    Fast.api.close(ids);
+                });
+
+                $(document).on('click', '#cancel', function () {
+                    Fast.api.close();
+                });
+
+                // 按文件名称搜索
+                $('#search').on('click', function () {
+                    table.reload('choseTable', {
+                        where: {name: $.trim($('#name').val())}
+                        ,page: {curr: 1}
+                    });
+                });
+            });
+            Controller.api.bindevent();
+        },
         api: {
             bindevent: function () {
                 // 采购单入库主要用于查看/审核/对单，无需表单绑定逻辑

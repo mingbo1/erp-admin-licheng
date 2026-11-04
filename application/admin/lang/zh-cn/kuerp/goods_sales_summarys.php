@@ -6,7 +6,7 @@ return [
     'Purchase_type 1'    => '销售',
     'Purchase_type 2'    => '退货',
     'Purchase_time'      => '单据日期',
-    'Delivery_time'      => '交货时间',
+    'Delivery_time'      => '交货日期',
     'Supplyer_code'      => '供应商编号',
     'Goods_code'         => '商品编号',
     'Goods_note'         => '商品备注',

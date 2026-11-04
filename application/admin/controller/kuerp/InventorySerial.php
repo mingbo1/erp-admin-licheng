@@ -408,7 +408,7 @@ class InventorySerial extends Backend
      * @param string goods_code 商品编号
      * @param string stores_id 仓库ID
      * @param string attribute_id 属性id
-     * @param string purchase_code 购货单单号
+     * @param string purchase_code 采购单单号
      * @return array
      */
     public function getSerial(){

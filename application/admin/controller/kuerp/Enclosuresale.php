@@ -56,14 +56,17 @@ class Enclosuresale extends Backend
                 ->order($sort, $order)
                 ->paginate($limit);
             foreach ($list as $list_k=>$list_v){
-                $list_v->image = $list_v->image ? cdnurl($list_v->image, true) : '';
+                \app\admin\model\kuerp\Enclosure::fillFileInfo($list_v);
             }
             $result = array("total" => $list->total(), "rows" => $list->items());
             if(isset($data['searchIds']) && !empty($data['searchIds'])){
-                $lists = [];
+                $lists = ['data'=>[]];
                 foreach ($list->items() as $lists_k=>$lists_v){
                     $lists['data'][] = [
-                        'src' => $lists_v['image'],
+                        'src'      => $lists_v['image'],
+                        'url'      => $lists_v['url'],
+                        'name'     => $lists_v['name'],
+                        'is_image' => $lists_v['is_image'],
                     ];
                 }
                 $result['rows'] = $lists;
@@ -86,6 +89,12 @@ class Enclosuresale extends Backend
                 $params = $this->preExcludeFields($params);
                 $params['type'] = 2;
                 $params['upload_date'] = date('Y-m-d');
+                if (empty($params['image'])) {
+                    $this->error('请上传原始单据文件');
+                }
+                if (empty($params['name'])) {
+                    $this->error('请填写文件名称');
+                }
                 if ($this->dataLimit && $this->dataLimitFieldAutoFill) {
                     $params[$this->dataLimitField] = $this->auth->id;
                 }
@@ -142,6 +151,12 @@ class Enclosuresale extends Backend
                 $params = $this->preExcludeFields($params);
                 $params['type'] = 2;
                 $params['upload_date'] = date('Y-m-d');
+                if (empty($params['image'])) {
+                    $this->error('请上传原始单据文件');
+                }
+                if (empty($params['name'])) {
+                    $this->error('请填写文件名称');
+                }
                 $result = false;
                 Db::startTrans();
                 try {

@@ -1,0 +1,244 @@
+{include file="kuerp/common/menu" /}
+<div id="apply-detail" style="display:none;" data-apply-id="{$row.id}"></div>
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <b>付款申请 {$row.apply_code|htmlentities}</b>
+        <span style="margin-left:10px;font-weight:bold;color:{if condition="$row.status == '5'"}#5fb878{elseif condition="$row.status == '6'"/}#ff5722{elseif condition="$row.status == '0'"/}#999{else/}#1E9FFF{/if};">
+            {$row.status_text}
+        </span>
+        <div style="float:right;">
+            {if condition="($row.status == '0' || $row.status == '6') && $auth->check($nowmenu.'/submit')==1"}
+            <button type="button" class="btn btn-success btn-sm" id="btn-submit">提交审核</button>
+            {/if}
+            {if condition="$row.status == '1' && $auth->check($nowmenu.'/financeexamine')==1"}
+            <button type="button" class="btn btn-warning btn-sm" id="btn-finance">财务审核</button>
+            {/if}
+            {if condition="$row.status == '2' && $auth->check($nowmenu.'/auditexamine')==1"}
+            <button type="button" class="btn btn-warning btn-sm" id="btn-audit">审计审核</button>
+            {/if}
+            {if condition="$row.status == '3' && $auth->check($nowmenu.'/leaderexamine')==1"}
+            <button type="button" class="btn btn-warning btn-sm" id="btn-leader">领导审核</button>
+            {/if}
+            {if condition="$row.status == '4' && $auth->check($nowmenu.'/pay')==1"}
+            <button type="button" class="btn btn-success btn-sm" id="btn-pay">确认打款</button>
+            {/if}
+            <button type="button" class="btn btn-default btn-sm" onclick="parent.Layer.close(parent.Layer.getFrameIndex(window.name));">关闭</button>
+        </div>
+    </div>
+    <div class="panel-body">
+        <div class="row">
+            <div class="col-xs-12 col-sm-3"><b>供应商：</b>{$row.supplyer_code|htmlentities} {$row.supplyer_name|htmlentities}</div>
+            <div class="col-xs-12 col-sm-3"><b>申请金额：</b><span style="color:#ff5722;font-weight:bold;">￥{:number_format($row['total_money'], 2, '.', '')}</span></div>
+            <div class="col-xs-12 col-sm-3"><b>对账单数：</b>{$row.recon_count}</div>
+            <div class="col-xs-12 col-sm-3"><b>是否需领导审核：</b>{if condition="$row.need_leader == 1"}是{else/}否{/if}</div>
+        </div>
+        <div class="row" style="margin-top:8px;">
+            <div class="col-xs-12 col-sm-3"><b>申请人：</b>{$row.apply_admin_name|default=''}</div>
+            <div class="col-xs-12 col-sm-3"><b>申请时间：</b>{$row.apply_time_text|default=''}</div>
+            <div class="col-xs-12 col-sm-6"><b>申请说明：</b>{$row.remark|htmlentities}</div>
+        </div>
+        {if condition="$row.status == '6'"}
+        <div class="alert alert-danger" style="margin-top:10px;margin-bottom:0;">
+            驳回节点：
+            {if condition="!empty($row['leader_remark'])"}领导（{$row.leader_remark|htmlentities}）
+            {elseif condition="!empty($row['audit_remark'])" /}审计（{$row.audit_remark|htmlentities}）
+            {elseif condition="!empty($row['finance_remark'])" /}财务（{$row.finance_remark|htmlentities}）
+            {/if}
+        </div>
+        {/if}
+    </div>
+</div>
+
+<div class="panel panel-default">
+    <div class="panel-heading"><b>关联对账单</b></div>
+    <div class="panel-body" style="padding:0;">
+        <table class="table table-bordered" style="margin-bottom:0;">
+            <thead>
+                <tr>
+                    <th>对账单号</th>
+                    <th style="width:150px;text-align:right;">对账金额</th>
+                    <th style="width:150px;">账期到期日</th>
+                    <th>备注</th>
+                    <th style="width:110px;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {foreach name="applyInfo" item="info"}
+                <tr>
+                    <td>{$info.recon_code|htmlentities}</td>
+                    <td style="text-align:right;">￥{:number_format($info['total_money'], 2, '.', '')}</td>
+                    <td>{$info.due_date_text|default=''}</td>
+                    <td>{$info.remark|htmlentities}</td>
+                    <td style="text-align:center;">
+                        {if condition="!empty($info['recon_id']) && $auth->check('kuerp/purchase_recon/detail')==1"}
+                        <a href="javascript:;" class="btn btn-xs btn-info btn-recon-detail" data-recon-id="{$info.recon_id}">查看明细</a>
+                        {else/}
+                        <span style="color:#999;">--</span>
+                        {/if}
+                    </td>
+                </tr>
+                {php}$mat = isset($reconMaterials[$info['recon_id']]) ? $reconMaterials[$info['recon_id']] : null;{/php}
+                {if condition="!empty($mat)"}
+                <tr class="mat-row">
+                    <td colspan="5" style="background:#fafafa;font-size:12px;">
+                        <p style="margin-bottom:6px;">
+                            <b>对账单文件：</b>
+                            {if condition="!empty($mat['files'])"}
+                            {foreach name="mat.files" item="f"}
+                            <a href="{$f.url}" target="_blank" style="margin-right:12px;">
+                                {if condition="$f['is_image']==1"}<img src="{$f.url}" style="max-height:30px;vertical-align:middle;">
+                                {else/}<img src="{:url('ajax/icon')}?suffix={$f.file_suffix}" style="max-height:22px;vertical-align:middle;"><span style="margin-left:3px;">{$f.file_suffix|strtoupper}</span>{/if}
+                                <span style="margin-left:4px;">{$f.name|htmlentities}</span>
+                            </a>
+                            {/foreach}
+                            {else}<span style="color:#999">未上传</span>{/if}
+                        </p>
+                        <p style="margin-bottom:6px;">
+                            <b>采购合同：</b>
+                            {if condition="!empty($mat['contract'])"}
+                            <a href="{$mat.contract.url}" target="_blank">
+                                {if condition="$mat.contract['is_image']==1"}<img src="{$mat.contract.url}" style="max-height:30px;vertical-align:middle;">
+                                {else/}<img src="{:url('ajax/icon')}?suffix={$mat.contract.file_suffix}" style="max-height:22px;vertical-align:middle;"><span style="margin-left:3px;">{$mat.contract.file_suffix|strtoupper}</span>{/if}
+                                <span style="margin-left:4px;">{$mat.contract.name|htmlentities}</span>
+                            </a>
+                            {else}<span style="color:#999">未上传</span>{/if}
+                            {foreach name="mat.orders" item="o"}
+                            <span style="margin-left:10px;color:#666;">订单{$o.purchase_code}：</span>
+                            {foreach name="o.files" item="f"}
+                            <a href="{$f.url}" target="_blank" style="margin-right:8px;">{$f.name|htmlentities}</a>
+                            {/foreach}
+                            {/foreach}
+                        </p>
+                        <p style="margin-bottom:6px;">
+                            <b>入库单：</b>
+                            {foreach name="mat.storages" item="st"}
+                            <span style="margin-left:6px;color:#666;">{$st.purchase_code}：</span>
+                            {if condition="!empty($st['logs'])"}
+                            {foreach name="st.logs" item="log"}
+                            <span style="margin-right:12px;">
+                                {$log.createtime} / {$log.total_number} 件
+                                {foreach name="log.files" item="f"}
+                                <a href="{$f.url}" target="_blank" style="margin-left:4px;">{$f.name|htmlentities}</a>
+                                {/foreach}
+                            </span>
+                            {/foreach}
+                            {else}<span style="color:#999">暂无入库记录</span>{/if}
+                            {/foreach}
+                        </p>
+                        {if condition="!empty($mat['returns'])"}
+                        <p style="margin-bottom:6px;">
+                            <b>退货单（冲减）：</b>
+                            {foreach name="mat.returns" item="ret"}
+                            <span style="margin-right:12px;color:#ff5722;">{$ret.doc_code|htmlentities}（{$ret.doc_time}，{$ret.number} 件，￥{:number_format($ret['real_money'], 2, '.', '')}）</span>
+                            {/foreach}
+                        </p>
+                        {/if}
+                        <p style="margin-bottom:0;">
+                            <b>发票：</b>
+                            {if condition="!empty($mat['invoices'])"}
+                            {foreach name="mat.invoices" item="inv"}
+                            <span style="margin-right:14px;">
+                                {$inv.invoice_no|htmlentities}（￥{:number_format($inv['invoice_amount'], 2, '.', '')}，账期{$inv.term_days}天）
+                                {if condition="!empty($inv['file'])"}
+                                <a href="{$inv.file.url}" target="_blank">{$inv.file.name|htmlentities}</a>
+                                {/if}
+                            </span>
+                            {/foreach}
+                            {else}<span style="color:#999">未上传</span>{/if}
+                        </p>
+                    </td>
+                </tr>
+                {/if}
+                {/foreach}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="panel panel-default">
+    <div class="panel-heading"><b>审批流程</b></div>
+    <div class="panel-body" style="padding:0;">
+        <table class="table table-bordered" style="margin-bottom:0;">
+            <thead>
+                <tr><th style="width:130px;">节点</th><th style="width:120px;">审核人</th><th style="width:170px;">时间</th><th>意见</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>财务审核</td>
+                    <td>{$row.finance_admin_name|default=''}</td>
+                    <td>{$row.finance_time_text|default=''}</td>
+                    <td>{$row.finance_remark|htmlentities}</td>
+                </tr>
+                <tr>
+                    <td>审计审核</td>
+                    <td>{$row.audit_admin_name|default=''}</td>
+                    <td>{$row.audit_time_text|default=''}</td>
+                    <td>{$row.audit_remark|htmlentities}</td>
+                </tr>
+                {if condition="$row.need_leader == 1"}
+                <tr>
+                    <td>领导审核</td>
+                    <td>{$row.leader_admin_name|default=''}</td>
+                    <td>{$row.leader_time_text|default=''}</td>
+                    <td>{$row.leader_remark|htmlentities}</td>
+                </tr>
+                {/if}
+                <tr>
+                    <td>出纳打款</td>
+                    <td>{$row.cashier_admin_name|default=''}</td>
+                    <td>{$row.pay_time_text|default=''}</td>
+                    <td>
+                        {if condition="$row.payment_id && !empty($payment)"}
+                        付款单：{$payment.purchase_code|default=''}
+                        ；金额 ￥{:number_format($row['total_money'], 2, '.', '')}
+                        ；流水号 {$row.pay_number|htmlentities}
+                        {elseif condition="$row.payment_id" /}
+                        付款单ID：{$row.payment_id}
+                        {/if}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="panel panel-default">
+    <div class="panel-heading"><b>付款回单</b></div>
+    <div class="panel-body">
+        {if condition="!empty($vouchers)"}
+        {foreach name="vouchers" item="f"}
+        <a href="{$f.url}" target="_blank" style="margin-right:16px;">
+            {if condition="$f['is_image']==1"}<img src="{$f.url}" style="max-height:40px;vertical-align:middle;">
+            {else/}<img src="{:url('ajax/icon')}?suffix={$f.file_suffix}" style="max-height:28px;vertical-align:middle;"><span style="margin-left:4px;">{$f.file_suffix|strtoupper}</span>{/if}
+            <span style="margin-left:6px;">{$f.name|htmlentities}</span>
+        </a>
+        {/foreach}
+        {else}
+        <span style="color:#999;">暂无付款回单</span>
+        {/if}
+    </div>
+</div>
+
+<div class="panel panel-default">
+    <div class="panel-heading"><b>操作日志</b></div>
+    <div class="panel-body" style="padding:0;">
+        {if condition="!empty($logs)"}
+        <table class="table table-bordered" style="margin-bottom:0;">
+            <thead><tr><th style="width:170px;">时间</th><th style="width:160px;">操作</th><th>说明</th><th style="width:100px;">操作人</th></tr></thead>
+            <tbody>
+                {foreach name="logs" item="log"}
+                <tr>
+                    <td>{$log.time_text}</td>
+                    <td>{$log.action|htmlentities}</td>
+                    <td style="text-align:left;">{$log.note|htmlentities}</td>
+                    <td>{$log.admin_name}</td>
+                </tr>
+                {/foreach}
+            </tbody>
+        </table>
+        {else}
+        <p style="padding:10px;color:#999;margin:0;">暂无操作记录</p>
+        {/if}
+    </div>
+</div>
+

@@ -98,6 +98,12 @@ class GoodsSalesExchange extends Backend
                 if(isset($list_v['print_num']) && empty($list_v['print_num'])){
                     $list[$list_k]['print_num'] = 0;
                 }
+                // 对账状态（销货对账模块回写）
+                $reconStatus = isset($list_v['recon_status']) ? (string)$list_v['recon_status'] : '0';
+                $reconTextMap = ['0' => '未对账', '1' => '待二审', '2' => '已对账'];
+                $list[$list_k]['recon_status'] = $reconStatus;
+                $list[$list_k]['recon_status_text'] = isset($reconTextMap[$reconStatus]) ? $reconTextMap[$reconStatus] : '未对账';
+                $list[$list_k]['recon_code'] = isset($list_v['recon_code']) ? $list_v['recon_code'] : '';
             }
             $result = array("total" => $list->total(), "rows" => $list->items());
 
@@ -181,7 +187,7 @@ class GoodsSalesExchange extends Backend
 
                         //有关联销货单需对比销货单 单位，属性，仓库等信息是否一致
                         if(!empty($params['info_id'][$k]) && $purchase_type==2){
-                            //有关联购货单需对比 单位，属性，仓库等信息是否一致
+                            //有关联采购单需对比 单位，属性，仓库等信息是否一致
                             $goods_sales_info = Db::name('kuerp_goods_sales_info')->where(['id'=>$params['info_id'][$k]])->find();
                             if(empty($goods_sales_info)){
                                 $this->error('原销货单信息查询失败');
@@ -700,6 +706,9 @@ class GoodsSalesExchange extends Backend
             if($row['check_status']==1){
                 $this->error('不能编辑已对单的数据');
             }
+            if(isset($row['recon_status']) && $row['recon_status']!='0'){
+                $this->error('该销货退货单已进入对账流程，请先撤销对账后再修改');
+            }
             $params = $this->request->post("row/a");
             if ($params) {
                 $examine= Db::name('kuerp_sets')->where(['name'=>'examine'])->value('is_checked');
@@ -773,7 +782,7 @@ class GoodsSalesExchange extends Backend
 
                         //有关联销货单需对比销货单 单位，属性，仓库等信息是否一致
                         if(!empty($params['info_id'][$k])){
-                            //有关联购货单需对比 单位，属性，仓库等信息是否一致
+                            //有关联采购单需对比 单位，属性，仓库等信息是否一致
                             $goods_sales_info = Db::name('kuerp_goods_sales_info')->where(['id'=>$params['info_id'][$k]])->find();
                             if(empty($goods_sales_info)){
                                 $this->error('原销货单信息查询失败');
@@ -1167,6 +1176,9 @@ class GoodsSalesExchange extends Backend
                 if($list_v['check_status']==1){
                     $this->error('不能删除已对单的数据');
                 }
+                if(isset($list_v['recon_status']) && $list_v['recon_status']!='0'){
+                    $this->error('该销货退货单已进入对账流程，请先撤销对账后再删除');
+                }
                 if($list_v['examine_status']==1 && $examine==1){
                     $this->error('不能删除已审核的数据');
                 }elseif ($list_v['examine_status']==1 && $examine!=1){
@@ -1334,14 +1346,13 @@ class GoodsSalesExchange extends Backend
                                 'store_number'  => $info_list_v['retreat_number'],
                             ];
                         }
-                        //修改状态
+                        //订单状态只由销货单的实际出库数量决定，这里只补订单id
                         if(!empty($order_count)){
                             foreach ($order_count as $order_count_k=>$order_count_v){
-                                $number = Db::name('kuerp_goods_sales_order')->where(['purchase_code'=>$order_count_v['purchase_code']])->field('id,number,store_number')->find();
-                                if(($number['number']-$number['store_number'])<=$order_count_v['store_number']){
-                                    $order_count[$order_count_k]['status'] = 1;
-                                }else{
-                                    $order_count[$order_count_k]['status'] = 2;
+                                $number = Db::name('kuerp_goods_sales_order')->where(['purchase_code'=>$order_count_v['purchase_code']])->field('id')->find();
+                                if(empty($number)){
+                                    unset($order_count[$order_count_k]);
+                                    continue;
                                 }
                                 $order_count[$order_count_k]['id'] = $number['id'];
                             }
@@ -1765,7 +1776,7 @@ class GoodsSalesExchange extends Backend
                         'customers_id' => $list_v['customers_id'],
                         'purchase_code' => $list_v['purchase_code'],
                         'purchase_time' => $list_v['purchase_time'],
-                        'price' => -$list_v['real_money'],
+                        'price' => -($list_v['real_money']+$list_v['customers_money']),
                         'money' => -$list_v['pay_money'],
                         'write_off' => -$list_v['arrears'],
                         'remark' => $list_v['note'],
@@ -1957,6 +1968,12 @@ class GoodsSalesExchange extends Backend
                 if($list_v['check_status']==1){
                     $this->error('不能反审核已对单的数据');
                 }
+                if(isset($list_v['recon_status']) && $list_v['recon_status']!='0'){
+                    if($examine_set!=1){
+                        return ['status'=>0,'msg'=>'该销货退货单已进入对账流程，请先撤销对账'];
+                    }
+                    $this->error('该销货退货单已进入对账流程，请先撤销对账');
+                }
                 $purchase_id = Db::name('kuerp_collection_sale')->where(['purchase_number'=>$list_v['purchase_code']])->find();
                 if(!empty($purchase_id)){
                     if($examine_set!=1){
@@ -2001,14 +2018,13 @@ class GoodsSalesExchange extends Backend
                                 'store_number'  => $info_list_v['retreat_number'],
                             ];
                         }
-                        //修改状态
+                        //订单状态只由销货单的实际出库数量决定，这里只补订单id
                         if(!empty($order_count)){
                             foreach ($order_count as $order_count_k=>$order_count_v){
-                                $number = Db::name('kuerp_goods_sales_order')->where(['purchase_code'=>$order_count_v['purchase_code']])->field('id,number,store_number')->find();
-                                if($number['store_number']<=$order_count_v['store_number']){
-                                    $order_count[$order_count_k]['status'] = 0;
-                                }else{
-                                    $order_count[$order_count_k]['status'] = 2;
+                                $number = Db::name('kuerp_goods_sales_order')->where(['purchase_code'=>$order_count_v['purchase_code']])->field('id')->find();
+                                if(empty($number)){
+                                    unset($order_count[$order_count_k]);
+                                    continue;
                                 }
                                 $order_count[$order_count_k]['id'] = $number['id'];
                             }

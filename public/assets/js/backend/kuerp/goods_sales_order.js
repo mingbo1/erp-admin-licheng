@@ -55,6 +55,12 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                     return __('Purchase_type 2');
                                 }
                             }},
+                        {field: 'delivery_mode', title: __('Delivery_mode'), width: 90, templet: function (d) {
+                                if(d.delivery_mode=='dropship'){
+                                    return '<span style="color:#ff5722">'+__('Delivery_mode dropship')+'</span>';
+                                }
+                                return __('Delivery_mode direct');
+                            }},
                         {field: 'customers', title: __('Customers_id'),templet: function (d) {
                                 return d.customers.customer_name;
                             }},
@@ -65,6 +71,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'all_money', title: __('All_money'),templet: function (d) {
                                 return (d.all_money-(-d.tax_money)).toFixed(price_decimal);
                             }},
+                        {field: 'customers_money', title: __('客户承担费用'),templet: function (d) {
+                                return (parseFloat(d.customers_money)||0).toFixed(price_decimal);
+                            },width:110},
                         {field: 'examine_status', title: __('Examine_status'),hide:hideStatus,templet: function (d) {
                                 if(d.examine_status==0){
                                     return '<span style="color:orange">'+__('Examine_status 0')+'</span>';
@@ -402,7 +411,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             }
                         }});
                 });
-                //查看原始单据
+                //查看原始单据：图片用相册预览，PDF/Excel/Word 等文件用链接打开
                 $(document).on("click", ".voucherAttachment", function(){
                     var id = $('#c-enclosure').val();
                     $.ajax( {
@@ -412,11 +421,35 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             'searchIds':id,
                         },
                         success: function(res){
-                            layer.photos({
-                                photos: res.rows
-                                ,anim: 5 //0-6的选择，指定弹出图片动画类型，默认随机（请注意，3.0之前的版本用shift参数）
+                            var rows = (res.rows && res.rows.data) ? res.rows.data : [];
+                            var images = [], files = [];
+                            $(rows).each(function (k, v) {
+                                if (v.is_image == 1) {
+                                    images.push({src: v.src});
+                                } else {
+                                    files.push(v);
+                                }
                             });
-                            console.log(res);
+                            if (images.length > 0) {
+                                layer.photos({
+                                    photos: {data: images}
+                                    ,anim: 5 //0-6的选择，指定弹出图片动画类型，默认随机（请注意，3.0之前的版本用shift参数）
+                                });
+                            }
+                            if (files.length > 0) {
+                                var html = '<div style="padding:12px 16px;">';
+                                $(files).each(function (k, v) {
+                                    html += '<p style="margin-bottom:8px;"><a href="' + v.url + '" target="_blank"><i class="fa fa-file-o"></i> ' + v.name + '</a></p>';
+                                });
+                                html += '</div>';
+                                layer.open({
+                                    type: 1,
+                                    title: '原始单据文件',
+                                    area: ['420px', 'auto'],
+                                    shadeClose: true,
+                                    content: html
+                                });
+                            }
                         }
                     });
                 });

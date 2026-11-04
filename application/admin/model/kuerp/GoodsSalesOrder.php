@@ -3,6 +3,7 @@
 namespace app\admin\model\kuerp;
 
 use app\admin\model\Admin;
+use think\Db;
 use think\Model;
 
 
@@ -25,6 +26,7 @@ class GoodsSalesOrder extends Model
         'purchase_type_text',
         'purchase_time_text',
         'delivery_time_text',
+        'delivery_mode_text',
         'status_text',
         'check_status_text',
         'examine_status_text',
@@ -39,6 +41,14 @@ class GoodsSalesOrder extends Model
     public function getPurchaseTypeList()
     {
         return ['1' => __('Purchase_type 1'), '2' => __('Purchase_type 2')];
+    }
+
+    /**
+     * 发货方式：direct=直发，dropship=代发
+     */
+    public function getDeliveryModeList()
+    {
+        return ['direct' => __('Delivery_mode direct'), 'dropship' => __('Delivery_mode dropship')];
     }
 
     public function getStatusList()
@@ -81,6 +91,14 @@ class GoodsSalesOrder extends Model
     {
         $value = $value ? $value : (isset($data['delivery_time']) ? $data['delivery_time'] : '');
         return is_numeric($value) ? date("Y-m-d H:i:s", $value) : $value;
+    }
+
+
+    public function getDeliveryModeTextAttr($value, $data)
+    {
+        $value = $value ? $value : (isset($data['delivery_mode']) ? $data['delivery_mode'] : 'direct');
+        $list = $this->getDeliveryModeList();
+        return isset($list[$value]) ? $list[$value] : $list['direct'];
     }
 
 
@@ -186,6 +204,86 @@ class GoodsSalesOrder extends Model
     public function logs()
     {
         return $this->hasMany(\app\admin\model\kuerp\GoodsSalesOrderLog::class, 'order_id', 'id')->order('id', 'desc');
+    }
+
+    /**
+     * 根据销货单的实际出库数量重算订单状态并落库
+     * 0=未出库 1=全部出库 2=部分出库；3=已取消、4=已收货 为人工状态，不参与重算
+     *
+     * @param array|string $orderCodes 销货订单编号(purchase_code)
+     * @return array purchase_code => status
+     */
+    public static function syncStatusByOutbound($orderCodes)
+    {
+        if (is_string($orderCodes)) {
+            $orderCodes = explode(',', $orderCodes);
+        }
+        $orderCodes = array_values(array_unique(array_filter(array_map('trim', (array)$orderCodes))));
+        if (empty($orderCodes)) {
+            return [];
+        }
+        $orders = Db::name('kuerp_goods_sales_order')
+            ->where(['purchase_code' => ['in', $orderCodes]])
+            ->field('id,purchase_code,number,status')
+            ->select();
+        if (empty($orders)) {
+            return [];
+        }
+
+        // 订单编号 => 关联销货单编号
+        $salesRows = Db::name('kuerp_goods_sales')
+            ->where(['purchase_order_id' => ['in', $orderCodes]])
+            ->field('purchase_code,purchase_order_id')
+            ->select();
+        $salesMap = [];
+        $salesCodes = [];
+        foreach ($salesRows as $salesRow) {
+            $salesMap[$salesRow['purchase_order_id']][] = $salesRow['purchase_code'];
+            $salesCodes[] = $salesRow['purchase_code'];
+        }
+
+        // 销货单编号 => 已出库数量
+        $outMap = [];
+        if (!empty($salesCodes)) {
+            $outRows = Db::name('kuerp_goods_sales_info')
+                ->where(['purchase_code' => ['in', $salesCodes]])
+                ->field('purchase_code,sum(out_number) as total_out')
+                ->group('purchase_code')
+                ->select();
+            foreach ($outRows as $outRow) {
+                $outMap[$outRow['purchase_code']] = (float)$outRow['total_out'];
+            }
+        }
+
+        $result = [];
+        foreach ($orders as $order) {
+            $currentStatus = (string)$order['status'];
+            if ($currentStatus === '3' || $currentStatus === '4') {
+                $result[$order['purchase_code']] = $currentStatus;
+                continue;
+            }
+            $totalOut = 0;
+            if (isset($salesMap[$order['purchase_code']])) {
+                foreach ($salesMap[$order['purchase_code']] as $salesCode) {
+                    $totalOut += isset($outMap[$salesCode]) ? $outMap[$salesCode] : 0;
+                }
+            }
+            $orderNumber = (float)$order['number'];
+            if ($totalOut <= 0) {
+                $status = '0';
+            } elseif ($orderNumber > 0 && $totalOut + 0.0001 >= $orderNumber) {
+                $status = '1';
+            } else {
+                $status = '2';
+            }
+            if ($status !== $currentStatus) {
+                Db::name('kuerp_goods_sales_order')
+                    ->where(['id' => $order['id']])
+                    ->update(['status' => $status, 'updatetime' => time()]);
+            }
+            $result[$order['purchase_code']] = $status;
+        }
+        return $result;
     }
 
     public function getSecondExamineStatusList()

@@ -359,7 +359,7 @@ class Stores extends Backend
             foreach ($list as $k => $v) {
                 $arr = [
                     'kuerp_goods_purchase_order_info' => '购货订单',
-                    'kuerp_goods_purchase_info' => '购货单',
+                    'kuerp_goods_purchase_info' => '采购单',
                     'kuerp_goods_exchange_info' => '购货退货单',
                     'kuerp_goods_sales_order_info' => '销货订单',
                     'kuerp_goods_sales_info' => '销货单',

@@ -247,6 +247,19 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 Form.api.bindevent($("form[role=form]"), function (data, ret) {
                     parent.Layer.closeAll();
                     parent.$('.btn-refresh').click();
+                }, null, function () {
+                    // 本次出库/入库数量默认均为 0：一项都没填时不允许提交，避免误点直接出库/入库
+                    var total = 0;
+                    $('#outbound-form .out_number_ipt, #outbound-form .in_number_ipt').each(function () {
+                        var val = parseFloat($(this).val());
+                        if (!isNaN(val) && val > 0) {
+                            total += val;
+                        }
+                    });
+                    if (total <= 0) {
+                        Toastr.error('请至少填写一项本次出库/入库数量');
+                        return false;
+                    }
                 });
             },
             bindevent: function (reloadStatus) {

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>采购对账单 - {$row.recon_code|htmlentities}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: "Microsoft YaHei", "SimSun", Arial, sans-serif; font-size: 12px; color: #333; padding: 20px; background: #fff; }
+        .wrap { max-width: 1200px; margin: 0 auto; }
+        h1 { text-align: center; font-size: 20px; margin-bottom: 10px; }
+        .head { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #333; padding: 5px 6px; }
+        th { background: #f2f2f2; text-align: center; font-weight: bold; }
+        td.right { text-align: right; }
+        td.center { text-align: center; }
+        .total-row td { font-weight: bold; background: #fafafa; }
+        .history-row td { font-weight: bold; }
+        .footer { margin-top: 14px; line-height: 1.8; }
+        .btn-bar { text-align: center; margin-bottom: 14px; }
+        .btn-bar button { padding: 6px 24px; font-size: 14px; cursor: pointer; }
+        @media print { .btn-bar { display: none; } body { padding: 0; } }
+    </style>
+{include file="kuerp/common/printstyle" /}
+<style>
+    /* 采购对账单明细列多（14 列），改 A4 横向打印：公共版式是 A4 竖版，这里后写覆盖 */
+    @page { size: A4 landscape; margin: 10mm; }
+    @media screen { #content { width: 297mm; } }
+    .wrap { max-width: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <div class="btn-bar">
+        <button type="button" onclick="window.print()">打印</button>
+    </div>
+
+    <h1>{$data.company_name|htmlentities}采购对账单</h1>
+    <div class="head">
+        <span>供应商：{$row.supplyer_code|htmlentities} {$row.supplyer_name|htmlentities}</span>
+        <span>对账期间：{if condition="$row.period_start"}{$row.period_start|date='Y-m-d',###}{/if} 至 {if condition="$row.period_end"}{$row.period_end|date='Y-m-d',###}{/if}</span>
+        <span>对账单号：{$row.recon_code|htmlentities}</span>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width:110px;">采购单号</th>
+                <th style="width:80px;">对账日期</th>
+                <th style="width:80px;">采购日期</th>
+                <th style="width:130px;">供应商</th>
+                <th>商品名称</th>
+                <th style="width:150px;">型号/规格</th>
+                <th style="width:70px;">数量</th>
+                <th style="width:80px;">含税单价</th>
+                <th style="width:80px;">未税单价</th>
+                <th style="width:60px;">税点(%)</th>
+                <th style="width:100px;">采购合计金额</th>
+                <th style="width:90px;">采购费用</th>
+                <th style="width:100px;">总金额</th>
+                <th style="width:120px;">备注</th>
+            </tr>
+        </thead>
+        <tbody>
+            {foreach name="data.rows" item="r"}
+            <tr>
+                <td class="center">{$r.doc_code|htmlentities}</td>
+                <td class="center">{$r.recon_date}</td>
+                <td class="center">{$r.doc_date}</td>
+                <td>{$r.supplyer_name|htmlentities}</td>
+                <td>{$r.goods_name|htmlentities}</td>
+                <td>{$r.spec|htmlentities}</td>
+                <td class="right">{:number_format($r['number'], $data['number_decimal'], '.', '')}</td>
+                <td class="right">{:number_format($r['tax_included'], $data['price_decimal'], '.', '')}</td>
+                <td class="right">{:number_format($r['unit_price'], $data['price_decimal'], '.', '')}</td>
+                <td class="right">{:number_format($r['tax_rate'], 2, '.', '')}</td>
+                <td class="right">{:number_format($r['line_amount'], $data['price_decimal'], '.', '')}</td>
+                <td class="right">{if condition="$r['doc_cost'] !== null"}{:number_format($r['doc_cost'], $data['price_decimal'], '.', '')}{/if}</td>
+                <td class="right">{if condition="$r['doc_total'] !== null"}{:number_format($r['doc_total'], $data['price_decimal'], '.', '')}{/if}</td>
+                <td>{$r.remark|htmlentities}</td>
+            </tr>
+            {/foreach}
+            {if condition="empty($data['rows'])"}
+            <tr><td colspan="14" class="center" style="color:#999;">无明细数据</td></tr>
+            {/if}
+            <tr class="total-row">
+                <td colspan="10" class="center">本期合计</td>
+                <td class="right">{:number_format($data['sum_line'], $data['price_decimal'], '.', '')}</td>
+                <td></td>
+                <td class="right">{:number_format($data['sum_total'], $data['price_decimal'], '.', '')}</td>
+                <td></td>
+            </tr>
+            {foreach name="data.history" item="h"}
+            <tr class="history-row">
+                <td colspan="10" class="center">{$h.month}已对账未付款合计</td>
+                <td class="right">{:number_format($h['amount'], $data['price_decimal'], '.', '')}</td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            {/foreach}
+            <tr class="total-row">
+                <td colspan="10" class="center">总未付款金额合计</td>
+                <td class="right">{:number_format($data['total_unpaid'], $data['price_decimal'], '.', '')}</td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="footer">
+        请贵公司核对本对账单金额，无误后盖章回传确认，如有异议，请在收到此账单后三个工作日内回复，逾期未提出异议，视为认可本对账单金额。谢谢！
+    </div>
+</div>
+</body>
+</html>

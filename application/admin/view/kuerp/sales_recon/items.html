@@ -1,0 +1,126 @@
+{include file="kuerp/common/menu" /}
+<div class="panel panel-default panel-intro">
+    <div class="panel-body">
+        <div class="widget-body no-padding">
+
+            <form class="layui-form layui-search" id="layui-search">
+                <div class="layui-input-inline" style="width:140px">
+                    <input type="date" name="date_start" id="date_start" value="{$dateStart}" class="layui-input" placeholder="开始日期">
+                </div>
+                <div class="layui-input-inline" style="width:140px">
+                    <input type="date" name="date_end" id="date_end" value="{$dateEnd}" class="layui-input" placeholder="结束日期">
+                </div>
+                <div class="layui-input-inline">
+                    <select name="customers_id" id="customers_id" class="layui-input">
+                        <option value="">全部客户</option>
+                        {foreach name="customers" item="vo"}
+                        <option value="{$vo.id}">{$vo.customer_code} {$vo.customer_name}</option>
+                        {/foreach}
+                    </select>
+                </div>
+                <div class="layui-input-inline">
+                    <select name="sale_user" id="sale_user" class="layui-input">
+                        <option value="">全部销售员</option>
+                        {foreach name="staffList" item="vo"}
+                        <option value="{$vo.id}">{$vo.name}</option>
+                        {/foreach}
+                    </select>
+                </div>
+                <div class="layui-input-inline">
+                    <select name="doc_type" id="doc_type" class="layui-input">
+                        <option value="">全部单据</option>
+                        <option value="1">销货单</option>
+                        <option value="2">销货退货单</option>
+                    </select>
+                </div>
+                <div class="layui-input-inline">
+                    <select name="out_status" id="out_status" class="layui-input">
+                        <option value="">出库状态</option>
+                        <option value="0">未出库</option>
+                        <option value="1">部分出库</option>
+                        <option value="2">已出库</option>
+                    </select>
+                </div>
+                <div class="layui-input-inline">
+                    <select name="recon_status" id="recon_status" class="layui-input">
+                        <option value="">对账状态</option>
+                        <option value="0">未对账</option>
+                        <option value="1">待二审</option>
+                        <option value="2">已对账</option>
+                    </select>
+                </div>
+                <div class="layui-input-inline">
+                    <select name="invoice_status" id="invoice_status" class="layui-input">
+                        <option value="">开票状态</option>
+                        <option value="0">未开票</option>
+                        <option value="1">已开票</option>
+                    </select>
+                </div>
+                <div class="layui-input-inline">
+                    <select name="pay_status" id="pay_status" class="layui-input">
+                        <option value="">收款状态</option>
+                        <option value="0">未收款</option>
+                        <option value="1">部分收款</option>
+                        <option value="2">已收款</option>
+                    </select>
+                </div>
+                <div class="layui-input-inline" style="width: 90px">
+                    <button class="layui-btn layui-btn-sm" type="button" id="search" data-type="reload">
+                        <i class="layui-icon"></i> {:__('Search')}
+                    </button>
+                </div>
+            </form>
+
+            <div class="items-bar">
+                <button class="layui-btn layui-btn-sm layui-bg-cyan" type="button" id="btn-refresh"><i class="layui-icon">&#xe669;</i> {:__('Refresh')}</button>
+                {if condition="$auth->check('kuerp/sales_recon/add')==1"}
+                <button class="layui-btn layui-btn-sm layui-bg-green" type="button" id="btn-generate">生成对账单</button>
+                {/if}
+                <label class="items-bar-check"><input type="checkbox" id="check-all"> 全选本页</label>
+                <span class="items-bar-tip" id="doc-count"></span>
+                <span class="items-bar-tip" style="color:#999">点击单号行可展开/收起商品明细</span>
+            </div>
+
+            <div id="items-list"></div>
+
+            <div id="items-pager" data-select-enhance="skip" style="text-align:right;padding:4px 10px 4px 0;"></div>
+
+            <div id="items-total" style="padding:10px 12px;background:#fafafa;border:1px solid #e6e6e6;">
+                <span style="margin-right:30px">销货合计金额总计：<b id="total-money">0.00</b></span>
+                <span style="margin-right:30px">客户费用总计：<b id="total-customers">0.00</b></span>
+                <span>总金额总计：<b id="total-amount">0.00</b></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .items-bar { padding: 6px 0 10px; display: flex; align-items: center; flex-wrap: wrap; }
+    .items-bar .layui-btn { margin-right: 6px; }
+    .items-bar-check { font-weight: normal; margin: 0 12px 0 6px; cursor: pointer; }
+    .items-bar-check input { vertical-align: -2px; margin-right: 4px; }
+    .items-bar-tip { margin-left: 8px; font-size: 12px; }
+
+    .recon-doc { border: 1px solid #e6e6e6; border-radius: 3px; margin-bottom: 10px; background: #fff; }
+    .recon-doc.is-selected { border-color: #1E9FFF; box-shadow: 0 0 0 1px rgba(30,159,255,.25); }
+    .recon-doc-head { padding: 8px 12px; background: #f7f9fb; cursor: pointer; -webkit-user-select: none; user-select: none; }
+    .recon-doc-head:hover { background: #eef4fb; }
+    .recon-doc-row1 { display: flex; align-items: center; flex-wrap: wrap; }
+    .recon-doc-row1 > * { margin-right: 12px; }
+    .recon-doc-caret { display: inline-block; width: 14px; color: #999; transition: transform .15s; }
+    .recon-doc.is-open .recon-doc-caret { transform: rotate(90deg); }
+    .recon-doc-code { font-weight: 600; color: #1E9FFF; }
+    .recon-doc-type { display: inline-block; padding: 0 6px; border-radius: 2px; font-size: 12px; line-height: 20px; background: #e2ecf8; color: #1E9FFF; }
+    .recon-doc-type.return { background: #fdecea; color: #ff5722; }
+    .recon-doc-tags > span { margin-left: 6px; font-size: 12px; }
+    .recon-doc-amount { font-weight: 600; color: #333; }
+    .recon-doc-row2 { margin-top: 6px; font-size: 12px; color: #888; padding-left: 26px; }
+    .recon-doc-row2 > span { margin-right: 18px; }
+    .recon-doc-body { display: none; padding: 0 0 8px; }
+    .recon-doc-body table { width: 100%; border-collapse: collapse; }
+    .recon-doc-body th, .recon-doc-body td { border-top: 1px solid #eee; padding: 6px 10px; font-size: 12px; }
+    .recon-doc-body th { background: #fafafa; color: #666; font-weight: normal; white-space: nowrap; }
+    .recon-doc-body td.num { text-align: right; }
+    .recon-doc-body td.center { text-align: center; }
+    .recon-doc-empty { padding: 10px 26px; color: #999; font-size: 12px; }
+</style>

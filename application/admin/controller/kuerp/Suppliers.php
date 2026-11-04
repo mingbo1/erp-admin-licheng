@@ -388,6 +388,12 @@ class Suppliers extends Backend
             foreach ($list as $row) {
 
                 $row->getRelation('supplyertype')->visible(['supplier_type_name']);
+                //合同附件：图片显示缩略图，其余类型显示文件图标（与原始单据列表口径一致）
+                $contract = $row['contract'];
+                $suffix = $contract ? strtolower(pathinfo($contract, PATHINFO_EXTENSION)) : '';
+                $row['contract_url'] = $contract ? cdnurl($contract, true) : '';
+                $row['contract_suffix'] = $suffix;
+                $row['contract_is_image'] = in_array($suffix, ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'ico']) ? 1 : 0;
             }
 
             $result = array("total" => $list->total(), "rows" => $list->items());
@@ -733,7 +739,7 @@ class Suppliers extends Backend
             foreach ($list as $list_k=>$list_v){
                 $order_info = Db::name('kuerp_goods_purchase_info')->where(['supplyer_code'=>$list_v['supplyer_code']])->field('id')->find();
                 if(!empty($order_info)){
-                    $this->error('供应商'.$list_v['supplyer_name'].'已有购货单，不可删除');
+                    $this->error('供应商'.$list_v['supplyer_name'].'已有采购单，不可删除');
                 }
                 $order_info = Db::name('kuerp_goods_exchange_info')->where(['supplyer_code'=>$list_v['supplyer_code']])->field('id')->find();
                 if(!empty($order_info)){

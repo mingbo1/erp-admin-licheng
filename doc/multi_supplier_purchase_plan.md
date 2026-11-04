@@ -1,7 +1,7 @@
 # 采购订单多供应商改造方案
 
 > 最后更新: 2026-07-12
-> 设计原则: 复杂度隔离在"采购订单→购货单"这一步，购货单及之后流程（付款/核销/发票）保持原样不变
+> 设计原则: 复杂度隔离在"采购订单→采购单"这一步，采购单及之后流程（付款/核销/发票）保持原样不变
 
 ---
 
@@ -14,17 +14,17 @@
   │ fa_kuerp_goods_purchase_order.supplyer_code = "GYS001"
   │ fa_kuerp_goods_purchase_order_info.supplyer_code = "GYS001" (每条行)
   │
-  └── 生成购货单 (手动点击) → 1个购货单
+  └── 生成采购单 (手动点击) → 1个采购单
        │ fa_kuerp_goods_purchase.supplyer_code = "GYS001"
        │
        ├── 审核(_examine) →
        │   ├── payment_log (1条, 按suppliers_code)
-       │   ├── invoicing (1条, 按bill_code=购货单号)
+       │   ├── invoicing (1条, 按bill_code=采购单号)
        │   ├── writeoff_source (1条, 核销源单)
        │   └── accounts_copewith (1条, 应付账款)
        │
        └── 生成付款单 →
-           └── kuerp_payment_sale (1条, purchase_number=购货单号)
+           └── kuerp_payment_sale (1条, purchase_number=采购单号)
 ```
 
 **核心问题**: `supplyer_code` 在采购订单层面是表单级单值（前端 `$('#supplyer_code').val()` 全局读取），不能表达"一个订单里不同商品来自不同供应商"。
@@ -36,9 +36,9 @@
 | 前端JS | `goods_purchase_order.js` | 所有 Ajax 调用（`changeGoods`、`formatInfo`、`changeGoodsInfo`、`initlist`）都读全局 `$('#supplyer_code').val()`，**无逐行供应商概念** |
 | 前端HTML | `goods_purchase_order/add.html` | 商品表无供应商列，只有表头 `<select id="supplyer_code" data-rule="required">` |
 | 后端 | `GoodsPurchaseOrder.php` | `add()`/`edit()` 从 `$params['supplyer_code']` 取单值写入所有行 |
-| 后端 | `GoodsPurchaseOrder.php::index()` | 已通过 `kuerp_goods_purord` 桥表动态查询关联购货单列表 |
+| 后端 | `GoodsPurchaseOrder.php::index()` | 已通过 `kuerp_goods_purord` 桥表动态查询关联采购单列表 |
 | 后端 | `GoodsPurchase.php::add($ids)` | GET 预填时仅读取表头 `$row['supplyer_code']`，无分组概念 |
-| 后端 | `GoodsPurchase.php::_examine()` | 每个购货单独立审核，`supplyer_code` 来自购货单自身表头 |
+| 后端 | `GoodsPurchase.php::_examine()` | 每个采购单独立审核，`supplyer_code` 来自采购单自身表头 |
 | 数据库 | `goods_purchase_order_info` | **已有** `supplyer_code` 列，但当前存的是表头值 |
 | 数据库 | `kuerp_goods` | **已有** `supplier_id` 列（来自 migration_add_goods_supplier_id.sql） |
 | 数据库 | `goods_purchase_order.purchase_id` | varchar(50) 单值字段，历史遗留。**不依赖此字段**，统一走 `kuerp_goods_purord` 桥表 |
@@ -48,9 +48,9 @@
 ## 二、改造目标
 
 1. **采购订单**支持每行商品绑定不同供应商
-2. 生成购货单时，**按供应商分组**，每个供应商生成一个独立的购货单
-3. 每个购货单独立走付款流程（付款单 → 核销），**此部分代码零改动**
-4. 采购订单列表可查看关联的购货单和按供应商维度的状态
+2. 生成采购单时，**按供应商分组**，每个供应商生成一个独立的采购单
+3. 每个采购单独立走付款流程（付款单 → 核销），**此部分代码零改动**
+4. 采购订单列表可查看关联的采购单和按供应商维度的状态
 
 ---
 
@@ -79,18 +79,18 @@ ADD COLUMN `supplier_count` int(11) DEFAULT 0 COMMENT '涉及供应商数量' AF
 
 | 表 | 说明 |
 |---|------|
-| `fa_kuerp_goods_purchase` | 购货单主表——一个购货单一个供应商，不变 |
-| `fa_kuerp_goods_purchase_info` | 购货单明细——不变 |
+| `fa_kuerp_goods_purchase` | 采购单主表——一个采购单一个供应商，不变 |
+| `fa_kuerp_goods_purchase_info` | 采购单明细——不变 |
 | `fa_kuerp_goods_purord` | 已支持 1:N（order_id → 多个 purchase_id） |
 | `fa_kuerp_goods_purord_info` | 已支持行级追踪（order_info_id → purchase_info_id） |
-| `fa_kuerp_payment_sale` | 付款单关联购货单号，购货单已拆分即可 |
-| `fa_kuerp_invoicing` | 开票按购货单号，同上 |
+| `fa_kuerp_payment_sale` | 付款单关联采购单号，采购单已拆分即可 |
+| `fa_kuerp_invoicing` | 开票按采购单号，同上 |
 | `fa_kuerp_writeoff_source` | 核销源单，同上 |
 | `fa_kuerp_accounts_copewith` | 应付账款，同上 |
 
 ### 3.5 关于 `goods_purchase_order.purchase_id` 字段
 
-该字段是 varchar(50) 单值，历史遗留。当前 `index()` 列表展示关联购货单时**已经不依赖此字段**，而是通过 `kuerp_goods_purord` 桥表动态查询：
+该字段是 varchar(50) 单值，历史遗留。当前 `index()` 列表展示关联采购单时**已经不依赖此字段**，而是通过 `kuerp_goods_purord` 桥表动态查询：
 
 ```php
 // GoodsPurchaseOrder.php::index() 第 97-108 行（已验证）
@@ -100,7 +100,7 @@ $purchase_id = Db::name('kuerp_goods_purord')
 // 然后查 kuerp_goods_purchase 获取 purchase_code 列表
 ```
 
-改造后统一走桥表，该字段保留但不作为主要数据源。同样，`goods_purchase.purchase_order_id` 存的是订单号（purchase_code），多购货单场景下每个购货单都正确记录其来源订单号。
+改造后统一走桥表，该字段保留但不作为主要数据源。同样，`goods_purchase.purchase_order_id` 存的是订单号（purchase_code），多采购单场景下每个采购单都正确记录其来源订单号。
 
 ---
 
@@ -169,15 +169,15 @@ $scheduleBomGoods[] = [
 
 **当前逻辑**（已验证位置: 第 458-467 行）：
 ```php
-// 只要有一个购货单已生成，整个订单拒绝编辑
+// 只要有一个采购单已生成，整个订单拒绝编辑
 $purchase_id = Db::name('kuerp_goods_purord')
     ->where(['order_id' => $ids])->find();
-if ($purchase_id) { $this->error('不能编辑已生成购货单的数据'); }
+if ($purchase_id) { $this->error('不能编辑已生成采购单的数据'); }
 ```
 
-**改造后**：改为行级控制——已生成购货单的行锁定不可编辑，未生成的行可正常修改。
+**改造后**：改为行级控制——已生成采购单的行锁定不可编辑，未生成的行可正常修改。
 - 前端：查询 `kuerp_goods_purord_info` 标记哪些 `order_info_id` 已有转换记录，对应行设 `disabled`
-- 后端：保存时过滤掉已生成购货单的行，仅更新/新增未生成的行
+- 后端：保存时过滤掉已生成采购单的行，仅更新/新增未生成的行
 
 #### 4.1.4 `index()` 列表供应商搜索
 
@@ -196,11 +196,11 @@ if (!empty($supplyerCodeFilter)) {
 }
 ```
 
-列表增加 `supplier_count` 列显示涉及的供应商数量。已有的 `purchase_id` 列（通过 `kuerp_goods_purord` 动态查询关联购货单）已支持展示多个购货单，无需改动。
+列表增加 `supplier_count` 列显示涉及的供应商数量。已有的 `purchase_id` 列（通过 `kuerp_goods_purord` 动态查询关联采购单）已支持展示多个采购单，无需改动。
 
 ---
 
-### 4.2 GoodsPurchase.php（购货单）— 按供应商分组生成
+### 4.2 GoodsPurchase.php（采购单）— 按供应商分组生成
 
 #### 4.2.1 新增批量生成方法
 
@@ -209,14 +209,14 @@ if (!empty($supplyerCodeFilter)) {
 **流程**：
 
 ```
-采购订单列表 → 点击"生成购货单"
+采购订单列表 → 点击"生成采购单"
   ↓ 后端检测供应商数量
   ├── 1个供应商 → 照旧，重定向到 goods_purchase/add?ids=XX
   │                （现有流程，改动量为0）
   │
   └── 多个供应商 → 弹窗展示分组信息：
         ┌──────────────────────────────────────┐
-        │ 该订单涉及 N 个供应商，将分别生成购货单   │
+        │ 该订单涉及 N 个供应商，将分别生成采购单   │
         │                                      │
         │ 供应商A: X种商品, 金额 ¥XX,XXX         │
         │ 供应商B: Y种商品, 金额 ¥XX,XXX         │
@@ -225,14 +225,14 @@ if (!empty($supplyerCodeFilter)) {
         │ [取消]  [确认生成]                      │
         └──────────────────────────────────────┘
               ↓ 确认
-         遍历供应商分组，每个生成一个购货单
+         遍历供应商分组，每个生成一个采购单
 ```
 
 **伪代码**：
 
 ```php
 /**
- * 从采购订单批量生成购货单（按供应商分组）
+ * 从采购订单批量生成采购单（按供应商分组）
  * @param int $orderId 采购订单ID
  */
 public function batchGeneratePurchase($orderId) {
@@ -316,7 +316,7 @@ public function batchGeneratePurchase($orderId) {
                 ];
             }
             
-            // 插入购货单主表
+            // 插入采购单主表
             $purchaseMainId = Db::name('kuerp_goods_purchase')->insertGetId([
                 'purchase_code'      => $purchaseCode,
                 'purchase_type'      => $order['purchase_type'],
@@ -337,7 +337,7 @@ public function batchGeneratePurchase($orderId) {
                 'updatetime'         => time(),
             ]);
             
-            // 插入购货单明细 + purord_info
+            // 插入采购单明细 + purord_info
             foreach ($detailData as $dv) {
                 $detailId = Db::name('kuerp_goods_purchase_info')->insertGetId($dv);
                 if (!empty($dv['order_info_id'])) {
@@ -364,8 +364,8 @@ public function batchGeneratePurchase($orderId) {
             if (!empty($order['sales_order_id'])) {
                 \app\admin\model\kuerp\GoodsSalesOrderLog::writeLogByCode(
                     $order['sales_order_id'],
-                    '生成购货单',
-                    "生成购货单：{$purchaseCode}（供应商：{$supplierCode}）",
+                    '生成采购单',
+                    "生成采购单：{$purchaseCode}（供应商：{$supplierCode}）",
                     'purchase',
                     $purchaseMainId
                 );
@@ -386,7 +386,7 @@ public function batchGeneratePurchase($orderId) {
         Db::commit();
     } catch (\Exception $e) {
         Db::rollback();
-        $this->error('生成购货单失败：' . $e->getMessage());
+        $this->error('生成采购单失败：' . $e->getMessage());
     }
     
     return json(['status' => 1, 'results' => $results]);
@@ -401,13 +401,13 @@ public function batchGeneratePurchase($orderId) {
 
 ### 4.3 `_examine()` 审核 — 零改动
 
-每个购货单审核时仍是单供应商，`payment_log`、`invoicing`、`writeoff_source`、`accounts_copewith` 的写入逻辑完全不变。审核时入库数量通过 `kuerp_goods_purord_info` 反向更新采购订单的 `store_number` 和 `status`，这部分逻辑已验证支持多条购货单汇总。
+每个采购单审核时仍是单供应商，`payment_log`、`invoicing`、`writeoff_source`、`accounts_copewith` 的写入逻辑完全不变。审核时入库数量通过 `kuerp_goods_purord_info` 反向更新采购订单的 `store_number` 和 `status`，这部分逻辑已验证支持多条采购单汇总。
 
 ---
 
 ### 4.4 Payment.php（付款单）— 零改动
 
-付款单基于购货单号（`purchase_number`），购货单已按供应商拆分，付款流程完全不变。
+付款单基于采购单号（`purchase_number`），采购单已按供应商拆分，付款流程完全不变。
 
 ---
 
@@ -482,13 +482,13 @@ $(document).on('change', '.row-supplyer_code', function() {
 });
 ```
 
-### 5.2 goods_purchase.js（购货单前端）— 零改动
+### 5.2 goods_purchase.js（采购单前端）— 零改动
 
-购货单生成后就是一个供应商对应一个购货单，回到现有流程，无需改动。
+采购单生成后就是一个供应商对应一个采购单，回到现有流程，无需改动。
 
 ### 5.3 goods_purchase_order/index.html 列表
 
-增加 `supplier_count` 列，显示涉及的供应商数量。已有的 `purchase_id` 列（关联购货单列表）保持不变，已支持显示多个购货单号及审核状态。
+增加 `supplier_count` 列，显示涉及的供应商数量。已有的 `purchase_id` 列（关联采购单列表）保持不变，已支持显示多个采购单号及审核状态。
 
 ---
 
@@ -566,7 +566,7 @@ goods_purchase_order.js initScheduleBom():
 
 **销货排期模块本身：零改动。**
 
-"生成采购订单"按钮只是把 `schedule_id` 传给采购订单添加页，不涉及供应商逻辑。供应商的分组处理发生在采购订单→购货单这一步。
+"生成采购订单"按钮只是把 `schedule_id` 传给采购订单添加页，不涉及供应商逻辑。供应商的分组处理发生在采购订单→采购单这一步。
 
 **采购订单 BOM 预填：小幅改动（已在方案 4.1.2 中规划）**
 
@@ -600,9 +600,9 @@ $scheduleBomGoods[] = [
 零件a: 需求1000 (供应商: GYS001) ─┐
 零件b: 需求600  (供应商: GYS001) ─┤→ 生成采购订单
 零件c: 需求300  (供应商: GYS002) ─┘   每行自动带出供应商
-         ↓ 按供应商分组生成购货单
-购货单-CG001 (GYS001): 零件a×1000 + 零件b×600
-购货单-CG002 (GYS002): 零件c×300
+         ↓ 按供应商分组生成采购单
+采购单-CG001 (GYS001): 零件a×1000 + 零件b×600
+采购单-CG002 (GYS002): 零件c×300
          ↓ 各自走付款流程（不变）
 ```
 
@@ -610,23 +610,23 @@ $scheduleBomGoods[] = [
 
 1. **仓库选择逻辑不受影响**：BOM 预填时为每个零件选择库存最多的零件仓库（第 373-404 行），这个逻辑与供应商无关，保持不变。
 2. **BOM 零件过滤不受影响**：只取 `product_type='part'` 的子件，与供应商无关。
-3. **`sales_order_id` 传递不受影响**：排期关联的销货订单号仍会传递到采购订单和购货单，用于日志追踪。
+3. **`sales_order_id` 传递不受影响**：排期关联的销货订单号仍会传递到采购订单和采购单，用于日志追踪。
 4. **如果商品未设置 `supplier_id`**：`supplyer_code` 留空，用户在采购订单页面手动选择。
 
 ---
 
 ## 九、关键边界情况
 
-### 9.1 部分行已生成购货单后编辑
+### 9.1 部分行已生成采购单后编辑
 
-- 已生成购货单的行：前端 `disabled`，后端不处理
+- 已生成采购单的行：前端 `disabled`，后端不处理
 - 未生成的行：可修改（含供应商），可删除
-- 删除未生成行时不影响已生成的购货单
+- 删除未生成行时不影响已生成的采购单
 
 ### 9.2 供应商未知的商品
 
 - `supplyer_code` 为空的商品行分到"未指定供应商"组
-- 允许生成购货单，供应商字段留空，用户后续在购货单中补充
+- 允许生成采购单，供应商字段留空，用户后续在采购单中补充
 
 ### 9.3 历史数据兼容
 
@@ -635,13 +635,13 @@ $scheduleBomGoods[] = [
 
 ### 9.4 订单完成状态
 
-- `store_number`（已入库数量）通过 `kuerp_goods_purord_info` 汇总，多个购货单各自审核入库后自动累加
+- `store_number`（已入库数量）通过 `kuerp_goods_purord_info` 汇总，多个采购单各自审核入库后自动累加
 - `status`（0=未入库, 1=全部入库, 2=部分入库）计算逻辑不变
 
 ### 9.5 反审核
 
-- 购货单反审核时检查是否已生成付款单（现有逻辑），不受影响
-- 采购订单反审核时检查所有关联购货单是否已全部反审核（现有逻辑通过 `kuerp_goods_purord` 检查），逻辑不变
+- 采购单反审核时检查是否已生成付款单（现有逻辑），不受影响
+- 采购订单反审核时检查所有关联采购单是否已全部反审核（现有逻辑通过 `kuerp_goods_purord` 检查），逻辑不变
 
 ### 9.6 购货退货单
 
@@ -654,4 +654,4 @@ $scheduleBomGoods[] = [
 
 ### 9.7 采购费用 (cost_data)
 
-购货单有 `cost_data` 字段存储采购费用（运费、杂费等），审核时写入 `kuerp_cost` 表。该字段位于购货单层面，按供应商拆分后，每个购货单各自携带其 `cost_data`。如费用需要从订单级分配到供应商级，由用户在生成购货单后手动编辑各购货单的采购费用。本期不做自动分摊。
+采购单有 `cost_data` 字段存储采购费用（运费、杂费等），审核时写入 `kuerp_cost` 表。该字段位于采购单层面，按供应商拆分后，每个采购单各自携带其 `cost_data`。如费用需要从订单级分配到供应商级，由用户在生成采购单后手动编辑各采购单的采购费用。本期不做自动分摊。

@@ -311,7 +311,134 @@ class Collection extends Backend
         }
         $code = \addons\kuerp\library\Goods::getCodes('',21);
         $this->view->assign("code", $code);
+        // 从销货对账「去收款」进入：预选客户 + 自动填入该对账单所含销货单/退货单作为源单
+        $reconId = (int)$this->request->get('recon_id');
+        if ($reconId) {
+            $preset = $this->buildReconSources($reconId);
+            if (empty($preset)) {
+                $this->error('对账单不存在');
+            }
+            $this->view->assign('row', ['customers_id' => $preset['customers_id']]);
+            $this->assignconfig('reconId', $reconId);
+            $this->assignconfig('presetSources', $preset['sources']);
+        }
         return $this->view->fetch();
+    }
+
+    /**
+     * 销货对账「去收款」的预填源单
+     *
+     * 取该对账单所含销货单/退货单在 kuerp_writeoff_source 中尚未核销的源单，
+     * 字段结构与 Writeoff::chosereceivable 勾选后回传的数组保持一致，
+     * 前端可复用同一段落行代码。
+     *
+     * @param int $reconId
+     * @return array 对账单不存在时返回 []
+     */
+    protected function buildReconSources($reconId)
+    {
+        $recon = Db::name('kuerp_sales_recon')->where(['id' => $reconId])->field('id,recon_code,customers_id')->find();
+        if (!$recon) {
+            return [];
+        }
+        $codes = Db::name('kuerp_sales_recon_doc')->where(['recon_id' => $reconId])->column('doc_code');
+        // 兜底：历史单据可能因审核入口不同（如从计划排期审核）没有核销源单，这里按单据明细补建，
+        // 否则「去收款」预填不到任何源单（见 SalesRecon 的差异金额回写同款逻辑）
+        $this->ensureReconSources($reconId, $codes);
+        $sources = [];
+        if (!empty($codes)) {
+            // 与 Writeoff::chosereceivable 同口径：排除已核销为 0 的源单
+            $list = Db::name('kuerp_writeoff_source')
+                ->where(['purchase_code' => ['in', $codes], 'purchase_type' => '3'])
+                ->where(function ($query) {
+                    $query->where('id', 'NOT IN', function ($query) {
+                        $query->name('kuerp_writeoff_log')->field('source_id');
+                    })->whereOr('id', 'IN', function ($query) {
+                        $query->name('kuerp_writeoff_log')->where(['write_off' => ['<>', '0']])->field('source_id');
+                    });
+                })
+                ->order(['purchase_time' => 'ASC', 'id' => 'ASC'])
+                ->select();
+            foreach ($list as $row) {
+                $log = Db::name('kuerp_writeoff_log')->where(['source_id' => $row['id']])->field('money,write_off')->find();
+                if ($row['type'] == '1') {
+                    $typeText = '普通销售';
+                } elseif ($row['type'] == '4') {
+                    $typeText = '核销';
+                } else {
+                    $typeText = '销售退货';
+                }
+                $sources[] = [
+                    'purchase_number'  => $row['purchase_code'],
+                    'purchase_type_id' => $row['id'],
+                    'business_type'    => $typeText,
+                    'times'            => $row['purchase_time'] ? date('Y-m-d', $row['purchase_time']) : '',
+                    'sale_money'       => $row['price'],
+                    'write_off'        => $log ? $log['money'] : 0,
+                    'write_off_price'  => $log ? $log['write_off'] : $row['write_off'],
+                    'purchase_numbers' => $row['purchase_code'],
+                    'remark'           => $row['remark'],
+                    'type'             => $row['type'],
+                ];
+            }
+        }
+        return ['customers_id' => $recon['customers_id'], 'sources' => $sources];
+    }
+
+    /**
+     * 补齐对账单所含单据缺失的核销源单
+     *
+     * 源单本应在销货单/销货退货单审核时写入，历史数据里存在审核入口没走该逻辑的情况
+     * （如早期从计划排期审核），导致销货对账「去收款」查不到单源。
+     * 这里只补缺、不改已有源单，金额口径与 SalesRecon::writebackDiff 一致：
+     * 销货单 price = real_money + customers_money + diff_money，pay = pay_money
+     * 退货单 price = -(real_money + customers_money) + diff_money，pay = -retreat_money
+     *
+     * @param int   $reconId
+     * @param array $codes 对账单所含单据编号
+     */
+    protected function ensureReconSources($reconId, $codes)
+    {
+        if (empty($codes)) {
+            return;
+        }
+        $docs = Db::name('kuerp_sales_recon_doc')->where(['recon_id' => $reconId])->field('doc_code,doc_type')->select();
+        foreach ($docs as $doc) {
+            $code = $doc['doc_code'];
+            $type = $doc['doc_type'] == '2' ? '2' : '1';
+            $exists = Db::name('kuerp_writeoff_source')
+                ->where(['purchase_code' => $code, 'purchase_type' => '3', 'type' => $type])
+                ->count();
+            if ($exists) {
+                continue;
+            }
+            if ($type === '1') {
+                $row = Db::name('kuerp_goods_sales')->where(['purchase_code' => $code, 'examine_status' => '1'])->find();
+                if (!$row) {
+                    continue;
+                }
+                $price = round((float)$row['real_money'] + (float)$row['customers_money'] + (float)$row['diff_money'], 4);
+                $payed = round((float)$row['pay_money'], 4);
+            } else {
+                $row = Db::name('kuerp_goods_sales_exchange')->where(['purchase_code' => $code, 'examine_status' => '1'])->find();
+                if (!$row) {
+                    continue;
+                }
+                $price = round(-((float)$row['real_money'] + (float)$row['customers_money']) + (float)$row['diff_money'], 4);
+                $payed = round(-(float)$row['retreat_money'], 4);
+            }
+            Db::name('kuerp_writeoff_source')->insert([
+                'purchase_type' => '3',
+                'type'          => $type,
+                'customers_id'  => $row['customers_id'],
+                'purchase_code' => $row['purchase_code'],
+                'purchase_time' => $row['purchase_time'],
+                'price'         => $price,
+                'money'         => $payed,
+                'write_off'     => round($price - $payed, 4),
+                'remark'        => isset($row['note']) ? $row['note'] : '',
+            ]);
+        }
     }
 
     public function edit($ids = null)
@@ -719,7 +846,8 @@ class Collection extends Backend
                         //普通销售
                         $order = Db::name('kuerp_goods_sales')->where(['purchase_code'=>$info_list_v['purchase_number']])->find();
                         if($order){
-                            $all_money = $order['real_money'];
+                            //应收总额统一口径：优惠后价税合计 + 客户承担费用 + 对账差异
+                            $all_money = $order['real_money']+$order['customers_money']+(float)$order['diff_money'];
                             $pay_money = $order['pay_money']+$info_list_v['write_off_price'];
                             if($all_money<$pay_money){
                                 if($examine_set!=1){
@@ -732,7 +860,8 @@ class Collection extends Backend
                         //销售退货
                         $order = Db::name('kuerp_goods_sales_exchange')->where(['purchase_code'=>$info_list_v['purchase_number']])->find();
                         if($order){
-                            $all_money = $order['real_money'];
+                            //应收总额统一口径：优惠后价税合计 + 客户承担费用 - 对账差异（退货金额越大冲减越多）
+                            $all_money = $order['real_money']+$order['customers_money']-(float)$order['diff_money'];
                             $pay_money = $order['retreat_money']+(-$info_list_v['write_off_price']);
                             if($all_money<$pay_money){
                                 if($examine_set!=1){
@@ -810,7 +939,7 @@ class Collection extends Backend
                                     'reamrk'         => $list_v['remarks'],
                                     'createtime'     => time(),
                                 ]));
-                                $more_money = $order['real_money']-$info_list_v['write_off_price']-$order['pay_money'];
+                                $more_money = ($order['real_money']+$order['customers_money']+(float)$order['diff_money'])-$info_list_v['write_off_price']-$order['pay_money'];
                                 $status = $more_money<=0?1:2;
                                 $pay_money = $order['pay_money']+$info_list_v['write_off_price'];
                                 Db::name('kuerp_goods_sales')->where(['purchase_code'=>$info_list_v['purchase_number']])
@@ -842,7 +971,7 @@ class Collection extends Backend
                                     'reamrk'         => $list_v['remarks'],
                                     'createtime'     => time(),
                                 ]));
-                                $more_money = $order['real_money']+$info_list_v['write_off_price']-$order['retreat_money'];
+                                $more_money = ($order['real_money']+$order['customers_money']-(float)$order['diff_money'])+$info_list_v['write_off_price']-$order['retreat_money'];
                                 $status = $more_money==0?1:2;
                                 $pay_money = $order['retreat_money']+(-$info_list_v['write_off_price']);
                                 Db::name('kuerp_goods_sales_exchange')->where(['purchase_code'=>$info_list_v['purchase_number']])
@@ -886,6 +1015,12 @@ class Collection extends Backend
                 }
                 if(isset($result) && $result !== false){
                     $success_count += 1;
+                    // 收款后同步所属销货对账单的收款状态（到期提醒、差异校验依赖该字段）
+                    try {
+                        $reconCodes = Db::name('kuerp_collection_sale')->where(['collection_id'=>$list_v['id']])->column('purchase_number');
+                        \app\admin\model\kuerp\SalesRecon::recalcPayByDocCodes($reconCodes);
+                    } catch (\Exception $e) {
+                    }
                 }
             }
             if($success_count>0){
@@ -983,6 +1118,12 @@ class Collection extends Backend
                 }
                 if(isset($result) && $result !== false){
                     $success_count += 1;
+                    // 反审核后同步所属销货对账单的收款状态
+                    try {
+                        $reconCodes = Db::name('kuerp_collection_sale')->where(['collection_id'=>$list_v['id']])->column('purchase_number');
+                        \app\admin\model\kuerp\SalesRecon::recalcPayByDocCodes($reconCodes);
+                    } catch (\Exception $e) {
+                    }
                 }
             }
             if($success_count>0){

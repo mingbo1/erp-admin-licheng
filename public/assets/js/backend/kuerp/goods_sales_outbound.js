@@ -59,12 +59,27 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 return d.customers.customer_name;
                             }},
                         {field: 'purchase_order_id', title: __('销货订单号'), operate: 'LIKE'},
+                        {field: 'delivery_mode', title: __('Delivery_mode'), width: 90, templet: function (d) {
+                                if(d.delivery_mode=='dropship'){
+                                    return '<span style="color:#ff5722">'+__('Delivery_mode dropship')+'</span>';
+                                }
+                                return __('Delivery_mode direct');
+                            }},
                         {field: 'returns_order_id', title: __('Returns_order_id'), operate: 'LIKE'},
                         {field: 'delivery_time', title: __('Delivery_time'),templet: function (d) {
                                 return layui.util.toDateString(d.delivery_time*1000,"yyyy-MM-dd");
                             },width:110},
                         {field: 'number', title: __('Number'),templet: function (d) {
                                 return (d.number).toFixed(number_decimal);
+                            }},
+                        {field: 'stock_status', title: __('Stock_status'), width: 110, templet: function (d) {
+                                var status = parseInt(d.stock_status);
+                                if (isNaN(status)) {
+                                    status = 0;
+                                }
+                                var colors = {0: '#009688', 1: '#ff9800', 2: '#f44336', 3: '#1E9FFF', 4: '#5FB878'};
+                                var color = colors[status] ? colors[status] : '#333';
+                                return '<span style="color:' + color + '">' + __('Stock_status ' + status) + '</span>';
                             }},
                         {field: 'preparation_id', title: __('Preparation_id'),templet: function (d) {
                                 return d.preparation.nickname;
@@ -85,7 +100,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 }
                             }},
                         {field: 'note', title: __('Note')},
-                        {fixed: 'right', title:__('Operate'), toolbar: '#barDemoOutbound', width:180}
+                        {fixed: 'right', title:__('Operate'), toolbar: '#barDemoOutbound', width:250}
                     ]]
                 });
 
@@ -138,6 +153,29 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             callback:function(value){
                                 $('.btn-refresh').click();
                             }
+                        });
+                    } else if(obj.event === 'apply'){
+                        //计划部门申请出库：填写本次各产品出库数量，提交后由仓库在"出库管理"审核执行
+                        Fast.api.open("kuerp/goods_sales_outbound/apply?ids="+data.id, "申请出库", {
+                            type:2,
+                            area:['95%','75%'],
+                            callback:function(value){
+                                $('.btn-refresh').click();
+                            }
+                        });
+                    } else if(obj.event === 'applyrecord'){
+                        //已全部出库：只读查看该销货单的历次申请/出库记录（view=1 隐藏提交按钮与申请数量输入）
+                        Fast.api.open("kuerp/goods_sales_outbound/apply?ids="+data.id+"&view=1", "申请记录", {
+                            type:2,
+                            area:['95%','75%'],
+                            callback:function(value){
+                                $('.btn-refresh').click();
+                            }
+                        });
+                    } else if(obj.event === 'deliverynote'){
+                        // 打印送货单：有多条申请时默认打印最新一条（更早的可在申请记录弹窗里逐条打印）
+                        Fast.api.open("kuerp/goods_outbound_apply/deliverynote/ids/"+data.printable_apply_id, "送货单", {
+                            area:['90%','85%']
                         });
                     } else if(obj.event === 'edit'){
                         Fast.api.open("kuerp/goods_sales_outbound/edit?ids="+data.id, "编辑",{ area:['90%','75%'],});
@@ -202,6 +240,96 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
         },
         edit: function () {
             Controller.api.bindevent(false);
+        },
+        //出库申请弹窗（apply.html）：表单校验+ajax提交（成功后自动关闭弹窗并刷新父列表）+ 历次记录撤销
+        apply: function () {
+            var expressOptions = '';
+            try {
+                Config.expressList = Config.expressList || [];
+                expressOptions = '<option value="">请选择快递公司</option>';
+                $(Config.expressList).each(function (i, v) {
+                    expressOptions += '<option value="' + v.code + '">' + v.name + '</option>';
+                });
+            } catch (e) {
+                expressOptions = '<option value="">请选择快递公司</option>';
+            }
+            function renumberExpress() {
+                $('#express_table tr.express-row').each(function (i) {
+                    $(this).find('.express-index').text(i + 1);
+                });
+            }
+            // 添加快递行（快递公司 + 快递单号，一次出库可多条）
+            $(document).on('click', '#btn_add_express', function () {
+                var html = '<tr class="express-row">'
+                    + '<td class="express-index"></td>'
+                    + '<td><select name="express_company[]" class="form-control">' + expressOptions + '</select></td>'
+                    + '<td><input type="text" name="express_no[]" class="form-control" placeholder="请输入快递单号"></td>'
+                    + '<td><button type="button" class="btn btn-danger btn-xs btn-remove-express">删除</button></td>'
+                    + '</tr>';
+                $('#express_table').append(html);
+                renumberExpress();
+            });
+            // 删除快递行
+            $(document).on('click', '.btn-remove-express', function () {
+                $(this).closest('tr.express-row').remove();
+                renumberExpress();
+            });
+            // 打印送货单（历次申请记录，已同意出库的申请）
+            $(document).on('click', '.btn-print-delivery', function () {
+                var id = $(this).data('id');
+                parent.Fast.api.open("kuerp/goods_outbound_apply/deliverynote?ids=" + id, "送货单", {
+                    area: ['90%', '85%']
+                });
+            });
+            Form.api.bindevent($("form[role=form]"), null, null, function () {
+                //申请数量默认 0：一项都没填时不允许提交，避免误点把"还可申请"整批报上去
+                var total = 0;
+                $('.out_number_ipt').each(function () {
+                    var val = parseFloat($(this).val());
+                    if (!isNaN(val) && val > 0) {
+                        total += val;
+                    }
+                });
+                if (total <= 0) {
+                    Toastr.error('请至少填写一项申请出库数量');
+                    return false;
+                }
+                // 快递公司与快递单号必须成对填写（空行忽略）
+                var expressError = '';
+                $('#express_table tr.express-row').each(function () {
+                    if (expressError !== '') {
+                        return false;
+                    }
+                    var company = $.trim($(this).find('select[name="express_company[]"]').val() || '');
+                    var no = $.trim($(this).find('input[name="express_no[]"]').val() || '');
+                    if (company === '' && no === '') {
+                        return;
+                    }
+                    if (company === '') {
+                        expressError = '请选择快递公司（快递单号：' + no + '）';
+                    } else if (no === '') {
+                        expressError = '请填写快递单号';
+                    }
+                });
+                if (expressError !== '') {
+                    Toastr.error(expressError);
+                    return false;
+                }
+            });
+            $(document).on('click', '.btn-cancel-apply', function () {
+                var id = $(this).data('id');
+                var code = $(this).data('code');
+                Layer.confirm('确定撤销出库申请[' + code + ']吗？', {icon:3, title:'提示'}, function (index) {
+                    Layer.close(index);
+                    //传申请单ID（显式 apply_id）
+                    Fast.api.ajax({url:'kuerp/goods_sales_outbound/applycancel', data:{apply_id:id}}, function () {
+                        if (window.parent && window.parent.$) {
+                            window.parent.$('.btn-refresh').trigger('click');
+                        }
+                        location.reload();
+                    });
+                });
+            });
         },
         api: {
             bindevent: function (reloadStatus=true) {
@@ -272,7 +400,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             }
                         }});
                 });
-                //查看原始单据
+                //查看原始单据：图片用相册预览，PDF/Excel/Word 等文件用链接打开
                 $(document).on("click", ".voucherAttachment", function(){
                     var id = $('#c-enclosure').val();
                     $.ajax( {
@@ -282,11 +410,35 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             'searchIds':id,
                         },
                         success: function(res){
-                            layer.photos({
-                                photos: res.rows
-                                ,anim: 5 //0-6的选择，指定弹出图片动画类型，默认随机（请注意，3.0之前的版本用shift参数）
+                            var rows = (res.rows && res.rows.data) ? res.rows.data : [];
+                            var images = [], files = [];
+                            $(rows).each(function (k, v) {
+                                if (v.is_image == 1) {
+                                    images.push({src: v.src});
+                                } else {
+                                    files.push(v);
+                                }
                             });
-                            console.log(res);
+                            if (images.length > 0) {
+                                layer.photos({
+                                    photos: {data: images}
+                                    ,anim: 5 //0-6的选择，指定弹出图片动画类型，默认随机（请注意，3.0之前的版本用shift参数）
+                                });
+                            }
+                            if (files.length > 0) {
+                                var html = '<div style="padding:12px 16px;">';
+                                $(files).each(function (k, v) {
+                                    html += '<p style="margin-bottom:8px;"><a href="' + v.url + '" target="_blank"><i class="fa fa-file-o"></i> ' + v.name + '</a></p>';
+                                });
+                                html += '</div>';
+                                layer.open({
+                                    type: 1,
+                                    title: '原始单据文件',
+                                    area: ['420px', 'auto'],
+                                    shadeClose: true,
+                                    content: html
+                                });
+                            }
                         }
                     });
                 });

@@ -24,6 +24,7 @@
         .no-print { text-align: center; margin-bottom: 20px; }
         .no-print button { padding: 8px 30px; font-size: 16px; cursor: pointer; }
     </style>
+{include file="kuerp/common/printstyle" /}
 </head>
 <body>
 <div class="no-print">
@@ -50,6 +51,9 @@
                 <th>序号</th>
                 <th>{:__('Goods_code')}</th>
                 <th>{:__('Goods_name')}</th>
+                <th>{:__('Goods_specification_id')}</th>
+                <th>{:__('Vendor_name')}</th>
+                <th>{:__('Packaging')}</th>
                 <th>{:__('Goods_note')}</th>
                 <th>{:__('Unit_name')}</th>
                 <th>{:__('Stores_name')}</th>
@@ -76,6 +80,9 @@
                 <td>{$k+1}</td>
                 <td>{$info.goods_code|htmlentities}</td>
                 <td>{$info.goods_name|htmlentities}</td>
+                <td>{$info.goods_specification_id|htmlentities}</td>
+                <td>{$info.vendor_name|htmlentities}</td>
+                <td>{$info.packaging|htmlentities}</td>
                 <td>{$info.goods_note|htmlentities}</td>
                 <td>{$info.unit_name|htmlentities}</td>
                 <td>{$info.stores_name|htmlentities}</td>
@@ -88,12 +95,12 @@
             </tr>
             {/foreach}
             {if condition="empty($purchase_info)"}
-            <tr><td colspan="11">无明细数据</td></tr>
+            <tr><td colspan="14">无明细数据</td></tr>
             {/if}
         </tbody>
         <tfoot>
             <tr>
-                <th colspan="7">合计</th>
+                <th colspan="10">合计</th>
                 <th class="right">{$total_order}</th>
                 <th class="right">{$total_stored}</th>
                 <th class="right">{$total_remain}</th>

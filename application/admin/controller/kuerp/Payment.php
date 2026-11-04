@@ -840,7 +840,7 @@ class Payment extends Backend
                                 Db::name('kuerp_payment_sale')->where(['id'=>$info_list_v['id']])->update([
                                     'old_money'=>$order['pay_money'],
                                     'old_status'=>$order['pay_status'],
-                                    'old_status_i'=>$income['status']
+                                    'old_status_i'=>$income ? $income['status'] : 0
                                 ]);
                                 if($income){
                                     Db::name('kuerp_invoicing')->where(['bill_code'=>$info_list_v['purchase_number']])
@@ -873,7 +873,7 @@ class Payment extends Backend
                                 Db::name('kuerp_payment_sale')->where(['id'=>$info_list_v['id']])->update([
                                     'old_money'=>$order['retreat_money'],
                                     'old_status'=>$order['retreat_status'],
-                                    'old_status_i'=>$income['status']
+                                    'old_status_i'=>$income ? $income['status'] : 0
                                 ]);
                             }
                             if($income){
@@ -976,6 +976,13 @@ class Payment extends Backend
             }
             $success_count = 0;
             foreach ($list as $list_k=>$list_v){
+                $applyLink = Db::name('kuerp_purchase_payment_apply')->where(['payment_id'=>$list_v['id'],'status'=>'5'])->find();
+                if($applyLink){
+                    if($examine_set!=1){
+                        return ['status'=>0,'msg'=>'付款单'.$list_v['purchase_code'].'由采购付款申请'.$applyLink['apply_code'].'生成，不能反审核'];
+                    }
+                    $this->error('付款单'.$list_v['purchase_code'].'由采购付款申请'.$applyLink['apply_code'].'生成，不能反审核');
+                }
                 //账户信息
                 $accountData = [];$log = [];
                 $account = Db::name('kuerp_payment_account')->where(['collection_id'=>$list_v['id']])->select();

@@ -22,7 +22,7 @@
             <div class="form-group">
                 <label class="control-label col-xs-12 col-sm-4">{:__('Delivery_time')}:</label>
                 <div class="col-xs-12 col-sm-8">
-                    <input id="c-delivery_time" class="form-control" name="row[delivery_time]" type="text" value="{$row.delivery_time|date='Y-m-d',###}" placeholder="{:__('Delivery_time')}">
+                    <input id="c-delivery_time" class="form-control" name="row[delivery_time]" type="text" value="{if condition='!empty($row.delivery_time)'}{$row.delivery_time|date='Y-m-d',###}{/if}" placeholder="{:__('Delivery_time')}">
                 </div>
             </div>
         </div>
@@ -150,9 +150,9 @@
                             </div>
                             <div>
                             {if condition="$group.generated"}
-                                <a href="javascript:;" class="layui-btn layui-btn-sm layui-btn-normal view-purchase" data-purchase-code="{$group.purchase_code}" data-purchase-id="{$group.purchase_id}">查看购货单：{$group.purchase_code}</a>
+                                <a href="javascript:;" class="layui-btn layui-btn-sm layui-btn-normal view-purchase" data-purchase-code="{$group.purchase_code}" data-purchase-id="{$group.purchase_id}">查看采购单：{$group.purchase_code}</a>
                             {else/}
-                                <button type="button" class="layui-btn layui-btn-sm layui-btn-danger purchase-group" data-id="{$row.id}" data-supplier="{$group.supplyer_code}">生成购货单({$group.supplyer_name})</button>
+                                <button type="button" class="layui-btn layui-btn-sm layui-btn-danger purchase-group" data-id="{$row.id}" data-supplier="{$group.supplyer_code}">生成采购单({$group.supplyer_name})</button>
                             {/if}
                             </div>
                         </div>

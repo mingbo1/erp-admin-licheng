@@ -1,0 +1,237 @@
+{include file="kuerp/common/menu" /}
+<form id="apply-form" class="form-horizontal" role="form" data-toggle="validator" method="POST" action="{:url('kuerp/goods_sales_outbound/apply')}">
+
+    <input type="hidden" id="order_id" name="ids" value="{$row.id}">
+
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            {if condition="$isView == 1 || $allOut == 1"}
+            <b>出库申请 / 出库记录</b>（只读查看：该销货单的申请与出库历史见下方"历次申请记录"）
+            {else /}
+            <b>出库申请</b>（提交后由仓库部门在"出库管理"中审核执行）
+            {/if}
+        </div>
+        <div class="panel-body">
+            <!-- 基本信息 -->
+            <div class="row">
+                <div class="col-xs-12 col-sm-4">
+                    <div class="form-group">
+                        <label class="control-label col-xs-4">{:__('Purchase_code')}:</label>
+                        <div class="col-xs-8">
+                            <p class="form-control-static"><b>{$row.purchase_code}</b></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xs-12 col-sm-4">
+                    <div class="form-group">
+                        <label class="control-label col-xs-4">{:__('Purchase_time')}:</label>
+                        <div class="col-xs-8">
+                            <p class="form-control-static">{$row.purchase_time|date='Y-m-d',###}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xs-12 col-sm-4">
+                    <div class="form-group">
+                        <label class="control-label col-xs-4">{:__('Customers_id')}:</label>
+                        <div class="col-xs-8">
+                            <p class="form-control-static">{$row.customer_name|default=''}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-xs-12 col-sm-4">
+                    <div class="form-group">
+                        <label class="control-label col-xs-4">{:__('Delivery_mode')}:</label>
+                        <div class="col-xs-8">
+                            <p class="form-control-static">{$row.delivery_mode_text|default=''}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr>
+
+            <!-- 商品出库申请明细 -->
+            <div class="row">
+                <div class="col-xs-12">
+                    <div class="form-group">
+                        <label class="control-label" style="font-weight: bold;">本次申请出库数量（同一销货单可多次申请；还可申请 = 剩余未出 - 待审核申请占用）：</label>
+                    </div>
+                </div>
+            </div>
+            <div class="list" style="overflow-x: auto">
+                <table id="out_table" class="table table-bordered">
+                    <tr>
+                        <th>商品编号</th>
+                        <th>商品名称</th>
+                        <th>型号</th>
+                        <th>规格2/厂商</th>
+                        <th>规格3/封装</th>
+                        <th class="goods_attr_sd">属性</th>
+                        <th>单位</th>
+                        <th>仓库</th>
+                        <th>品号与功率</th>
+                        <th>生产备注</th>
+                        <th>可出库数量</th>
+                        <th>计划数量</th>
+                        <th>已出库数量</th>
+                        <th>待审申请中</th>
+                        <th>还可申请</th>
+                        <th>本次申请出库数量</th>
+                        <th class="goods_batch_sd">批次</th>
+                    </tr>
+                    {foreach name="infoList" item="item"}
+                    <tr>
+                        <td>{$item.goods_code}</td>
+                        <td>{$item.goods_name}</td>
+                        <td>{$item.goods_specification_id|default=''|htmlentities}</td>
+                        <td>{$item.vendor_name|default=''|htmlentities}</td>
+                        <td>{$item.packaging|default=''|htmlentities}</td>
+                        <td class="goods_attr_sd">{$item.attr_name}</td>
+                        <td>{$item.unit_name}</td>
+                        <td>{$item.stores_name}</td>
+                        <td>{$item.remark|default=''|htmlentities}</td>
+                        <td>{$item.production_remark|default=''|htmlentities}</td>
+                        <td>{$item.allow_stock|default=0|htmlentities}</td>
+                        <td>{$item.number|htmlentities}</td>
+                        <td>{$item.out_number|default=0|htmlentities}</td>
+                        <td>{if condition="$item.pending_qty > 0"}<span style="color:#1E9FFF">{$item.pending_qty|htmlentities}</span>{else}0{/if}</td>
+                        <td>
+                            {if condition="$item.can_apply > 0"}
+                            <b style="color:green">{$item.can_apply|htmlentities}</b>
+                            {else}
+                            <span style="color:#999">0</span>
+                            {/if}
+                        </td>
+                        <td>
+                            {if condition="$isView == 1 || $allOut == 1"}
+                            <span style="color:#999">--</span>
+                            {elseif condition="$item.can_apply > 0" /}
+                            <input type="number" name="out_data[{$item.id}]" class="form-control out_number_ipt number_decimal" value="0" min="0" max="{$item.can_apply}" step="0.0001" placeholder="申请出库数量">
+                            {elseif condition="$item.out_number >= $item.number" /}
+                            <span style="color:green">已全部出库</span>
+                            {else /}
+                            <span style="color:#999">待审申请已占用全部数量</span>
+                            {/if}
+                        </td>
+                        <td class="goods_batch_sd">{$item.batch_name}</td>
+                    </tr>
+                    {/foreach}
+                    {if condition="empty($infoList)"}
+                    <tr><td colspan="17" style="text-align:center;color:#999;">暂无商品数据</td></tr>
+                    {/if}
+                </table>
+            </div>
+
+            {if condition="$isView != 1 && $allOut != 1"}
+            <!-- 快递信息：本次出库可填写多个快递单号/快递公司（打印送货单时使用） -->
+            <div class="row" style="margin-top: 10px">
+                <div class="col-xs-12">
+                    <div class="form-group" style="margin-bottom: 6px;">
+                        <label class="control-label" style="font-weight: bold;">快递信息（选填；同一批次出库可添加多个快递公司/快递单号）：</label>
+                    </div>
+                    <div id="express_wrap" data-select-enhance="skip">
+                        <table class="table table-bordered" id="express_table" style="width: auto; min-width: 620px; margin-bottom: 8px;">
+                            <tr>
+                                <th style="width: 60px;">序号</th>
+                                <th style="min-width: 200px;">快递公司</th>
+                                <th style="min-width: 220px;">快递单号</th>
+                                <th style="width: 70px;">操作</th>
+                            </tr>
+                            <tr class="express-row">
+                                <td class="express-index">1</td>
+                                <td>
+                                    <select name="express_company[]" class="form-control">
+                                        <option value="">请选择快递公司</option>
+                                        {foreach name="expressList" item="ex"}
+                                        <option value="{$ex.code}">{$ex.name}</option>
+                                        {/foreach}
+                                    </select>
+                                </td>
+                                <td><input type="text" name="express_no[]" class="form-control" placeholder="请输入快递单号"></td>
+                                <td><button type="button" class="btn btn-danger btn-xs btn-remove-express">删除</button></td>
+                            </tr>
+                        </table>
+                        <button type="button" class="btn btn-default btn-sm" id="btn_add_express"><i class="fa fa-plus"></i> 添加快递</button>
+                    </div>
+                </div>
+            </div>
+            {/if}
+
+            <!-- 提交/取消按钮：紧随申请明细表单，不随历次申请记录增多而下移（只读查看模式下只留关闭） -->
+            <div class="row" style="margin-top: 15px">
+                <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+                    <div class="form-group">
+                        <label class="control-label col-xs-12 col-sm-2"></label>
+                        <div class="col-xs-12 col-sm-8">
+                            {if condition="$isView != 1 && $allOut != 1"}
+                            <button type="submit" class="btn btn-success btn-embossed"><i class="fa fa-check"></i> 提交出库申请</button>
+                            <button type="button" class="btn btn-default btn-embossed" onclick="parent.Layer.closeAll();"><i class="fa fa-close"></i> 取消</button>
+                            {else /}
+                            <button type="button" class="btn btn-default btn-embossed" onclick="parent.Layer.closeAll();"><i class="fa fa-close"></i> 关闭</button>
+                            {/if}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 历次出库申请记录：独立面板，与上方申请表单分割开 -->
+    <div class="panel panel-default" style="margin-top: 15px">
+        <div class="panel-heading">
+            <b>历次申请记录</b>（同一销货单可多次申请，仓库每同意一条即出库一次）
+        </div>
+        <div class="panel-body">
+            <div class="list" style="overflow-x: auto">
+                <table class="table table-bordered">
+                    <tr>
+                        <th>申请单号</th>
+                        <th>申请人</th>
+                        <th>申请时间</th>
+                        <th>申请内容</th>
+                        <th>实际出库数量</th>
+                        <th>快递信息</th>
+                        <th>状态</th>
+                        <th>审核人</th>
+                        <th>审核时间</th>
+                        <th>拒绝原因</th>
+                        <th>操作</th>
+                    </tr>
+                    {foreach name="applyHistory" item="his"}
+                    <tr>
+                        <td><b>{$his.apply_code}</b></td>
+                        <td>{$his.apply_admin_name|default=''}</td>
+                        <td>{$his.apply_time|date='Y-m-d H:i',###}</td>
+                        <td>{$his.goods_summary|default=''}</td>
+                        <td>{if condition="$his.status == '1'"}{$his.out_summary|default=''}{else /}<span style="color:#999">--</span>{/if}</td>
+                        <td>{if condition="!empty($his.express_summary)"}{$his.express_summary|htmlentities}{else /}<span style="color:#999">--</span>{/if}</td>
+                        <td>
+                            {if condition="$his.status == '0'"}<span style="color:#1E9FFF">待审核</span>
+                            {elseif condition="$his.status == '1'" /}<span style="color:green">已同意出库</span>
+                            {elseif condition="$his.status == '2'" /}<span style="color:red">已拒绝</span>
+                            {else /}<span style="color:#999">已撤销</span>{/if}
+                        </td>
+                        <td>{$his.examine_admin_name|default=''}</td>
+                        <td>{$his.examine_time ? date('Y-m-d H:i', $his.examine_time) : ''}</td>
+                        <td style="color:red">{$his.refuse_reason|default=''}</td>
+                        <td>
+                            {if condition="$his.status == '1' || $his.status == '0'"}
+                            <a href="javascript:;" class="btn btn-info btn-xs btn-print-delivery" data-id="{$his.id}">打印送货单</a>
+                            {/if}
+                            {if condition="$his.status == '0' && $auth->check($nowmenu.'/applycancel') == 1"}
+                            <a href="javascript:;" class="btn btn-danger btn-xs btn-cancel-apply" data-id="{$his.id}" data-code="{$his.apply_code}">撤销申请</a>
+                            {/if}
+                            {if condition="!($his.status == '1' || $his.status == '0')"}--{/if}
+                        </td>
+                    </tr>
+                    {/foreach}
+                    {if condition="empty($applyHistory)"}
+                    <tr><td colspan="11" style="text-align:center;color:#999;">暂无申请记录</td></tr>
+                    {/if}
+                </table>
+            </div>
+        </div>
+    </div>
+</form>

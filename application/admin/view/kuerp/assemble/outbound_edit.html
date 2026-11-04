@@ -6,7 +6,9 @@
     <div class="panel panel-default">
         <div class="panel-heading">
             <b>实际出库/入库</b>
+            {if $canPrintPicking}
             <button type="button" class="btn btn-success btn-sm pull-right" onclick="printPicking()"><i class="fa fa-print"></i> 打印领料单</button>
+            {/if}
         </div>
         <div class="panel-body">
             <!-- 组装单基本信息 -->
@@ -89,7 +91,7 @@
                         <td>
                             {if condition="$row.examine_status==1"}
                                 {if condition="$item.out_number < $item.number"}
-                                <input type="number" name="out_data[{$item.id}]" class="form-control out_number_ipt number_decimal" value="{$item.number - $item.out_number}" min="0" max="{$item.number - $item.out_number}" step="0.0001" placeholder="实际出库数量">
+                                <input type="number" name="out_data[{$item.id}]" class="form-control out_number_ipt number_decimal" value="0" min="0" max="{$item.number - $item.out_number}" step="0.0001" placeholder="实际出库数量">
                                 {else}
                                 <span style="color:green">已全部出库</span>
                                 {/if}
@@ -150,7 +152,7 @@
                         <td>
                             {if condition="$row.inbound_status==1"}
                                 {if condition="$item.in_number < $item.number"}
-                                <input type="number" name="in_data[{$item.id}]" class="form-control in_number_ipt number_decimal" value="{$item.number - $item.in_number}" min="0" max="{$item.number - $item.in_number}" step="0.0001" placeholder="实际入库数量">
+                                <input type="number" name="in_data[{$item.id}]" class="form-control in_number_ipt number_decimal" value="0" min="0" max="{$item.number - $item.in_number}" step="0.0001" placeholder="实际入库数量">
                                 {else}
                                 <span style="color:green">已全部入库</span>
                                 {/if}
@@ -166,17 +168,63 @@
                     {/if}
                 </table>
             </div>
+
+            <hr>
+
+            <!-- 操作按钮（与上方表单同属一个盒子） -->
+            <div class="row">
+                <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+                    <div class="form-group">
+                        <label class="control-label col-xs-12 col-sm-2"></label>
+                        <div class="col-xs-12 col-sm-8">
+                            <button type="submit" class="btn btn-success btn-embossed"><i class="fa fa-check"></i> 确认出库/入库</button>
+                            <button type="button" class="btn btn-default btn-embossed" onclick="parent.Layer.closeAll();"><i class="fa fa-close"></i> 取消</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="row" style="margin-top: 15px">
-        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
-            <div class="form-group">
-                <label class="control-label col-xs-12 col-sm-2"></label>
-                <div class="col-xs-12 col-sm-8">
-                    <button type="submit" class="btn btn-success btn-embossed"><i class="fa fa-check"></i> 确认出库/入库</button>
-                    <button type="button" class="btn btn-default btn-embossed" onclick="parent.Layer.closeAll();"><i class="fa fa-close"></i> 取消</button>
-                </div>
+    <!-- 出库/入库操作记录（独立盒子，置于页面最下方；每次确认出库/入库后每行一条，最新在前） -->
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <b>出库/入库操作记录</b>
+            <span style="color:#999;margin-left:10px;font-weight:normal;">每次确认出库/入库后记录一行（数量为基本单位数量/金额）</span>
+        </div>
+        <div class="panel-body">
+            <div class="list" style="overflow-x: auto">
+                <table class="table table-bordered table-striped" style="margin-bottom:0;">
+                    <tr>
+                        <th>时间</th>
+                        <th>类型</th>
+                        <th>商品编号</th>
+                        <th>商品名称</th>
+                        <th>型号</th>
+                        <th>规格2/厂商</th>
+                        <th>规格3/封装</th>
+                        <th>仓库</th>
+                        <th>数量</th>
+                        <th>操作人</th>
+                    </tr>
+                    {foreach name="log_list" item="log"}
+                    <tr>
+                        <td>{$log.createtime|date='Y-m-d H:i',###}</td>
+                        <td>{if condition="$log.is_out"}<span style="color:#f60">出库</span>{else /}<span style="color:green">入库</span>{/if}</td>
+                        <td>{$log.goods_code}</td>
+                        <td>{$log.goods_name}</td>
+                        <td>{$log.goods_specification_id}</td>
+                        <td>{$log.vendor_name}</td>
+                        <td>{$log.packaging}</td>
+                        <td>{$log.stores_name}</td>
+                        <td>{if condition="$log.is_out"}{$log.out_number|htmlentities}{else /}{$log.enter_number|htmlentities}{/if}</td>
+                        <td>{$log.admin_name}</td>
+                    </tr>
+                    {/foreach}
+                    {if condition="empty($log_list)"}
+                    <tr><td colspan="10" style="text-align:center;color:#999;">暂无出库/入库记录</td></tr>
+                    {/if}
+                </table>
             </div>
         </div>
     </div>

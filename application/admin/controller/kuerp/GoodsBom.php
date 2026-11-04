@@ -55,6 +55,11 @@ class GoodsBom extends Backend
                 ->order($sort, $order)
                 ->paginate($limit);
 
+            // 列表页(index)传 tree=1：每个模板先返回一条父商品行(row_type=1)，再返回其下子商品行(row_type=2)，
+            // 由前端默认折叠子件行、点击展开。
+            // BOM选择弹窗(chosebom)不传该参数，保持原「每行一条子件、父商品信息按 id 合并」的布局不变。
+            $tree = $this->request->param('tree', 0) ? 1 : 0;
+
             foreach ($list as $row) {
                 $row->getRelation('admin')->visible(['nickname']);
             }
@@ -64,39 +69,56 @@ class GoodsBom extends Backend
                 $p_info = Db::name('kuerp_goods_bom_info')->alias('a')
                     ->join('kuerp_goods g', 'g.id=a.goods_id')
                     ->where(['a.bom_id' => $list_v['id'], 'a.type' => '1'])
-                    ->field('a.number,g.goods_name,g.goods_code,g.product_type')
+                    ->field('a.number,a.location,g.goods_name,g.goods_code,g.product_type,g.goods_specification_id,g.vendor_name,g.packaging')
                     ->find();
                 // 获取子商品信息
                 $info = Db::name('kuerp_goods_bom_info')->alias('a')
                     ->join('kuerp_goods g', 'g.id=a.goods_id')
                     ->where(['a.bom_id' => $list_v['id'], 'a.type' => '2'])
-                    ->field('a.number,a.remark,g.goods_name,g.goods_code,g.product_type')
+                    ->field('a.number,a.location,a.remark,g.goods_name,g.goods_code,g.product_type')
                     ->select();
+                // 每个模板（父商品）公共字段
+                $base_data = [];
+                $base_data['id'] = $list_v['id'];
+                $base_data['bom_name'] = $list_v['bom_name'];
+                $base_data['remark'] = $list_v['remark'];
+                $base_data['pnumber'] = $p_info ? $p_info['number'] : '';
+                $base_data['pname'] = $p_info ? $p_info['goods_name'] : '';
+                $base_data['pcode'] = $p_info ? $p_info['goods_code'] : '';
+                $base_data['child_count'] = count($info);
+                // 树形模式：先输出父商品行
+                if ($tree) {
+                    $row_data = $base_data;
+                    $row_data['row_type'] = '1';
+                    $row_data['number'] = '';
+                    $row_data['location'] = $p_info ? $p_info['location'] : '';
+                    $row_data['name'] = '';
+                    $row_data['code'] = '';
+                    $row_data['child_remark'] = '';
+                    $row_data['product_type'] = $p_info ? $p_info['product_type'] : '';
+                    // 父级商品的型号 / 规格2-厂商 / 规格3-封装（列表页三列展示）
+                    $row_data['goods_specification_id'] = $p_info ? $p_info['goods_specification_id'] : '';
+                    $row_data['vendor_name'] = $p_info ? $p_info['vendor_name'] : '';
+                    $row_data['packaging'] = $p_info ? $p_info['packaging'] : '';
+                    $lists[] = $row_data;
+                }
                 foreach ($info as $info_k => $info_v) {
-                    $row_data = [];
-                    $row_data['id'] = $list_v['id'];
-                    $row_data['bom_name'] = $list_v['bom_name'];
-                    $row_data['remark'] = $list_v['remark'];
-                    $row_data['pnumber'] = $p_info ? $p_info['number'] : '';
-                    $row_data['pname'] = $p_info ? $p_info['goods_name'] : '';
-                    $row_data['pcode'] = $p_info ? $p_info['goods_code'] : '';
+                    $row_data = $base_data;
+                    $row_data['row_type'] = '2';
                     $row_data['number'] = $info_v['number'];
+                    $row_data['location'] = $info_v['location'];
                     $row_data['name'] = $info_v['goods_name'];
                     $row_data['code'] = $info_v['goods_code'];
                     $row_data['child_remark'] = $info_v['remark'];
                     $row_data['product_type'] = $info_v['product_type'];
                     $lists[] = $row_data;
                 }
-                // 如果没有子商品，也显示一行
-                if (empty($info)) {
-                    $row_data = [];
-                    $row_data['id'] = $list_v['id'];
-                    $row_data['bom_name'] = $list_v['bom_name'];
-                    $row_data['remark'] = $list_v['remark'];
-                    $row_data['pnumber'] = $p_info ? $p_info['number'] : '';
-                    $row_data['pname'] = $p_info ? $p_info['goods_name'] : '';
-                    $row_data['pcode'] = $p_info ? $p_info['goods_code'] : '';
+                // 如果没有子商品，也显示一行（非树形模式）
+                if (empty($info) && !$tree) {
+                    $row_data = $base_data;
+                    $row_data['row_type'] = '2';
                     $row_data['number'] = '';
+                    $row_data['location'] = $p_info ? $p_info['location'] : '';
                     $row_data['name'] = '';
                     $row_data['code'] = '';
                     $row_data['child_remark'] = '';
@@ -118,12 +140,13 @@ class GoodsBom extends Backend
         if ($this->request->isPost()) {
             $params = $this->request->post("row/a");
 
-            // 新格式：子商品使用并行数组 child_goods_id[], child_goods_code[], child_number[], child_unit[], child_remark[]
+            // 新格式：子商品使用并行数组 child_goods_id[], child_goods_code[], child_number[], child_unit[], child_remark[], child_location[]
             $childGoodsIds   = $this->request->post("child_goods_id/a");
             $childGoodsCodes = $this->request->post("child_goods_code/a");
             $childNumbers    = $this->request->post("child_number/a");
             $childUnits      = $this->request->post("child_unit/a");
             $childRemarks    = $this->request->post("child_remark/a");
+            $childLocations  = $this->request->post("child_location/a");
 
             // 兼容旧格式 children[a]
             $children = $this->request->post("children/a");
@@ -137,6 +160,7 @@ class GoodsBom extends Backend
                             'number' => $childNumbers[$i],
                             'unit_id' => isset($childUnits[$i]) ? $childUnits[$i] : '',
                             'remark' => isset($childRemarks[$i]) ? $childRemarks[$i] : '',
+                            'location' => isset($childLocations[$i]) ? $childLocations[$i] : '',
                         ];
                     }
                 }
@@ -156,6 +180,12 @@ class GoodsBom extends Backend
             $parentGoods = Db::name('kuerp_goods')->where(['id' => $params['goods_id']])->field('id,goods_code,goods_name')->find();
             if (empty($parentGoods)) {
                 $this->error('父商品不存在');
+            }
+
+            // 同一父商品只能有一个BOM模板
+            $existBom = Db::name('kuerp_goods_bom')->where(['goods_id' => $parentGoods['id']])->find();
+            if ($existBom) {
+                $this->error('父商品[' . $parentGoods['goods_code'] . ']已录入过BOM模板，请删除后重试');
             }
 
             Db::startTrans();
@@ -182,6 +212,7 @@ class GoodsBom extends Backend
                     'goods_name' => $parentGoods['goods_name'],
                     'unit_id' => isset($params['unit_id']) ? $params['unit_id'] : 0,
                     'number' => 1, // 父商品数量固定为1
+                    'location' => isset($params['location']) ? $params['location'] : '',
                     'remark' => '',
                     'createtime' => time(),
                     'updatetime' => time(),
@@ -206,6 +237,7 @@ class GoodsBom extends Backend
                         'goods_name' => $childGoods['goods_name'],
                         'unit_id' => isset($child['unit_id']) ? $child['unit_id'] : $childGoods['unit_id'],
                         'number' => $child['number'],
+                        'location' => isset($child['location']) ? $child['location'] : '',
                         'remark' => isset($child['remark']) ? $child['remark'] : '',
                         'createtime' => time(),
                         'updatetime' => time(),
@@ -242,6 +274,7 @@ class GoodsBom extends Backend
             $childNumbers    = $this->request->post("child_number/a");
             $childUnits      = $this->request->post("child_unit/a");
             $childRemarks    = $this->request->post("child_remark/a");
+            $childLocations  = $this->request->post("child_location/a");
 
             // 兼容旧格式
             $children = $this->request->post("children/a");
@@ -255,6 +288,7 @@ class GoodsBom extends Backend
                             'number' => $childNumbers[$i],
                             'unit_id' => isset($childUnits[$i]) ? $childUnits[$i] : '',
                             'remark' => isset($childRemarks[$i]) ? $childRemarks[$i] : '',
+                            'location' => isset($childLocations[$i]) ? $childLocations[$i] : '',
                         ];
                     }
                 }
@@ -273,6 +307,15 @@ class GoodsBom extends Backend
             $parentGoods = Db::name('kuerp_goods')->where(['id' => $params['goods_id']])->field('id,goods_code,goods_name')->find();
             if (empty($parentGoods)) {
                 $this->error('父商品不存在');
+            }
+
+            // 同一父商品只能有一个BOM模板（排除当前模板自身）
+            $existBom = Db::name('kuerp_goods_bom')
+                ->where(['goods_id' => $parentGoods['id']])
+                ->where('id', '<>', $ids)
+                ->find();
+            if ($existBom) {
+                $this->error('父商品[' . $parentGoods['goods_code'] . ']已录入过BOM模板，请删除后重试');
             }
 
             Db::startTrans();
@@ -300,6 +343,7 @@ class GoodsBom extends Backend
                     'goods_name' => $parentGoods['goods_name'],
                     'unit_id' => isset($params['unit_id']) ? $params['unit_id'] : 0,
                     'number' => 1,
+                    'location' => isset($params['location']) ? $params['location'] : '',
                     'remark' => '',
                     'createtime' => time(),
                     'updatetime' => time(),
@@ -324,6 +368,7 @@ class GoodsBom extends Backend
                         'goods_name' => $childGoods['goods_name'],
                         'unit_id' => isset($child['unit_id']) ? $child['unit_id'] : $childGoods['unit_id'],
                         'number' => $child['number'],
+                        'location' => isset($child['location']) ? $child['location'] : '',
                         'remark' => isset($child['remark']) ? $child['remark'] : '',
                         'createtime' => time(),
                         'updatetime' => time(),
@@ -415,7 +460,7 @@ class GoodsBom extends Backend
         $parent = Db::name('kuerp_goods_bom_info')->alias('a')
             ->join('kuerp_goods g', 'g.id=a.goods_id')
             ->where(['a.bom_id' => $ids, 'a.type' => '1'])
-            ->field('a.number,g.goods_name,g.goods_code,g.goods_specification_id,g.vendor_name,g.packaging,g.unit_id as goods_unit_id,a.unit_id')
+            ->field('a.number,a.location,g.goods_name,g.goods_code,g.goods_specification_id,g.vendor_name,g.packaging,g.unit_id as goods_unit_id,a.unit_id')
             ->find();
         if ($parent) {
             $unitId = $parent['unit_id'] > 0 ? $parent['unit_id'] : $parent['goods_unit_id'];
@@ -425,7 +470,7 @@ class GoodsBom extends Backend
         $children = Db::name('kuerp_goods_bom_info')->alias('a')
             ->join('kuerp_goods g', 'g.id=a.goods_id')
             ->where(['a.bom_id' => $ids, 'a.type' => '2'])
-            ->field('a.number,a.remark,g.goods_name,g.goods_code,g.goods_specification_id,g.unit_id as goods_unit_id,a.unit_id')
+            ->field('a.number,a.location,a.remark,g.goods_name,g.goods_code,g.goods_specification_id,g.unit_id as goods_unit_id,a.unit_id')
             ->select();
         foreach ($children as $k => $v) {
             $unitId = $v['unit_id'] > 0 ? $v['unit_id'] : $v['goods_unit_id'];

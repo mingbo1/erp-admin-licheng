@@ -1,0 +1,90 @@
+{include file="kuerp/common/menu" /}
+<div class="panel panel-default panel-intro">
+    <div class="panel-body">
+        <div id="myTabContent" class="tab-content">
+            <div class="tab-pane fade active in" id="one">
+                <div class="widget-body no-padding">
+                    <script type="text/html" id="thisToolbar">
+                        <div class="layui-btn-container">
+                            {if condition="$auth->check('kuerp/purchase_recon/add')==1"}
+                            <a class="layui-btn layui-btn-sm layui-bg-blue" lay-event="add"><i class="layui-icon">&#xe654;</i> 新建对账单</a>
+                            {/if}
+                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-cyan btn-refresh" lay-event="refresh"><i class="layui-icon">&#xe669;</i> {:__('Refresh')}</button>
+                        </div>
+                    </script>
+                    <div style="margin:0 0 8px;padding:6px 10px;background:#f8f8f8;border:1px solid #eee;color:#666;font-size:12px;">
+                        本页用于查询全部供应商的采购单/退货单状态；如需勾选单据生成对账单，请点上方「新建对账单」，或在左侧菜单进入「采购对账 → 对账单列表」。
+                    </div>
+
+                    <form class="layui-form layui-search" id="layui-search">
+                        <div class="layui-input-inline" style="width:140px;">
+                            <input type="date" id="filter_start" class="layui-input" title="开始日期">
+                        </div>
+                        <div class="layui-input-inline" style="width:140px;">
+                            <input type="date" id="filter_end" class="layui-input" title="结束日期">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="purchase_code" id="purchase_code" autocomplete="off" placeholder="采购单号" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="supplyer_code" id="supplyer_code" placeholder="供应商" class="layui-input">
+                                <option value="">请选择供应商</option>
+                                {foreach name="suppliers" item="vo"}
+                                <option value="{$vo.supplyer_code}">{$vo.supplyer_code} {$vo.supplyer_name}</option>
+                                {/foreach}
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="doc_type" id="doc_type" placeholder="单据类型" class="layui-input">
+                                <option value="">单据类型</option>
+                                <option value="1">采购单</option>
+                                <option value="2">购货退货单</option>
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="recon_state" id="recon_state" placeholder="对账状态" class="layui-input">
+                                <option value="">对账状态</option>
+                                <option value="0">未对账</option>
+                                <option value="1">待财务审核</option>
+                                <option value="2">待二审</option>
+                                <option value="3">已对账</option>
+                                <option value="4">已驳回</option>
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="invoice_state" id="invoice_state" placeholder="开票状态" class="layui-input">
+                                <option value="">开票状态</option>
+                                <option value="0">未开票</option>
+                                <option value="1">部分开票</option>
+                                <option value="2">已开票</option>
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="pay_state" id="pay_state" placeholder="付款状态" class="layui-input">
+                                <option value="">付款状态</option>
+                                <option value="0">未付款</option>
+                                <option value="1">付款申请中</option>
+                                <option value="2">已付款</option>
+                            </select>
+                        </div>
+                        <div class="layui-input-inline" style="width: 90px">
+                            <button class="layui-btn layui-btn-sm" type="button" id="search" data-type="reload">
+                                <i class="layui-icon"></i> {:__('Search')}
+                            </button>
+                        </div>
+                    </form>
+
+                    <table id="table" class="table table-striped table-bordered table-hover table-nowrap"
+                           width="100%" lay-filter="table">
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="text/html" id="barDemoPurchaseList">
+    {{# if(d.recon_id){ }}
+    <a class="layui-btn layui-btn-xs layui-bg-blue" lay-event="recon">查看对账单</a>
+    {{# } }}
+</script>

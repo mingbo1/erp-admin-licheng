@@ -162,7 +162,7 @@ class Customers extends Backend
                     if(!empty($insert_v['客户类别']) && !in_array($insert_v['客户类别'],$cate)){
                         $cate[] = $insert_v['客户类别'];
                     }
-                    if(!empty($insert_v['客户等级']) && !in_array($insert_v['客户等级'],$level)){
+                    if(!empty($insert_v['客户等级'] ?? '') && !in_array($insert_v['客户等级'],$level)){
                         $level[] = $insert_v['客户等级'];
                     }
                     if(!empty($insert_v['销售人员']) && !in_array($insert_v['销售人员'],$saler)){
@@ -216,7 +216,7 @@ class Customers extends Backend
                         'customer_code'     => $insert_v['客户编号'],
                         'customer_name'     => $insert_v['客户名称'],
                         'customertype_id'   => isset($catelist[$insert_v['客户类别']])?$catelist[$insert_v['客户类别']]:null,
-                        'customerlevel_id'  => isset($levellist[$insert_v['客户等级']])?$levellist[$insert_v['客户等级']]:1,
+                        'customerlevel_id'  => isset($levellist[$insert_v['客户等级'] ?? ''])?$levellist[$insert_v['客户等级']]:1,
                         'staff_member_id'   => isset($salerlist[$insert_v['销售人员']])?$salerlist[$insert_v['销售人员']]:null,
 
                         'account_time'      => !empty($insert_v['余额日期'])?$insert_v['余额日期']:time(),
@@ -238,6 +238,13 @@ class Customers extends Backend
                         'userlist'          =>[],
                         'first'             =>0
                     ];
+                    // 账期天数（信用账期）：表里有这一列才写，避免旧模板导入把已设置的账期清 0
+                    foreach (['信用账期天数', '信用账期', '账期天数'] as $cdKey) {
+                        if (array_key_exists($cdKey, $insert_v) && $insert_v[$cdKey] !== '') {
+                            $params[$insert_k]['credit_days'] = max(0, (int)$insert_v[$cdKey]);
+                            break;
+                        }
+                    }
                 }
                 if(isset($params[$nowsp]['userlist']) && (!empty($insert_v['联系人']))){
                     $is_first = 0;
@@ -731,7 +738,7 @@ class Customers extends Backend
             foreach ($list as $list_k=>$list_v){
                 $order_info = Db::name('kuerp_goods_sales_info')->where(['customers_id'=>$list_v['id']])->field('id')->find();
                 if(!empty($order_info)){
-                    $this->error('客户'.$list_v['customer_name'].'已有购货单，不可删除');
+                    $this->error('客户'.$list_v['customer_name'].'已有采购单，不可删除');
                 }
                 $order_info = Db::name('kuerp_goods_sales_exchange_info')->where(['customers_id'=>$list_v['id']])->field('id')->find();
                 if(!empty($order_info)){

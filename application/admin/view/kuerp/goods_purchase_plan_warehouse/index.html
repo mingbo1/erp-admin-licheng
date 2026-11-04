@@ -1,0 +1,55 @@
+{include file="kuerp/common/menu" /}
+<div class="panel panel-default panel-intro">
+    <div class="panel-body">
+        <div id="myTabContent" class="tab-content">
+            <div class="tab-pane fade active in" id="one">
+                <div class="widget-body no-padding">
+
+                    <script type="text/html" id="thisToolbar">
+                        <div class="layui-btn-container">
+                           <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-cyan btn-refresh" lay-event="refresh"><i class="layui-icon">&#xe669;</i> {:__('Refresh')}</button>
+                        </div>
+                    </script>
+
+                    <form class="layui-form layui-search" id="layui-search">
+                        <div class="layui-input-inline">
+                            <input type="text" name="purchase_code" id="purchase_code" autocomplete="off" placeholder="{:__('Purchase_code')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <input type="text" name="purchase_time" id="purchase_time" autocomplete="off" placeholder="{:__('Purchase_time')}" class="layui-input">
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="supplyer_code" id="supplyer_code" placeholder="{:__('Supplyer_code')}" class="layui-input">
+                                <option value="">请选择{:__('Supplyer_code')}</option>
+                                {foreach name="suppliersList" item="vo"}
+                                <option value="{$vo.supplyer_code}">{$vo.supplyer_code} {$vo.supplyer_name}</option>
+                                {/foreach}
+                            </select>
+                        </div>
+                        <div class="layui-input-inline">
+                            <select name="preparation_id" id="preparation_id" placeholder="{:__('Preparation_id')}" class="layui-input">
+                                <option value="">请选择{:__('Preparation_id')}</option>
+                                {foreach name="adminList" item="vo"}
+                                <option value="{$vo.id}">{$vo.username}</option>
+                                {/foreach}
+                            </select>
+                        </div>
+                        <div class="layui-input-inline " style="width: 90px">
+                            <button class="layui-btn layui-btn-sm" type="button" id="search" data-type="reload">
+                                 <i class="layui-icon"></i> {:__('Search')}
+                            </button>
+                         </div>
+                    </form>
+                    <table id="table" class="table table-striped table-bordered table-hover table-nowrap"
+                           width="100%" lay-filter="table">
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script type="text/html" id="barDemoPlanWarehouse">
+    <a class="layui-btn layui-btn-xs layui-bg-green" lay-event="print">{:__('Print')}</a>
+</script>

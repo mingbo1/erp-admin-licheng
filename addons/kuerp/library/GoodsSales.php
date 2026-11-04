@@ -18,7 +18,8 @@ class GoodsSales
             $row = Db::name('kuerp_goods')->where(['id'=>$goods_id])->field('unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,warehousing,warehouse')->find();
         }
         if(empty($row)){
-            return [];
+            //商品档案已删除的孤儿单据行：统一返回JSON串，避免调用方 json_decode() 收到数组报错
+            return json_encode([]);
         }
         if($store){
             $stock = Db::name('kuerp_goods_stock')->where(['goods_code'=>$row['goods_code'],'stores_id'=>$store])->value('stock');
@@ -87,7 +88,8 @@ class GoodsSales
                 ->find();
         }
         if(empty($row)){
-            return [];
+            //商品档案已删除的孤儿单据行：统一返回JSON串，避免调用方 json_decode() 收到数组报错
+            return json_encode(['unit'=>[],'attr'=>[],'goods'=>[]]);
         }
 
         //获取设置
@@ -111,8 +113,8 @@ class GoodsSales
                     case 1:
                         $field = 'market_sell_price';
                         break;
-                    case 2:
-                        $field = 'wholesale_price';
+                    case 2://批发价已下线，批发客户按零售价取价
+                        $field = 'market_sell_price';
                         break;
                     case 3:
                         $field = 'vip_price';
@@ -338,8 +340,8 @@ class GoodsSales
                     case 1:
                         $field = 'market_sell_price';
                         break;
-                    case 2:
-                        $field = 'wholesale_price';
+                    case 2://批发价已下线，批发客户按零售价取价
+                        $field = 'market_sell_price';
                         break;
                     case 3:
                         $field = 'vip_price';

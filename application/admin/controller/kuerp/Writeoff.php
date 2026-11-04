@@ -724,7 +724,9 @@ class Writeoff extends Backend
                         if($info_v['purchase_type']==3 && $info_v['type']==1){
                             //销售
                             $order = Db::name('kuerp_goods_sales')->where(['purchase_code'=>$info_v['purchase_number']])->find();
-                            $more_money = $order['money_tax_price']-$info_v['write_off_price']-$order['pay_money'];
+                            //应收总额统一口径：优惠后价税合计 + 客户承担费用
+                            //应收总额统一口径：优惠后价税合计 + 客户承担费用 + 对账差异
+                            $more_money = ($order['real_money']+$order['customers_money']+(float)$order['diff_money'])-$info_v['write_off_price']-$order['pay_money'];
                             $status = $more_money<=0?1:2;
                             $pay_money = $order['pay_money']+$info_v['write_off_price'];
                             Db::name('kuerp_goods_sales')->where(['purchase_code'=>$info_v['purchase_number']])
@@ -732,7 +734,8 @@ class Writeoff extends Backend
                         }else if($info_v['purchase_type']==3 && $info_v['type']==2){
                             //销售退货
                             $order = Db::name('kuerp_goods_sales_exchange')->where(['purchase_code'=>$info_v['purchase_number']])->find();
-                            $more_money = $order['money_tax_price']+$info_v['write_off_price']-$order['retreat_money'];
+                            //退货单：退货金额越大冲减越多，差异按反向计入
+                            $more_money = ($order['real_money']+$order['customers_money']-(float)$order['diff_money'])+$info_v['write_off_price']-$order['retreat_money'];
                             $status = $more_money==0?1:2;
                             $pay_money = $order['retreat_money']+(-$info_v['write_off_price']);
                             Db::name('kuerp_goods_sales_exchange')->where(['purchase_code'=>$info_v['purchase_number']])
@@ -1043,6 +1046,12 @@ class Writeoff extends Backend
                 }
                 if(isset($result) && $result !== false){
                     $success_count += 1;
+                    // 核销后同步所属销货对账单的收款状态（到期提醒、差异校验依赖该字段）
+                    try {
+                        $reconCodes = Db::name('kuerp_writeoff_info')->where(['collection_id'=>$list_v['id']])->column('purchase_number');
+                        \app\admin\model\kuerp\SalesRecon::recalcPayByDocCodes($reconCodes);
+                    } catch (\Exception $e) {
+                    }
                 }
             }
             if($success_count>0){
@@ -1176,6 +1185,12 @@ class Writeoff extends Backend
 
                 if(isset($result) && $result !== false){
                     $success_count += 1;
+                    // 核销后同步所属销货对账单的收款状态（到期提醒、差异校验依赖该字段）
+                    try {
+                        $reconCodes = Db::name('kuerp_writeoff_info')->where(['collection_id'=>$list_v['id']])->column('purchase_number');
+                        \app\admin\model\kuerp\SalesRecon::recalcPayByDocCodes($reconCodes);
+                    } catch (\Exception $e) {
+                    }
                 }
             }
             if($success_count>0){

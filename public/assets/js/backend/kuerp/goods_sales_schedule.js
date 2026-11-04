@@ -3,9 +3,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
     var Controller = {
         index: function () {
 
-            layui.use(['table','upload','form'], function(){
+            layui.use(['table','upload','form','laydate'], function(){
                 var table = layui.table;
                 upload = layui.upload;
+                laydate = layui.laydate;
 
                 var set = Config.set;
                 var number_decimal = parseInt(set.number_decimal.value);
@@ -39,6 +40,12 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'sale_user', title: __('Sale_user'),templet: function (d) {
                                 return d.staffmember ? d.staffmember.name : '';
                             }},
+                        {field: 'delivery_mode', title: __('Delivery_mode'), width: 90, templet: function (d) {
+                                if(d.delivery_mode=='dropship'){
+                                    return '<span style="color:#ff5722">'+__('Delivery_mode dropship')+'</span>';
+                                }
+                                return __('Delivery_mode direct');
+                            }},
                         {field: 'number', title: __('Number'),templet: function (d) {
                                 return (parseFloat(d.number) || 0).toFixed(number_decimal);
                             }},
@@ -59,9 +66,13 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 }
                                 return '<span style="color:#999;">' + __('Production_status 0') + '</span>';
                             }},
+                        {field: 'production_date', title: __('Production_date'),width:110,templet: function (d) {
+                                return d.production_date ? d.production_date : '<span style="color:#ccc">—</span>';
+                            }},
                         {field: 'delivery_time', title: __('Delivery_time'),templet: function (d) {
                                 return layui.util.toDateString(d.delivery_time*1000,"yyyy-MM-dd");
                             },width:110},
+                        {field: 'expected_delivery_date', title: __('Expected_delivery_date'), edit: 'text', width: 130},
                         {field: 'note', title: __('Note')},
                         {fixed: 'right', title:__('Operate'), toolbar: '#barDemo', width:150}
                     ]]
@@ -91,9 +102,35 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             if(data.length<=0){
                                 Toastr.error('请选择要排产的数据');return;
                             }
-                            Fast.api.ajax("kuerp/goods_sales_schedule/setproduction?status=1&ids="+ids, function () {
-                                $('.btn-refresh').click();
-                            },'',true);
+                            // 弹窗填写生产日期（批量选中的排期统一写入同一日期）
+                            var todayProdStr = layui.util.toDateString(new Date(), 'yyyy-MM-dd');
+                            layer.open({
+                                type: 1,
+                                title: '排产 - 填写生产日期',
+                                shadeClose: false,
+                                area: ['520px', '250px'],
+                                content: '<div class="form-horizontal" role="form" style="padding:24px 10px 0;overflow:hidden;">' +
+                                    '<div class="form-group">' +
+                                    '<label class="control-label col-xs-4">生产日期:</label>' +
+                                    '<div class="col-xs-7"><input type="text" class="form-control" id="production-date" value="' + todayProdStr + '" readonly placeholder="请选择日期"></div>' +
+                                    '</div>' +
+                                    '<div class="form-group" style="margin-top:-6px;">' +
+                                    '<div class="col-xs-offset-4 col-xs-7"><span class="help-block" style="margin:0;">已选 ' + data.length + ' 条，排产后统一写入该生产日期（生成组装单时自动带入）</span></div>' +
+                                    '</div>' +
+                                    '</div>',
+                                btn: ['确定', '取消'],
+                                yes: function(index){
+                                    var productionDate = $('#production-date').val();
+                                    if(!/^\d{4}-\d{2}-\d{2}$/.test(productionDate)){
+                                        Toastr.error('请选择生产日期');return;
+                                    }
+                                    Fast.api.ajax("kuerp/goods_sales_schedule/setproduction?status=1&ids="+ids+"&production_date="+productionDate, function () {
+                                        $('.btn-refresh').click();
+                                    },'',true);
+                                    layer.close(index);
+                                }
+                            });
+                            laydate.render({ elem: '#production-date', trigger: 'click' });
                             break;
                         case 'production_f':
                             if(data.length<=0){
@@ -128,9 +165,38 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             );
                         break;
                         case 'examine':
-                            Fast.api.ajax("kuerp/goods_sales_schedule/examine?examine=1&ids="+ids, function () {
-                                $('.btn-refresh').click();
-                            },'',true);
+                            if(data.length<=0){
+                                Toastr.error('请选择要审核的数据');return;
+                            }
+                            // 弹窗填写预计生产完成日期（批量选中的排期统一写入同一日期）
+                            var todayStr = layui.util.toDateString(new Date(), 'yyyy-MM-dd');
+                            layer.open({
+                                type: 1,
+                                title: '审核 - 填写预计生产完成日期',
+                                shadeClose: false,
+                                area: ['520px', '250px'],
+                                content: '<div class="form-horizontal" role="form" style="padding:24px 10px 0;overflow:hidden;">' +
+                                    '<div class="form-group">' +
+                                    '<label class="control-label col-xs-4">预计生产完成日期:</label>' +
+                                    '<div class="col-xs-7"><input type="text" class="form-control" id="examine-expected-date" value="' + todayStr + '" readonly placeholder="请选择日期"></div>' +
+                                    '</div>' +
+                                    '<div class="form-group" style="margin-top:-6px;">' +
+                                    '<div class="col-xs-offset-4 col-xs-7"><span class="help-block" style="margin:0;">已选 ' + data.length + ' 条，审核通过后统一写入该日期（列表中可再修改）</span></div>' +
+                                    '</div>' +
+                                    '</div>',
+                                btn: ['确定', '取消'],
+                                yes: function(index){
+                                    var expectedDate = $('#examine-expected-date').val();
+                                    if(!/^\d{4}-\d{2}-\d{2}$/.test(expectedDate)){
+                                        Toastr.error('请选择预计生产完成日期');return;
+                                    }
+                                    Fast.api.ajax("kuerp/goods_sales_schedule/examine?examine=1&ids="+ids+"&expected_delivery_date="+expectedDate, function () {
+                                        $('.btn-refresh').click();
+                                    },'',true);
+                                    layer.close(index);
+                                }
+                            });
+                            laydate.render({ elem: '#examine-expected-date', trigger: 'click' });
                             break;
                         case 'examine_f':
                             Fast.api.ajax("kuerp/goods_sales_schedule/examine?examine=2&ids="+ids, function () {
@@ -148,6 +214,33 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             },'',true);
                             break;
                     }
+                });
+                //预计生产完成日期 行内编辑（点击单元格直接修改，二次改期）
+                table.on('edit(table)', function(obj){
+                    if(obj.field !== 'expected_delivery_date'){ return; }
+                    var val = (obj.value || '').trim();
+                    if(val !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(val)){
+                        Toastr.error('日期格式须为 YYYY-MM-DD，已还原');
+                        table.reload('table', []);
+                        return;
+                    }
+                    $.ajax({
+                        url: "kuerp/goods_sales_schedule/setExpectedDelivery",
+                        type: "POST",
+                        data: {'ids': obj.data.id, 'expected_delivery_date': val},
+                        success: function(res){
+                            if(res.code==1){
+                                Toastr.success('预计生产完成日期已更新');
+                            }else{
+                                Toastr.error(res.msg || '更新失败');
+                                table.reload('table', []);
+                            }
+                        },
+                        error: function(){
+                            Toastr.error('更新失败，已还原');
+                            table.reload('table', []);
+                        }
+                    });
                 });
                 //监听行工具事件
                 table.on('tool(table)', function(obj){

@@ -1,0 +1,277 @@
+{include file="kuerp/common/printstyle" /}
+{include file="kuerp/common/menu" /}
+{php}$pd = (int)$set['price_decimal']['value']; $nd = (int)$set['number_decimal']['value'];{/php}
+<style>
+    .recon-sheet { background:#fff; padding:18px 22px; border:1px solid #e6e6e6; }
+    .recon-title { text-align:center; font-size:20px; font-weight:bold; margin:6px 0 14px; }
+    .recon-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .recon-table th, .recon-table td { border:1px solid #999; padding:5px 6px; }
+    .recon-table th { background:#f2f2f2; text-align:center; white-space:nowrap; }
+    .recon-table td.center { text-align:center; }
+    .recon-table td.right { text-align:right; }
+    .recon-table tr.sum td { background:#fafafa; font-weight:bold; }
+    .recon-statement { margin-top:14px; font-size:12px; line-height:1.8; }
+    .recon-sign { margin-top:26px; display:flex; gap:60px; font-size:13px; }
+    .recon-panel { margin-top:15px; }
+    .section-title { font-size:15px; font-weight:bold; margin:16px 0 8px; border-left:4px solid #1E9FFF; padding-left:8px; }
+    .status-tag { display:inline-block; padding:2px 8px; border-radius:3px; color:#fff; font-size:12px; }
+
+    /* 本页是后台详情页（不是独立打印页）：不做 A4 纸张模拟，只沿用 printstyle 里的打印媒体规则 */
+    @media screen {
+        #content { width:auto !important; max-width:none !important; margin:0 !important; padding:0 !important; background:transparent !important; box-shadow:none !important; }
+    }
+</style>
+
+<div class="panel panel-default panel-intro">
+    <div class="panel-body">
+
+        <div class="no-print" style="margin-bottom:12px;">
+            <button class="btn btn-primary btn-sm" onclick="window.print()"><i class="fa fa-print"></i> 打印</button>
+            <a class="btn btn-default btn-sm" href="javascript:history.back()">返回</a>
+        </div>
+
+        <div class="recon-sheet">
+            <div class="recon-title">{$companyName}对账单</div>
+
+            <div style="font-size:13px;margin-bottom:8px;">
+                <span style="margin-right:24px;">对账单号：<b>{$row.recon_code}</b></span>
+                <span style="margin-right:24px;">客户：<b>{$row.customer_name}</b></span>
+                <span style="margin-right:24px;">对账期间：{$row.period_text}</span>
+                <span style="margin-right:24px;">业务状态：<b>{$row.business_status}</b></span>
+                {if condition="$row.reject_reason"}
+                <span style="color:#ff5722;">驳回原因：{$row.reject_reason}</span>
+                {/if}
+            </div>
+
+            <table class="recon-table">
+                <thead>
+                <tr>
+                    <th>销售单号</th>
+                    <th>对账日期</th>
+                    <th>销售日期</th>
+                    <th>公司名称</th>
+                    <th>商品名称</th>
+                    <th>型号/规格</th>
+                    <th>数量</th>
+                    <th>含税单价</th>
+                    <th>未税单价</th>
+                    <th>税点</th>
+                    <th>销货合计金额</th>
+                    <th>客户承担费用</th>
+                    <th>总金额</th>
+                    <th>备注</th>
+                    <th>物流单号</th>
+                </tr>
+                </thead>
+                <tbody>
+                {foreach $groups as $g}
+                {foreach $g['items'] as $k=>$item}
+                <tr>
+                    <td class="center">{$g.doc.doc_code}</td>
+                    <td class="center">{:date('Y-m-d', $row['createtime'])}</td>
+                    <td class="center">{:date('Y-m-d', $g.doc.doc_time)}</td>
+                    <td>{$row.customer_name}</td>
+                    <td>{$item.goods_name}{if condition="$item.attr_name"} <span style="color:#999">({$item.attr_name})</span>{/if}</td>
+                    <td class="center">{$item.specification}</td>
+                    <td class="right">{:number_format($item['number'], $nd)}</td>
+                    <td class="right">{:number_format($item['tax_included'], $pd)}</td>
+                    <td class="right">{:number_format($item['unit_price'], $pd)}</td>
+                    <td class="center">{:number_format($item['tax_rate'], 2)}%</td>
+                    <td class="right">{:number_format($item['line_amount'], $pd)}</td>
+                    <td class="right">{if condition="$k==0"}{:number_format($g['doc']['customers_money'], $pd)}{/if}</td>
+                    <td class="right">{if condition="$k==0"}{:number_format($g['doc']['total_amount'], $pd)}{/if}</td>
+                    <td>{$item.remark}</td>
+                    <td class="center">{if condition="$k==0"}{$g['doc']['express_no']}{/if}</td>
+                </tr>
+                {/foreach}
+                {/foreach}
+
+                <tr class="sum">
+                    <td colspan="10" class="right">本期合计：</td>
+                    <td class="right">{:number_format($row['total_money'], $pd)}</td>
+                    <td class="right">{:number_format($row['total_customers_money'], $pd)}</td>
+                    <td class="right">{:number_format($row['total_amount'], $pd)}</td>
+                    <td colspan="2"></td>
+                </tr>
+
+                {foreach $pastList as $month=>$amount}
+                <tr>
+                    <td colspan="12" class="right">{$month}已对账已开票（或者未开票）未付款合计：</td>
+                    <td class="right">{:number_format($amount, $pd)}</td>
+                    <td colspan="2"></td>
+                </tr>
+                {/foreach}
+
+                <tr class="sum">
+                    <td colspan="12" class="right">总未付款金额合计：</td>
+                    <td class="right">{:number_format($totalUnpaid, $pd)}</td>
+                    <td colspan="2"></td>
+                </tr>
+                </tbody>
+            </table>
+
+            <div class="recon-statement">
+                请贵公司核对本对账单金额，无误后盖章回传确认，如有异议，请在收到此账单后三个工作日内回复，逾期未提出异议，视为认可本对账单金额。谢谢！
+            </div>
+
+            <div class="recon-sign">
+                <span>销售确认：____________</span>
+                <span>客户确认（盖章）：____________</span>
+                <span>财务确认：____________</span>
+            </div>
+        </div>
+
+        <!-- 审核信息 -->
+        <div class="section-title">审核信息</div>
+        <table class="table table-bordered table-condensed" style="font-size:13px;">
+            <tr>
+                <th style="width:120px;">制单人</th><td>{$row.preparation_name}</td>
+                <th style="width:120px;">一审</th><td>{$row.examine_name} {if condition="$row.examine_time"}{:date('Y-m-d H:i', $row['examine_time'])}{/if}</td>
+                <th style="width:120px;">二审</th><td>{$row.second_examine_name} {if condition="$row.second_examine_time"}{:date('Y-m-d H:i', $row['second_examine_time'])}{/if}</td>
+            </tr>
+            <tr>
+                <th>销货合计金额</th><td>￥{:number_format($row['total_money'], $pd)}</td>
+                <th>客户承担费用</th><td>￥{:number_format($row['total_customers_money'], $pd)}</td>
+                <th>总金额</th><td>￥{:number_format($row['total_amount'], $pd)}</td>
+            </tr>
+            <tr>
+                <th>已开票金额</th><td>￥{:number_format($row['invoice_amount'], $pd)} / 应开票 ￥{:number_format($shouldInvoice, $pd)}</td>
+                <th>已收金额</th><td>￥{:number_format($row['pay_money'], $pd)}</td>
+                <th>收款到期日</th>
+                <td>
+                    {if condition="!empty($row['due_date'])"}
+                        {$row.due_date|date='Y-m-d',###}
+                        {if condition="$row['pay_status'] == '2'"}<span style="color:#5fb878">（已收款）</span>
+                        {elseif condition="$row['due_date'] < $today"/}<span style="color:#ff5722;font-weight:bold">（已逾期）</span>
+                        {else/}<span style="color:#ffb800">（剩 {:floor(($row['due_date'] - $today) / 86400)} 天）</span>{/if}
+                    {else/}<span style="color:#999">—</span>{/if}
+                </td>
+            </tr>
+            {if condition="$diffList"}
+            <tr>
+                <th>对账差异合计</th>
+                <td colspan="3" style="color:#ff5722;">￥{:number_format($diffTotal, $pd)}</td>
+                <th>调整后应收</th>
+                <td><b>￥{:number_format($row['total_amount'] + $diffTotal, $pd)}</b></td>
+            </tr>
+            {/if}
+        </table>
+
+        <!-- 对账差异（异议调整） -->
+        {if condition="$diffList"}
+        <div class="section-title">对账差异（异议调整）</div>
+        <table class="table table-bordered table-condensed" style="font-size:13px;">
+            <thead><tr><th style="width:140px;">登记时间</th><th style="width:150px;">单据编号</th><th class="text-right" style="width:110px;">差异金额</th><th>差异原因</th><th style="width:180px;">附件</th><th style="width:90px;">操作人</th></tr></thead>
+            <tbody>
+            {foreach $diffList as $d}
+            <tr>
+                <td class="text-center">{$d.time_text}</td>
+                <td>{$d.doc_code}</td>
+                <td class="text-right" style="color:{if condition="$d['diff_money'] > 0"} #ff5722 {else/} #009688 {/if};">{:number_format($d['diff_money'], $pd)}</td>
+                <td>{$d.reason}</td>
+                <td>
+                    {foreach $d['files'] as $f}
+                    <a href="{$f.url}" target="_blank" style="margin-right:6px;">{$f.name}</a>
+                    {/foreach}
+                    {if condition="empty($d['files'])"}<span style="color:#ccc;">—</span>{/if}
+                </td>
+                <td class="text-center">{$d.admin_name}</td>
+            </tr>
+            {/foreach}
+            </tbody>
+        </table>
+        {/if}
+
+        <!-- 发票 -->
+        <div class="section-title">发票（可多张）</div>
+        {if condition="empty($invoices)"}
+        <p style="color:#999">暂无发票</p>
+        {else/}
+        <table class="table table-bordered table-condensed" style="font-size:13px;">
+            <thead><tr><th>发票号</th><th>金额</th><th>开票日期</th><th>账期天数</th><th>收款到期日</th><th>文件</th></tr></thead>
+            <tbody>
+            {foreach $invoices as $invoice}
+            <tr>
+                <td>{$invoice.invoice_no}</td>
+                <td>￥{:number_format($invoice['invoice_amount'], $pd)}</td>
+                <td>{$invoice.invoice_date_text}</td>
+                <td>{if condition="$invoice['term_days'] > 0"}{$invoice.term_days} 天{else/}<span style="color:#999">—</span>{/if}</td>
+                <td>
+                    {if condition="$invoice['term_state'] == 3"}<span style="color:#5fb878">{$invoice.due_date_text}（已收款）</span>
+                    {elseif condition="$invoice['term_state'] == 2"/}<span style="color:#ff5722;font-weight:bold">{$invoice.due_date_text}（逾期 {:abs($invoice['days_left'])} 天）</span>
+                    {elseif condition="$invoice['term_state'] == 1"/}<span style="color:#ffb800;font-weight:bold">{$invoice.due_date_text}（剩 {$invoice.days_left} 天）</span>
+                    {elseif condition="$invoice['due_date_text']"}{$invoice.due_date_text}（剩 {$invoice.days_left} 天）
+                    {else/}<span style="color:#999">—</span>{/if}
+                </td>
+                <td>{if condition="$invoice['file']"}<a href="{$invoice.file.url}" target="_blank">{$invoice.file.name}</a>{/if}</td>
+            </tr>
+            {/foreach}
+            </tbody>
+        </table>
+        {/if}
+
+        <!-- 收款 -->
+        <div class="section-title">收款记录</div>
+        {if condition="empty($collections)"}
+        <p style="color:#999">暂无收款记录</p>
+        {else/}
+        <table class="table table-bordered table-condensed" style="font-size:13px;">
+            <thead><tr><th>收款单号</th><th>收款日期</th><th>实际收款金额</th><th>核销金额</th><th>预收款金额</th><th>审核状态</th></tr></thead>
+            <tbody>
+            {foreach $collections as $c}
+            <tr>
+                <td>{$c.purchase_code}</td>
+                <td>{$c.purchase_time}</td>
+                <td>￥{:number_format($c['money'], $pd)}</td>
+                <td>￥{:number_format($c['write_off'], $pd)}</td>
+                <td>{if condition="$c['advance'] > 0"}￥{:number_format($c['advance'], $pd)}{else/}<span style="color:#999">—</span>{/if}</td>
+                <td>{if condition="$c['examine_status']==1"}已审核{else/}未审核{/if}</td>
+            </tr>
+            {/foreach}
+            </tbody>
+        </table>
+        {/if}
+
+        <!-- 操作日志 -->
+        <div class="section-title">对账单操作日志</div>
+        {if condition="empty($logs)"}
+        <p style="color:#999">暂无日志</p>
+        {else/}
+        <table class="table table-bordered table-condensed" style="font-size:13px;">
+            <thead><tr><th style="width:160px;">时间</th><th style="width:120px;">操作</th><th>说明</th><th style="width:110px;">操作人</th></tr></thead>
+            <tbody>
+            {foreach $logs as $log}
+            <tr>
+                <td>{$log.time_text}</td>
+                <td>{$log.action}</td>
+                <td>{$log.note}</td>
+                <td>{$log.admin_name}</td>
+            </tr>
+            {/foreach}
+            </tbody>
+        </table>
+        {/if}
+
+        <!-- 销货单调整记录 -->
+        <div class="section-title">所含销货单调整记录</div>
+        {if condition="empty($salesLogs)"}
+        <p style="color:#999">暂无记录</p>
+        {else/}
+        <table class="table table-bordered table-condensed" style="font-size:13px;">
+            <thead><tr><th style="width:160px;">时间</th><th style="width:150px;">销货单号</th><th style="width:100px;">操作</th><th>说明</th><th style="width:110px;">操作人</th></tr></thead>
+            <tbody>
+            {foreach $salesLogs as $log}
+            <tr>
+                <td>{$log.time_text}</td>
+                <td>{$log.doc_code}</td>
+                <td>{$log.action}</td>
+                <td>{$log.note}</td>
+                <td>{$log.admin_name}</td>
+            </tr>
+            {/foreach}
+            </tbody>
+        </table>
+        {/if}
+
+    </div>
+</div>

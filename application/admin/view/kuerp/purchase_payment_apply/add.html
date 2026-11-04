@@ -1,0 +1,71 @@
+{include file="kuerp/common/menu" /}
+<form id="apply-form" class="form-horizontal" role="form" data-toggle="validator" method="POST" action=""
+      data-apply-id="0" data-supplier="">
+
+    <div class="panel panel-default">
+        <div class="panel-heading"><b>付款申请信息</b></div>
+        <div class="panel-body">
+            <div class="row">
+                <div class="col-xs-12 col-sm-5">
+                    <div class="form-group">
+                        <label class="control-label col-xs-12 col-sm-3"><span class="must">*</span> 供应商:</label>
+                        <div class="col-xs-12 col-sm-9">
+                            <select id="c-supplyer_code" name="row[supplyer_code]" class="form-control selectpicker" data-rule="required">
+                                <option value="">请选择供应商</option>
+                                {foreach name="suppliers" item="vo"}
+                                <option value="{$vo.supplyer_code}" {if condition="$presetReconId > 0 && $presetSupplyerCode == $vo['supplyer_code']"}selected{/if}>{$vo.supplyer_code} {$vo.supplyer_name}</option>
+                                {/foreach}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xs-12 col-sm-7">
+                    <div class="form-group">
+                        <label class="control-label col-xs-12 col-sm-2">申请说明:</label>
+                        <div class="col-xs-12 col-sm-10">
+                            <input type="text" name="row[remark]" class="form-control" placeholder="申请说明（选填）">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <b>可付款对账单</b>
+            <span style="color:#999;font-size:12px;">（已审核 + 已开票 + 未付款；付款金额取对账金额）</span>
+            <button type="button" class="btn btn-default btn-sm" id="btn-load-recon" style="float:right;margin-top:-4px;">
+                <i class="fa fa-refresh"></i> 重新加载
+            </button>
+        </div>
+        <div class="panel-body" style="padding:0;">
+            <table class="table table-striped table-bordered table-hover" style="margin-bottom:0;">
+                <thead>
+                    <tr>
+                        <th style="width:40px;text-align:center;"><input type="checkbox" id="check-all"></th>
+                        <th>对账单号</th>
+                        <th style="width:200px;">对账期间</th>
+                        <th style="width:130px;text-align:right;">对账金额</th>
+                        <th style="width:120px;">付款到期日</th>
+                        <th style="width:60px;">资料</th>
+                    </tr>
+                </thead>
+                <tbody id="recon-body"></tbody>
+            </table>
+            <div id="recon-empty" style="padding:14px;text-align:center;color:#999;">请选择供应商后加载对账单</div>
+        </div>
+        <div class="panel-footer" style="text-align:right;">
+            已选 <b id="selected-count">0</b> 张对账单，申请金额合计：<b id="selected-total" style="color:#ff5722;">￥0.00</b>
+        </div>
+    </div>
+
+    <input type="hidden" name="recon_ids" id="recon_ids" value="">
+    <input type="hidden" name="action" id="form-action" value="submit">
+
+    <div class="form-group layer-footer" style="text-align:center;">
+        <button type="submit" class="btn btn-default btn-embossed" id="btn-save-draft">保存草稿</button>
+        <button type="submit" class="btn btn-success btn-embossed" id="btn-submit-apply">提交审核</button>
+        <button type="button" class="btn btn-default btn-embossed layer-close">取消</button>
+    </div>
+</form>

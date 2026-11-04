@@ -2,6 +2,7 @@
 
 namespace app\admin\controller\kuerp;
 
+use app\admin\library\traits\WarehouseExcel;
 use app\common\controller\Backend;
 use think\Db;
 use Exception;
@@ -13,7 +14,14 @@ use think\Session;
  */
 class Warehousing extends Backend
 {
-    protected $noNeedRight = ['formatinfo','checkinventory','printpage'];
+    use WarehouseExcel;
+
+    protected $noNeedRight = ['formatinfo','checkinventory','printpage','template','parseimport'];
+    /** 单据类型：in=其他入库单（Excel 模板含「入库单价」列） */
+    protected function excelDocType()
+    {
+        return 'in';
+    }
     /**
      * Warehousing模型对象
      * @var \app\admin\model\kuerp\Warehousing
@@ -298,7 +306,8 @@ class Warehousing extends Backend
 
                         //获取成本单价
                         $balance_unit=0;
-                        $goodsInfo = json_decode(\addons\kuerp\library\GoodsPurchase::getUnit($goods['goods_code'],$info_v['stores_id'],$info_v['goods_attr']),true);
+                        //商品档案已删除的孤儿单据行：跳过单位查询，避免 $goods 为 null 时报错
+                        $goodsInfo = empty($goods)?['unit'=>[],'attr'=>[],'goods'=>[]]:json_decode(\addons\kuerp\library\GoodsPurchase::getUnit($goods['goods_code'],$info_v['stores_id'],$info_v['goods_attr']),true);
                         $unitData = isset($goodsInfo['unit'])?$goodsInfo['unit']:[];
                         if(empty($unitData)){
                             $this->error('商品信息获取错误');
@@ -331,7 +340,8 @@ class Warehousing extends Backend
 
                         //获取成本单价
                         $balance_unit=0;
-                        $goodsInfo = json_decode(\addons\kuerp\library\GoodsPurchase::getUnit($goods['goods_code'],$info_v['stores_id'],$info_v['goods_attr']),true);
+                        //商品档案已删除的孤儿单据行：跳过单位查询，避免 $goods 为 null 时报错
+                        $goodsInfo = empty($goods)?['unit'=>[],'attr'=>[],'goods'=>[]]:json_decode(\addons\kuerp\library\GoodsPurchase::getUnit($goods['goods_code'],$info_v['stores_id'],$info_v['goods_attr']),true);
                         $unitData = isset($goodsInfo['unit'])?$goodsInfo['unit']:[];
                         if(empty($unitData)){
                             $this->error('商品信息获取错误');
@@ -601,7 +611,8 @@ class Warehousing extends Backend
 
         foreach ($info as $info_k=>$info_v){
             $goods = Db::name('kuerp_goods')->where(['id'=>$info_v['goods_id']])->find();
-            $info[$info_k]['unit'] = json_decode(\addons\kuerp\library\GoodsPurchase::getUnit($goods['goods_code'], $info_v['stores_id'], $info_v['goods_attr']),true);
+            //商品档案已删除的孤儿单据行：跳过单位查询，避免 $goods 为 null 时报错
+            $info[$info_k]['unit'] = empty($goods)?['unit'=>[],'attr'=>[],'goods'=>[]]:json_decode(\addons\kuerp\library\GoodsPurchase::getUnit($goods['goods_code'], $info_v['stores_id'], $info_v['goods_attr']),true);
             $gid = (int)$info_v['goods_id'];
             $key = $gid . '-' . (int)$info_v['stores_id'] . '-' . (int)$info_v['goods_attr'];
             $info[$info_k]['stock'] = isset($stockMap[$key]) ? $stockMap[$key] : 0;

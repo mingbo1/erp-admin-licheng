@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>{:__('Outbound_apply_detail')} - {$row.apply_code|htmlentities}</title>
+    {if condition="isset($set['auxiliary']['is_checked']) && $set['auxiliary']['is_checked']!=1"}
+    <style>.goods_attr_sd{display:none;}</style>
+    {/if}
+    {if condition="isset($set['batch']['is_checked']) && $set['batch']['is_checked']!=1"}
+    <style>.goods_batch_sd{display:none;}</style>
+    {/if}
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: "Microsoft YaHei", "SimSun", Arial, sans-serif; font-size: 14px; color: #333; padding: 20px; }
+        .print-wrap { max-width: 900px; margin: 0 auto; }
+        .print-title { text-align: center; font-size: 22px; font-weight: bold; margin-bottom: 20px; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; margin-bottom: 15px; }
+        .info-grid .item { padding: 4px 0; }
+        .remark-line { margin-bottom: 12px; }
+        .goods-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        .goods-table th, .goods-table td { padding: 6px 8px; border: 1px solid #666; text-align: center; font-size: 13px; }
+        .goods-table th { background: #f0f0f0; font-weight: bold; }
+        .goods-table td.left { text-align: left; }
+        .goods-table td.right { text-align: right; }
+        .summary-row { text-align: right; margin-bottom: 15px; }
+        .summary-row span { display: inline-block; margin-left: 20px; font-size: 15px; }
+        .summary-row .bold { font-weight: bold; font-size: 16px; }
+        .footer-info { margin-top: 40px; }
+        .footer-info span { display: inline-block; margin-right: 24px; white-space: nowrap; }
+        .print-time { text-align: right; color: #999; margin-top: 20px; font-size: 12px; }
+        @media print {
+            body { padding: 0; }
+            .no-print { display: none; }
+        }
+        .no-print { text-align: center; margin-bottom: 20px; }
+        .no-print button { padding: 8px 30px; font-size: 16px; cursor: pointer; }
+    </style>
+{include file="kuerp/common/printstyle" /}
+</head>
+<body>
+<div class="no-print">
+    <button onclick="window.print()">🖨 {:__('Print')}</button>
+</div>
+
+<div class="print-wrap">
+    <div class="print-title">{:__('Outbound_apply_detail')}</div>
+
+    <div class="info-grid">
+        <div class="item"><strong>{:__('Apply_code')}：</strong>{$row.apply_code|htmlentities}</div>
+        <div class="item"><strong>{:__('Purchase_code')}：</strong>{$row.purchase_code|htmlentities}</div>
+        <div class="item"><strong>{:__('Customers_id')}：</strong>{$row.customer_name|default=''}</div>
+        <div class="item"><strong>{:__('Delivery_mode')}：</strong>{$row.delivery_mode_text|default=''}</div>
+        <div class="item"><strong>{:__('Apply_admin_id')}：</strong>{$row.apply_admin_name|default=''}</div>
+        <div class="item"><strong>{:__('Apply_time')}：</strong>{$row.apply_time_text|default=''}</div>
+        <div class="item"><strong>{:__('Examine_admin_id')}：</strong>{$row.examine_admin_name|default=''}</div>
+        <div class="item"><strong>{:__('Examine_time')}：</strong>{$row.examine_time_text|default=''}</div>
+        <div class="item"><strong>{:__('Status')}：</strong>{$row.status_text}</div>
+        <div class="item"><strong>仓库：</strong>{:__('See_detail_table')}</div>
+    </div>
+
+    {if condition="!empty($row.remark)"}
+    <div class="remark-line"><strong>{:__('Remark')}：</strong>{$row.remark|htmlentities}</div>
+    {/if}
+    {if condition="$row.status == '2' && !empty($row.refuse_reason)"}
+    <div class="remark-line" style="color:#c00;"><strong>{:__('Refuse_reason')}：</strong>{$row.refuse_reason|htmlentities}</div>
+    {/if}
+
+    <table class="goods-table">
+        <thead>
+            <tr>
+                <th>序号</th>
+                <th>{:__('Goods_code')}</th>
+                <th>{:__('Goods_name')}</th>
+                <th>型号</th>
+                <th>规格2/厂商</th>
+                <th>规格3/封装</th>
+                <th class="goods_attr_sd">{:__('Goods_attr')}</th>
+                <th>单位</th>
+                <th>仓库</th>
+                <th class="goods_batch_sd">批次</th>
+                <th>计划数量</th>
+                <th>已出库数量</th>
+                <th>申请出库数量</th>
+                {if condition="$row.status == '1'"}
+                <th>实际出库数量</th>
+                {/if}
+            </tr>
+        </thead>
+        <tbody>
+            {foreach name="infoList" item="info" key="k"}
+            <tr>
+                <td>{$k+1}</td>
+                <td>{$info.goods_code|htmlentities}</td>
+                <td class="left">{$info.goods_name|default=''|htmlentities}</td>
+                <td>{$info.goods_specification_id|default=''|htmlentities}</td>
+                <td>{$info.vendor_name|default=''|htmlentities}</td>
+                <td>{$info.packaging|default=''|htmlentities}</td>
+                <td class="goods_attr_sd">{$info.attr_name|default=''|htmlentities}</td>
+                <td>{$info.unit_name|default=''|htmlentities}</td>
+                <td>{$info.stores_name|default=''|htmlentities}</td>
+                <td class="goods_batch_sd">{$info.batch_name|default=''|htmlentities}</td>
+                <td class="right">{$info.number|htmlentities}</td>
+                <td class="right">{$info.out_number|default=0|htmlentities}</td>
+                <td class="right">{$info.apply_number|htmlentities}</td>
+                {if condition="$row.status == '1'"}
+                <td class="right">{$info.actual_number|default=0|htmlentities}</td>
+                {/if}
+            </tr>
+            {/foreach}
+            {if condition="empty($infoList)"}
+            <tr><td colspan="{$colCount}">无明细数据</td></tr>
+            {/if}
+        </tbody>
+    </table>
+
+    <div class="summary-row">
+        <span class="bold">申请出库合计：{$totalApply|htmlentities}</span>
+        {if condition="$row.status == '1'"}
+        <span class="bold">实际出库合计：{$totalOut|htmlentities}</span>
+        {/if}
+    </div>
+
+    <div class="footer-info">
+        <span>申请人：________________</span>
+        <span>仓库审核（发料）：________________</span>
+        <span>领料人：________________</span>
+    </div>
+
+    <div class="print-time">打印时间：{$printTime}</div>
+</div>
+</body>
+</html>

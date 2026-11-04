@@ -17,7 +17,8 @@ class GoodsPurchase
         $row = (new \addons\kuerp\model\Goods())->where(['goods_code'=>$goods_code])->field('batch,serial,id,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,batch,shelf_life,warehousing,warehouse,goods_specification_id,vendor_name,packaging')->find();
         $goods_id = isset($row['id'])?$row['id']:0;
         if(empty($row)){
-            return [];
+            //商品档案已删除的孤儿单据行：统一返回JSON串，避免调用方 json_decode() 收到数组报错
+            return json_encode(['unit'=>[],'attr'=>[],'goods'=>[],'supplier'=>null]);
         }
         if($supplyer_code){
             $suppliers = (new \addons\kuerp\model\Suppliers())->where(['supplyer_code'=>$supplyer_code])->value('vat_rate');

@@ -1,0 +1,137 @@
+<div class="panel panel-default panel-intro">
+    <div class="panel-body">
+
+        <div class="alert alert-info" style="margin-bottom:12px;">
+            对账单：<b>{$row.recon_code}</b>&nbsp;&nbsp;客户：<b>{$row.customer_name}</b>
+            &nbsp;&nbsp;原总金额：<b>￥{$row.total_amount}</b>
+            &nbsp;&nbsp;差异合计：<b style="color:#ff5722;">￥{$diffTotal}</b>
+            &nbsp;&nbsp;调整后应收：<b>￥{:round($row['total_amount']+$diffTotal,4)}</b>
+            <div style="margin-top:6px;color:#888;font-size:12px;">
+                差异金额填<b>正数</b>=客户多付，填<b>负数</b>=客户少付（售后折让、抹零等）。差异会同步到收款单可核销额度，并计入应收账款分析。
+            </div>
+        </div>
+
+        <div class="section-title" style="font-size:15px;font-weight:bold;margin:0 0 10px;border-left:4px solid #1E9FFF;padding-left:8px;">对账单内单据</div>
+        <table class="table table-bordered table-condensed" style="font-size:13px;">
+            <thead>
+            <tr>
+                <th style="width:70px;">类型</th>
+                <th style="width:160px;">单据编号</th>
+                <th style="width:110px;">单据日期</th>
+                <th class="text-right" style="width:110px;">原总金额</th>
+                <th class="text-right" style="width:110px;">差异合计</th>
+                <th class="text-right" style="width:110px;">调整后金额</th>
+            </tr>
+            </thead>
+            <tbody>
+            {if condition="empty($docs)"}
+            <tr><td colspan="6" class="text-center text-muted">暂无单据</td></tr>
+            {else/}
+            {foreach $docs as $doc}
+            <tr>
+                <td class="text-center">{$doc.doc_type_text}</td>
+                <td>{$doc.doc_code}</td>
+                <td class="text-center">{if condition="$doc['doc_time']"}{:date('Y-m-d', $doc['doc_time'])}{/if}</td>
+                <td class="text-right">{:number_format($doc['total_amount'], $pd)}</td>
+                <td class="text-right" style="color:{if condition="$doc['diff_money'] != 0"} #ff5722 {else/} #999 {/if};">
+                    {:number_format($doc['diff_money'], $pd)}
+                </td>
+                <td class="text-right">{:number_format($doc['amount_with_diff'], $pd)}</td>
+            </tr>
+            {/foreach}
+            {/if}
+            </tbody>
+        </table>
+
+        <div class="section-title" style="font-size:15px;font-weight:bold;margin:18px 0 10px;border-left:4px solid #1E9FFF;padding-left:8px;">差异记录</div>
+        <table class="table table-bordered table-condensed" style="font-size:13px;" id="diff-table">
+            <thead>
+            <tr>
+                <th style="width:140px;">登记时间</th>
+                <th style="width:150px;">单据编号</th>
+                <th class="text-right" style="width:110px;">差异金额</th>
+                <th>差异原因</th>
+                <th style="width:180px;">附件</th>
+                <th style="width:80px;">操作人</th>
+                <th style="width:70px;">操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            {if condition="empty($diffList)"}
+            <tr><td colspan="7" class="text-center text-muted">暂无差异记录</td></tr>
+            {else/}
+            {foreach $diffList as $d}
+            <tr data-id="{$d.id}">
+                <td class="text-center">{$d.time_text}</td>
+                <td>{$d.doc_code}</td>
+                <td class="text-right" style="color:{if condition="$d['diff_money'] > 0"} #ff5722 {else/} #009688 {/if};">
+                    {:number_format($d['diff_money'], $pd)}
+                </td>
+                <td>{$d.reason}</td>
+                <td>
+                    {foreach $d['files'] as $f}
+                    <a href="{$f.url}" target="_blank" style="margin-right:6px;">{$f.name}</a>
+                    {/foreach}
+                    {if condition="empty($d['files'])"}<span style="color:#ccc;">—</span>{/if}
+                </td>
+                <td class="text-center">{$d.admin_name}</td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-danger btn-xs btn-del-diff" data-id="{$d.id}">删除</button>
+                </td>
+            </tr>
+            {/foreach}
+            {/if}
+            </tbody>
+        </table>
+
+        {if condition="$canEdit"}
+        <div class="section-title" style="font-size:15px;font-weight:bold;margin:18px 0 10px;border-left:4px solid #1E9FFF;padding-left:8px;">新增差异</div>
+        <form id="diff-form" onsubmit="return false;">
+            <div class="row">
+                <div class="col-sm-3">
+                    <div class="form-group">
+                        <label>单据 <span style="color:#ff5722">*</span></label>
+                        <select id="diff-doc" class="form-control">
+                            <option value="">请选择单据</option>
+                            {foreach $docs as $doc}
+                            <option value="{$doc.doc_code}">{$doc.doc_type_text} {$doc.doc_code}</option>
+                            {/foreach}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-sm-3">
+                    <div class="form-group">
+                        <label>差异金额 <span style="color:#ff5722">*</span></label>
+                        <input type="number" step="0.01" id="diff-money" class="form-control" placeholder="正数=多收，负数=少收">
+                    </div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="form-group">
+                        <label>差异原因 <span style="color:#ff5722">*</span></label>
+                        <input type="text" id="diff-reason" class="form-control" maxlength="250" placeholder="如：客户对账异议，货款抹零">
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>附件（图片 / Excel / PDF / Word，可多选）</label>
+                <div>
+                    <input type="file" id="diff-file" multiple style="display:inline-block;">
+                    <span id="diff-file-tip" style="margin-left:8px;color:#999;"></span>
+                </div>
+                <div id="diff-file-list" style="margin-top:6px;"></div>
+            </div>
+            <div class="text-center" style="margin-top:8px;">
+                <button type="button" class="btn btn-primary" id="btn-add-diff">保存差异</button>
+                <button type="button" class="btn btn-default" onclick="parent.Fast.api.close()">关闭</button>
+            </div>
+        </form>
+        {else/}
+        <div class="alert alert-warning" style="margin-top:16px;">
+            该对账单已对账完成或已收款，不能再登记差异；如需调整，请先撤销对账。
+        </div>
+        <div class="text-center" style="margin-top:8px;">
+            <button type="button" class="btn btn-default" onclick="parent.Fast.api.close()">关闭</button>
+        </div>
+        {/if}
+    </div>
+</div>

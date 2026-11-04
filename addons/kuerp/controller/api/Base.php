@@ -98,8 +98,7 @@ class Base extends Controller
         }
         $levelId = Db::name('kuerp_customers')->where('id', $customerId)->value('customerlevel_id');
         switch ((int)$levelId) {
-            case 2:
-                return 'wholesale_price';
+            // case 2(批发客户)：批发价已下线，按零售价取价
             case 3:
                 return 'vip_price';
             default:

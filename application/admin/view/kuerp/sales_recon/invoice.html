@@ -1,0 +1,106 @@
+{php}$pd = (int)$set['price_decimal']['value'];{/php}
+<div class="panel panel-default panel-intro">
+    <div class="panel-body">
+
+        <div class="alert alert-info">
+            对账单：<b>{$row.recon_code}</b>&nbsp;&nbsp;客户：<b>{$row.customer_name}</b>
+            &nbsp;&nbsp;应开票金额：<b>￥{:number_format($row['invoice_base'], $pd)}</b>
+            &nbsp;&nbsp;已开票：<b>￥{:number_format($invoiced, $pd)}</b>
+            &nbsp;&nbsp;剩余可开：<b style="color:#ff5722;">￥{:number_format($remaining, $pd)}</b>
+        </div>
+
+        <table class="table table-bordered table-condensed" style="font-size:13px;" id="invoice-table">
+            <thead>
+            <tr>
+                <th>发票号</th>
+                <th class="text-right">开票金额</th>
+                <th>开票日期</th>
+                <th>账期天数</th>
+                <th>收款到期日</th>
+                <th>发票文件</th>
+                <th style="width:90px;">操作</th>
+            </tr>
+            </thead>
+            <tbody>
+            {if condition="empty($invoices)"}
+            <tr><td colspan="7" class="text-center text-muted">暂无发票</td></tr>
+            {else/}
+            {foreach $invoices as $vo}
+            <tr data-id="{$vo.id}">
+                <td>{$vo.invoice_no}</td>
+                <td class="text-right">{:number_format($vo['invoice_amount'], $pd)}</td>
+                <td>{$vo.invoice_date_text}</td>
+                <td class="text-center">{if condition="$vo['term_days'] > 0"}{$vo.term_days} 天{else/}<span style="color:#999">—</span>{/if}</td>
+                <td>
+                    {if condition="$vo['term_state'] == 3"}<span style="color:#5fb878">{$vo.due_date_text}（已收款）</span>
+                    {elseif condition="$vo['term_state'] == 2"/}<span style="color:#ff5722;font-weight:bold">{$vo.due_date_text}（逾期 {:abs($vo['days_left'])} 天）</span>
+                    {elseif condition="$vo['term_state'] == 1"/}<span style="color:#ffb800;font-weight:bold">{$vo.due_date_text}（剩 {$vo.days_left} 天）</span>
+                    {elseif condition="$vo['due_date_text']"}{$vo.due_date_text}（剩 {$vo.days_left} 天）
+                    {else/}<span style="color:#999">—</span>{/if}
+                </td>
+                <td>{if condition="$vo['file']"}<a href="{$vo.file.url}" target="_blank">{$vo.file.name}</a>{/if}</td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-danger btn-xs btn-del" data-id="{$vo.id}">删除</button>
+                </td>
+            </tr>
+            {/foreach}
+            {/if}
+            </tbody>
+        </table>
+
+        {if condition="$row['invoice_status'] != 2"}
+        <div class="section-title" style="font-size:15px;font-weight:bold;margin:18px 0 10px;border-left:4px solid #1E9FFF;padding-left:8px;">新增发票</div>
+        <form id="invoice-form" onsubmit="return false;">
+            <div class="form-group">
+                <label>发票文件 <span style="color:#ff5722">*</span></label>
+                <input type="file" id="invoice-file" class="form-control">
+                <p class="help-block" id="invoice-file-tip" style="margin:5px 0 0;color:#999;"></p>
+            </div>
+            <div class="row">
+                <div class="col-sm-4">
+                    <div class="form-group">
+                        <label>发票号 <span style="color:#ff5722">*</span></label>
+                        <input type="text" id="invoice-no" class="form-control" maxlength="100">
+                    </div>
+                </div>
+                <div class="col-sm-4">
+                    <div class="form-group">
+                        <label>开票金额 <span style="color:#ff5722">*</span></label>
+                        <input type="number" step="0.01" id="invoice-amount" class="form-control" value="{$remaining}">
+                    </div>
+                </div>
+                <div class="col-sm-4">
+                    <div class="form-group">
+                        <label>开票日期</label>
+                        <input type="date" id="invoice-date" class="form-control" value="{:date('Y-m-d')}">
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-sm-4">
+                    <div class="form-group">
+                        <label>账期天数</label>
+                        <div class="input-group">
+                            <input type="number" min="0" step="1" id="invoice-term-days" class="form-control" value="{$customerCreditDays|default=0}">
+                            <span class="input-group-addon">天</span>
+                        </div>
+                        <div style="color:#999;font-size:12px;margin-top:4px;">
+                            默认取客户档案「信用账期天数」，可在此单独调整（0=不计算到期日）。
+                            账期从开票日起算，预计收款到期日：<b id="due-preview" style="color:#ff5722;">—</b>
+                            （到期前 {$remindDays} 天在列表标黄提醒）
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="text-center" style="margin-top:8px;">
+                <button type="button" class="btn btn-primary" id="btn-add-invoice">保存发票</button>
+                <button type="button" class="btn btn-default" onclick="parent.Fast.api.close()">关闭</button>
+            </div>
+        </form>
+        {else/}
+        <div class="text-center" style="margin-top:16px;">
+            <button type="button" class="btn btn-default" onclick="parent.Fast.api.close()">关闭</button>
+        </div>
+        {/if}
+    </div>
+</div>

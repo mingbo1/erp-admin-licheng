@@ -9,7 +9,8 @@ return [
     'Customers_id'       => '客户',
     'Sale_user'          => '销售员',
 
-    'Delivery_time'      => '交货时间',
+    'Delivery_time'      => '交货日期',
+    'Expected_delivery_date' => '预计生产完成日期',
     'Receiving_address'  => '收货地址',
     'Goods_code'         => '商品编号',
     'Goods_note'         => '商品备注',
@@ -46,6 +47,7 @@ return [
     'Production_status'  => '是否排产',
     'Production_status 0' => '未排产',
     'Production_status 1' => '已排产',
+    'Production_date'    => '生产日期',
     'Generate_purchase_order' => '生成采购订单',
     'Generate_purchase'  => '生成采购单',
     'Generate_sales'     => '生成销货单',
@@ -69,4 +71,8 @@ return [
     'Available_stock'    => '可用库存',
     'Select_store'       => '选择仓库',
     'Lock_store'         => '锁定仓库',
+
+    'Delivery_mode'           => '代发/直发',
+    'Delivery_mode direct'    => '直发',
+    'Delivery_mode dropship'  => '代发',
 ];

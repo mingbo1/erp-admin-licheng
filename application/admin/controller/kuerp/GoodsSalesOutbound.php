@@ -14,7 +14,8 @@ use think\Session;
  */
 class GoodsSalesOutbound extends Backend
 {
-    protected $noNeedRight = ['getunit','formatinfo2','getbranch','gettime','printpage','outbound','saveoutbound','checkpurchase','getsuppliers','getunits','getreceivingaddress'];
+    // outbound/saveOutbound 已移出 noNeedRight：出库须由计划部门申请、仓库在"出库管理"审核执行（saveOutbound 仅供出库管理内部调用）
+    protected $noNeedRight = ['getunit','formatinfo2','getbranch','gettime','printpage','checkpurchase','getsuppliers','getunits','getreceivingaddress'];
 
     /**
      * GoodsSales模型对象（与销货单共用同一张表）
@@ -112,7 +113,100 @@ class GoodsSalesOutbound extends Backend
                     ->where('purchase_code', 'in', array_unique($emptyDeliveryCodes))
                     ->column('delivery_time', 'purchase_code');
             }
+            // 发货方式（代发/直发）：有销货订单关联时以订单为准
+            $orderCodes = [];
+            foreach ($list as $list_v) {
+                if (!empty($list_v['purchase_order_id'])) {
+                    $orderCodes[] = $list_v['purchase_order_id'];
+                }
+            }
+            $orderDeliveryModeMap = [];
+            if (!empty($orderCodes)) {
+                $orderDeliveryModeMap = Db::name('kuerp_goods_sales_order')
+                    ->where('purchase_code', 'in', array_unique($orderCodes))
+                    ->column('delivery_mode', 'purchase_code');
+            }
+            // 出库状态：按销货单号汇总 计划数量/已出库数量（0未出库/1部分出库/2全部出库）
+            $pageCodes = [];
+            $pageSalesIds = [];
+            foreach ($list as $list_v) {
+                $pageCodes[] = $list_v['purchase_code'];
+                $pageSalesIds[] = $list_v['id'];
+            }
+            $outSumMap = [];
+            $lineMap = [];
+            if (!empty($pageCodes)) {
+                // 明细行原样取出：既用于汇总数量，也用于按 商品+仓库+属性 计算可用库存能否满足待出库数量
+                $lineRows = Db::name('kuerp_goods_sales_info')
+                    ->where('purchase_code', 'in', $pageCodes)
+                    ->field('purchase_code, goods_code, stores_id, goods_attr, number, out_number')
+                    ->select();
+                foreach ($lineRows as $lineRow) {
+                    $lineCode = $lineRow['purchase_code'];
+                    if (!isset($outSumMap[$lineCode])) {
+                        $outSumMap[$lineCode] = ['total_number' => 0, 'total_out' => 0];
+                        $lineMap[$lineCode] = [];
+                    }
+                    $outSumMap[$lineCode]['total_number'] += (float)$lineRow['number'];
+                    $outSumMap[$lineCode]['total_out'] += (float)$lineRow['out_number'];
+                    $lineMap[$lineCode][] = $lineRow;
+                }
+            }
+            // 状态列（进度优先）：全部已出库 / 部分已出库 / 全部可出库 / 部分可出库 / 库存不足
+            $stockStatusMap = $this->calcStockStatus($outSumMap, $lineMap);
+            // 申请状态：每个销货单取最新一条出库申请 + 待审核申请条数（同一销货单可并存多条待审）
+            $applyStatusMap = [];
+            $applyPendingMap = [];
+            $applyCountMap = [];
+            $printableApplyMap = [];
+            if (!empty($pageSalesIds)) {
+                $applyRows = Db::name('kuerp_goods_outbound_apply')
+                    ->where('sales_id', 'in', $pageSalesIds)
+                    ->order('id', 'DESC')
+                    ->select();
+                foreach ($applyRows as $applyRow) {
+                    if (!isset($applyStatusMap[$applyRow['sales_id']])) {
+                        $applyStatusMap[$applyRow['sales_id']] = $applyRow['status'];
+                    }
+                    $applyCountMap[$applyRow['sales_id']] = isset($applyCountMap[$applyRow['sales_id']]) ? $applyCountMap[$applyRow['sales_id']] + 1 : 1;
+                    if ($applyRow['status'] == '0') {
+                        $applyPendingMap[$applyRow['sales_id']] = isset($applyPendingMap[$applyRow['sales_id']]) ? $applyPendingMap[$applyRow['sales_id']] + 1 : 1;
+                    }
+                    // 可打印送货单的申请（待审核/已同意出库）：id DESC 下第一条即最新一条
+                    if (in_array((string)$applyRow['status'], ['0', '1'], true)) {
+                        if (!isset($printableApplyMap[$applyRow['sales_id']])) {
+                            $printableApplyMap[$applyRow['sales_id']] = ['id' => (int)$applyRow['id'], 'count' => 0];
+                        }
+                        $printableApplyMap[$applyRow['sales_id']]['count']++;
+                    }
+                }
+            }
             foreach ($list as $list_k=>$list_v){
+                // 出库状态：0未出库/1部分出库/2全部出库
+                $outbound_status = 0;
+                if (isset($outSumMap[$list_v['purchase_code']])) {
+                    $total_number = (float)$outSumMap[$list_v['purchase_code']]['total_number'];
+                    $total_out = (float)$outSumMap[$list_v['purchase_code']]['total_out'];
+                    if ($total_out <= 0) {
+                        $outbound_status = 0;
+                    } elseif ($total_out < $total_number) {
+                        $outbound_status = 1;
+                    } else {
+                        $outbound_status = 2;
+                    }
+                }
+                $list[$list_k]['outbound_status'] = $outbound_status;
+                // 状态列（进度优先）：0全部可出库/1部分可出库/2库存不足/3部分已出库/4全部已出库
+                $list[$list_k]['stock_status'] = isset($stockStatusMap[$list_v['purchase_code']]) ? $stockStatusMap[$list_v['purchase_code']] : 0;
+                // 申请状态：''无申请/'0'待审核/'1'已同意出库/'2'已拒绝/'3'已撤销
+                $list[$list_k]['apply_status'] = isset($applyStatusMap[$list_v['id']]) ? $applyStatusMap[$list_v['id']] : '';
+                // 待审核申请条数（同一销货单可并存多条）
+                $list[$list_k]['apply_pending_count'] = isset($applyPendingMap[$list_v['id']]) ? (int)$applyPendingMap[$list_v['id']] : 0;
+                // 历次申请记录条数（各状态合计，>0 时列表显示「申请记录」按钮）
+                $list[$list_k]['apply_count'] = isset($applyCountMap[$list_v['id']]) ? (int)$applyCountMap[$list_v['id']] : 0;
+                // 送货单打印：最新一条可打印申请（待审核/已同意出库）及条数
+                $list[$list_k]['printable_apply_id'] = isset($printableApplyMap[$list_v['id']]) ? $printableApplyMap[$list_v['id']]['id'] : 0;
+                $list[$list_k]['printable_apply_count'] = isset($printableApplyMap[$list_v['id']]) ? (int)$printableApplyMap[$list_v['id']]['count'] : 0;
                 if(isset($list_v['print_num']) && empty($list_v['print_num'])){
                     $list[$list_k]['print_num'] = 0;
                 }
@@ -123,6 +217,11 @@ class GoodsSalesOutbound extends Backend
                 if (empty($list_v['delivery_time']) && !empty($list_v['purchase_order_id']) && isset($orderDeliveryMap[$list_v['purchase_order_id']])) {
                     $list_v['delivery_time'] = $orderDeliveryMap[$list_v['purchase_order_id']];
                 }
+                if (!empty($list_v['purchase_order_id']) && isset($orderDeliveryModeMap[$list_v['purchase_order_id']])) {
+                    $list[$list_k]['delivery_mode'] = $orderDeliveryModeMap[$list_v['purchase_order_id']];
+                } elseif (empty($list_v['delivery_mode'])) {
+                    $list[$list_k]['delivery_mode'] = 'direct';
+                }
             }
 
             $result = array("total" => $list->total(), "rows" => $list->items());
@@ -130,6 +229,107 @@ class GoodsSalesOutbound extends Backend
             return json($result);
         }
         return $this->view->fetch();
+    }
+
+    /**
+     * 计算列表「状态」列（进度优先）：
+     *   已出库 >= 计划数量            → 4 全部已出库
+     *   已出库 > 0 且 < 计划数量      → 3 部分已出库
+     *   已出库 = 0，库存 >= 待出库数量 → 0 全部可出库
+     *   已出库 = 0，0 < 库存 < 待出库 → 1 部分可出库
+     *   已出库 = 0，库存 <= 0         → 2 库存不足
+     * 库存按行（商品+仓库+属性）取可用库存（已扣除其他订单锁定），逐行相加后与待出库数量比较。
+     * @param array $outSumMap [purchase_code => ['total_number'=>x,'total_out'=>y]]
+     * @param array $lineMap   [purchase_code => [明细行, ...]]
+     * @return array [purchase_code => status]
+     */
+    private function calcStockStatus(array $outSumMap, array $lineMap)
+    {
+        $result = [];
+        $stockItems = [];
+        $goodsIdMap = [];
+        $goodsCodes = [];
+        foreach ($lineMap as $code => $lines) {
+            foreach ($lines as $line) {
+                if (!empty($line['goods_code'])) {
+                    $goodsCodes[] = $line['goods_code'];
+                }
+            }
+        }
+        if (!empty($goodsCodes)) {
+            $goodsIdMap = Db::name('kuerp_goods')->where('goods_code', 'in', array_unique($goodsCodes))->column('id', 'goods_code');
+        }
+        $seenKeys = [];
+        foreach ($lineMap as $code => $lines) {
+            foreach ($lines as $line) {
+                $gid = isset($goodsIdMap[$line['goods_code']]) ? (int)$goodsIdMap[$line['goods_code']] : 0;
+                if (empty($gid) || (float)$line['number'] <= (float)$line['out_number']) {
+                    continue;
+                }
+                $dedupKey = $code . '-' . $gid . '-' . (int)$line['stores_id'] . '-' . (int)$line['goods_attr'];
+                if (isset($seenKeys[$dedupKey])) {
+                    continue;
+                }
+                $seenKeys[$dedupKey] = 1;
+                $stockItems[] = [
+                    'goods_id'     => $gid,
+                    'stores_id'    => (int)$line['stores_id'],
+                    'attribute_id' => (int)$line['goods_attr'],
+                ];
+            }
+        }
+        // 可用库存按 商品-仓库-属性 取值（与申请/出库弹窗口径一致，sales_order_id 传空 = 扣除所有锁定）
+        $stockMap = !empty($stockItems) ? \addons\kuerp\library\Goods::getAvailableStockBatch($stockItems, '') : [];
+
+        foreach ($outSumMap as $code => $sumRow) {
+            $lines = isset($lineMap[$code]) ? $lineMap[$code] : [];
+            $totalNumber = (float)$sumRow['total_number'];
+            $totalOut = (float)$sumRow['total_out'];
+            if ($totalNumber <= 0) {
+                $result[$code] = 0;      // 无明细数量，视为无可出库内容
+                continue;
+            }
+            if ($totalOut >= $totalNumber) {
+                $result[$code] = 4;      // 全部已出库
+                continue;
+            }
+            if ($totalOut > 0) {
+                $result[$code] = 3;      // 部分已出库（进度优先，不再看库存）
+                continue;
+            }
+            // 未出库：按可用库存与待出库数量判断可出库程度
+            // 同一 商品+仓库+属性 的多行合并共用一份库存，避免同一批库存被重复计入
+            $needByKey = [];
+            foreach ($lines as $line) {
+                $remain = (float)$line['number'] - (float)$line['out_number'];
+                if ($remain <= 0) {
+                    continue;
+                }
+                if (empty($line['goods_code'])) {
+                    continue;
+                }
+                $gid = isset($goodsIdMap[$line['goods_code']]) ? (int)$goodsIdMap[$line['goods_code']] : 0;
+                $key = $gid . '-' . (int)$line['stores_id'] . '-' . (int)$line['goods_attr'];
+                $needByKey[$key] = (isset($needByKey[$key]) ? $needByKey[$key] : 0) + $remain;
+            }
+            $needQty = 0;
+            $stockQty = 0;
+            foreach ($needByKey as $key => $remain) {
+                $stock = isset($stockMap[$key]) ? (float)$stockMap[$key] : 0;
+                $needQty += $remain;
+                $stockQty += min($stock, $remain);
+            }
+            if ($needQty <= 0) {
+                $result[$code] = 0;
+            } elseif ($stockQty <= 0) {
+                $result[$code] = 2;      // 库存不足
+            } elseif ($stockQty >= $needQty) {
+                $result[$code] = 0;      // 全部可出库
+            } else {
+                $result[$code] = 1;      // 部分可出库
+            }
+        }
+        return $result;
     }
 
     /**
@@ -505,6 +705,7 @@ class GoodsSalesOutbound extends Backend
         }
         // 隐藏金额字段（仓库人员不可见）
         $row->hidden($this->hiddenAmountFields);
+        $row = $this->appendDeliveryModeText($row);
         $this->view->assign("row", $row);
 
         $purchase_info = Db::name('kuerp_goods_sales_info')->where(['purchase_code'=>$row['purchase_code']])->select();
@@ -1001,14 +1202,13 @@ class GoodsSalesOutbound extends Backend
                     ];
                 }
             }
-            //修改状态
+            //订单状态只由销货单的实际出库数量决定，这里只补订单id
             if(!empty($order_count)){
                 foreach ($order_count as $order_count_k=>$order_count_v){
-                    $number = Db::name('kuerp_goods_sales_order')->where(['purchase_code'=>$order_count_v['purchase_code']])->field('id,number,store_number')->find();
-                    if(($number['number']-$number['store_number'])<=$order_count_v['store_number']){
-                        $order_count[$order_count_k]['status'] = 1;
-                    }else{
-                        $order_count[$order_count_k]['status'] = 2;
+                    $number = Db::name('kuerp_goods_sales_order')->where(['purchase_code'=>$order_count_v['purchase_code']])->field('id')->find();
+                    if(empty($number)){
+                        unset($order_count[$order_count_k]);
+                        continue;
                     }
                     $order_count[$order_count_k]['id'] = $number['id'];
                 }
@@ -1347,6 +1547,14 @@ class GoodsSalesOutbound extends Backend
                 if($list_v['check_status']==1){
                     $this->error('不能反审核已对单的数据');
                 }
+                // 已有出库记录(出库申请已执行)时不允许反审核：反审核按整单恢复库存，不看 out_number，会超回库存
+                $out_total = Db::name('kuerp_goods_sales_info')->where(['purchase_code'=>$list_v['purchase_code']])->sum('out_number');
+                if($out_total > 0){
+                    if($examine_set!=1){
+                        return ['status'=>0,'msg'=>'不能反审核已有出库记录的数据'];
+                    }
+                    $this->error('该销货单已有出库记录（出库申请已执行），不能反审核');
+                }
                 $purchase_id = Db::name('kuerp_goods_saleexc')->where(['purchase_id'=>$list_v['id'],'type'=>'2'])->column('exchange_id');
                 if(!empty($purchase_id)){
                     if($examine_set!=1){
@@ -1493,14 +1701,13 @@ class GoodsSalesOutbound extends Backend
                     ];
                 }
             }
-            //修改状态
+            //订单状态只由销货单的实际出库数量决定，这里只补订单id
             if(!empty($order_count)){
                 foreach ($order_count as $order_count_k=>$order_count_v){
-                    $number = Db::name('kuerp_goods_sales_order')->where(['purchase_code'=>$order_count_v['purchase_code']])->field('id,number,store_number')->find();
-                    if($number['store_number']<=$order_count_v['store_number']){
-                        $order_count[$order_count_k]['status'] = 0;
-                    }else{
-                        $order_count[$order_count_k]['status'] = 2;
+                    $number = Db::name('kuerp_goods_sales_order')->where(['purchase_code'=>$order_count_v['purchase_code']])->field('id')->find();
+                    if(empty($number)){
+                        unset($order_count[$order_count_k]);
+                        continue;
                     }
                     $order_count[$order_count_k]['id'] = $number['id'];
                 }
@@ -1678,7 +1885,7 @@ class GoodsSalesOutbound extends Backend
             $this->error('参数错误');
         }
         if($row['examine_status']!=1){
-            $this->error('此购货单未审核，不可生成退货单');
+            $this->error('此采购单未审核，不可生成退货单');
         }
         $purchase_info = Db::name('kuerp_goods_sales_info')->where(['purchase_code'=>$row['purchase_code']])->select();
         foreach ($purchase_info as $purchase_info_k=>$purchase_info_v){
@@ -1712,7 +1919,8 @@ class GoodsSalesOutbound extends Backend
             $row = Db::name('kuerp_goods')->where(['id'=>$goods_id])->field('unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,warehousing,warehouse,goods_specification_id,vendor_name,packaging')->find();
         }
         if(empty($row)){
-            return [];
+            //商品档案已删除的孤儿单据行：统一返回JSON串，避免调用方 json_decode() 收到数组报错
+            return json_encode([]);
         }
         if($store){
             $stock = Db::name('kuerp_goods_stock')->where(['goods_code'=>$row['goods_code'],'stores_id'=>$store])->value('stock');
@@ -1781,7 +1989,8 @@ class GoodsSalesOutbound extends Backend
                 ->find();
         }
         if(empty($row)){
-            return [];
+            //商品档案已删除的孤儿单据行：统一返回JSON串，避免调用方 json_decode() 收到数组报错
+            return json_encode(['unit'=>[],'attr'=>[],'goods'=>[]]);
         }
 
         //获取设置
@@ -1805,8 +2014,8 @@ class GoodsSalesOutbound extends Backend
                     case 1:
                         $field = 'market_sell_price';
                         break;
-                    case 2:
-                        $field = 'wholesale_price';
+                    case 2://批发价已下线，批发客户按零售价取价
+                        $field = 'market_sell_price';
                         break;
                     case 3:
                         $field = 'vip_price';
@@ -2041,8 +2250,8 @@ class GoodsSalesOutbound extends Backend
                     case 1:
                         $field = 'market_sell_price';
                         break;
-                    case 2:
-                        $field = 'wholesale_price';
+                    case 2://批发价已下线，批发客户按零售价取价
+                        $field = 'market_sell_price';
                         break;
                     case 3:
                         $field = 'vip_price';
@@ -2324,6 +2533,7 @@ class GoodsSalesOutbound extends Backend
                 unset($purchase_info[$k][$f]);
             }
         }
+        $row = $this->appendDeliveryModeText($row);
         $this->view->assign("row", $row);
         $this->view->assign("purchase_info", $purchase_info);
 
@@ -2367,9 +2577,308 @@ class GoodsSalesOutbound extends Backend
     }
 
     /**
-     * 出库页面 - 仓库人员填写实际出库数量
+     * 出库页面 - 已被"申请出库→出库管理审核"流程取代（UI 入口已删，仅保留方法，权限已收口）
      */
     public function outbound($ids = null)
+    {
+        list($row, $infoList) = $this->buildOutboundRows($ids);
+        $this->view->assign('row', $row);
+        $this->view->assign('infoList', $infoList);
+        return $this->view->fetch();
+    }
+
+    /**
+     * 出库申请页面 - 计划部门填写本次各产品出库数量提交申请
+     * GET 渲染申请弹窗；POST 落库为待审核申请（fa_kuerp_goods_outbound_apply），由仓库在"出库管理"审核
+     */
+    /**
+     * 解析申请出库时填写的快递信息：
+     *   POST express_company[]（快递公司编码） + express_no[]（快递单号），按行成对填写，空行跳过。
+     * 返回 [['code'=>..,'company'=>..,'no'=>..], ...]，未填写时返回空数组。
+     */
+    private function parseApplyExpress()
+    {
+        $companies = $this->request->post('express_company/a');
+        $nos = $this->request->post('express_no/a');
+        $companies = is_array($companies) ? $companies : [];
+        $nos = is_array($nos) ? $nos : [];
+        $count = max(count($companies), count($nos));
+        if ($count <= 0) {
+            return [];
+        }
+        $codeMap = Db::name('kuerp_data_express')->column('name', 'code');
+        $rows = [];
+        for ($i = 0; $i < $count; $i++) {
+            $code = isset($companies[$i]) ? trim((string)$companies[$i]) : '';
+            $no = isset($nos[$i]) ? trim((string)$nos[$i]) : '';
+            if ($code === '' && $no === '') {
+                continue;
+            }
+            if ($code === '') {
+                $this->error('请选择快递公司（快递单号：' . $no . '）');
+            }
+            if ($no === '') {
+                $this->error('请填写快递单号（快递公司：' . (isset($codeMap[$code]) ? $codeMap[$code] : $code) . '）');
+            }
+            if (!isset($codeMap[$code])) {
+                $this->error('快递公司不存在：' . $code);
+            }
+            $rows[] = ['code' => $code, 'company' => $codeMap[$code], 'no' => $no];
+        }
+        return $rows;
+    }
+
+    public function apply($ids = null)
+    {
+        if ($this->request->isPost()) {
+            $ids = $ids ? $ids : $this->request->post('ids');
+            if (empty($ids)) {
+                $this->error('参数错误');
+            }
+            $row = $this->model->where('id', $ids)->find();
+            if (!$row) {
+                $this->error('销货单不存在');
+            }
+            if ($row['examine_status'] != 1) {
+                $this->error('请先审核单据，再申请出库');
+            }
+            // 审核开关未开启时，销货单审核时已变动库存，再走出库会二次扣库存，禁止申请
+            $examine_set = Db::name('kuerp_sets')->where(['name' => 'examine'])->value('is_checked');
+            if ($examine_set != 1) {
+                $this->error('审核模式未开启（审核时已变动库存），无需出库申请');
+            }
+            $checkout = (new \addons\kuerp\library\Checkout())->checkOutTime($row['purchase_time']);
+            if ($checkout !== true) {
+                $this->error($checkout);
+            }
+            // 同一销货单允许多条申请并存；每行可申请数量 = 计划数量 - 已出库数量 - 待审核申请占用
+            // 已全部出库不允许再申请
+            $sumRow = Db::name('kuerp_goods_sales_info')->where(['purchase_code' => $row['purchase_code']])->field('SUM(number) AS total_number, SUM(out_number) AS total_out')->find();
+            if ($sumRow && (float)$sumRow['total_out'] >= (float)$sumRow['total_number']) {
+                $this->error('该销货单已全部出库，无需再申请');
+            }
+
+            $out_data = $this->request->post('out_data/a');
+            if (empty($out_data)) {
+                $this->error('请填写出库申请数量');
+            }
+            $infoList = Db::name('kuerp_goods_sales_info')
+                ->where(['purchase_code' => $row['purchase_code']])
+                ->select();
+            $infoMap = [];
+            foreach ($infoList as $info) {
+                $infoMap[$info['id']] = $info;
+            }
+            // 各明细行被待审核申请占用的数量
+            $pendingQtyMap = $this->pendingApplyQtyMap($row['id']);
+            $goodsIdMap = Db::name('kuerp_goods')->column('id', 'goods_code');
+            $applyInfoRows = [];
+            foreach ($out_data as $info_id => $qty) {
+                $qty = (float)$qty;
+                if ($qty <= 0) {
+                    continue;
+                }
+                if (!isset($infoMap[$info_id])) {
+                    $this->error('出库申请数据有误，请刷新后重试');
+                }
+                $info = $infoMap[$info_id];
+                $existing_out = isset($info['out_number']) ? (float)$info['out_number'] : 0;
+                $pending_qty = isset($pendingQtyMap[$info['id']]) ? (float)$pendingQtyMap[$info['id']] : 0;
+                $max_out = (float)$info['number'] - $existing_out - $pending_qty;
+                if ($max_out <= 0) {
+                    $this->error($info['goods_code'] . ' 已无可申请数量（待审核申请已占用 ' . $pending_qty . '）');
+                }
+                if ($qty > $max_out) {
+                    $this->error($info['goods_code'] . ' 申请出库数量不能超过' . $max_out);
+                }
+                $applyInfoRows[] = [
+                    'sales_info_id' => $info['id'],
+                    'goods_id'      => isset($goodsIdMap[$info['goods_code']]) ? (int)$goodsIdMap[$info['goods_code']] : 0,
+                    'goods_code'    => $info['goods_code'],
+                    'stores_id'     => $info['stores_id'],
+                    'number'        => $qty,
+                    'createtime'    => time(),
+                ];
+            }
+            if (empty($applyInfoRows)) {
+                $this->error('请填写出库申请数量');
+            }
+
+            // 快递信息（可选）：本次出库可填写多个快递公司 + 快递单号
+            $expressRows = $this->parseApplyExpress();
+            $expressJson = empty($expressRows) ? null : json_encode($expressRows, JSON_UNESCAPED_UNICODE);
+
+            $admin = Session::get('admin');
+            $applyCode = \addons\kuerp\library\Goods::getCodes('', 29);
+            if (empty($applyCode)) {
+                $this->error('出库申请单号生成失败（缺少编号规则），请检查单据编号设置');
+            }
+            Db::startTrans();
+            try {
+                $applyId = Db::name('kuerp_goods_outbound_apply')->insertGetId([
+                    'apply_code'     => $applyCode,
+                    'sales_id'       => $row['id'],
+                    'purchase_code'  => $row['purchase_code'],
+                    'customers_id'   => $row['customers_id'],
+                    'apply_admin_id' => $admin ? (int)$admin['id'] : 0,
+                    'apply_time'     => time(),
+                    'status'         => '0',
+                    'express_data'   => $expressJson,
+                    'createtime'     => time(),
+                    'updatetime'     => time(),
+                ]);
+                foreach ($applyInfoRows as $k => $infoRow) {
+                    $applyInfoRows[$k]['apply_id'] = $applyId;
+                }
+                Db::name('kuerp_goods_outbound_apply_info')->insertAll($applyInfoRows);
+                Db::commit();
+            } catch (Exception $e) {
+                Db::rollback();
+                $this->error($e->getMessage());
+            }
+            $this->success('出库申请提交成功，请等待仓库审核');
+        }
+
+        // GET：渲染申请弹窗（与出库弹窗同一明细装配）+ 历次申请记录 + 每行待审占用/还可申请数量
+        // view=1 为只读查看模式（已全部出库时列表上的「申请记录」按钮用它打开，只看记录、不能提交申请）
+        $isView = (bool)$this->request->param('view/d');
+        list($row, $infoList) = $this->buildOutboundRows($ids);
+        $pendingQtyMap = $this->pendingApplyQtyMap($row['id']);
+        foreach ($infoList as $k => $v) {
+            $pending_qty = isset($pendingQtyMap[$v['id']]) ? (float)$pendingQtyMap[$v['id']] : 0;
+            $infoList[$k]['pending_qty'] = $pending_qty;
+            $infoList[$k]['can_apply'] = max(0, (float)$v['number'] - (float)$v['out_number'] - $pending_qty);
+        }
+        // 是否已全部出库（全部出库后只能看记录，提交申请后端会拒绝）
+        $sumRow = Db::name('kuerp_goods_sales_info')->where(['purchase_code' => $row['purchase_code']])->field('SUM(number) AS total_number, SUM(out_number) AS total_out')->find();
+
+        // 历次出库申请记录（该销货单全部申请，最新在前）
+        $applyHistory = Db::name('kuerp_goods_outbound_apply')
+            ->where(['sales_id' => $row['id']])
+            ->order('id', 'DESC')
+            ->select();
+        $applyAdminIds = array_filter(array_merge(array_column($applyHistory, 'apply_admin_id'), array_column($applyHistory, 'examine_admin_id')));
+        $applyAdminMap = !empty($applyAdminIds) ? Db::name('admin')->where('id', 'in', array_unique($applyAdminIds))->column('nickname', 'id') : [];
+        $this->view->assign('applyAdminMap', $applyAdminMap);
+        $applyIds = array_column($applyHistory, 'id');
+        $applyInfoMap = [];
+        if (!empty($applyIds)) {
+            $applyInfoRows = Db::name('kuerp_goods_outbound_apply_info')->where('apply_id', 'in', $applyIds)->select();
+            foreach ($applyInfoRows as $v) {
+                $applyInfoMap[$v['apply_id']][] = $v;
+            }
+        }
+        foreach ($applyHistory as $k => $v) {
+            $summaryParts = [];
+            if (isset($applyInfoMap[$v['id']])) {
+                foreach ($applyInfoMap[$v['id']] as $info) {
+                    $summaryParts[] = $info['goods_code'] . '×' . rtrim(rtrim(sprintf('%.4f', $info['number']), '0'), '.');
+                }
+            }
+            $applyHistory[$k]['goods_summary'] = implode('，', $summaryParts);
+            $applyHistory[$k]['apply_admin_name'] = isset($applyAdminMap[$v['apply_admin_id']]) ? $applyAdminMap[$v['apply_admin_id']] : '';
+            $applyHistory[$k]['examine_admin_name'] = !empty($v['examine_admin_id']) && isset($applyAdminMap[$v['examine_admin_id']]) ? $applyAdminMap[$v['examine_admin_id']] : '';
+            // 实际出库数量（仓库同意时写入 out_data：{sales_info_id: 数量}）
+            $outData = !empty($v['out_data']) ? json_decode($v['out_data'], true) : [];
+            $outParts = [];
+            if (is_array($outData) && isset($applyInfoMap[$v['id']])) {
+                foreach ($applyInfoMap[$v['id']] as $info) {
+                    if (isset($outData[$info['sales_info_id']])) {
+                        $outParts[] = $info['goods_code'] . '×' . rtrim(rtrim(sprintf('%.4f', (float)$outData[$info['sales_info_id']]), '0'), '.');
+                    }
+                }
+            }
+            $applyHistory[$k]['out_summary'] = implode('，', $outParts);
+            // 快递信息（申请时填写，一次出库可多条）
+            $expressRows = !empty($v['express_data']) ? json_decode($v['express_data'], true) : [];
+            $expressRows = is_array($expressRows) ? $expressRows : [];
+            $applyHistory[$k]['express_list'] = $expressRows;
+            $expressParts = [];
+            foreach ($expressRows as $ex) {
+                $company = isset($ex['company']) && $ex['company'] !== '' ? $ex['company'] : (isset($ex['code']) ? $ex['code'] : '');
+                $no = isset($ex['no']) ? $ex['no'] : '';
+                $expressParts[] = trim($company . ' ' . $no);
+            }
+            $applyHistory[$k]['express_summary'] = implode('、', $expressParts);
+        }
+        $this->view->assign('applyHistory', $applyHistory);
+        // 快递公司下拉（申请时填写快递信息用）
+        $expressList = Db::name('kuerp_data_express')->field('name,code')->order('weigh ASC')->select();
+        $this->view->assign('expressList', $expressList);
+        $this->assignconfig('expressList', $expressList);
+
+        $this->view->assign('row', $row);
+        $this->view->assign('infoList', $infoList);
+        $this->view->assign('isView', $isView);
+        $this->view->assign('allOut', ($sumRow && (float)$sumRow['total_out'] >= (float)$sumRow['total_number']) ? 1 : 0);
+        return $this->view->fetch('apply');
+    }
+
+    /**
+     * 各明细行被待审核出库申请占用的数量 {sales_info_id: qty}（同一销货单可并存多条待审申请）
+     */
+    private function pendingApplyQtyMap($salesId)
+    {
+        $rows = Db::name('kuerp_goods_outbound_apply_info')->alias('ai')
+            ->join('kuerp_goods_outbound_apply a', 'a.id = ai.apply_id')
+            ->where(['a.sales_id' => $salesId, 'a.status' => '0'])
+            ->field('ai.sales_info_id, SUM(ai.number) AS pending_qty')
+            ->group('ai.sales_info_id')
+            ->select();
+        $map = [];
+        foreach ($rows as $v) {
+            $map[$v['sales_info_id']] = (float)$v['pending_qty'];
+        }
+        return $map;
+    }
+
+    /**
+     * 撤销出库申请 - 参数兼容三种：
+     *  apply_id：撤销该条申请（申请弹窗历次记录行使用）
+     *  sales_id：撤销该销货单最新一条待审核申请（销货单出库列表行按钮使用）
+     *  ids：旧参数，两种语义都可能——先当申请ID（须为待审），查不到/非待审再当销货单ID
+     *  ⚠️ 申请ID与销货单ID是两个独立自增序列，直接拿 ids 当申请ID查会撤错单（撞号时），
+     *     所以列表按钮改为显式传 sales_id，弹窗传 apply_id。
+     */
+    public function applyCancel($ids = null)
+    {
+        $applyId = (int)$this->request->post('apply_id');
+        $salesId = (int)$this->request->post('sales_id');
+        $ids = $ids ? $ids : $this->request->post('ids');
+        if ($applyId) {
+            $row = Db::name('kuerp_goods_outbound_apply')->where(['id' => $applyId, 'status' => '0'])->find();
+        } elseif ($salesId) {
+            $row = Db::name('kuerp_goods_outbound_apply')->where(['sales_id' => $salesId, 'status' => '0'])->order('id', 'DESC')->find();
+        } elseif (empty($ids)) {
+            $this->error('请选择要操作的数据');
+        } else {
+            $row = Db::name('kuerp_goods_outbound_apply')->where(['id' => $ids, 'status' => '0'])->find();
+            if (!$row) {
+                $row = Db::name('kuerp_goods_outbound_apply')->where(['sales_id' => $ids, 'status' => '0'])->order('id', 'DESC')->find();
+            }
+        }
+        if (!$row || $row['status'] != '0') {
+            $this->error('该出库申请不存在或不是待审核状态');
+        }
+        $admin = Session::get('admin');
+        $updated = Db::name('kuerp_goods_outbound_apply')
+            ->where(['id' => $row['id'], 'status' => '0'])
+            ->update([
+                'status'           => '3',
+                'examine_admin_id' => $admin ? (int)$admin['id'] : 0,
+                'examine_time'     => time(),
+                'updatetime'       => time(),
+            ]);
+        if (!$updated) {
+            $this->error('该申请已被处理，无法撤销');
+        }
+        $this->success('已撤销出库申请[' . $row['apply_code'] . ']');
+    }
+
+    /**
+     * 出库/申请弹窗共用的数据装配：销货单主行 + 明细行（商品/仓库/单位/属性/批次名称、可用库存），并隐藏金额字段
+     */
+    private function buildOutboundRows($ids)
     {
         $row = $this->model->where('id', $ids)->find();
         if (!$row) {
@@ -2384,6 +2893,7 @@ class GoodsSalesOutbound extends Backend
         // 获取客户名称
         $customer_name = Db::name('kuerp_customers')->where('id', $row['customers_id'])->value('customer_name');
         $row['customer_name'] = $customer_name ?: '';
+        $row = $this->appendDeliveryModeText($row);
         $this->view->assign('row', $row);
 
         // 获取明细
@@ -2393,8 +2903,16 @@ class GoodsSalesOutbound extends Backend
 
         $storesMap = Db::name('kuerp_stores')->column('name', 'id');
         $unitMap = Db::name('kuerp_unit')->column('name', 'id');
-        $goodsMap = Db::name('kuerp_goods')->column('goods_name', 'goods_code');
-        $goodsIdMap = Db::name('kuerp_goods')->column('id', 'goods_code');
+        // 商品名称 / ID / 型号 / 规格2(厂商) / 规格3(封装)，按商品编号索引
+        $goodsMap = [];
+        $goodsIdMap = [];
+        $goodsSpecMap = [];
+        $goodsRows = Db::name('kuerp_goods')->field('id,goods_code,goods_name,goods_specification_id,vendor_name,packaging')->select();
+        foreach ($goodsRows as $g) {
+            $goodsMap[$g['goods_code']] = $g['goods_name'];
+            $goodsIdMap[$g['goods_code']] = (int)$g['id'];
+            $goodsSpecMap[$g['goods_code']] = $g;
+        }
 
         // 批量查询可用库存（按仓库+商品+属性）
         $stockItems = [];
@@ -2408,6 +2926,10 @@ class GoodsSalesOutbound extends Backend
 
         foreach ($infoList as $k => $v) {
             $infoList[$k]['goods_name'] = isset($goodsMap[$v['goods_code']]) ? $goodsMap[$v['goods_code']] : '';
+            // 型号 / 规格2(厂商) / 规格3(封装)：取商品档案，商品已删除时留空
+            $infoList[$k]['goods_specification_id'] = isset($goodsSpecMap[$v['goods_code']]) ? $goodsSpecMap[$v['goods_code']]['goods_specification_id'] : '';
+            $infoList[$k]['vendor_name'] = isset($goodsSpecMap[$v['goods_code']]) ? $goodsSpecMap[$v['goods_code']]['vendor_name'] : '';
+            $infoList[$k]['packaging'] = isset($goodsSpecMap[$v['goods_code']]) ? $goodsSpecMap[$v['goods_code']]['packaging'] : '';
             $infoList[$k]['stores_name'] = isset($storesMap[$v['stores_id']]) ? $storesMap[$v['stores_id']] : '';
             $infoList[$k]['unit_name'] = isset($unitMap[$v['goods_unit']]) ? $unitMap[$v['goods_unit']] : '';
             $infoList[$k]['out_number'] = isset($v['out_number']) ? (float)$v['out_number'] : 0;
@@ -2436,16 +2958,89 @@ class GoodsSalesOutbound extends Backend
                 }
             }
         }
+        return [$row, $infoList];
+    }
 
-        $this->view->assign('infoList', $infoList);
+    /**
+     * 出库前库存校验（仅实际出库时调用，下单不做校验）
+     * 同一 商品+仓库+属性 的多行合并汇总后再比较，避免同一份库存被多行重复计入。
+     * @param array $infoMap 销货明细 [info_id => row]
+     * @param array $out_data {sales_info_id: 本次出库数量}
+     */
+    private function checkOutboundStock(array $infoMap, array $out_data)
+    {
+        $needMap = []; // key => ['goods_code','stores_id','attribute_id','need']
+        foreach ($out_data as $info_id => $out_number) {
+            $out_number = (float)$out_number;
+            if ($out_number <= 0 || !isset($infoMap[$info_id])) {
+                continue;
+            }
+            $info = $infoMap[$info_id];
+            // 与扣减库存时同一换算口径
+            $basic_number = round(($info['basic_nmber'] / max($info['number'], 0.0001)) * $out_number, 4);
+            if ($basic_number <= 0) {
+                continue;
+            }
+            $attribute_id = (int)$info['goods_attr'];
+            $key = $info['goods_code'] . '-' . (int)$info['stores_id'] . '-' . $attribute_id;
+            if (!isset($needMap[$key])) {
+                $needMap[$key] = [
+                    'goods_code'   => $info['goods_code'],
+                    'stores_id'    => (int)$info['stores_id'],
+                    'attribute_id' => $attribute_id,
+                    'need'         => 0,
+                ];
+            }
+            $needMap[$key]['need'] += $basic_number;
+        }
+        if (empty($needMap)) {
+            return;
+        }
 
-        return $this->view->fetch();
+        $goodsCodes = array_unique(array_column($needMap, 'goods_code'));
+        $goodsMap = Db::name('kuerp_goods')->where(['goods_code' => ['in', $goodsCodes]])->column('id,goods_name', 'goods_code');
+        $storesMap = Db::name('kuerp_stores')->column('name', 'id');
+
+        $stockItems = [];
+        foreach ($needMap as $k => $item) {
+            if (!isset($goodsMap[$item['goods_code']])) {
+                $this->error('商品' . $item['goods_code'] . '不存在');
+            }
+            $needMap[$k]['goods_id'] = (int)$goodsMap[$item['goods_code']]['id'];
+            $needMap[$k]['goods_name'] = $goodsMap[$item['goods_code']]['goods_name'];
+            $stockItems[] = [
+                'goods_id'     => $needMap[$k]['goods_id'],
+                'stores_id'    => $item['stores_id'],
+                'attribute_id' => $item['attribute_id'],
+            ];
+        }
+        // 可用库存 = 物理库存 - 所有生效锁定（sales_order_id 传空，与出库管理、申请弹窗口径一致）
+        $stockMap = \addons\kuerp\library\Goods::getAvailableStockBatch($stockItems, '');
+
+        $shortage = [];
+        foreach ($needMap as $item) {
+            $skey = $item['goods_id'] . '-' . $item['stores_id'] . '-' . $item['attribute_id'];
+            $available = isset($stockMap[$skey]) ? (float)$stockMap[$skey] : 0;
+            if ($available + 0.00005 < $item['need']) {
+                $storesName = isset($storesMap[$item['stores_id']]) ? $storesMap[$item['stores_id']] : ('仓库' . $item['stores_id']);
+                $shortage[] = $item['goods_name'] . '(' . $item['goods_code'] . ')【' . $storesName . '】可用库存 '
+                    . rtrim(rtrim(sprintf('%.4f', $available), '0'), '.')
+                    . '，本次需出库 ' . rtrim(rtrim(sprintf('%.4f', $item['need']), '0'), '.');
+            }
+        }
+        if (!empty($shortage)) {
+            $this->error('库存不足，不能出库：' . implode('；', $shortage));
+        }
     }
 
     /**
      * 保存实际出库 - 处理库存变动
+     * $outData 供出库管理(GoodsOutboundApply::examine)内部调用时直接传入 {sales_info_id:出库数量}，
+     * 不传则与原行为一致读取 POST out_data
+     * $checkStock 出库前是否校验可用库存（默认校验）。下单（销货预订单/销货单）不校验库存，
+     *             库存为 0/负数也可下单；只有真正出库（仓库在「出库管理」审核出库）才校验。
      */
-    public function saveOutbound($ids = null)
+    public function saveOutbound($ids = null, $outData = null, $checkStock = true)
     {
         $ids = $ids ? $ids : $this->request->post('ids');
         if (empty($ids)) {
@@ -2468,7 +3063,7 @@ class GoodsSalesOutbound extends Backend
         $batch_set = Db::name('kuerp_sets')->where(['name' => 'batch'])->value('is_checked');
         $admin = Session::get('admin');
 
-        $out_data = $this->request->post('out_data/a');
+        $out_data = is_array($outData) ? $outData : $this->request->post('out_data/a');
 
         if (empty($out_data)) {
             $this->error('请填写出库数量');
@@ -2477,6 +3072,7 @@ class GoodsSalesOutbound extends Backend
         $has_out = false;
         $total_out = 0; // 本次出库总计（用于同步订单状态）
         $editstock = [];
+        $newstock = []; // 该仓库还没有库存行时新建（允许负库存）
         $goods_stock = [];
         $goods_stock_log = [];
         $goods_batch_edit = [];
@@ -2492,6 +3088,12 @@ class GoodsSalesOutbound extends Backend
         $infoMap = [];
         foreach ($infoList as $info) {
             $infoMap[$info['id']] = $info;
+        }
+
+        // 出库前库存校验：按 商品+仓库+属性 汇总本次出库的基本单位数量，可用库存不足则禁止出库
+        // （可用库存口径与出库管理/出库申请弹窗展示的「可用库存」一致，已扣除其他订单锁定）
+        if ($checkStock) {
+            $this->checkOutboundStock($infoMap, $out_data);
         }
 
         foreach ($out_data as $info_id => $out_number) {
@@ -2547,11 +3149,8 @@ class GoodsSalesOutbound extends Backend
                     'inventory' => $goods['inventory'] - $basic_number,
                 ];
             }
-            foreach ($goods_stock as $gv) {
-                if ($gv['inventory'] < 0) {
-                    $this->error($goods['goods_name'] . '库存不足');
-                }
-            }
+            // 允许负库存：库存为 0/负数时照常出库（库存在仓库行上扣成负数，采购/组装/外协入库后补平），
+            // 故此处不再校验 inventory < 0。
 
             // 仓库库存扣减
             $where = [];
@@ -2579,15 +3178,30 @@ class GoodsSalesOutbound extends Backend
                 }
                 $balance_cost = round($balance_unit * $basic_number, 4);
             } else {
-                $store = Db::name('kuerp_stores')->where(['id' => $info['stores_id']])->value('name');
-                $this->error('商品' . $store . '库存不足');
-            }
-            foreach ($editstock as $ev) {
-                if ($ev['stock'] < 0) {
-                    $store = Db::name('kuerp_stores')->where(['id' => $info['stores_id']])->value('name');
-                    $this->error($store . '库存不足,操作失败');
+                // 该仓库还没有该商品的库存行：直接建一条负库存记录（允许负库存），
+                // 同一单据多行同商品+仓库+属性时累加到同一条。
+                $newstock_key = $goods['id'] . '#' . (int)$info['stores_id'] . '#' . (int)$goods_attr;
+                if (isset($newstock[$newstock_key])) {
+                    $newstock[$newstock_key]['stock'] = round($newstock[$newstock_key]['stock'] - $basic_number, 4);
+                } else {
+                    $newstock[$newstock_key] = [
+                        'admin_id'     => $admin['id'],
+                        'goods_id'     => $goods['id'],
+                        'goods_code'   => $info['goods_code'],
+                        'attribute_id' => $goods_attr > 0 ? $goods_attr : null,
+                        'stores_id'    => (int)$info['stores_id'],
+                        'stock'        => round(0 - $basic_number, 4),
+                        'status'       => '1',
+                        'period'       => 0,
+                        'unit_cost'    => 0,
+                        'price'        => 0,
+                        'createtime'   => time(),
+                        'updatetime'   => time(),
+                    ];
                 }
+                $balance_cost = round($balance_unit * $basic_number, 4);
             }
+            // 允许负库存：不再校验 editstock 扣减后是否小于 0。
 
             // 收发明细
             $goods_stock_log[] = \addons\kuerp\library\Goods::setDataInfo([
@@ -2713,6 +3327,12 @@ class GoodsSalesOutbound extends Backend
                     Db::name('kuerp_goods_stock')->where(['id' => $ev['id']])->update(['stock' => $ev['stock']]);
                 }
             }
+            // 新建负库存行（该仓库原本没有该商品的库存行）
+            if (!empty($newstock)) {
+                foreach ($newstock as $ns) {
+                    Db::name('kuerp_goods_stock')->insert($ns);
+                }
+            }
 
             // 记录收发明细
             if (!empty($goods_stock_log)) {
@@ -2767,32 +3387,9 @@ class GoodsSalesOutbound extends Backend
                 'updatetime'   => time(),
             ]);
 
-            // 同步关联销货订单的出库状态
+            // 同步关联销货订单的出库状态：由该订单下所有销货单的实际出库数量决定
             if (!empty($row['purchase_order_id'])) {
-                $order = Db::name('kuerp_goods_sales_order')
-                    ->where(['purchase_code' => $row['purchase_order_id']])
-                    ->field('id,number')
-                    ->find();
-                if ($order) {
-                    // 汇总该订单下所有关联销货单的实际出库数量（含本次）
-                    $allSalesCodes = $this->model
-                        ->where(['purchase_order_id' => $row['purchase_order_id']])
-                        ->column('purchase_code');
-                    $totalShipped = 0;
-                    if (!empty($allSalesCodes)) {
-                        $totalShipped = Db::name('kuerp_goods_sales_info')
-                            ->where(['purchase_code' => ['in', $allSalesCodes]])
-                            ->sum('out_number');
-                    }
-                    $orderStatus = ($totalShipped >= $order['number']) ? 1 : 2;
-                    Db::name('kuerp_goods_sales_order')
-                        ->where(['id' => $order['id']])
-                        ->update([
-                            'store_number' => $totalShipped,
-                            'status'       => $orderStatus,
-                            'updatetime'   => time(),
-                        ]);
-                }
+                \app\admin\model\kuerp\GoodsSalesOrder::syncStatusByOutbound($row['purchase_order_id']);
             }
 
             Db::commit();
@@ -2802,5 +3399,26 @@ class GoodsSalesOutbound extends Backend
         }
 
         $this->success('出库成功');
+    }
+
+    /**
+     * 为详情/打印页补充发货方式展示文本（有销货订单关联时以订单为准）
+     */
+    private function appendDeliveryModeText($row)
+    {
+        $mode = isset($row['delivery_mode']) ? $row['delivery_mode'] : 'direct';
+        if (!empty($row['purchase_order_id'])) {
+            $order_mode = Db::name('kuerp_goods_sales_order')
+                ->where(['purchase_code' => $row['purchase_order_id']])
+                ->value('delivery_mode');
+            if (in_array($order_mode, ['direct', 'dropship'], true)) {
+                $mode = $order_mode;
+            }
+        }
+        if (!in_array($mode, ['direct', 'dropship'], true)) {
+            $mode = 'direct';
+        }
+        $row['delivery_mode'] = $mode;
+        return $row;
     }
 }

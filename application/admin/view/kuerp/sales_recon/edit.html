@@ -1,0 +1,58 @@
+{php}$pd = (int)$set['price_decimal']['value']; $nd = (int)$set['number_decimal']['value'];{/php}
+<div class="panel panel-default panel-intro">
+    <div class="panel-body">
+
+        <div class="alert alert-info" style="margin-bottom:12px;">
+            客户：<b>{$row.customer_name}</b>
+            &nbsp;&nbsp;对账期间：{$dateStart} ~ {$dateEnd}
+            &nbsp;&nbsp;对账单号：<b>{$row.recon_code}</b>
+        </div>
+
+        <form id="edit-form" onsubmit="return false;">
+            <table class="table table-bordered table-condensed" style="font-size:13px;">
+                <thead>
+                <tr>
+                    <th style="width:46px;" class="text-center">
+                        <input type="checkbox" id="check-all">
+                    </th>
+                    <th>单据编号</th>
+                    <th>单据类型</th>
+                    <th>单据日期</th>
+                    <th>客户</th>
+                    <th class="text-right">数量</th>
+                    <th class="text-right">销货合计金额</th>
+                </tr>
+                </thead>
+                <tbody>
+                {if condition="empty($candidates)"}
+                <tr><td colspan="7" class="text-center text-muted">该期间没有可对账的单据</td></tr>
+                {else/}
+                {foreach $candidates as $vo}
+                <tr>
+                    <td class="text-center">
+                        <input type="checkbox" class="doc-check" name="docs" value="{$vo.doc_key}" {if condition="$vo['checked']"}checked{/if}>
+                    </td>
+                    <td>{$vo.doc_code}</td>
+                    <td>{if condition="$vo['doc_type']==1"}销货单{else/}销货退货单{/if}</td>
+                    <td>{$vo.doc_time_text}</td>
+                    <td>{$vo.customer_name}</td>
+                    <td class="text-right">{:number_format($vo['number'], $nd)}</td>
+                    <td class="text-right">{:number_format($vo['line_amount'], $pd)}</td>
+                </tr>
+                {/foreach}
+                {/if}
+                </tbody>
+            </table>
+
+            <div class="form-group" style="margin-top:12px;">
+                <label>备注</label>
+                <textarea class="form-control" id="remark" rows="2" maxlength="250">{$row.remark}</textarea>
+            </div>
+
+            <div class="text-center" style="margin-top:16px;">
+                <button type="button" class="btn btn-primary" id="btn-save">保存</button>
+                <button type="button" class="btn btn-default" onclick="parent.Fast.api.close()">取消</button>
+            </div>
+        </form>
+    </div>
+</div>

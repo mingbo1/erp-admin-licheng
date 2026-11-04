@@ -6,7 +6,7 @@ return [
     'Purchase_type 1'    => '购货',
     'Purchase_type 2'    => '退货',
     'Purchase_time'      => '单据日期',
-    'Delivery_time'      => '交货时间',
+    'Delivery_time'      => '交货日期',
     'Supplyer_code'      => '供应商',
     'Supplier_count'     => '供应商数',
     'Goods_code'         => '商品编号',
@@ -35,6 +35,6 @@ return [
     'Check_status'       => '对单状态',
     'Check_status 0'     => '未对单',
     'Check_status 1'     => '已对单',
-    'Purchase_id'        => '关联购货单号',
+    'Purchase_id'        => '关联采购单号',
     'Note'               => '备注',
 ];

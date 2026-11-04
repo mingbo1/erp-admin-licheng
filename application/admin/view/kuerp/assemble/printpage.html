@@ -21,6 +21,10 @@
         .goods-table td.right { text-align: right; }
         .footer-info { margin-top: 20px; }
         .footer-info span { display: inline-block; margin-right: 30px; }
+        .so-info { margin-bottom: 15px; }
+        .so-head { margin-bottom: 6px; }
+        .so-note { margin-bottom: 6px; }
+        .so-note .pre { white-space: pre-wrap; }
         .print-time { text-align: right; color: #999; margin-top: 20px; font-size: 12px; }
         @media print {
             body { padding: 0; }
@@ -29,6 +33,15 @@
         .no-print { text-align: center; margin-bottom: 20px; }
         .no-print button { padding: 8px 30px; font-size: 16px; cursor: pointer; }
     </style>
+{include file="kuerp/common/printstyle" /}
+<style>
+    /* 组装单固定 A4 横向打印（列较多：含销货订单信息）。
+       覆盖公共版式的纵向设置：屏幕仍模拟一张 A4 横纸（297mm 纸宽 + 10mm 内边距 = 277mm 内容宽），
+       打印 @page 同为横向 10mm 边距 → 两边内容宽度一致，预览 = 输出。 */
+    @page { size: A4 landscape; margin: 10mm; }
+    @media screen { #content { width: 297mm; } }
+    .print-wrap { max-width: none; }
+</style>
 </head>
 <body>
 <div class="no-print">
@@ -41,11 +54,53 @@
     <div class="info-grid">
         <div class="item"><strong>{:__('Purchase_code')}：</strong>{$row.purchase_code|htmlentities}</div>
         <div class="item"><strong>{:__('Purchase_time')}：</strong>{$row.purchase_time|date='Y-m-d',###}</div>
+        <div class="item"><strong>{:__('Produce_date')}：</strong>{$row.produce_date_text|default=''}</div>
         <div class="item"><strong>{:__('Preparation_id')}：</strong>{$row.preparation_name|default=''}</div>
         <div class="item"><strong>{:__('Examine_id')}：</strong>{$row.examine_name|default=''}</div>
         <div class="item"><strong>{:__('Examine_status')}：</strong>{if condition="$row.examine_status==1"}{:__('Examine_status 1')}{else/}{:__('Examine_status 0')}{/if}</div>
         <div class="item"><strong>{:__('Inbound_status')}：</strong>{if condition="$row.inbound_status==1"}{:__('Inbound_status 1')}{else/}{:__('Inbound_status 0')}{/if}</div>
+        <div class="item"><strong>销货订单号：</strong>{$row.sales_order_id|default=''|htmlentities}</div>
     </div>
+
+    {if condition="!empty($sales_order_info)"}
+    <!-- 关联销货订单信息：订单备注 + 各明细行的品号与功率、生产备注 -->
+    <div class="section-title">销货订单信息</div>
+    <div class="so-info">
+        <div class="so-head">
+            <span><strong>销货订单号：</strong>{$sales_order_info.purchase_code|default=''|htmlentities}</span>
+        </div>
+        {if condition="!empty($sales_order_info['note'])"}
+        <div class="so-note"><strong>销货订单备注：</strong><span class="pre">{$sales_order_info.note|htmlentities}</span></div>
+        {/if}
+        <table class="goods-table">
+            <thead>
+            <tr>
+                <th style="width:60px;">序号</th>
+                <th>商品编号</th>
+                <th>商品名称</th>
+                <th>品号与功率</th>
+                <th>生产备注</th>
+            </tr>
+            </thead>
+            <tbody>
+            {php}$soi_idx = 0;{/php}
+            {foreach name="sales_order_info.items" item="soi"}
+            {php}$soi_idx++;{/php}
+            <tr>
+                <td>{$soi_idx}</td>
+                <td>{$soi.goods_code|default=''|htmlentities}</td>
+                <td class="left">{$soi.goods_name|default=''|htmlentities}</td>
+                <td class="left">{$soi.remark|default=''|htmlentities}</td>
+                <td class="left">{$soi.production_remark|default=''|htmlentities}</td>
+            </tr>
+            {/foreach}
+            {if condition="empty($sales_order_info['items'])"}
+            <tr><td colspan="5">该销货订单没有商品明细</td></tr>
+            {/if}
+            </tbody>
+        </table>
+    </div>
+    {/if}
 
     <!-- 组合件 -->
     <div class="section-title">组合件</div>
@@ -55,10 +110,14 @@
                 <th>序号</th>
                 <th>{:__('Goods_code')}</th>
                 <th>{:__('Goods_name')}</th>
+                <th>型号</th>
+                <th>规格2/厂商</th>
+                <th>规格3/封装</th>
                 <th class="goods_attr_sd">{:__('Goods_attr')}</th>
                 <th>{:__('Goods_unit')}</th>
                 <th>{:__('Stores_name')}</th>
                 <th>{:__('Number')}</th>
+                <th>待入库数量</th>
                 <th>{:__('Remark')}</th>
             </tr>
         </thead>
@@ -71,10 +130,14 @@
                 <td>{$idx}</td>
                 <td>{$info.goods_code|htmlentities}</td>
                 <td class="left">{$info.goods_name|htmlentities}</td>
+                <td>{$info.goods_specification_id|htmlentities}</td>
+                <td>{$info.vendor_name|htmlentities}</td>
+                <td>{$info.packaging|htmlentities}</td>
                 <td class="goods_attr_sd">{$info.attr_name|default=''}</td>
                 <td>{$info.unit_name|default=''}</td>
                 <td>{$info.stores_name|htmlentities}</td>
                 <td class="right">{$info.number|htmlentities}</td>
+                <td class="right">{$info.remain_in_number|htmlentities}</td>
                 <td class="left">{$info.remark|htmlentities}</td>
             </tr>
             {/if}
@@ -90,10 +153,14 @@
                 <th>序号</th>
                 <th>{:__('Goods_code')}</th>
                 <th>{:__('Goods_name')}</th>
+                <th>型号</th>
+                <th>规格2/厂商</th>
+                <th>规格3/封装</th>
                 <th class="goods_attr_sd">{:__('Goods_attr')}</th>
                 <th>{:__('Goods_unit')}</th>
                 <th>{:__('Stores_name')}</th>
                 <th>{:__('Number')}</th>
+                <th>待出库数量</th>
                 <th>{:__('Remark')}</th>
             </tr>
         </thead>
@@ -106,16 +173,20 @@
                 <td>{$idx}</td>
                 <td>{$info.goods_code|htmlentities}</td>
                 <td class="left">{$info.goods_name|htmlentities}</td>
+                <td>{$info.goods_specification_id|htmlentities}</td>
+                <td>{$info.vendor_name|htmlentities}</td>
+                <td>{$info.packaging|htmlentities}</td>
                 <td class="goods_attr_sd">{$info.attr_name|default=''}</td>
                 <td>{$info.unit_name|default=''}</td>
                 <td>{$info.stores_name|htmlentities}</td>
                 <td class="right">{$info.number|htmlentities}</td>
+                <td class="right">{$info.remain_out_number|htmlentities}</td>
                 <td class="left">{$info.remark|htmlentities}</td>
             </tr>
             {/if}
             {/foreach}
             {if condition="empty($assemble_info)"}
-            <tr><td colspan="8">无明细数据</td></tr>
+            <tr><td colspan="12">无明细数据</td></tr>
             {/if}
         </tbody>
     </table>

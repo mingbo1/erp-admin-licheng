@@ -2168,6 +2168,51 @@ class Goods
     }
 
     /**
+     * 解析单据行的仓库（销货预订单/销货单的仓库列是隐藏的，只能由商品档案带出）：
+     *   1) 传入的仓库ID（>0）优先；
+     *   2) 否则取商品档案的首选仓库 manager_warehouse_id；
+     *   3) 仍为 0 时按商品类型兜底：零件(part)→零件仓、成品(finished)→成品仓、半成品(semi_finished)→半成品仓；
+     *      对应名称的启用仓库不存在时退化为启用仓库中 id 最小的一个。
+     * 库存为 0 或负数同样允许下单：销售先出库把仓库扣成负数，采购单/组装单/外协加工单入库后自动补平。
+     *
+     * @param int|string $storesId 表单提交的仓库ID
+     * @param array      $goods    商品档案行（需含 manager_warehouse_id、product_type）
+     * @return int 0 表示一个可用仓库都没有
+     */
+    public static function resolveStoreId($storesId, $goods)
+    {
+        $storesId = (int)$storesId;
+        if ($storesId > 0) {
+            return $storesId;
+        }
+        if (!empty($goods['manager_warehouse_id'])) {
+            return (int)$goods['manager_warehouse_id'];
+        }
+
+        static $storesByName = null;
+        static $firstStoreId = 0;
+        if ($storesByName === null) {
+            $storesByName = [];
+            $stores = Db::name('kuerp_stores')->where(['status' => 1])->order('id', 'asc')->field('id,name')->select();
+            foreach ($stores as $store) {
+                $storesByName[$store['name']] = (int)$store['id'];
+            }
+            $firstStoreId = $stores ? (int)$stores[0]['id'] : 0;
+        }
+
+        $nameMap = [
+            'part'          => '零件仓',
+            'finished'      => '成品仓',
+            'semi_finished' => '半成品仓',
+        ];
+        $productType = isset($goods['product_type']) ? $goods['product_type'] : '';
+        if (isset($nameMap[$productType]) && isset($storesByName[$nameMap[$productType]])) {
+            return $storesByName[$nameMap[$productType]];
+        }
+        return $firstStoreId;
+    }
+
+    /**
      * 批量获取考虑锁定的可用库存（高效版，减少N+1查询）
      * @param array  $items         [['goods_id'=>1, 'stores_id'=>2, 'attribute_id'=>0], ...]
      * @param string $salesOrderId  当前销售订单号（空字符串表示扣除所有锁定）
@@ -2282,6 +2327,102 @@ class Goods
             $where['stores_id'] = $storesId;
         }
         return Db::name('kuerp_goods_lock')->where($where)->select();
+    }
+
+    /**
+     * 获取商品成本单价（按基本单位，4位小数）
+     *
+     * 取价优先级（成本核算用，组装单/外协加工单共用）：
+     *   1. 最近一次采购入库成本（kuerp_goods_log business_type=2 的 enter_cost / enter_basics）
+     *   2. 期初库存成本（kuerp_goods_period 的 price / stock）
+     *   3. 库存移动平均（kuerp_goods_stock 的 cost_money / stock，需 stock>0 且 cost_money>0）
+     *   4. 商品档案采购价（辅助属性商品优先取属性采购价）
+     *   5. 都取不到返回 0
+     *
+     * @param string $goods_code 商品编号
+     * @param int    $stores_id  仓库ID（0=不限仓库）
+     * @param int    $attr       商品属性ID（0=无属性）
+     * @return float
+     */
+    public static function getCostPrice($goods_code, $stores_id = 0, $attr = 0)
+    {
+        $goods_code = trim((string)$goods_code);
+        if ($goods_code === '') {
+            return 0;
+        }
+        $stores_id = (int)$stores_id;
+        $attr = (int)$attr;
+
+        // 1. 最近一次采购入库成本（优先同仓库，其次任意仓库）
+        $logWhere = ['goods_code' => $goods_code, 'business_type' => '2'];
+        $log = null;
+        if ($stores_id > 0) {
+            $log = Db::name('kuerp_goods_log')->where($logWhere)
+                ->where('stores_id', $stores_id)
+                ->where('enter_basics', '>', 0)->where('enter_cost', '>', 0)
+                ->order('id', 'desc')->field('enter_cost,enter_basics')->find();
+        }
+        if (empty($log)) {
+            $log = Db::name('kuerp_goods_log')->where($logWhere)
+                ->where('enter_basics', '>', 0)->where('enter_cost', '>', 0)
+                ->order('id', 'desc')->field('enter_cost,enter_basics')->find();
+        }
+        if (!empty($log) && (float)$log['enter_basics'] > 0) {
+            return round((float)$log['enter_cost'] / (float)$log['enter_basics'], 4);
+        }
+
+        $goods = Db::name('kuerp_goods')->where(['goods_code' => $goods_code])
+            ->field('id,purchase,auxiliary')->find();
+
+        // 2. 期初库存成本（优先同仓库）
+        if (!empty($goods)) {
+            $period = null;
+            if ($stores_id > 0) {
+                $period = Db::name('kuerp_goods_period')
+                    ->where(['goods_id' => $goods['id'], 'stores_id' => $stores_id])
+                    ->where('stock', '>', 0)->where('price', '>', 0)
+                    ->order('id', 'desc')->field('stock,price')->find();
+            }
+            if (empty($period)) {
+                $period = Db::name('kuerp_goods_period')
+                    ->where(['goods_id' => $goods['id']])
+                    ->where('stock', '>', 0)->where('price', '>', 0)
+                    ->order('id', 'desc')->field('stock,price')->find();
+            }
+            if (!empty($period) && (float)$period['stock'] > 0) {
+                return round((float)$period['price'] / (float)$period['stock'], 4);
+            }
+        }
+
+        // 3. 库存移动平均
+        $stockWhere = ['goods_code' => $goods_code];
+        if ($stores_id > 0) {
+            $stockWhere['stores_id'] = $stores_id;
+        }
+        if ($attr > 0) {
+            $stockWhere['attribute_id'] = $attr;
+        }
+        $stock = Db::name('kuerp_goods_stock')->where($stockWhere)
+            ->field('SUM(stock) AS stock,SUM(cost_money) AS cost_money')->find();
+        if (!empty($stock) && (float)$stock['stock'] > 0 && (float)$stock['cost_money'] > 0) {
+            return round((float)$stock['cost_money'] / (float)$stock['stock'], 4);
+        }
+
+        // 4. 商品档案采购价
+        if (!empty($goods)) {
+            if ((int)$goods['auxiliary'] === 1 && $attr > 0) {
+                $purchase = Db::name('kuerp_goods_attr')
+                    ->where(['goods_id' => $goods['id'], 'id' => $attr])->value('purchase');
+                if ((float)$purchase > 0) {
+                    return round((float)$purchase, 4);
+                }
+            }
+            if ((float)$goods['purchase'] > 0) {
+                return round((float)$goods['purchase'], 4);
+            }
+        }
+
+        return 0;
     }
 
 }

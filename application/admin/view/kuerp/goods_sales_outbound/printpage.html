@@ -28,6 +28,7 @@
         .no-print { text-align: center; margin-bottom: 20px; }
         .no-print button { padding: 8px 30px; font-size: 16px; cursor: pointer; }
     </style>
+{include file="kuerp/common/printstyle" /}
 </head>
 <body>
 <div class="no-print">
@@ -45,6 +46,7 @@
         <div class="item"><strong>库位：</strong>{:__('See_detail_table')}</div>
         <div class="item"><strong>{:__('Examine_status')}：</strong>{if condition="$row.examine_status==1"}已审核{else/}未审核{/if}</div>
         <div class="item"><strong>{:__('Check_status')}：</strong>{if condition="$row.check_status==1"}已对单{else/}未对单{/if}</div>
+        <div class="item"><strong>{:__('Delivery_mode')}：</strong>{$row.delivery_mode_text|default=''}</div>
     </div>
 
     <table class="goods-table">

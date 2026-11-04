@@ -7,7 +7,8 @@ return [
     'Purchase_type 1'    => '销货',
     'Purchase_type 2'    => '退货',
     'Purchase_time'      => '单据日期',
-    'Delivery_time'      => '交货时间',
+    'Delivery_time'      => '交货日期',
+    'Expected_delivery_date' => '预计生产完成日期',
     'Supplyer_code'      => '供应商',
     'Goods_code'         => '商品编号',
     'Goods_note'         => '商品备注',
@@ -83,4 +84,8 @@ return [
     '操作人' => '操作人',
     '时间' => '时间',
     '催收备注' => '催收备注',
+
+    'Delivery_mode'           => '代发/直发',
+    'Delivery_mode direct'    => '直发',
+    'Delivery_mode dropship'  => '代发',
 ];

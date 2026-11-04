@@ -8,6 +8,10 @@
                fa_auth_rule id=421,按约定不改数据库,此处用CSS隐藏;恢复属性功能时删除本段即可) */
             .sidebar-menu li:has(> a[url$="kuerp/auxiliary"]),
             .sidebar-menu a[url$="kuerp/auxiliary"] { display: none; }
+            /* 【客户等级功能全局隐藏】客户统一按零售客户处理(表单不再展示等级选择),
+               隐藏侧栏「客户资料>客户等级」菜单项(菜单数据在 fa_auth_rule,不改数据库);恢复时删除本段即可 */
+            .sidebar-menu li:has(> a[url$="kuerp/customerlevel"]),
+            .sidebar-menu a[url$="kuerp/customerlevel"] { display: none; }
         </style>
     </head>
     <body class="hold-transition {$Think.config.fastadmin.adminskin|default='skin-black-blue'} sidebar-mini {:$Think.cookie.sidebar_collapse?'sidebar-collapse':''} fixed {:$Think.config.fastadmin.multipletab?'multipletab':''} {:$Think.config.fastadmin.multiplenav?'multiplenav':''}" id="tabs">

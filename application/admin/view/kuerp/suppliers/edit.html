@@ -96,6 +96,26 @@
         </div>
     </div>
 
+    <div class="row">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+            <div class="form-group">
+                <label class="control-label col-xs-12 col-sm-2">{:__('Contract')}:</label>
+                <div class="col-xs-12 col-sm-10">
+                    <div class="input-group">
+                        <input id="c-contract" class="form-control" size="50" name="row[contract]" type="text" value="{$row.contract|htmlentities}" placeholder="{:__('Contract')}">
+                        <div class="input-group-addon no-border no-padding">
+                            <span><button type="button" id="faupload-contract" class="btn btn-danger faupload" data-input-id="c-contract" data-multiple="false" data-preview-id="p-contract"><i class="fa fa-upload"></i> {:__('Upload')}</button></span>
+                            <span><button type="button" id="fachoose-contract" class="btn btn-primary fachoose" data-input-id="c-contract" data-multiple="false"><i class="fa fa-list"></i> {:__('Choose')}</button></span>
+                        </div>
+                        <span class="msg-box n-right" for="c-contract"></span>
+                    </div>
+                    <ul class="row list-inline faupload-preview" id="p-contract"></ul>
+                    <span class="help-block" style="font-size:12px;color:#999">选填。支持图片、PDF、Word、Excel、压缩包等（受「系统配置→上传配置」限制）</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="list">
         <table>
             <tr>

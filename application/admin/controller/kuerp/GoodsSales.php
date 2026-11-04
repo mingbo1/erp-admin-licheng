@@ -147,6 +147,45 @@ class GoodsSales extends Backend
                     ->where('purchase_code', 'in', array_unique($emptyDeliveryCodes))
                     ->column('delivery_time', 'purchase_code');
             }
+            // 发货方式（代发/直发）：有销货订单关联时以订单为准
+            $orderCodes = [];
+            foreach ($list as $list_v) {
+                if (!empty($list_v['purchase_order_id'])) {
+                    $orderCodes[] = $list_v['purchase_order_id'];
+                }
+            }
+            $orderDeliveryModeMap = [];
+            if (!empty($orderCodes)) {
+                $orderDeliveryModeMap = Db::name('kuerp_goods_sales_order')
+                    ->where('purchase_code', 'in', array_unique($orderCodes))
+                    ->column('delivery_mode', 'purchase_code');
+            }
+            // 开票状态（销货开票台账）
+            $pageSalesCodes = [];
+            foreach ($list as $list_v) {
+                $pageSalesCodes[] = $list_v['purchase_code'];
+            }
+            // 台账 invoice_status 是二值（0 未开 / 1 已开），对账单部分开票时写的是 0，
+            // 所以这里按「已开票金额/未开票金额」派生三态：0 未开票 / 1 部分开票 / 2 已开票
+            $invoiceStatusMap = [];
+            if (!empty($pageSalesCodes)) {
+                $ledgerRows = Db::name('kuerp_sales_invoicing')
+                    ->where(['bill_code' => ['in', $pageSalesCodes]])
+                    ->field('bill_code,invoice_status,pay_money,give_money')
+                    ->select();
+                foreach ($ledgerRows as $ledgerRow) {
+                    $invoiced = (float)$ledgerRow['pay_money'];
+                    $give = (float)$ledgerRow['give_money'];
+                    if ($ledgerRow['invoice_status'] == '1' && $give <= 0.0001) {
+                        $state = '2';   // 已开票
+                    } elseif ($invoiced > 0.0001) {
+                        $state = '1';   // 部分开票
+                    } else {
+                        $state = '0';   // 未开票
+                    }
+                    $invoiceStatusMap[$ledgerRow['bill_code']] = $state;
+                }
+            }
             foreach ($list as $list_k=>$list_v){
                 if(isset($list_v['print_num']) && empty($list_v['print_num'])){
                     $list[$list_k]['print_num'] = 0;
@@ -154,12 +193,24 @@ class GoodsSales extends Backend
                 $purchase_id = Db::name('kuerp_goods_saleexc')->where(['purchase_id'=>$list_v['id']])->column('exchange_id');
                 $purchase = Db::name('kuerp_goods_sales_exchange')->where(['id'=>['in',$purchase_id]])->column('purchase_code');
                 $list[$list_k]['returns_order_id'] = implode(',',$purchase);
+                // 对账状态 / 开票状态（对账单模块回写）
+                $reconStatus = isset($list_v['recon_status']) ? (string)$list_v['recon_status'] : '0';
+                $reconTextMap = ['0' => '未对账', '1' => '待二审', '2' => '已对账'];
+                $list[$list_k]['recon_status'] = $reconStatus;
+                $list[$list_k]['recon_status_text'] = isset($reconTextMap[$reconStatus]) ? $reconTextMap[$reconStatus] : '未对账';
+                $list[$list_k]['recon_code'] = isset($list_v['recon_code']) ? $list_v['recon_code'] : '';
+                $list[$list_k]['invoice_status'] = isset($invoiceStatusMap[$list_v['purchase_code']]) ? $invoiceStatusMap[$list_v['purchase_code']] : '0';
                 // 催收记录数量
                 $dunningList = $list_v->getRelation('dunning');
                 $list_v['dunning_count'] = ($dunningList && count($dunningList) > 0) ? count($dunningList) : 0;
                 // 如果交货时间为空，从关联的销货订单获取
                 if (empty($list_v['delivery_time']) && !empty($list_v['purchase_order_id']) && isset($orderDeliveryMap[$list_v['purchase_order_id']])) {
                     $list_v['delivery_time'] = $orderDeliveryMap[$list_v['purchase_order_id']];
+                }
+                if (!empty($list_v['purchase_order_id']) && isset($orderDeliveryModeMap[$list_v['purchase_order_id']])) {
+                    $list[$list_k]['delivery_mode'] = $orderDeliveryModeMap[$list_v['purchase_order_id']];
+                } elseif (empty($list_v['delivery_mode'])) {
+                    $list[$list_k]['delivery_mode'] = 'direct';
                 }
             }
 
@@ -177,6 +228,22 @@ class GoodsSales extends Backend
             if ($params) {
                 $examine= Db::name('kuerp_sets')->where(['name'=>'examine'])->value('is_checked');
                 $params = $this->preExcludeFields($params);
+                // 发货方式：由关联销货订单带出，无关联订单时默认直发
+                $delivery_mode = 'direct';
+                if (!empty($ids)) {
+                    $order_delivery_mode = Db::name('kuerp_goods_sales_order')->where(['id'=>$ids])->value('delivery_mode');
+                    if (in_array($order_delivery_mode, ['direct', 'dropship'], true)) {
+                        $delivery_mode = $order_delivery_mode;
+                    }
+                } elseif (isset($params['delivery_mode'])) {
+                    $delivery_mode = $this->normalizeDeliveryMode($params['delivery_mode'], 'direct');
+                }
+                // 客户承担费用：生成销货单时若表单未带，则从销货订单取
+                if (!isset($params['customers_money'])) {
+                    $params['customers_money'] = !empty($ids)
+                        ? (float)Db::name('kuerp_goods_sales_order')->where(['id' => $ids])->value('customers_money')
+                        : 0;
+                }
                 $checkout = (new \addons\kuerp\library\Checkout())->checkOutTime($params['purchase_time']);
                 if($checkout!==true){
                     $this->error($checkout);
@@ -215,10 +282,6 @@ class GoodsSales extends Backend
                             $purchase_order_id = $params['purchase_order_id'][$k];
                         }
 
-                        if(!isset($params['stores_id'][$k]) || empty($params['stores_id'][$k])){
-                            $this->error('请选择仓库');
-                        }
-
                         unset($pay_money);unset($pay_status);
                         if($now_pay_money>0){
                             if($now_pay_money-$params['money_tax_price'][$k]>=0){
@@ -232,7 +295,16 @@ class GoodsSales extends Backend
                             }
                         }
 
-                        $goods = Db::name('kuerp_goods')->where(['goods_code'=>$v])->field('id,serial,batch,auxiliary')->find();
+                        $goods = Db::name('kuerp_goods')->where(['goods_code'=>$v])->field('id,serial,batch,auxiliary,manager_warehouse_id,product_type')->find();
+                        if(empty($goods)){
+                            $this->error('商品'.$v.'不存在');
+                        }
+                        //仓库列隐藏，商品没维护首选仓库时按商品类型兜底（零件填零件仓、成品填成品仓、半成品填半成品仓）；
+                        //库存 0/负数不拦截：允许先出库把仓库扣成负数，采购单/组装单/外协加工单入库后自动补平
+                        $params['stores_id'][$k] = \addons\kuerp\library\Goods::resolveStoreId(isset($params['stores_id'][$k]) ? $params['stores_id'][$k] : 0, $goods);
+                        if(empty($params['stores_id'][$k])){
+                            $this->error('商品'.$v.'未设置仓库，请先在仓库资料中启用仓库');
+                        }
                         $batch_data = Db::name('kuerp_goods_batch')->where(['id'=>$params['batch_id'][$k]])->find();
                         if ($goods['auxiliary']==1 && empty($params['goods_attr'][$k]) && $auxiliary_status==1){
                             return ['status'=>500,'msg'=>'请选择商品'.$v.'属性'];
@@ -306,6 +378,7 @@ class GoodsSales extends Backend
                             'purchase_code'     =>  $params['purchase_code'],
                             'purchase_type'     =>  $params['purchase_type'],
                             'purchase_time'     =>  strtotime($params['purchase_time']),
+                            'delivery_mode'     =>  $delivery_mode,
                             'customers_id'      =>  (int)$params['customers_id'],//客户
                             'sale_user'         =>  (int)$params['sale_user'],//销售员
                             'receiving_address' =>  $params['receiving_address'],
@@ -382,6 +455,7 @@ class GoodsSales extends Backend
                         'purchase_type'     =>  $params['purchase_type'],
                         'purchase_time'     =>  strtotime($params['purchase_time']),
                         'delivery_time'     =>  isset($params['delivery_time']) ? strtotime($params['delivery_time']) : null,
+                        'delivery_mode'     =>  $delivery_mode,
                         'customers_id'      =>  (int)$params['customers_id'],//客户
                         'sale_user'         =>  (int)$params['sale_user'],//销售员
                         'receiving_address' =>  $params['receiving_address'],
@@ -638,6 +712,11 @@ class GoodsSales extends Backend
             }
         }
 
+        // 客户承担费用需计入「本次欠款/总欠款」，与前端 changeInfo() 的口径保持一致
+        $customers_money_default = isset($row['customers_money']) ? (float)$row['customers_money'] : 0;
+        $this->view->assign('arrears_default', round((float)$row['real_money'] + $customers_money_default, 4));
+        $give_account = (float)$give_account + $customers_money_default;
+
         $this->view->assign("row", $row);
         $this->view->assign("purchase_info", $purchase_info);
         $this->view->assign("give_account", $give_account??0);
@@ -694,9 +773,14 @@ class GoodsSales extends Backend
             if($row['check_status']==1){
                 $this->error('不能编辑已对单的数据');
             }
+            if(isset($row['recon_status']) && $row['recon_status']!='0'){
+                $this->error('该销货单已进入对账流程，请先撤销对账后再修改');
+            }
             $params = $this->request->post("row/a");
             if ($params) {
                 $params = $this->preExcludeFields($params);
+                // 发货方式：表单未提交（如只读）时保留原值
+                $delivery_mode = $this->normalizeDeliveryMode(isset($params['delivery_mode']) ? $params['delivery_mode'] : '', isset($row['delivery_mode']) ? $row['delivery_mode'] : 'direct');
                 $old_purchase_code = $params['old_purchase_code'];unset($params['old_purchase_code']);
                 $info_id = Db::name('kuerp_goods_sales_info')->where(['purchase_code'=>$old_purchase_code])->column('id');
 
@@ -730,10 +814,6 @@ class GoodsSales extends Backend
                         $tax_money += (float)$params['tax_money'][$k];
                         $money_tax_price += (float)$params['money_tax_price'][$k];
 
-                        if(!isset($params['stores_id'][$k]) || empty($params['stores_id'][$k])){
-                            $this->error('请选择仓库');
-                        }
-
                         unset($pay_money);unset($pay_status);
                         if($now_pay_money>0){
                             if($now_pay_money-$params['money_tax_price'][$k]>=0){
@@ -747,7 +827,16 @@ class GoodsSales extends Backend
                             }
                         }
 
-                        $goods = Db::name('kuerp_goods')->where(['goods_code'=>$v])->field('id,serial,batch,auxiliary')->find();
+                        $goods = Db::name('kuerp_goods')->where(['goods_code'=>$v])->field('id,serial,batch,auxiliary,manager_warehouse_id,product_type')->find();
+                        if(empty($goods)){
+                            $this->error('商品'.$v.'不存在');
+                        }
+                        //仓库列隐藏，商品没维护首选仓库时按商品类型兜底（零件填零件仓、成品填成品仓、半成品填半成品仓）；
+                        //库存 0/负数不拦截：允许先出库把仓库扣成负数，采购单/组装单/外协加工单入库后自动补平
+                        $params['stores_id'][$k] = \addons\kuerp\library\Goods::resolveStoreId(isset($params['stores_id'][$k]) ? $params['stores_id'][$k] : 0, $goods);
+                        if(empty($params['stores_id'][$k])){
+                            $this->error('商品'.$v.'未设置仓库，请先在仓库资料中启用仓库');
+                        }
                         $batch_data = Db::name('kuerp_goods_batch')->where(['id'=>$params['batch_id'][$k]])->find();
                         if ($goods['auxiliary']==1 && empty($params['goods_attr'][$k]) && $auxiliary_status==1){
                             return ['status'=>500,'msg'=>'请选择商品'.$v.'属性'];
@@ -821,6 +910,7 @@ class GoodsSales extends Backend
                             'purchase_code'     =>  $params['purchase_code'],
                             'purchase_type'     =>  $params['purchase_type'],
                             'purchase_time'     =>  strtotime($params['purchase_time']),
+                            'delivery_mode'     =>  $delivery_mode,
                             'customers_id'      =>  (int)$params['customers_id'],//客户
                             'sale_user'         =>  (int)$params['sale_user'],//销售员
                             'receiving_address' =>  $params['receiving_address'],
@@ -894,6 +984,7 @@ class GoodsSales extends Backend
                         'purchase_type'     =>  $params['purchase_type'],
                         'purchase_time'     =>  strtotime($params['purchase_time']),
                         'delivery_time'     =>  isset($params['delivery_time']) ? strtotime($params['delivery_time']) : null,
+                        'delivery_mode'     =>  $delivery_mode,
                         'customers_id'      =>  (int)$params['customers_id'],//客户
                         'sale_user'         =>  (int)$params['sale_user'],//销售员
                         'receiving_address' =>  $params['receiving_address'],
@@ -1040,6 +1131,7 @@ class GoodsSales extends Backend
             }
             $this->error(__('Parameter %s can not be empty', ''));
         }
+        $row = $this->appendDeliveryModeText($row);
         $this->view->assign("row", $row);
 
         $purchase_info = Db::name('kuerp_goods_sales_info')->where(['purchase_code'=>$row['purchase_code']])->select();
@@ -1146,6 +1238,9 @@ class GoodsSales extends Backend
                 }
                 if($list_v['check_status']==1){
                     $this->error('不能删除已对单的数据');
+                }
+                if(isset($list_v['recon_status']) && $list_v['recon_status']!='0'){
+                    $this->error('该销货单已进入对账流程，请先撤销对账后再删除');
                 }
                 if($list_v['examine_status']==1 && $examine==1){
                     $this->error('不能删除已审核的数据');
@@ -1316,7 +1411,7 @@ class GoodsSales extends Backend
                         'customers_id'  => $list_v['customers_id'],
                         'purchase_code' => $list_v['purchase_code'],
                         'purchase_time' => $list_v['purchase_time'],
-                        'price'         => $list_v['real_money'],
+                        'price'         => $list_v['real_money'] + $list_v['customers_money'],
                         'money'         => $list_v['pay_money'],
                         'write_off'     => $list_v['arrears'],
                         'remark'        => $list_v['note'],
@@ -1652,14 +1747,13 @@ class GoodsSales extends Backend
                     ];
                 }
             }
-            //修改状态
+            //订单状态只由销货单的实际出库数量决定，这里只补订单id
             if(!empty($order_count)){
                 foreach ($order_count as $order_count_k=>$order_count_v){
-                    $number = Db::name('kuerp_goods_sales_order')->where(['purchase_code'=>$order_count_v['purchase_code']])->field('id,number,store_number')->find();
-                    if(($number['number']-$number['store_number'])<=$order_count_v['store_number']){
-                        $order_count[$order_count_k]['status'] = 1;
-                    }else{
-                        $order_count[$order_count_k]['status'] = 2;
+                    $number = Db::name('kuerp_goods_sales_order')->where(['purchase_code'=>$order_count_v['purchase_code']])->field('id')->find();
+                    if(empty($number)){
+                        unset($order_count[$order_count_k]);
+                        continue;
                     }
                     $order_count[$order_count_k]['id'] = $number['id'];
                 }
@@ -2005,6 +2099,20 @@ class GoodsSales extends Backend
                 if($list_v['check_status']==1){
                     $this->error('不能反审核已对单的数据');
                 }
+                if(isset($list_v['recon_status']) && $list_v['recon_status']!='0'){
+                    if($examine_set!=1){
+                        return ['status'=>0,'msg'=>'该销货单已进入对账流程，请先撤销对账'];
+                    }
+                    $this->error('该销货单已进入对账流程，请先撤销对账');
+                }
+                // 已有出库记录(出库申请已执行)时不允许反审核：反审核按整单恢复库存，不看 out_number，会超回库存
+                $out_total = Db::name('kuerp_goods_sales_info')->where(['purchase_code'=>$list_v['purchase_code']])->sum('out_number');
+                if($out_total > 0){
+                    if($examine_set!=1){
+                        return ['status'=>0,'msg'=>'不能操作已有出库记录的数据'];
+                    }
+                    $this->error('该销货单已有出库记录（出库申请已执行），不能反审核');
+                }
                 $purchase_id = Db::name('kuerp_goods_saleexc')->where(['purchase_id'=>$list_v['id'],'type'=>'2'])->column('exchange_id');
                 if(!empty($purchase_id)){
                     if($examine_set!=1){
@@ -2151,14 +2259,13 @@ class GoodsSales extends Backend
                     ];
                 }
             }
-            //修改状态
+            //订单状态只由销货单的实际出库数量决定，这里只补订单id
             if(!empty($order_count)){
                 foreach ($order_count as $order_count_k=>$order_count_v){
-                    $number = Db::name('kuerp_goods_sales_order')->where(['purchase_code'=>$order_count_v['purchase_code']])->field('id,number,store_number')->find();
-                    if($number['store_number']<=$order_count_v['store_number']){
-                        $order_count[$order_count_k]['status'] = 0;
-                    }else{
-                        $order_count[$order_count_k]['status'] = 2;
+                    $number = Db::name('kuerp_goods_sales_order')->where(['purchase_code'=>$order_count_v['purchase_code']])->field('id')->find();
+                    if(empty($number)){
+                        unset($order_count[$order_count_k]);
+                        continue;
                     }
                     $order_count[$order_count_k]['id'] = $number['id'];
                 }
@@ -2423,7 +2530,7 @@ class GoodsSales extends Backend
             $this->error('参数错误');
         }
         if($row['examine_status']!=1){
-            $this->error('此购货单未审核，不可生成退货单');
+            $this->error('此采购单未审核，不可生成退货单');
         }
         $purchase_info = Db::name('kuerp_goods_sales_info')->where(['purchase_code'=>$row['purchase_code']])->select();
         foreach ($purchase_info as $purchase_info_k=>$purchase_info_v){
@@ -2457,7 +2564,8 @@ class GoodsSales extends Backend
             $row = Db::name('kuerp_goods')->where(['id'=>$goods_id])->field('unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id,warehousing,warehouse')->find();
         }
         if(empty($row)){
-            return [];
+            //商品档案已删除的孤儿单据行：统一返回JSON串，避免调用方 json_decode() 收到数组报错
+            return json_encode([]);
         }
         if($store){
             $stock = Db::name('kuerp_goods_stock')->where(['goods_code'=>$row['goods_code'],'stores_id'=>$store])->value('stock');
@@ -2530,7 +2638,8 @@ class GoodsSales extends Backend
                 ->find();
         }
         if(empty($row)){
-            return [];
+            //商品档案已删除的孤儿单据行：统一返回JSON串，避免调用方 json_decode() 收到数组报错
+            return json_encode(['unit'=>[],'attr'=>[],'goods'=>[]]);
         }
 
         //获取设置
@@ -2554,8 +2663,8 @@ class GoodsSales extends Backend
                     case 1:
                         $field = 'market_sell_price';
                         break;
-                    case 2:
-                        $field = 'wholesale_price';
+                    case 2://批发价已下线，批发客户按零售价取价
+                        $field = 'market_sell_price';
                         break;
                     case 3:
                         $field = 'vip_price';
@@ -2719,6 +2828,23 @@ class GoodsSales extends Backend
     public function formatInfo2(){
         $data = input();
 
+        //价格相关字段缺省为0：组装单/拆卸单等单据行无单价、金额输入框，仅传 goods_code/number 等基础字段，缺失时不能报未定义索引
+        $default_fields = ['number','unit_price','tax_included','discount','dis_money','all_money','tax_money','money_tax_price'];
+        foreach ($default_fields as $default_k){
+            if(!isset($data[$default_k]) || $data[$default_k]===''){
+                $data[$default_k] = 0;
+            }
+        }
+        if(!isset($data['attr'])){
+            $data['attr'] = '';
+        }
+        if(!isset($data['goods_unit'])){
+            $data['goods_unit'] = '';
+        }
+        if(!isset($data['now_field'])){
+            $data['now_field'] = '';
+        }
+
         $row = Db::name('kuerp_goods')->where(['goods_code'=>$data['goods_code']])->field('batch,serial,id,auxiliary,unit_id,more_unit,more_unit_id,purchase,goods_code,manager_warehouse_id')->find();
         if(empty($row)){
             return [];
@@ -2787,8 +2913,8 @@ class GoodsSales extends Backend
                     case 1:
                         $field = 'market_sell_price';
                         break;
-                    case 2:
-                        $field = 'wholesale_price';
+                    case 2://批发价已下线，批发客户按零售价取价
+                        $field = 'market_sell_price';
                         break;
                     case 3:
                         $field = 'vip_price';
@@ -3036,6 +3162,7 @@ class GoodsSales extends Backend
             $purchase_info[$k]['stores_name'] = Db::name('kuerp_stores')->where(['id' => $v['stores_id']])->value('name');
             $purchase_info[$k]['unit_name'] = Db::name('kuerp_unit')->where(['id' => $v['goods_unit']])->value('name');
         }
+        $row = $this->appendDeliveryModeText($row);
         $this->view->assign("row", $row);
         $this->view->assign("purchase_info", $purchase_info);
 
@@ -3081,5 +3208,38 @@ class GoodsSales extends Backend
         }else{
             $this->error('二次审核失败');
         }
+    }
+
+    /**
+     * 规范化发货方式：direct=直发（默认），dropship=代发
+     */
+    protected function normalizeDeliveryMode($value, $default = 'direct')
+    {
+        $value = is_string($value) ? trim($value) : '';
+        if (in_array($value, ['direct', 'dropship'], true)) {
+            return $value;
+        }
+        return in_array($default, ['direct', 'dropship'], true) ? $default : 'direct';
+    }
+
+    /**
+     * 为详情/打印页补充发货方式展示文本（有销货订单关联时以订单为准）
+     */
+    protected function appendDeliveryModeText($row)
+    {
+        $mode = isset($row['delivery_mode']) ? $row['delivery_mode'] : 'direct';
+        if (!empty($row['purchase_order_id'])) {
+            $order_mode = Db::name('kuerp_goods_sales_order')
+                ->where(['purchase_code' => $row['purchase_order_id']])
+                ->value('delivery_mode');
+            if (in_array($order_mode, ['direct', 'dropship'], true)) {
+                $mode = $order_mode;
+            }
+        }
+        if (!in_array($mode, ['direct', 'dropship'], true)) {
+            $mode = 'direct';
+        }
+        $row['delivery_mode'] = $mode;
+        return $row;
     }
 }

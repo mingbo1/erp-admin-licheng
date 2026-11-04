@@ -42,9 +42,18 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     ,cols: [[
                         {checkbox: true,merge:['purchase_code']},
                         {field: 'purchase_time', title: __('Purchase_time'),merge:['purchase_code'],width:120},
+                        {field: 'produce_date', title: __('Produce_date'),merge:['purchase_code'],width:120,templet: function (d) {
+                            if (d.produce_date) { return d.produce_date; }
+                            return '<span style="color:#ccc">—</span>';
+                        }},
+                        {field: 'createtime', title: __('Create_date'),merge:['purchase_code'],width:160},
                         {field: 'purchase_code', title: __('Purchase_code'),merge:true,width:150},
-                        {field: 'sales_order_id', title: __('Sales_order_id'),merge:['purchase_code'],width:140,templet: function (d) {
+                        {field: 'sales_order_id', title: __('Sales_order_id'),merge:['purchase_code'],width:160,templet: function (d) {
                             if (d.sales_order_id) { return '<span style="color:#1890ff">'+d.sales_order_id+'</span>'; }
+                            return '<span style="color:#ccc">—</span>';
+                        }},
+                        {field: 'expected_delivery_date', title: __('Expected_delivery_date'),merge:['purchase_code'],width:150,templet: function (d) {
+                            if (d.expected_delivery_date) { return '<span style="color:#ff5722">'+d.expected_delivery_date+'</span>'; }
                             return '<span style="color:#ccc">—</span>';
                         }},
                         {field: 'pname', title: __('组合件'),merge:['purchase_code'],width:140},
@@ -65,7 +74,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         {field: 'examine', title: __('审核人'),merge:['purchase_code'],hide:hideStatus},
                         {field: 'examine_time', title: __('审核时间'),merge:['purchase_code'],hide:hideStatus,width:120},
                         {field: 'remark', title: __('备注'),merge:['purchase_code']},
-                        {fixed: 'right', title:__('Operate'), toolbar: '#barDemo', width:150,merge:['purchase_code']}
+                        {fixed: 'right', title:__('Operate'), toolbar: '#barDemoAssemble', width:200,merge:['purchase_code']}
                     ]],
                     done: function(){
                         $(".layui-table-main tr").each(function (index, val) {
@@ -158,18 +167,6 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 area: ['95%', '80%'],
                             });
                             break;
-                        case 'print':
-                            if(data.length<=0){
-                                Toastr.error('请选择要打印的数据');return;
-                            }
-                            if(data.length > 1){
-                                Toastr.error('一次只能打印一条数据');return;
-                            }
-                            var printUrl = "kuerp/assemble/printpage?ids=" + data[0].id;
-                            parent.Fast.api.open(printUrl, "打印", {
-                                area: ['90%', '75%'],
-                            });
-                            break;
                     }
                 });
                 function reloadTable(){
@@ -220,6 +217,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         );
                     } else if(obj.event === 'edit'){
                         Fast.api.open("kuerp/assemble/edit?ids="+data.id, "编辑",{area:['90%','75%'],});
+                    } else if(obj.event === 'print'){
+                        parent.Fast.api.open("kuerp/assemble/printpage?ids=" + data.id, "打印", {
+                            // 打印页为 A4 横向（内容宽 297mm），弹层放宽以便预览不被压缩
+                            area: ['95%', '90%'],
+                        });
                     }
                 });
                 //搜索事件
@@ -244,6 +246,14 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     if(purchase_time!=''){
                         search.purchase_time = purchase_time;
                     }
+                    var produce_date = $('#produce_date').val();
+                    if(produce_date!=''){
+                        search.produce_date = produce_date;
+                    }
+                    var createtime = $('#createtime').val();
+                    if(createtime!=''){
+                        search.createtime = createtime;
+                    }
                     var examine_status = $('#examine_status').val();
                     if(examine_status!=''){
                         search.examine_status = examine_status;
@@ -258,6 +268,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     var op = {};
                     op.purchase_code = 'LIKE';
                     op.purchase_time = 'RANGE';
+                    op.produce_date = 'RANGE';
+                    op.createtime = 'RANGE';
                     return op;
                 }
             });
@@ -283,6 +295,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         elem: '#c-purchase_time',
                     });
                     laydate.render({
+                        elem: '#c-produce_date',
+                    });
+                    laydate.render({
                         elem: '.manufacture',
                         done: function(value){
                             manufacture();
@@ -299,6 +314,16 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         type: 'datetime',
                         range: true
                     });
+                    laydate.render({
+                        elem: '#produce_date',
+                        type: 'date',
+                        range: true
+                    });
+                    laydate.render({
+                        elem: '#createtime',
+                        type: 'datetime',
+                        range: true
+                    });
                 });
 
                 //设置审核的单据不可编辑
@@ -312,7 +337,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     $('select').attr('disabled','true');
                     $('textarea').attr('disabled','true');
                     $('.btn').attr('disabled','true');
-                    //一键生成采购单在已审核单据上仍可使用
+                    //一键生成采购预订单(计划)在已审核单据上仍可使用
                     $('.shortage_purchase').removeAttr('disabled');
                 }
 
@@ -1243,6 +1268,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 // 仓库
                 $(document).on("change", ".stores_id", function(){
                     var obj = $(this).parents('tr');
+                    syncStoresName(obj);
                     var goods_code = obj.find('.goods_code').val();
                     var attr = obj.find('.goods_attr').val();
                     var goods_unit = obj.find('.goods_unit').val();
@@ -1276,7 +1302,23 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 // 数量
                 $(document).on("change", ".number", function(){
                     var obj = $(this).parents('tr');
-                    changeGoodsInfo(obj,'number')
+                    // 手动修改子件数量 → 解除该行BOM联动（后续改组合件数量不再覆盖此行）
+                    obj.removeAttr('data-bom-ratio');
+                    changeGoodsInfo(obj,'number');
+                    // BOM联动: 修改组合件(父件)数量 → 子件按BOM比例同步
+                    if (obj.attr('data-bom-base') !== undefined) {
+                        var set = Config.set;
+                        var number_decimal = parseInt(set.number_decimal.value);
+                        if(isNaN(number_decimal)){
+                            number_decimal = 1;
+                        }
+                        var parentNumber = parseFloat($(this).val()) || 0;
+                        $('#assemble_table_c tr[data-bom-ratio]').each(function () {
+                            var ratio = parseFloat($(this).attr('data-bom-ratio'));
+                            if (isNaN(ratio)) { return; }
+                            $(this).find('.number').val((ratio * parentNumber).toFixed(number_decimal));
+                        });
+                    }
                 });
 
                 //变更商品价格信息
@@ -1344,6 +1386,42 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     });
                 }
                 //选择商品,商品属性,商品单位修改商品信息
+                // 关联销货订单明细：按商品编号取「品号与功率 / 生产备注」（同商品多行去重后拼接）
+                function getSalesOrderItem(goods_code) {
+                    var result = {remark: '', production_remark: ''};
+                    var info = Config.salesOrderInfo;
+                    if (!info || !info.items) {
+                        return result;
+                    }
+                    var remarks = [], production_remarks = [];
+                    $(info.items).each(function (i, item) {
+                        if (item.goods_code !== goods_code) {
+                            return;
+                        }
+                        var r = $.trim(item.remark || '');
+                        var p = $.trim(item.production_remark || '');
+                        if (r && $.inArray(r, remarks) < 0) { remarks.push(r); }
+                        if (p && $.inArray(p, production_remarks) < 0) { production_remarks.push(p); }
+                    });
+                    result.remark = remarks.join('；');
+                    result.production_remark = production_remarks.join('；');
+                    return result;
+                }
+
+                // 组装单新增页：仓库一律取商品档案的默认仓库，不需要手动选择
+                function isAssembleAddForm(){
+                    return $('#add-form').length > 0;
+                }
+                // 同步仓库列的只读显示文本（新增页仓库列只展示默认仓库名称）
+                function syncStoresName(obj){
+                    var sel = obj.find('.stores_id');
+                    if(sel.length === 0){
+                        return;
+                    }
+                    var val = sel.val();
+                    obj.find('.stores_name').val(val ? (sel.find('option:selected').text() || '') : '');
+                }
+
                 function changeGoods(goods_code,store,attr,obj,goods_unit,number) {
                     var set = Config.set;
                     var number_decimal = parseInt(set.number_decimal.value);
@@ -1352,6 +1430,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     }
                     var customers_id = $('#customers_id').val();
                     var sales_order_id = $('.sales_order_id').val() || '';
+                    // 组装单新增：仓库固定取商品默认仓库，忽略外部传入的仓库
+                    var isAddForm = isAssembleAddForm();
+                    if(isAddForm){
+                        store = '';
+                    }
 
                     $.ajax( {
                         url: "kuerp/goods_purchase/getUnit",
@@ -1366,6 +1449,21 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             obj.find('.goods_specification_id').val(goods.goods.goods_specification_id || '');
                             obj.find('.vendor_name').val(goods.goods.vendor_name || '');
                             obj.find('.packaging').val(goods.goods.packaging || '');
+                            if(isAddForm){
+                                // 仓库自动取商品默认仓库；商品未维护默认仓库时回退为手动选择，避免无法保存
+                                var defaultStore = (res.goods && res.goods.manager_warehouse_id) ? String(res.goods.manager_warehouse_id) : '';
+                                obj.find('.stores_id').val(defaultStore);
+                                obj.find('.stores_select_wrap').toggle(!defaultStore);
+                                obj.find('.stores_name').toggle(!!defaultStore);
+                                syncStoresName(obj);
+                                if(!defaultStore){
+                                    Toastr.warning('商品'+goods_code+'未设置默认仓库，请选择仓库（或在商品档案中设置首选仓库）');
+                                }
+                            }
+                            // 关联销货订单：带出品号与功率 / 生产备注（只读列，不参与提交）
+                            var soItem = getSalesOrderItem(goods_code);
+                            obj.find('.so_remark').val(soItem.remark);
+                            obj.find('.so_production_remark').val(soItem.production_remark);
                             if(goods.goods.batch==1){
                                 obj.find('input[name="row[batch][]"]').attr('placeholder','SN');
                             }
@@ -1538,7 +1636,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         }});
                 });
 
-                //一键生成采购单：子件可用库存不足时，按缺口数量（需求数量-可用库存）预填购货订单
+                //一键生成采购预订单(计划)：子件可用库存不足时，按缺口数量（需求数量-可用库存）预填采购预订单(计划)
                 $(document).on("click", ".shortage_purchase", function(){
                     var set = Config.set;
                     var number_decimal = parseInt(set.number_decimal.value);
@@ -1594,7 +1692,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         }
                     });
                     if(shortageArr.length == 0){
-                        Toastr.error('子件库存充足，无需生成采购单');
+                        Toastr.error('子件库存充足，无需生成采购预订单');
                         return false;
                     }
                     var arrstr = arrayToJsonString(shortageArr);
@@ -1604,7 +1702,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         data: {'row': arrstr},
                         success: function(res){
                             if(res.code==1){
-                                parent.Fast.api.open("kuerp/goods_purchase_order/add?type=1", "生成采购单", {area:['90%','75%']});
+                                //计划部门生成采购预订单（计划版页面，不展示价格）
+                                parent.Fast.api.open("kuerp/goods_purchase_order_plan/add?type=1", "生成采购预订单(计划)", {area:['90%','75%']});
                             }else{
                                 Toastr.error(res.msg);
                             }
@@ -1629,11 +1728,14 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                         var parent = res.data.parent;
                                         var children = res.data.children;
 
+                                        // BOM基准数量(父件数量): 子件number为1个父件所需量, 子件数=子件number×父件数量
+                                        var bomBase = parseFloat(parent.number) || 1;
                                         // 组合件（父件）
                                         var parentRow = $('#assemble_table').find('.goods_code').parents('tr');
+                                        parentRow.attr('data-bom-base', bomBase);
                                         parentRow.find('.goods_code').val(parent.goods_code);
                                         parentRow.find('.goods_names').val(parent.goods_code + ' ' + parent.goods_name);
-                                        changeGoods(parent.goods_code, parent.manager_warehouse_id > 0 ? parent.manager_warehouse_id : '', '', parentRow, parent.unit_id > 0 ? parent.unit_id : '', parent.number);
+                                        changeGoods(parent.goods_code, parent.manager_warehouse_id > 0 ? parent.manager_warehouse_id : '', '', parentRow, parent.unit_id > 0 ? parent.unit_id : '', bomBase);
 
                                         // 子件
                                         var childTable = $('#assemble_table_c');
@@ -1648,7 +1750,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                             newRow.find('.goods_code').val(v.goods_code);
                                             newRow.find('.goods_name').val(v.goods_code + ' ' + v.goods_name);
                                             childTable.append(newRow);
-                                            changeGoods(v.goods_code, v.manager_warehouse_id > 0 ? v.manager_warehouse_id : '', '', newRow, v.unit_id > 0 ? v.unit_id : '', v.number);
+                                            var ratio = parseFloat(v.number) || 0;
+                                            newRow.attr('data-bom-ratio', ratio);
+                                            changeGoods(v.goods_code, v.manager_warehouse_id > 0 ? v.manager_warehouse_id : '', '', newRow, v.unit_id > 0 ? v.unit_id : '', ratio * bomBase);
                                         });
 
                                         // 重新绑定日期选择器
@@ -1723,6 +1827,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     // 设置销货订单号
                     $('.sales_order_id').val(salesOrderId);
 
+                    // 排期「排产」时填写的生产日期 → 组装单生产日期（add 页才有该输入框）
+                    if (Config.scheduleProduceDate) {
+                        $('#c-produce_date').val(Config.scheduleProduceDate);
+                    }
+
                     if (!goodsCode) return;
 
                     // 填充组合件（父级）
@@ -1734,6 +1843,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
 
                     parentRow.find('.goods_code').val(goodsCode);
                     parentRow.find('.goods_names').val(goodsCode + ' ' + (Config.scheduleGoodsName || ''));
+                    // BOM基准数量(父件数量): 子件number为1个父件所需量(服务端已按bom_number×排期数量合计)，改组合件数量时按比例联动
+                    var scheduleNumber = parseFloat(number) || 1;
+                    parentRow.attr('data-bom-base', scheduleNumber);
                     changeGoods(goodsCode, storesId, goodsAttr, parentRow, goodsUnit, number);
 
                     // 填充子件（BOM零件）
@@ -1753,6 +1865,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             childTable.append(newRow);
 
                             var childStoresId = v.stores_id || storesId;
+                            var childNumber = parseFloat(v.number) || 0;
+                            newRow.attr('data-bom-ratio', childNumber / scheduleNumber);
                             changeGoods(v.goods_code, childStoresId, '', newRow, '', v.number);
                         });
 
@@ -1797,6 +1911,19 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 Form.api.bindevent($("form[role=form]"), function (data, ret) {
                     parent.Layer.closeAll();
                     parent.$('.btn-refresh').click();
+                }, null, function () {
+                    // 实际出库/入库数量默认均为 0：一项都没填时不允许提交，避免误点直接出库/入库
+                    var total = 0;
+                    $('#outbound-form .out_number_ipt, #outbound-form .in_number_ipt').each(function () {
+                        var val = parseFloat($(this).val());
+                        if (!isNaN(val) && val > 0) {
+                            total += val;
+                        }
+                    });
+                    if (total <= 0) {
+                        Toastr.error('请至少填写一项实际出库/入库数量');
+                        return false;
+                    }
                 });
             }
         }
