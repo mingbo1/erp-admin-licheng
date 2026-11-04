@@ -1,0 +1,47 @@
+version: 1.6.26
+deploy_time: 2026-11-04 12:5x (CST)
+server: 118.31.20.155 / dyerp_shengbokj_
+db_schema_change: none (local schema == online schema)
+db_migrations_run: addons/kuerp/migration_add_payment_apply_recon_detail_auth.sql (idempotent)
+files: 33
+
+[deployed files]
+addons/kuerp/library/Goods.php
+addons/kuerp/migration_add_assemble_setdata_auth_rule.sql
+application/admin/controller/kuerp/Assemble.php
+application/admin/controller/kuerp/Collection.php
+application/admin/controller/kuerp/Goods.php
+application/admin/controller/kuerp/GoodsPurchase.php
+application/admin/controller/kuerp/GoodsPurchasePlan.php
+application/admin/controller/kuerp/GoodsPurchaseStorage.php
+application/admin/controller/kuerp/GoodsSalesOutbound.php
+application/admin/controller/kuerp/GoodsSalesSchedule.php
+application/admin/controller/kuerp/GoodsStock.php
+application/admin/controller/kuerp/Process.php
+application/admin/controller/kuerp/SalesRecon.php
+application/admin/lang/zh-cn/kuerp/assemble.php
+application/admin/lang/zh-cn/kuerp/goods.php
+application/admin/model/kuerp/GoodsPurchase.php
+application/admin/view/kuerp/assemble/add.html
+application/admin/view/kuerp/assemble/edit.html
+application/admin/view/kuerp/assemble/index.html
+application/admin/view/kuerp/assemble/printpage.html
+application/admin/view/kuerp/goods/add.html
+application/admin/view/kuerp/goods/edit.html
+application/admin/view/kuerp/goods_purchase_order_plan/add.html
+application/admin/view/kuerp/goods_purchase_storage/storage.html
+application/admin/view/kuerp/process/outbound_edit.html
+application/admin/view/kuerp/purchase_payment_apply/detail.html
+application/admin/view/kuerp/sales_recon/detail.html
+public/assets/addons/kuerp/template/商品导入模板.xlsx
+public/assets/js/backend/kuerp/assemble.js
+public/assets/js/backend/kuerp/goods_purchase_order.js
+public/assets/js/backend/kuerp/goods_purchase_order_plan.js
+public/assets/js/backend/kuerp/purchase_payment_apply.js
+addons/kuerp/migration_add_payment_apply_recon_detail_auth.sql
+
+[intentionally not deployed]
+application/extra/addons.php
+application/extra/site.php
+public/assets/js/backend/kuerp/goods_log.js  (online version is newer)
+application/config.php
