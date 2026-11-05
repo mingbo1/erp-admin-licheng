@@ -1204,6 +1204,9 @@ class GoodsSales extends Backend
         }
         $this->view->assign('logList', $logList);
 
+        // 出库记录（历次出库申请 + 实际出库数量 + 快递信息），与「销货出库」页的历次申请记录同源
+        $this->view->assign('outboundHistory', \app\admin\model\kuerp\GoodsOutboundApply::buildHistory($row['id']));
+
         return $this->view->fetch();
     }
 

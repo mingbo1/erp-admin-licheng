@@ -2755,55 +2755,8 @@ class GoodsSalesOutbound extends Backend
         // 是否已全部出库（全部出库后只能看记录，提交申请后端会拒绝）
         $sumRow = Db::name('kuerp_goods_sales_info')->where(['purchase_code' => $row['purchase_code']])->field('SUM(number) AS total_number, SUM(out_number) AS total_out')->find();
 
-        // 历次出库申请记录（该销货单全部申请，最新在前）
-        $applyHistory = Db::name('kuerp_goods_outbound_apply')
-            ->where(['sales_id' => $row['id']])
-            ->order('id', 'DESC')
-            ->select();
-        $applyAdminIds = array_filter(array_merge(array_column($applyHistory, 'apply_admin_id'), array_column($applyHistory, 'examine_admin_id')));
-        $applyAdminMap = !empty($applyAdminIds) ? Db::name('admin')->where('id', 'in', array_unique($applyAdminIds))->column('nickname', 'id') : [];
-        $this->view->assign('applyAdminMap', $applyAdminMap);
-        $applyIds = array_column($applyHistory, 'id');
-        $applyInfoMap = [];
-        if (!empty($applyIds)) {
-            $applyInfoRows = Db::name('kuerp_goods_outbound_apply_info')->where('apply_id', 'in', $applyIds)->select();
-            foreach ($applyInfoRows as $v) {
-                $applyInfoMap[$v['apply_id']][] = $v;
-            }
-        }
-        foreach ($applyHistory as $k => $v) {
-            $summaryParts = [];
-            if (isset($applyInfoMap[$v['id']])) {
-                foreach ($applyInfoMap[$v['id']] as $info) {
-                    $summaryParts[] = $info['goods_code'] . '×' . rtrim(rtrim(sprintf('%.4f', $info['number']), '0'), '.');
-                }
-            }
-            $applyHistory[$k]['goods_summary'] = implode('，', $summaryParts);
-            $applyHistory[$k]['apply_admin_name'] = isset($applyAdminMap[$v['apply_admin_id']]) ? $applyAdminMap[$v['apply_admin_id']] : '';
-            $applyHistory[$k]['examine_admin_name'] = !empty($v['examine_admin_id']) && isset($applyAdminMap[$v['examine_admin_id']]) ? $applyAdminMap[$v['examine_admin_id']] : '';
-            // 实际出库数量（仓库同意时写入 out_data：{sales_info_id: 数量}）
-            $outData = !empty($v['out_data']) ? json_decode($v['out_data'], true) : [];
-            $outParts = [];
-            if (is_array($outData) && isset($applyInfoMap[$v['id']])) {
-                foreach ($applyInfoMap[$v['id']] as $info) {
-                    if (isset($outData[$info['sales_info_id']])) {
-                        $outParts[] = $info['goods_code'] . '×' . rtrim(rtrim(sprintf('%.4f', (float)$outData[$info['sales_info_id']]), '0'), '.');
-                    }
-                }
-            }
-            $applyHistory[$k]['out_summary'] = implode('，', $outParts);
-            // 快递信息（申请时填写，一次出库可多条）
-            $expressRows = !empty($v['express_data']) ? json_decode($v['express_data'], true) : [];
-            $expressRows = is_array($expressRows) ? $expressRows : [];
-            $applyHistory[$k]['express_list'] = $expressRows;
-            $expressParts = [];
-            foreach ($expressRows as $ex) {
-                $company = isset($ex['company']) && $ex['company'] !== '' ? $ex['company'] : (isset($ex['code']) ? $ex['code'] : '');
-                $no = isset($ex['no']) ? $ex['no'] : '';
-                $expressParts[] = trim($company . ' ' . $no);
-            }
-            $applyHistory[$k]['express_summary'] = implode('、', $expressParts);
-        }
+        // 历次出库申请记录（该销货单全部申请，最新在前），与销货单详情底部的出库记录同源
+        $applyHistory = \app\admin\model\kuerp\GoodsOutboundApply::buildHistory($row['id']);
         $this->view->assign('applyHistory', $applyHistory);
         // 快递公司下拉（申请时填写快递信息用）
         $expressList = Db::name('kuerp_data_express')->field('name,code')->order('weigh ASC')->select();

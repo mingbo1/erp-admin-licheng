@@ -5,7 +5,7 @@ db_schema_change: none（仅权限数据变更）
 db_migrations_run:
   addons/kuerp/migration_add_buttons_auth_rules_batch2.sql (insert 15 auth_rule: 788-802 + 按 index 增量授权)
 site_version: 1.0.9（application/extra/site.php 仅改 version，刷新浏览器缓存）
-files: 28（25 代码 + install.sql + 新迁移 + site.php）
+files: 32（29 代码 + install.sql + 新迁移 + site.php）
 
 [deployed files]
 application/admin/controller/kuerp/Assemble.php
@@ -35,15 +35,16 @@ public/assets/js/backend/kuerp/goods_sales_schedule.js
 public/assets/js/backend/kuerp/mini_user.js
 addons/kuerp/install.sql
 addons/kuerp/migration_add_buttons_auth_rules_batch2.sql
+application/admin/controller/kuerp/GoodsSales.php（销货单详情底部「出库记录」面板数据）
+application/admin/controller/kuerp/GoodsSalesOutbound.php（历次申请记录改用 model buildHistory）
+application/admin/model/kuerp/GoodsOutboundApply.php（新增静态 buildHistory()）
+application/admin/view/kuerp/goods_sales/edit.html（出库记录表格）
 application/extra/site.php（仅 version 1.0.8 → 1.0.9）
 
 [intentionally not deployed]
 application/extra/addons.php
 public/assets/js/backend/kuerp/goods_log.js  (online version is newer)
 application/config.php
-application/admin/controller/kuerp/GoodsSales.php（本次未部署：本地存在未完成的「出库记录」面板改动）
-application/admin/controller/kuerp/GoodsSalesOutbound.php（同上，本地 diff 与线上不一致）
-application/admin/view/kuerp/goods_sales/edit.html（同上）
 
 [backups]
 remote: ~/erp-deploy-backup/2026-11-05/remote/
