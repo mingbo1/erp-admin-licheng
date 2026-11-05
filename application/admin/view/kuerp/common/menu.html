@@ -50,6 +50,14 @@
         display: none;
     }
 </style>
+<!-- 计划部门录入采购预订单(计划)不需要选择供应商：行内「供应商」列仅隐藏展示，
+     实际值仍由 changeGoods 按商品默认供应商自动带出并随表单提交（生成采购单按供应商分组依赖该值）。
+     需要恢复显示时删除下方这段样式即可 -->
+<style>
+    .supplier_sd{
+        display: none;
+    }
+</style>
 
 <script type="text/html" id="recycleDemo">
     <div class="layui-btn-container">

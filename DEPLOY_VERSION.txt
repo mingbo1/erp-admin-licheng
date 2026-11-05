@@ -1,47 +1,38 @@
-version: 1.6.26
-deploy_time: 2026-11-04 12:5x (CST)
+version: 1.6.30
+deploy_time: 2026-11-05 10:20 (CST)
 server: 118.31.20.155 / dyerp_shengbokj_
-db_schema_change: none (local schema == online schema)
-db_migrations_run: addons/kuerp/migration_add_payment_apply_recon_detail_auth.sql (idempotent)
-files: 33
+db_schema_change: none（结构已一致；本次只有数据/权限变更）
+db_migrations_run:
+  addons/kuerp/migration_add_purchase_print_terms.sql (insert 2 sets, idempotent)
+  addons/kuerp/migration_widen_goods_specification_id.sql (no-op, already varchar(255))
+  addons/kuerp/migration_add_missing_button_auth_rules.sql (insert 5 auth_rule: 780-784)
+  addons/kuerp/migration_add_goods_purchase_storage_auth_rules.sql (insert 3 auth_rule: 785-787 + 授权给已有查看权限的 11 个角色)
+site_version: 1.0.8（application/extra/site.php 仅改 version，刷新浏览器缓存）
+files: 19
 
 [deployed files]
+addons/kuerp/install.sql
 addons/kuerp/library/Goods.php
-addons/kuerp/migration_add_assemble_setdata_auth_rule.sql
-application/admin/controller/kuerp/Assemble.php
-application/admin/controller/kuerp/Collection.php
-application/admin/controller/kuerp/Goods.php
-application/admin/controller/kuerp/GoodsPurchase.php
-application/admin/controller/kuerp/GoodsPurchasePlan.php
+addons/kuerp/migration_add_goods_purchase_storage_auth_rules.sql
+addons/kuerp/migration_add_missing_button_auth_rules.sql
+application/admin/controller/kuerp/GoodsOutboundApply.php
 application/admin/controller/kuerp/GoodsPurchaseStorage.php
 application/admin/controller/kuerp/GoodsSalesOutbound.php
-application/admin/controller/kuerp/GoodsSalesSchedule.php
-application/admin/controller/kuerp/GoodsStock.php
-application/admin/controller/kuerp/Process.php
-application/admin/controller/kuerp/SalesRecon.php
-application/admin/lang/zh-cn/kuerp/assemble.php
-application/admin/lang/zh-cn/kuerp/goods.php
-application/admin/model/kuerp/GoodsPurchase.php
-application/admin/view/kuerp/assemble/add.html
-application/admin/view/kuerp/assemble/edit.html
-application/admin/view/kuerp/assemble/index.html
-application/admin/view/kuerp/assemble/printpage.html
-application/admin/view/kuerp/goods/add.html
-application/admin/view/kuerp/goods/edit.html
+application/admin/lang/zh-cn/kuerp/goods_outbound_apply.php
+application/admin/lang/zh-cn/kuerp/goods_sales_outbound.php
+application/admin/view/kuerp/common/menu.html
+application/admin/view/kuerp/goods_bom/printpage.html
+application/admin/view/kuerp/goods_outbound_apply/index.html
 application/admin/view/kuerp/goods_purchase_order_plan/add.html
-application/admin/view/kuerp/goods_purchase_storage/storage.html
-application/admin/view/kuerp/process/outbound_edit.html
-application/admin/view/kuerp/purchase_payment_apply/detail.html
-application/admin/view/kuerp/sales_recon/detail.html
-public/assets/addons/kuerp/template/商品导入模板.xlsx
-public/assets/js/backend/kuerp/assemble.js
-public/assets/js/backend/kuerp/goods_purchase_order.js
-public/assets/js/backend/kuerp/goods_purchase_order_plan.js
-public/assets/js/backend/kuerp/purchase_payment_apply.js
-addons/kuerp/migration_add_payment_apply_recon_detail_auth.sql
+application/admin/view/kuerp/goods_purchase_order_plan/edit.html
+application/admin/view/kuerp/goods_purchase_storage/detail.html
+application/admin/view/kuerp/goods_purchase_storage/index.html
+application/admin/view/kuerp/goods_sales_outbound/index.html
+public/assets/js/backend/kuerp/goods_outbound_apply.js
+public/assets/js/backend/kuerp/goods_sales_outbound.js
 
 [intentionally not deployed]
 application/extra/addons.php
-application/extra/site.php
+application/extra/site.php (仅手工改 version)
 public/assets/js/backend/kuerp/goods_log.js  (online version is newer)
 application/config.php

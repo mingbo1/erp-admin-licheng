@@ -66,6 +66,14 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 return __('Delivery_mode direct');
                             }},
                         {field: 'returns_order_id', title: __('Returns_order_id'), operate: 'LIKE'},
+                        {field: 'production_status', title: __('Production_status'), width: 100, templet: function (d) {
+                                // 排产状态：计划排期里【排产】后才允许申请出库；已排产时鼠标悬停显示生产日期
+                                if (d.production_status == 1) {
+                                    var tip = d.production_date ? ' title="' + __('Production_date') + '：' + d.production_date + '"' : '';
+                                    return '<span style="color:#009688"' + tip + '>' + __('Production_status 1') + '</span>';
+                                }
+                                return '<span style="color:#999">' + __('Production_status 0') + '</span>';
+                            }},
                         {field: 'delivery_time', title: __('Delivery_time'),templet: function (d) {
                                 return layui.util.toDateString(d.delivery_time*1000,"yyyy-MM-dd");
                             },width:110},
@@ -100,7 +108,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 }
                             }},
                         {field: 'note', title: __('Note')},
-                        {fixed: 'right', title:__('Operate'), toolbar: '#barDemoOutbound', width:250}
+                        {fixed: 'right', title:__('Operate'), toolbar: '#barDemoOutbound', width:180}
                     ]]
                 });
 
@@ -137,6 +145,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         where: {
                             filter:JSON.stringify(getSearch()),
                             op:JSON.stringify(getOp()),
+                            // 出库状态为派生筛选，不能进 filter（不是数据库字段），单独传参
+                            outbound_status: $('#outbound_status').val() || ''
                         }
                         ,page: {
                             curr: 1
@@ -172,11 +182,6 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 $('.btn-refresh').click();
                             }
                         });
-                    } else if(obj.event === 'deliverynote'){
-                        // 打印送货单：有多条申请时默认打印最新一条（更早的可在申请记录弹窗里逐条打印）
-                        Fast.api.open("kuerp/goods_outbound_apply/deliverynote/ids/"+data.printable_apply_id, "送货单", {
-                            area:['90%','85%']
-                        });
                     } else if(obj.event === 'edit'){
                         Fast.api.open("kuerp/goods_sales_outbound/edit?ids="+data.id, "编辑",{ area:['90%','75%'],});
                     }
@@ -187,11 +192,22 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         where: {
                             filter:JSON.stringify(getSearch()),
                             op:JSON.stringify(getOp()),
+                            // 出库状态为派生筛选，不能进 filter（不是数据库字段），单独传参
+                            outbound_status: $('#outbound_status').val() || ''
                         }
                         ,page: {
                             curr: 1
                         }
                     });
+                });
+                //重置搜索条件
+                $('#reset').on('click', function () {
+                    $('.layui-search').find('input').val('');
+                    $('.layui-search').find('select').val('');
+                    if (layui.form) {
+                        layui.form.render('select');
+                    }
+                    reloadTable();
                 });
                 function getSearch() {
                     var search = {};

@@ -102,12 +102,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             var data = res.data || {};
                             $('#total_goods').text(data.goods_count);
                             $('#total_stock').text(data.stock);
-                            $('#total_cost').text(data.cost_money);
-                            $('#total_unit_price').text(data.unit_price);
+                            //价格相关统计（成本合计/平均单位成本）已去掉，各仓库只显示库存
                             var storeHtml = '';
                             $(data.stores || []).each(function (k, v) {
                                 storeHtml += '<span class="stock-total-store">' + v.name + '：库存 <b>' + v.stock +
-                                    '</b> / 成本 <b>' + v.cost_money + '</b></span>';
+                                    '</b></span>';
                             });
                             $('#total_stores').html(storeHtml);
                         },

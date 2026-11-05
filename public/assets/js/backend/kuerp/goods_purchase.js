@@ -117,7 +117,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 return (d.pay_money).toFixed(price_decimal);
                             }},
                         {field: 'note', title: __('Note')},
-                        {fixed: 'right', title:__('Operate'), toolbar: '#barDemo', width:150}
+                        {fixed: 'right', title:__('Operate'), toolbar: '#barDemoPurchase', width:180}
                     ]]
                 });
 
@@ -251,6 +251,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         );
                     } else if(obj.event === 'edit'){
                         Fast.api.open("kuerp/goods_purchase/edit?ids="+data.id, "编辑",{ area:['90%','75%'],});
+                    } else if(obj.event === 'print'){
+                        // 打印采购单：按打印模板（采购单打印模板.xlsx）渲染，printpage 在 $noNeedRight
+                        Fast.api.open("kuerp/goods_purchase/printpage?ids="+data.id, "打印", {area:['90%','85%']});
                     }
                 });
                 //搜索事件

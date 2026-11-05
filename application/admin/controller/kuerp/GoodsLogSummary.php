@@ -283,6 +283,21 @@ class GoodsLogSummary extends Backend
                     $totalRow[$k] = round($totalRow[$k],$v);
                 }
             }
+
+            //本页面向仓库人员，价格/成本字段一律不下发（*_cost 均为成本金额）
+            foreach ($list as $list_k=>$list_v){
+                foreach ($list_v as $k=>$v){
+                    if(substr($k,-5)==='_cost'){
+                        unset($list[$list_k][$k]);
+                    }
+                }
+            }
+            foreach (array_keys($totalRow) as $k){
+                if(substr($k,-5)==='_cost'){
+                    unset($totalRow[$k]);
+                }
+            }
+
             $result = array("total" => $total, "rows" => $list, "total_row" => $totalRow);
 
             return json($result);

@@ -6,7 +6,8 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: "Microsoft YaHei", "SimSun", Arial, sans-serif; font-size: 14px; color: #333; padding: 20px; }
-        .print-wrap { max-width: 900px; margin: 0 auto; }
+        /* A4 竖版：内容宽 = 190mm（210mm 纸宽 − 10mm×2 边距）≈ 718px，与 common/printstyle 的 @page 一致 */
+        .print-wrap { max-width: 100%; margin: 0 auto; }
         .print-title { text-align: center; font-size: 22px; font-weight: bold; margin-bottom: 20px; }
         /* 父商品头部信息块 */
         .parent-header { border: 2px solid #333; margin-bottom: 15px; }
@@ -14,14 +15,16 @@
         .parent-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 20px; padding: 10px 15px; }
         .parent-grid .item { padding: 4px 0; font-size: 15px; }
         .parent-grid .item .p-name { font-size: 17px; font-weight: bold; }
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px 20px; margin-bottom: 15px; }
+        .info-grid { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 4px 20px; margin-bottom: 15px; }
         .info-grid .item { padding: 4px 0; color: #555; }
         .section-title { font-size: 16px; font-weight: bold; margin: 15px 0 8px 0; padding: 6px 10px; background: #f5f5f5; border-left: 3px solid #1890ff; }
-        .goods-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-        .goods-table th, .goods-table td { padding: 6px 8px; border: 1px solid #666; text-align: center; }
+        /* 竖版下 8 列容易被长型号挤扁：固定列宽 + 指定换行规则，跨页时列宽也不会跳变 */
+        .goods-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; table-layout: fixed; font-size: 13px; }
+        .goods-table th, .goods-table td { padding: 5px 4px; border: 1px solid #666; text-align: center; word-break: break-all; line-height: 1.35; }
         .goods-table th { background: #f0f0f0; font-weight: bold; }
         .goods-table td.left { text-align: left; }
         .goods-table td.right { text-align: right; }
+        .goods-table .nowrap { white-space: nowrap; word-break: keep-all; }
         .footer-info { margin-top: 20px; }
         .print-time { text-align: right; color: #999; margin-top: 20px; font-size: 12px; }
         @media print {
@@ -65,9 +68,19 @@
     <!-- 子件明细 -->
     <div class="section-title">子级商品明细</div>
     <table class="goods-table">
+        <colgroup>
+            <col style="width:6%;">
+            <col style="width:15%;">
+            <col style="width:14%;">
+            <col style="width:22%;">
+            <col style="width:6%;">
+            <col style="width:10%;">
+            <col style="width:11%;">
+            <col style="width:16%;">
+        </colgroup>
         <thead>
             <tr>
-                <th style="width:50px;">序号</th>
+                <th>序号</th>
                 <th>商品编号</th>
                 <th>商品名称</th>
                 <th>型号</th>
@@ -80,12 +93,12 @@
         <tbody>
             {foreach name="children" item="info" key="k"}
             <tr>
-                <td>{$k+1}</td>
-                <td>{$info.goods_code|htmlentities}</td>
+                <td class="nowrap">{$k+1}</td>
+                <td class="nowrap">{$info.goods_code|htmlentities}</td>
                 <td class="left">{$info.goods_name|htmlentities}</td>
-                <td>{$info.goods_specification_id|default=''}</td>
-                <td>{$info.unit_name|default=''}</td>
-                <td class="right">{$info.number|htmlentities}</td>
+                <td class="left">{$info.goods_specification_id|default=''}</td>
+                <td class="nowrap">{$info.unit_name|default=''}</td>
+                <td class="right nowrap">{$info.number|htmlentities}</td>
                 <td class="left">{$info.location|default=''}</td>
                 <td class="left">{$info.remark|htmlentities}</td>
             </tr>

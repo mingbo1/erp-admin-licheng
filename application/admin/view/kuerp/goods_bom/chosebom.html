@@ -1,4 +1,17 @@
 {include file="kuerp/common/menu" /}
+<style>
+    /* BOM选择弹窗：与BOM列表页一致的「父商品行 + 可折叠子件行」样式 */
+    .chosebom .bom-parent-cell .bom-caret { cursor: pointer; margin-right: 5px; color: #1e9fff; }
+    .chosebom .bom-parent-cell .bom-caret-empty { margin-right: 5px; color: #d2d2d2; }
+    .chosebom .bom-parent-cell .bom-parent-name { font-weight: 600; cursor: pointer; }
+    .chosebom .bom-parent-cell .bom-parent-name:hover { color: #1e9fff; }
+    .chosebom .bom-parent-cell .bom-child-count { margin-left: 6px; font-weight: 400; }
+    .chosebom .bom-child-cell { color: #666; }
+    .chosebom .bom-child-cell .layui-icon { margin-right: 5px; color: #c2c2c2; }
+    /* 整行可点选（子件行点选即代表其父模板） */
+    .chosebom .layui-table-main > table > tbody > tr { cursor: pointer; }
+    .chosebom .bom-pick { cursor: pointer; margin: 0; vertical-align: middle; }
+</style>
 <div class="panel panel-default panel-intro chosebom">
     <div class="panel-body">
         <div id="myTabContent" class="tab-content">

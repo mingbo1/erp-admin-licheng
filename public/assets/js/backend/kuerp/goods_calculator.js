@@ -5,9 +5,39 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
             layui.use(['layer'], function () {
                 var layer = layui.layer;
 
+                // 选择BOM模板：统一走 kuerp/goods_bom/chosebom（与各单据的「选择BOM模板」同一个选择器）
+                $('#btn-choose-bom').on('click', function () {
+                    parent.Fast.api.open("kuerp/goods_bom/chosebom", "选择BOM模板", {
+                        area: ['90%', '75%'],
+                        callback: function (goodsData) {
+                            if (goodsData == undefined || goodsData.length < 1) {
+                                return;
+                            }
+                            var bomId = goodsData[0].id;
+                            $.ajax({
+                                url: "kuerp/goods_bom/getbomdetail",
+                                type: "POST",
+                                data: { 'id': bomId },
+                                success: function (res) {
+                                    if (res.code != 1) {
+                                        Toastr.error(res.msg);
+                                        return;
+                                    }
+                                    var bom = res.data.bom || {};
+                                    var parentInfo = res.data.parent || {};
+                                    $('#bom-id').val(bomId);
+                                    $('#bom-name').val((bom.bom_name || '') + (parentInfo.goods_code ? ' (' + parentInfo.goods_code + ')' : ''));
+                                    // 选中模板后自动计算
+                                    $('#btn-calculate').trigger('click');
+                                }
+                            });
+                        }
+                    });
+                });
+
                 // 计算按钮事件
                 $('#btn-calculate').on('click', function () {
-                    var bomId = $('#bom-select').val();
+                    var bomId = $('#bom-id').val();
                     var storesId = $('#stores-select').val() || '';
 
                     if (!bomId) {
@@ -38,14 +68,6 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             Toastr.error('计算失败，请重试');
                         }
                     });
-                });
-
-                // BOM选择变化时也可自动触发计算
-                $('#bom-select').on('change', function () {
-                    var bomId = $(this).val();
-                    if (bomId) {
-                        $('#btn-calculate').trigger('click');
-                    }
                 });
             });
         }

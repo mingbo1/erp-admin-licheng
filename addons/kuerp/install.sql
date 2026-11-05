@@ -4344,7 +4344,7 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods` (
   `goods_code` varchar(30) NOT NULL DEFAULT '' COMMENT '商品编号',
   `goods_name` varchar(255) NOT NULL DEFAULT '' COMMENT '商品名称',
   `goods_barcode` varchar(50) DEFAULT '' COMMENT '商品条码',
-  `goods_specification_id` varchar(50) NOT NULL DEFAULT '' COMMENT '规格型号',
+  `goods_specification_id` varchar(255) NOT NULL DEFAULT '' COMMENT '规格型号',
   `vendor_name` varchar(200) NOT NULL DEFAULT '' COMMENT '规格2/厂商',
   `packaging` varchar(200) NOT NULL DEFAULT '' COMMENT '规格3/封装',
   `goods_type_id` int(11) NOT NULL DEFAULT '0' COMMENT '商品类别',
@@ -7568,3 +7568,93 @@ ALTER TABLE `__PREFIX__kuerp_goods_outbound_apply`
 
 ALTER TABLE `__PREFIX__kuerp_goods_stock`
   MODIFY COLUMN `stock` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '库存（允许负数：销售先出库，采购/组装/外协入库后补平）';
+
+--
+-- 1.6.27
+-- 采购单打印按客户模板（采购单打印模板.xlsx）改版
+-- 「订货说明」里的收货信息、付款方式抽成设置项，可在 设置 → 基础设置 修改
+--
+
+INSERT INTO `__PREFIX__kuerp_sets` (`type`,`is_edit`,`name`,`nickname`,`value`,`admin_id`,`notice`,`explain`,`is_checked`)
+VALUES ('1','0','purchase_print_receipt','采购单打印收货信息','仓库  18974630250   浙江省杭州市萧山区新街街道长鸣路500号中交智慧交通科技园14幢2楼（走货梯）','0',
+        '采购单打印「订货说明」第2条的收货地址与联系电话','留空则自动取 公司电话 + 公司地址','0'),
+       ('1','0','purchase_print_payment','采购单打印付款方式','收到合格、合法发票后60天内付款。若供方未按约出具发票，需方有权迟延付款，且不承担违约责任。','0',
+        '采购单打印「订货说明」第3条的付款方式','留空则使用内置默认文案','0');
+
+--
+-- 1.6.28
+-- 商品「规格型号」字段加长：varchar(50) → varchar(255)
+-- （录入较长型号时保存报 1406 Data too long for column 'goods_specification_id'）
+--
+
+ALTER TABLE `__PREFIX__kuerp_goods`
+  MODIFY COLUMN `goods_specification_id` varchar(255) NOT NULL DEFAULT '' COMMENT '规格型号';
+
+--
+-- 1.6.29
+-- 补齐后加按钮缺失的权限规则（可重复执行）
+--   goods_bom/printpage、goods_purchase/summary、process_order/printpage 三个按钮的视图用
+--   $auth->check 控制显隐，缺规则时非超管看不到按钮；
+--   sales_recon/deldiff、sales_recon/uploaddiff 参与后端鉴权，缺规则时非超管无法调用。
+--
+
+INSERT INTO `__PREFIX__auth_rule` (`type`,`status`,`name`,`title`,`icon`,`condition`,`remark`,`ismenu`,`createtime`,`updatetime`,`weigh`,`pid`)
+SELECT 'file','normal','kuerp/goods_bom/printpage','打印','fa fa-circle-o','','','0',UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),'0',
+       (SELECT `id` FROM (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_bom') t)
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_bom/printpage');
+
+INSERT INTO `__PREFIX__auth_rule` (`type`,`status`,`name`,`title`,`icon`,`condition`,`remark`,`ismenu`,`createtime`,`updatetime`,`weigh`,`pid`)
+SELECT 'file','normal','kuerp/goods_purchase/summary','汇总','fa fa-circle-o','','','0',UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),'0',
+       (SELECT `id` FROM (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase') t)
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase/summary');
+
+INSERT INTO `__PREFIX__auth_rule` (`type`,`status`,`name`,`title`,`icon`,`condition`,`remark`,`ismenu`,`createtime`,`updatetime`,`weigh`,`pid`)
+SELECT 'file','normal','kuerp/process_order/printpage','打印','fa fa-circle-o','','','0',UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),'0',
+       (SELECT `id` FROM (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/process_order') t)
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/process_order/printpage');
+
+INSERT INTO `__PREFIX__auth_rule` (`type`,`status`,`name`,`title`,`icon`,`condition`,`remark`,`ismenu`,`createtime`,`updatetime`,`weigh`,`pid`)
+SELECT 'file','normal','kuerp/sales_recon/deldiff','删除差异金额','fa fa-circle-o','','','0',UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),'15',
+       (SELECT `id` FROM (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/sales_recon') t)
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/sales_recon/deldiff');
+
+INSERT INTO `__PREFIX__auth_rule` (`type`,`status`,`name`,`title`,`icon`,`condition`,`remark`,`ismenu`,`createtime`,`updatetime`,`weigh`,`pid`)
+SELECT 'file','normal','kuerp/sales_recon/uploaddiff','上传差异附件','fa fa-circle-o','','','0',UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),'16',
+       (SELECT `id` FROM (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/sales_recon') t)
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/sales_recon/uploaddiff');
+
+--
+-- 1.6.29（续）
+-- 采购单入库「详情 / 打印 / 入库」纳入权限表（原先在 $noNeedRight 里，无法按角色控制）
+-- 同时把三条规则增量授予已有「查看」权限的角色，升级后现有角色行为不变
+--
+
+INSERT INTO `__PREFIX__auth_rule` (`type`,`status`,`name`,`title`,`icon`,`condition`,`remark`,`ismenu`,`createtime`,`updatetime`,`weigh`,`pid`)
+SELECT 'file','normal','kuerp/goods_purchase_storage/detail','详情','fa fa-circle-o','','','0',UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),'1',
+       (SELECT `id` FROM (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_storage') t)
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_storage/detail');
+
+INSERT INTO `__PREFIX__auth_rule` (`type`,`status`,`name`,`title`,`icon`,`condition`,`remark`,`ismenu`,`createtime`,`updatetime`,`weigh`,`pid`)
+SELECT 'file','normal','kuerp/goods_purchase_storage/printstorage','打印','fa fa-circle-o','','','0',UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),'2',
+       (SELECT `id` FROM (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_storage') t)
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_storage/printstorage');
+
+INSERT INTO `__PREFIX__auth_rule` (`type`,`status`,`name`,`title`,`icon`,`condition`,`remark`,`ismenu`,`createtime`,`updatetime`,`weigh`,`pid`)
+SELECT 'file','normal','kuerp/goods_purchase_storage/storage','入库','fa fa-circle-o','','','0',UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),'3',
+       (SELECT `id` FROM (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_storage') t)
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_storage/storage');
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(`rules`, ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_storage/detail')))
+WHERE FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_storage/index'), `rules`)
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_storage/detail'), `rules`);
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(`rules`, ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_storage/printstorage')))
+WHERE FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_storage/index'), `rules`)
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_storage/printstorage'), `rules`);
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(`rules`, ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_storage/storage')))
+WHERE FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_storage/index'), `rules`)
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_storage/storage'), `rules`);

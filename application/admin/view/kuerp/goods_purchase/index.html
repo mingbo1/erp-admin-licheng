@@ -24,8 +24,15 @@
                         </div>
                     </script>
 
+                    <!-- 行操作：编辑 / 打印 / 删除（不能叫 barDemo，common/menu.html 里已有同名默认模板，取第一个匹配会顶掉自定义按钮） -->
+                    <script type="text/html" id="barDemoPurchase">
+                        <a class="layui-btn layui-btn-xs {if condition="$auth->check($nowmenu.'/edit')!=1"}hiddens{/if}" lay-event="edit">编辑</a>
+                        <a class="layui-btn layui-btn-xs layui-bg-green" lay-event="print">打印</a>
+                        <a class="layui-btn layui-btn-danger layui-btn-xs {if condition="$auth->check($nowmenu.'/del')!=1"}hiddens{/if}" lay-event="del">删除</a>
+                    </script>
+
                     <form class="layui-form layui-search" id="layui-search">
-                        
+
                         <div class="layui-input-inline">
                             <input type="text" name="purchase_code" id="purchase_code" autocomplete="off" placeholder="{:__('Purchase_code')}" class="layui-input">
                         </div>

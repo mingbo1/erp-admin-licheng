@@ -82,10 +82,16 @@ class GoodsSalesOutbound extends Backend
             }
             list($where, $sort, $order, $offset, $limit) = $this->buildparams();
             $sort = 'purchase_time';$order='DESC';
-            $list = $this->model
+            // 出库状态为派生筛选（按销货单号汇总明细已出库数量），不能进 filter，走独立参数
+            $outboundFilter = \addons\kuerp\library\Goods::outboundStatusCodes($this->request->get('outbound_status', ''));
+            $query = $this->model
                 ->with(['customers','preparation','examine','secondExamine'])
                 ->where($where)
-                ->where('examine_status', 1)
+                ->where('examine_status', 1);
+            if ($outboundFilter !== null) {
+                $query->where('purchase_code', $outboundFilter['mode'], $outboundFilter['codes']);
+            }
+            $list = $query
                 ->order($sort, $order)
                 ->order('purchase_code', 'DESC')
                 ->paginate($limit);
@@ -158,7 +164,6 @@ class GoodsSalesOutbound extends Backend
             $applyStatusMap = [];
             $applyPendingMap = [];
             $applyCountMap = [];
-            $printableApplyMap = [];
             if (!empty($pageSalesIds)) {
                 $applyRows = Db::name('kuerp_goods_outbound_apply')
                     ->where('sales_id', 'in', $pageSalesIds)
@@ -171,13 +176,6 @@ class GoodsSalesOutbound extends Backend
                     $applyCountMap[$applyRow['sales_id']] = isset($applyCountMap[$applyRow['sales_id']]) ? $applyCountMap[$applyRow['sales_id']] + 1 : 1;
                     if ($applyRow['status'] == '0') {
                         $applyPendingMap[$applyRow['sales_id']] = isset($applyPendingMap[$applyRow['sales_id']]) ? $applyPendingMap[$applyRow['sales_id']] + 1 : 1;
-                    }
-                    // 可打印送货单的申请（待审核/已同意出库）：id DESC 下第一条即最新一条
-                    if (in_array((string)$applyRow['status'], ['0', '1'], true)) {
-                        if (!isset($printableApplyMap[$applyRow['sales_id']])) {
-                            $printableApplyMap[$applyRow['sales_id']] = ['id' => (int)$applyRow['id'], 'count' => 0];
-                        }
-                        $printableApplyMap[$applyRow['sales_id']]['count']++;
                     }
                 }
             }
@@ -204,9 +202,6 @@ class GoodsSalesOutbound extends Backend
                 $list[$list_k]['apply_pending_count'] = isset($applyPendingMap[$list_v['id']]) ? (int)$applyPendingMap[$list_v['id']] : 0;
                 // 历次申请记录条数（各状态合计，>0 时列表显示「申请记录」按钮）
                 $list[$list_k]['apply_count'] = isset($applyCountMap[$list_v['id']]) ? (int)$applyCountMap[$list_v['id']] : 0;
-                // 送货单打印：最新一条可打印申请（待审核/已同意出库）及条数
-                $list[$list_k]['printable_apply_id'] = isset($printableApplyMap[$list_v['id']]) ? $printableApplyMap[$list_v['id']]['id'] : 0;
-                $list[$list_k]['printable_apply_count'] = isset($printableApplyMap[$list_v['id']]) ? (int)$printableApplyMap[$list_v['id']]['count'] : 0;
                 if(isset($list_v['print_num']) && empty($list_v['print_num'])){
                     $list[$list_k]['print_num'] = 0;
                 }
@@ -2642,6 +2637,10 @@ class GoodsSalesOutbound extends Backend
             if ($row['examine_status'] != 1) {
                 $this->error('请先审核单据，再申请出库');
             }
+            // 必须先在销货排期完成「排产」，才允许申请出库
+            if ((string)$row['production_status'] !== '1') {
+                $this->error('该销货单尚未排产，请先在销货排期中完成排产后申请出库');
+            }
             // 审核开关未开启时，销货单审核时已变动库存，再走出库会二次扣库存，禁止申请
             $examine_set = Db::name('kuerp_sets')->where(['name' => 'examine'])->value('is_checked');
             if ($examine_set != 1) {
@@ -2743,6 +2742,10 @@ class GoodsSalesOutbound extends Backend
         // view=1 为只读查看模式（已全部出库时列表上的「申请记录」按钮用它打开，只看记录、不能提交申请）
         $isView = (bool)$this->request->param('view/d');
         list($row, $infoList) = $this->buildOutboundRows($ids);
+        // 未排产不允许发起申请（只读查看历次申请/出库记录不受限）
+        if (!$isView && (string)$row['production_status'] !== '1') {
+            $this->error('该销货单尚未排产，请先在销货排期中完成排产后申请出库');
+        }
         $pendingQtyMap = $this->pendingApplyQtyMap($row['id']);
         foreach ($infoList as $k => $v) {
             $pending_qty = isset($pendingQtyMap[$v['id']]) ? (float)$pendingQtyMap[$v['id']] : 0;

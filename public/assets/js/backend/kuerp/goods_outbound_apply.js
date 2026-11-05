@@ -93,6 +93,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         where: {
                             filter:JSON.stringify(getSearch()),
                             op:JSON.stringify(getOp()),
+                            // 出库状态为派生筛选，不能进 filter（不是数据库字段），单独传参
+                            outbound_status: $('#outbound_status').val() || ''
                         }
                         ,page: {
                             curr: 1
@@ -157,11 +159,22 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         where: {
                             filter:JSON.stringify(getSearch()),
                             op:JSON.stringify(getOp()),
+                            // 出库状态为派生筛选，不能进 filter（不是数据库字段），单独传参
+                            outbound_status: $('#outbound_status').val() || ''
                         }
                         ,page: {
                             curr: 1
                         }
                     });
+                });
+                //重置搜索条件
+                $('#reset').on('click', function () {
+                    $('.layui-search').find('input').val('');
+                    $('.layui-search').find('select').val('');
+                    if (layui.form) {
+                        layui.form.render('select');
+                    }
+                    reloadTable();
                 });
                 function getSearch() {
                     var search = {};

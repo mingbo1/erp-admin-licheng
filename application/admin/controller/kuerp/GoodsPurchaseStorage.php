@@ -16,7 +16,9 @@ use think\Session;
  */
 class GoodsPurchaseStorage extends GoodsPurchase
 {
-    protected $noNeedRight = ['checkpurchase','getsuppliers','getunit','formatinfo','formatinfo2','getbranch','gettime','printpage','detail','printstorage','storage','uploadenclosure','delenclosure','enclosurepicker','enclosurelist'];
+    // 详情/打印/入库三个动作已纳入权限表（kuerp/goods_purchase_storage/detail|printstorage|storage），
+    // 不再放行；原始单据选择/上传仍免权限（仓库角色没有原始单据模块权限）
+    protected $noNeedRight = ['checkpurchase','getsuppliers','getunit','formatinfo','formatinfo2','getbranch','gettime','printpage','uploadenclosure','delenclosure','enclosurepicker','enclosurelist'];
 
     public function _initialize()
     {
@@ -170,6 +172,8 @@ class GoodsPurchaseStorage extends GoodsPurchase
         }
         $this->view->assign("row", $row);
         $this->view->assign("purchase_info", $purchase_info);
+        // 入库记录（每次入库一条，含该次入库的原始单据），与入库弹窗底部「操作记录」同源
+        $this->view->assign("log_list", $this->buildStorageLogs($row['id']));
 
         return $this->view->fetch();
     }
@@ -281,6 +285,11 @@ class GoodsPurchaseStorage extends GoodsPurchase
             if (!in_array($row[$this->dataLimitField], $adminIds)) {
                 $this->error(__('You have no permission'));
             }
+        }
+        // 已全部入库的采购单不允许再次入库（与列表入库状态同口径，列表上也不再显示「入库」按钮）
+        $storageStatusMap = \app\admin\model\kuerp\GoodsPurchase::storageStatusMap([$row['purchase_code']]);
+        if (isset($storageStatusMap[$row['purchase_code']]) && (string)$storageStatusMap[$row['purchase_code']] === '2') {
+            $this->error('该采购单已全部入库，无需再次入库');
         }
 
         if ($this->request->isPost()) {

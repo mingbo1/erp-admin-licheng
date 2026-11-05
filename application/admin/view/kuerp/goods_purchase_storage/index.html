@@ -76,9 +76,10 @@
 </div>
 
 <script type="text/html" id="barDemoStorage">
-    <a class="layui-btn layui-btn-xs layui-bg-blue" lay-event="detail">详情</a>
-    <a class="layui-btn layui-btn-xs layui-bg-green" lay-event="print">打印</a>
-    {{# if(d.examine_status == 1 && d.check_status == 1){ }}
-    <a class="layui-btn layui-btn-xs layui-bg-orange" lay-event="storage">入库</a>
+    <a class="layui-btn layui-btn-xs layui-bg-blue {if condition="$auth->check($nowmenu.'/detail')!=1"}hiddens{/if}" lay-event="detail">详情</a>
+    <a class="layui-btn layui-btn-xs layui-bg-green {if condition="$auth->check($nowmenu.'/printstorage')!=1"}hiddens{/if}" lay-event="print">打印</a>
+    <!-- 已全部入库（storage_status=2）的采购单不再显示入库按钮 -->
+    {{# if(d.examine_status == 1 && d.check_status == 1 && d.storage_status != 2){ }}
+    <a class="layui-btn layui-btn-xs layui-bg-orange {if condition="$auth->check($nowmenu.'/storage')!=1"}hiddens{/if}" lay-event="storage">入库</a>
     {{# } }}
 </script>

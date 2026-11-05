@@ -2,45 +2,33 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>{:__('Purchase_detail')} - {$row.purchase_code|htmlentities}</title>
+    <title>{$row.print_title|htmlentities} - {$row.purchase_code|htmlentities}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: "Microsoft YaHei", "SimSun", Arial, sans-serif; font-size: 14px; color: #333; padding: 20px; }
-        .print-wrap { max-width: 800px; margin: 0 auto; }
-        .print-title { text-align: center; font-size: 22px; font-weight: bold; margin-bottom: 20px; }
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; margin-bottom: 15px; }
-        .info-grid .item { padding: 4px 0; }
-        /* 占满整行的一项（交货日期 + 需求方 + 需求电话 同一行显示） */
-        .info-grid .item-wide { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 2px 40px; }
-        .goods-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-        .goods-table th, .goods-table td { padding: 6px 8px; border: 1px solid #666; text-align: center; }
-        .goods-table th { background: #f0f0f0; font-weight: bold; }
-        .goods-table td { text-align: center; }
-        .goods-table td.left { text-align: left; }
-        .goods-table td.right { text-align: right; }
-        .summary-row { text-align: right; margin-bottom: 15px; }
-        .summary-row span { display: inline-block; margin-left: 20px; font-size: 15px; }
-        .summary-row .bold { font-weight: bold; font-size: 16px; }
-        .footer-info { margin-top: 30px; }
-        .footer-info span { display: inline-block; margin-right: 30px; }
-        .print-time { text-align: right; color: #999; margin-top: 20px; font-size: 12px; }
-        @media print {
-            body { padding: 0; }
-            .no-print { display: none; }
-        }
-        .no-print { text-align: center; margin-bottom: 20px; }
+        body { font-family: "Microsoft YaHei", "SimSun", Arial, sans-serif; font-size: 12px; color: #000; }
+        .print-wrap { margin: 0 auto; }
+        .po-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .po-table td, .po-table th { border: 1px solid #000; padding: 4px 5px; vertical-align: middle; word-break: break-all; }
+        .po-title { text-align: center; font-size: 20px; font-weight: bold; letter-spacing: 2px; padding: 8px 0; }
+        .po-info td { font-size: 12px; }
+        .po-head th { background: #f0f0f0; font-weight: bold; text-align: center; font-size: 11px; padding: 4px 3px; }
+        .po-body td { height: 30px; }
+        .center { text-align: center; }
+        .left { text-align: left; }
+        .right { text-align: right; }
+        .po-total td { font-weight: bold; }
+        .po-note td { text-align: left; }
+        .po-terms { font-size: 11px; line-height: 1.75; text-align: left; vertical-align: top; padding: 5px 8px; }
+        .po-terms div { margin-bottom: 1px; }
+        .po-sign td { height: 62px; font-size: 12px; }
+        .no-print { text-align: center; margin-bottom: 16px; }
         .no-print button { padding: 8px 30px; font-size: 16px; cursor: pointer; }
+        @media print {
+            .no-print { display: none; }
+            tr { page-break-inside: avoid; }
+        }
     </style>
 {include file="kuerp/common/printstyle" /}
-<style>
-    /* 本单据字段较多，单独改为 A4 横向打印（覆盖 common/printstyle 的竖向纸张设置）。
-       屏幕预览同步按横向 A4 纸显示，保证「预览 = 打印」。 */
-    @page { size: A4 landscape; margin: 10mm; }
-    @media screen {
-        #content { width: 297mm; }
-    }
-    .print-wrap { max-width: none; }
-</style>
 </head>
 <body>
 <div class="no-print">
@@ -48,103 +36,101 @@
 </div>
 
 <div class="print-wrap">
-    <div class="print-title">{:__('Purchase_detail')}</div>
-
-    <div class="info-grid">
-        <div class="item"><strong>{:__('Purchase_code')}：</strong>{$row.purchase_code|htmlentities}</div>
-        <div class="item"><strong>{:__('Purchase_time')}：</strong>{$row.purchase_time|date='Y-m-d',###}</div>
-        <div class="item"><strong>{:__('Supplyer_code')}：</strong>{$row.supplyer_code|htmlentities} {$row.supplyer_name|htmlentities}</div>
-        <div class="item"><strong>供应商电话：</strong>{$row.supplyer_phone|htmlentities}</div>
-        <div class="item item-wide">
-            <span><strong>{:__('Delivery_time')}：</strong>{if condition="!empty($row.delivery_time)"}{$row.delivery_time|date='Y-m-d',###}{/if}</span>
-            <span><strong>需求方：</strong>{$row.company_name|htmlentities}</span>
-            <span><strong>需求电话：</strong>{$row.company_phone|htmlentities}</span>
-        </div>
-    </div>
-
-    <table class="goods-table">
+    {php}$total_number = 0; $total_amount = 0;{/php}
+    <table class="po-table">
+        <colgroup>
+            <col style="width:5%">
+            <col style="width:13%">
+            <col style="width:8%">
+            <col style="width:6.5%">
+            <col style="width:6.5%">
+            <col style="width:9%">
+            <col style="width:10.5%">
+            <col style="width:9%">
+            <col style="width:9%">
+            <col style="width:11%">
+            <col style="width:12.5%">
+        </colgroup>
         <thead>
-            <tr>
-                <th>序号</th>
-                <th>{:__('Goods_name')}</th>
-                <th>型号</th>
-                <th>规格2/厂商</th>
-                <th>规格3/封装</th>
-                <th>{:__('Goods_note')}</th>
-                <th>{:__('Unit_name')}</th>
-                <th>{:__('Number')}</th>
-                {if condition="isset($set['taxes']['is_checked']) && $set['taxes']['is_checked']==1"}
-                <th>{:__('Tax_included')}</th>
-                <th>{:__('Tax_rate')}</th>
-                <th>{:__('Money_tax_price')}</th>
-                {/if}
-                <th>{:__('Remark')}</th>
-            </tr>
+        <tr>
+            <td colspan="11" class="po-title">{$row.print_title|htmlentities}</td>
+        </tr>
+        <tr class="po-info">
+            <td colspan="4" class="left">供方：{$row.supplyer_name|htmlentities}</td>
+            <td colspan="4" class="left">联系方式：{$row.supplyer_phone|htmlentities}</td>
+            <td colspan="3" class="left">下单日期：{if condition="!empty($row.purchase_time)"}{$row.purchase_time|date='Y.m.d',###}{/if}</td>
+        </tr>
+        <tr class="po-info">
+            <td colspan="4" class="left">需方：{$row.company_name|htmlentities}</td>
+            <td colspan="4" class="left">联系方式：{$row.company_phone|htmlentities}</td>
+            <td colspan="3" class="left">采购编号：{$row.purchase_code|htmlentities}</td>
+        </tr>
+
+        <tr class="po-head">
+            <th>序号</th>
+            <th>产品名称</th>
+            <th colspan="2">规格</th>
+            <th>封装</th>
+            <th>数量（个）</th>
+            <th>含税价（元）</th>
+            <th>税率（%）</th>
+            <th>金额</th>
+            <th>交货期</th>
+            <th>备注</th>
+        </tr>
         </thead>
         <tbody>
-            {php}$total_number = 0;$total_tax_price = 0;{/php}
-            {foreach name="purchase_info" item="info" key="k"}
-            {php}$total_number += $info['number'];$total_tax_price += $info['money_tax_price'];{/php}
-            <tr>
-                <td>{$k+1}</td>
-                <td class="left">{$info.goods_name|htmlentities}</td>
-                <td class="left">{$info.goods_specification_id|htmlentities}</td>
-                <td class="left">{$info.vendor_name|htmlentities}</td>
-                <td class="left">{$info.packaging|htmlentities}</td>
-                <td class="left">{$info.goods_note|htmlentities}</td>
-                <td>{$info.unit_name|htmlentities}</td>
-                <td class="right">{$info.number|htmlentities}</td>
-                {if condition="isset($set['taxes']['is_checked']) && $set['taxes']['is_checked']==1"}
-                <td class="right">{$info.tax_included|htmlentities}</td>
-                <td class="right">{$info.tax_rate|htmlentities}</td>
-                <td class="right">{$info.money_tax_price|htmlentities}</td>
-                {/if}
-                <td class="left">{$info.remark|htmlentities}</td>
-            </tr>
-            {/foreach}
-            {if condition="empty($purchase_info)"}
-            {if condition="isset($set['taxes']['is_checked']) && $set['taxes']['is_checked']==1"}
-            <tr><td colspan="12">无明细数据</td></tr>
-            {else/}
-            <tr><td colspan="9">无明细数据</td></tr>
-            {/if}
-            {/if}
+        {foreach name="purchase_info" item="info" key="k"}
+        {php}$total_number += $info['number']; $total_amount += $info['print_amount'];{/php}
+        <tr class="po-body">
+            <td class="center">{$k+1}</td>
+            <td class="left">{$info.goods_name|htmlentities}</td>
+            <td colspan="2" class="left">{$info.print_spec|htmlentities}</td>
+            <td class="center">{$info.print_packaging|htmlentities}</td>
+            <td class="right">{:number_format($info['number'], $number_decimal, '.', '')}</td>
+            <td class="right">{:number_format($info['print_tax_price'], $price_decimal, '.', '')}</td>
+            <td class="right">{:number_format($info['print_tax_rate'], 2, '.', '')}</td>
+            <td class="right">{:number_format($info['print_amount'], $price_decimal, '.', '')}</td>
+            <td class="center">{$info.print_delivery|htmlentities}</td>
+            <td class="left">{$info.remark|htmlentities}</td>
+        </tr>
+        {/foreach}
+        {if condition="empty($purchase_info)"}
+        <tr class="po-body"><td colspan="11" class="center">无明细数据</td></tr>
+        {/if}
+
+        <tr class="po-total">
+            <td colspan="5" class="center">合计数量：</td>
+            <td class="right">{:number_format($total_number, $number_decimal, '.', '')}</td>
+            <td class="center">合计金额：</td>
+            <td></td>
+            <td class="right">{:number_format($total_amount, $price_decimal, '.', '')}</td>
+            <td colspan="2"></td>
+        </tr>
+
+        {if condition="!empty($row['note'])"}
+        <tr class="po-note">
+            <td colspan="11">备注：{$row.note|htmlentities}</td>
+        </tr>
+        {/if}
+
+        <tr>
+            <td colspan="11" class="po-terms">
+                <div>1、交货方式：快递或货运托运到需方指定地点，运费由供方承担；</div>
+                <div>2、收货地址：{$row.receipt_text|htmlentities}</div>
+                <div>3、付款方式：{$row.payment_text|htmlentities}</div>
+                <div>4、质量保证：供方所供产品质量必须符合该产品的技术指标和性能参数；产品如有质量问题需方有权退回，供方赔偿需方所造成的直接及间接经济损失。</div>
+                <div>5、本订购单形同正式合同，无论是正本或传真件，一经双方代表签字盖章，即等同于合同并开始生效；如有其他事项，供需双方共同协商解决。</div>
+            </td>
+        </tr>
+
+        <tr class="po-sign">
+            <td colspan="5">需方代表签字（盖章）：</td>
+            <td colspan="3">供方代表签字（盖章）：</td>
+            <td colspan="3">签定日期：</td>
+        </tr>
         </tbody>
-        <tfoot>
-            <tr>
-                <th colspan="7">合计</th>
-                <th class="right">{$total_number}</th>
-                {if condition="isset($set['taxes']['is_checked']) && $set['taxes']['is_checked']==1"}
-                <th></th>
-                <th></th>
-                <th class="right">{$total_tax_price}</th>
-                {/if}
-                <th></th>
-            </tr>
-        </tfoot>
     </table>
-
-    <div class="summary-row">
-        {if condition="isset($row['real_money']) && $row['real_money']>0"}
-        <span>{:__('Total_amount')}：<strong>￥{$row.real_money|htmlentities}</strong></span>
-        {/if}
-        {if condition="isset($row['pay_money']) && $row['pay_money']>0"}
-        <span>{:__('Pay_amount')}：<strong>￥{$row.pay_money|htmlentities}</strong></span>
-        {/if}
-        {if condition="isset($row['arrears']) && $row['arrears']>0"}
-        <span>{:__('Arrears_amount')}：<strong>￥{$row.arrears|htmlentities}</strong></span>
-        {/if}
-    </div>
-
-    {if condition="!empty($row['note'])"}
-    <div class="footer-info">
-        <strong>{:__('Note')}：</strong>{$row.note|htmlentities}
-    </div>
-    {/if}
-
-    <div class="print-time">
-        打印时间：{:date('Y-m-d H:i:s')} &nbsp;|&nbsp; 打印次数：{$row.print_num + 1}
-    </div>
 </div>
 
 <script>

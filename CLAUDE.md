@@ -1215,6 +1215,30 @@ class GoodsPurchasePlanWarehouse extends GoodsPurchasePlan   // 同命名空间,
 - 入库状态是**计算值不是数据库列**，所以只能显示、不能走 `filter/op` 搜索（标准搜索栏按列过滤，加了会查不到）。
 - lang：4 个 lang 文件都加 `Storage_status` / `Storage_status 0|1|2`（`Fast.lang()` 会把 key 转小写查表，见上文「交货日期」一节的说明）。
 
+### 已全部入库的采购单不显示 [入库] 按钮（2026-11-05）
+
+- **列表**（`view/kuerp/goods_purchase_storage/index.html` 的 `#barDemoStorage`）：条件由
+  `examine_status==1 && check_status==1` 改为再 `&& storage_status != 2`（`storage_status` 由 `index()` 下发，
+  `'2'` 用 `!= 2` 松散比较同时兼容字符串/数字）。未对单（`check_status!=1`）的单据本来就没有入库按钮，逻辑不变。
+- **服务端兜底**（`GoodsPurchaseStorage::storage()` 取到 `$row` 后、POST/GET 分支之前）：调
+  `\app\admin\model\kuerp\GoodsPurchase::storageStatusMap([$row['purchase_code']])`，结果为 `'2'` 时
+  `$this->error('该采购单已全部入库，无需再次入库')`（GET 直接开弹窗、POST 直连都会被拦住）。
+- 实测（curl + headless Chrome，未改业务数据）：已入库的 `GHD20261103005` / `GHD20261103004` / `GHD20261020003` 行只剩 [详情][打印]；
+  部分入库 `GHD20261103006`、未入库且已对单 `GHD20261020004` / `GHD20261020002` 仍有 [入库]；
+  `storage/ids/999912`（已入库）GET 返回上述提示，`storage/ids/999913`（部分入库）200 正常打开。
+
+### 入库记录在「详情」页也展示（2026-11-05）
+
+- `GoodsPurchaseStorage::detail()` 末尾补 `$this->view->assign("log_list", $this->buildStorageLogs($row['id']))`
+  —— 与入库弹窗底部「操作记录」**同源**（同一方法、同一数据结构：`createtime/total_number/detail_text/admin_name/enclosures`）。
+- `view/kuerp/goods_purchase_storage/detail.html` 在备注之后新增只读「入库记录」面板：
+  列 `入库时间 / 本次入库数量 / 入库明细 / 原始单据 / 操作人`，原始单据渲染为缩略图或 `ajax/icon?suffix=` 文件图标 + 后缀，
+  `<a target="_blank">` 直接打开文件（**只读：没有 × 删除、也没有 + 上传原始单据**，那些仍只在入库弹窗里）；
+  无记录时显示「暂无入库记录」。样式沿用详情页自己的内联 CSS（类名前缀 `.log-*` / `.enc-item`），不引 JS。
+- 实测（curl + headless Chrome/CDP，未改业务数据）：`detail/ids/999904` 3 条记录（其中 XLSX 图标 + 图片缩略图各一，无附件行显示 `-`）、
+  `detail/ids/999913` 1 条多商品记录（J05-0017×12、J08-0001×2）；900px 内表格不溢出、图片 40px 高，无 JS 异常；
+  无记录的单据（`detail/ids/999907`）显示「暂无入库记录」。
+
 ## 三、已验证（curl 登录 + headless Chrome/CDP 实测 erp.licheng.test，测试数据已还原）
 
 - 迁移：新表建立；`enclosure_log.type` 枚举含 '7'。
@@ -1575,8 +1599,9 @@ TP5 错误处理器（`app_debug=true`）转成 `ErrorException` → 500。前�
   `addChildRow()` 克隆新行时清空 `.child_location`。
 - 列表页（`tree=1`）：~~父行显示父件放置位置、子件行显示各自放置位置~~ → **2026-11-03 起「放置位置」列已从列表页移除**，
   改为在「商品编号」与「单耗数量」之间展示 3 列 **型号 / 规格2-厂商 / 规格3-封装**（lang key `Goods_specification_id` / `Vendor_name` / `Packaging`），
-  取值来自**父级商品** `kuerp_goods.goods_specification_id / vendor_name / packaging`，只在父商品行（`row_type=1`）显示，子件行留空；
-  `GoodsBom::index()` 的父商品信息查询因此多取这三列。放置位置字段本身仍在 add/edit/打印页保留。
+  取值来自 `kuerp_goods.goods_specification_id / vendor_name / packaging`：**父商品行取父商品、子件行取子商品**
+  （2026-11-04 修正：此前只在父行显示、子件行留空，用户反馈子件看不到型号/规格，已为子件查询补取这三列并逐行下发）；
+  `GoodsBom::index()` 的父/子商品查询都取这三列。放置位置字段本身仍在 add/edit/打印页保留。
 - 打印页：父级商品信息块增加「放置位置」一项；子件表增加「放置位置」列，空数据行 colspan 7→8。
 - **Excel 导入（preview/createBom）不含放置位置**，导入的 BOM 该字段为空串，可在编辑页补填。
 
@@ -2272,6 +2297,17 @@ class GoodsPurchaseOrderPlanWarehouse extends GoodsPurchaseOrderPlan
   工具栏 刷新/添加/删除，无 JS 异常；add 页自动生成单号 `GHDD...`、明细表 6 行、提交按钮存在。
 - 清理：`ZZTEST-*` 单据与明细全部删除，`AUTO_INCREMENT` 还原（order=12 / order_info=24）。
 
+## 计划部门录入页隐藏「供应商」列（2026-11-05）
+
+- **只改计划部门这一个页面**：`view/kuerp/goods_purchase_order_plan/{add,edit}.html` 的明细表「供应商」`th` 与每个行 `td`
+  加 `class="supplier_sd"`，样式（`display:none`）在 `view/kuerp/common/menu.html`（与 `goods_multi_unit_sd` 等隐藏列同处）。
+- **仅隐藏展示，字段与逻辑全部保留**：隐藏的 `select.row-supplyer_code` 仍然随表单提交，`changeGoods` 照样按商品默认供应商
+  自动带出（`GoodsPurchase::getUnit` 返回的 `supplier`）；`edit` 打开历史单据时原供应商值原样回填（实测 GYS002/GYS005 保存后不变），
+  所以「生成采购单」按供应商分组的行为不受影响。
+- **仓库侧不受影响**：`goods_purchase_order_plan_warehouse/{add,edit}.html`（采购预订单(仓库)）仍显示供应商列；
+  列表页（plan/index）也保留供应商列展示。
+- 恢复：删掉 `common/menu.html` 里 `.supplier_sd{display:none}` 那段即可。
+
 ---
 
 # 单据打印统一版式：屏幕预览 = 打印输出（2026-10-27）
@@ -2951,11 +2987,12 @@ curl + headless Chrome/CDP 实测 erp.licheng.test（测试数据已还原）：
 
 ## 三、送货单打印（版式参照 `资料/财务功能/送货单模板.xlsx`）
 
-- 入口（三处）：
-  - **销货出库列表（kuerp/goods_sales_outbound）行操作 [送货单]**：该销货单存在可打印申请（`status` 为 0 待审核 / 1 已同意出库）时显示；
-    有多条申请时直接打印**最新一条**（`index()` 下发 `printable_apply_id` / `printable_apply_count`，按 `id DESC` 取）；
-    更早的申请可在 [申请出库/申请记录] 弹窗的历次记录里逐条打印。操作列宽 180→250（三个按钮同行）。
-  - **销货出库 → [申请出库/申请记录] 弹窗 → 历次申请记录**：每条 `status IN ('0','1')` 的记录有 [打印送货单]；
+- 入口（~~三处~~ 2026-11-05 起两处）：
+  - ~~**销货出库列表（kuerp/goods_sales_outbound）行操作 [送货单]**~~：**2026-11-05 已按用户要求移除**
+    （送货单对应的是「每一次出库申请」，行级按钮会把多张申请混成一个入口）。同时删了 `index()` 里的
+    `printable_apply_id` / `printable_apply_count` 计算与 JS 的 `deliverynote` 行事件分支，操作列宽 250→180（只剩 1~2 个按钮）。
+    历史上的「有多条申请时打印最新一条」逻辑随之作废，请一律到申请记录里逐条打印。
+  - **销货出库 → [申请出库/申请记录] 弹窗 → 历次申请记录**：每条 `status IN ('0','1')` 的记录有 [打印送货单]（**唯一逐条打印入口**）；
   - **出库管理（kuerp/goods_outbound_apply）**：原 [打印]（出库申请单）改为——`status` 0/1 行显示 **[送货单]**（与销货出库同一版式，
     直接打开 `deliverynote`），`status` 2/3（已拒绝/已撤销）保留 [打印申请单]（旧 `printpage`）；
     详情弹窗 `status` 0/1 均显示 [打印送货单]。
@@ -2985,8 +3022,8 @@ curl + headless Chrome/CDP 实测 erp.licheng.test（测试数据已还原）：
 - 历次记录：快递摘要渲染正确；`status=1` 记录 [打印送货单] 点击打开 `deliverynote?ids=..&dialog=1` 层。
 - 出库管理：列表 `status=0/1` 行显示 [送货单]（点击打开对应申请的送货单层，实测待审核 id=20）、`status=2` 行显示 [打印申请单]；
   详情 `status=0/1` 均显示 [打印送货单]（status=2 不显示）；详情显示快递信息/未填写提示。
-- 销货出库列表：有可打印申请的行出现 [送货单]（无申请的 2 行不显示），3 个按钮在 250px 操作列内不换行；
-  点击后打开最新一条申请的 `deliverynote` 层（实测用户本人的待审核申请 20：数量 5/6、快递 德邦/京东、金额 39+5.07=44.07）。
+- 销货出库列表：~~有可打印申请的行出现 [送货单]（无申请的 2 行不显示），3 个按钮在 250px 操作列内不换行；
+  点击后打开最新一条申请的 `deliverynote` 层~~（**该行级入口已于 2026-11-05 移除**，见本节开头说明）。
 - 申请记录弹窗：待审核记录同样显示 [打印送货单]（实测 sales_id=15 的 2 条待审记录均有按钮）。
 - 送货单：默认价格为 `display:none`，勾选「显示价格」后恢复；金额实测（C13-0004 单价4×5=20，税 2.60，合计 22.60）；
   多条快递在「快递公司/快递单号」行以「、」分隔；表头标签颜色正常、表格无横向溢出。
@@ -3498,3 +3535,311 @@ UPDATE fa_kuerp_sales_invoicing SET pay_money=200, give_money=0, invoice_status=
 - ⚠️ 本次部署曾误把新文件（远端不存在）当成「目录不可写」走了目录重建兜底，`/addons/kuerp` 被改名重建、
   子目录 `controller/library/model/uniapp` 一度消失；已通过还原 `kuerp__deploybak_*` 目录并补传 `library/Goods.php` 恢复。
   脚本判分支前**必须先确认远端文件是否存在**（详见 `DEPLOY.md` 第二节第 3 步）。
+
+---
+
+# 采购单打印按客户模板改版（2026-11-04）
+
+> 模板：`资料/财务功能/采购单打印模板.xlsx`
+> 迁移：`addons/kuerp/migration_add_purchase_print_terms.sql`（已对 erp_licheng 执行，可重复执行）；
+> `install.sql` 1.6.27 段 + `info.ini` 1.6.27。
+> 涉及文件：`application/admin/controller/kuerp/GoodsPurchase.php`（`printpage()`）、
+> `application/admin/view/kuerp/goods_purchase/{printpage,index,edit}.html`、`public/assets/js/backend/kuerp/goods_purchase.js`（整页重写）。
+> 入口：采购单**列表行操作栏**的 [打印]（`lay-event="print"` → `Fast.api.open("kuerp/goods_purchase/printpage?ids=X", "打印", {area:['90%','85%']})`）。
+> 2026-11-04 起**编辑页**顶部那个 [打印] 链接已移除（按钮移到列表，避免每张单必须先打开编辑页）。
+
+## 一、版式（与 Excel 模板逐列对齐）
+
+- **A4 竖版**（2026-10-30 那次改的横向 `@page{size:A4 landscape}` 已移除，模板本就是竖版宽度）。
+- 整页一张 `<table>`，`<colgroup>` 11 列按模板列宽换算成百分比（5/13/8/6.5/6.5/9/10.5/9/9/11/12.5）。
+- 标题行 + 供方/需方两行 + 列名行放在 **`<thead>`** 里：多页时每页自动重复表头（依赖公共
+  `common/printstyle.html` 的 `thead{display:table-header-group}`，**不要**再给 `<tr>` 写 `display:table-header-group`，对 tr 无效）。
+- 列：`序号 | 产品名称 | 规格(跨2列) | 封装 | 数量（个） | 含税价（元） | 税率（%） | 金额 | 交货期 | 备注`。
+- 表头信息：
+  - 供方 = 供应商名称；联系方式 = 供应商首要联系人手机（`supplierPhone()`，回退座机）；下单日期 = `purchase_time`。
+  - 需方 = 设置 `company_name`；联系方式 = `company_phone`；采购编号 = `purchase_code`。
+  - 标题 = **公司名称 + 「采购订货单」**（`purchase_type != 1` 时为「采购退货单」）。
+  - 三格分列比例 `A:D | E:H | I:K`（`采购编号：GHD…` 17 位单号需要 3 列宽，早先 2 列会折行）。
+- 合计行：`合计数量：`（A–E 合并）+ 数量列数值；`合计金额：`（含税价列）+ 空税率列 + 金额列数值。
+- 明细之后依次：单据备注（`note` 非空时）、**订货说明 1–5 条**、签字栏（需方代表 / 供方代表 / 签定日期）。
+- 日期一律输出 `Y.m.d`（模板口径）；价格/数量按设置项 `price_decimal` / `number_decimal` 格式化。
+
+## 二、字段口径
+
+| 列 | 取值 |
+|----|------|
+| 产品名称 | `kuerp_goods.goods_name`（孤儿明细留空） |
+| 规格 | `goods_specification_id`(型号)；`vendor_name`(规格2/厂商) 非空时拼成 `型号 / 厂商`（模板只有「规格」「封装」两列，原三列合并） |
+| 封装 | `packaging`(规格3) |
+| 数量（个） | `kuerp_goods_purchase_info.number` |
+| 含税价（元） | `tax_included`，为空回退 `unit_price`（未启用税金时两者相同） |
+| 税率（%） | `tax_rate` |
+| 金额 | `money_tax_price`（价税合计金额）；为 0 而 `all_money` 非 0 时回退 `all_money` |
+| 交货期 | 明细行 `delivery_time`，为空回退单据头 `delivery_time` |
+| 备注 | 明细行 `remark` |
+
+⚠️ 模板没有「单位」列 —— 页面上不再输出单位名称，表头固定写「数量（个）」。若日后要按单位显示，需改表头或把单位拼进数量格。
+
+## 三、可配置项（模板里标注"可更改"的两条）
+
+`fa_kuerp_sets` 新增两个 type=1 设置项，在 **设置 → 基础设置** 里可改（`Sets::index` 对 type=1 自动渲染成文本框）：
+
+| name | 昵称 | 打印页位置 |
+|------|------|-----------|
+| `purchase_print_receipt` | 采购单打印收货信息 | 订货说明第 2 条「收货地址：」 |
+| `purchase_print_payment` | 采购单打印付款方式 | 订货说明第 3 条「付款方式：」 |
+
+- 取不到/为空时自动兜底（**不需要**先执行迁移也能正常打印）：
+  收货信息 = `仓库  {company_phone}   {company_address}（走货梯）`；付款方式 = 内置默认文案。
+- 订货说明第 1/4/5 条（交货方式、质量保证、合同声明）是固定文案，写死在视图里。
+
+## 四、其它
+
+- **列表 [打印] 按钮**：`goods_purchase/index.html` 新增行操作模板 `#barDemoPurchase`（编辑 / 打印 / 删除），
+  `goods_purchase.js` 的操作列 `toolbar` 由全局 `#barDemo` 改为 `#barDemoPurchase`、`width 150 → 180`；
+  `table.on('tool(table)')` 新增 `print` 分支打开打印弹层。
+  - ⚠️ 模板 ID **不能叫 `barDemo`**：`kuerp/common/menu.html` 自带同名默认模板（只有编辑/删除），
+    layui 取第一个匹配 → 自定义按钮被顶掉（症状：点了没反应）。
+  - 打印按钮**不加 `$auth->check`**：`printpage` 在 `$noNeedRight`、`fa_auth_rule` 里没有对应规则，加了会让除超管外的角色看不到按钮
+    （与 `goods_purchase_plan_warehouse` 的 [打印] 同做法）。
+  - 按钮用 `lay-event="print"`，**不要**加 `class="print"`——`goods_purchase.js` 里已有 `$(document).on("click",".print")` 的 LODOP 打印处理器，会重复触发。
+- 打印次数照旧 `setInc('print_num')`，但页面上**不再显示**「打印时间 / 打印次数」。
+- `goods_purchase_plan` / `goods_purchase_plan_warehouse` 的 printpage 是独立视图，**未改动**（仍是不含价格的旧版式）。
+- 已验证（curl + headless Chrome/CDP 实测 erp.licheng.test）：无税单（GHD20261020004）、含税单（GHD20261103006，13%）、
+  32 行长单选打印 → A4 竖版 595×842pt、第 2 页重复表头、合计/备注/条款/签字栏位置正确；
+  设置项在基础设置页可见可改，清空后兜底文案生效；临时测试单已删除、`AUTO_INCREMENT` 已还原。
+
+---
+
+# BOM 选择器统一为「树形：模板 + 可折叠子件」（2026-11-04）
+
+> 涉及文件：`public/assets/js/backend/kuerp/goods_bom.js`（`index` / `chosebom`）、
+> `application/admin/view/kuerp/goods_bom/chosebom.html`、
+> `public/assets/js/backend/kuerp/goods_calculator.js` + `application/admin/view/kuerp/goods_calculator/index.html` +
+> `application/admin/controller/kuerp/GoodsCalculator.php`、
+> `application/admin/view/kuerp/goods_purchase_order_plan_warehouse/add.html` +
+> `public/assets/js/backend/kuerp/goods_purchase_order_plan_warehouse.js`、`application/admin/controller/kuerp/GoodsBom.php`（仅注释）。
+> **无数据库迁移。**
+
+## 一、选择弹窗改为树形（与 BOM 列表页一致）
+
+- 入口不变（`kuerp/goods_bom/chosebom`），但表格数据改为 `kuerp/goods_bom/index?tree=1`，
+  与 BOM 列表页同一份「父商品行(row_type=1) + 子商品行(row_type=2)」数据。
+- 默认**只显示模板名 + 父商品**（一行一个模板，含「N 个子件」徽标），点子件箭头 / 模板名展开子件行（再点折叠）；
+  子件行缩进展示，带单耗数量、备注。
+- 选择方式：**父商品行上的单选按钮**（子件行无单选）；点行任意位置也能选中（点中某条子件行 = 选中它所属的模板）。
+  点子件箭头/模板名只展开不选中。
+- 确定 → `Fast.api.close([{id: 模板id}])`，与旧实现回传结构完全一致——6 个调用方
+  （组装单 `assemble.js`、外协加工 `process_order.js`、其他出库 `warehouse.js`、其他入库 `warehousing.js`、
+  采购预订单 `goods_purchase_order.js` / `goods_purchase_order_plan.js` / `goods_purchase_order_plan_warehouse.js`）
+  均只取 `goodsData[0].id`，**零改动**。
+- 树形渲染/折叠/行高同步的逻辑提取为模块级函数（`bomEscHtml` / `bomTreeTemplet` / `bomRenderTree` /
+  `bomToggleGroup` / `bomSyncRowHeight` / `bomBindTreeToggle`），`index` 与 `chosebom` 共用，避免两份复制代码。
+- 搜索（模板名称）跨页保留已选模板；重新渲染后自动恢复单选状态。
+
+## 二、全后台 BOM 选择入口统一（已核对）
+
+grep 全量核对后，后台**只有两处** BOM 选择界面，现已全部走同一个 `chosebom`：
+
+| 位置 | 原实现 | 现实现 |
+|------|--------|--------|
+| 组装单 / 外协加工 / 其他出库 / 其他入库 / 采购预订单(含计划、仓库) | `chosebom`（旧的平铺+tableMerge 合并单元格） | `chosebom`（树形） |
+| **商品计算器** `kuerp/goods_calculator` | 页面自带 `<select id="bom-select">` 下拉（控制器下发 `bomList`） | ![选择BOM模板] 按钮 → `chosebom`，只读输入框显示「模板名 (父商品编号)」，隐藏域 `#bom-id` 提交给 `calculate` |
+
+- `GoodsCalculator::index()` 不再查询/下发 `bomList`（`getbomlist` 接口保留未删，当前无人调用）。
+- 采购预订单(仓库) `goods_purchase_order_plan_warehouse` 此前**没有**「选择BOM模板」按钮（复制自 plan 时该功能尚未加入），
+  本次按 plan 的实现补齐：add 页 `[选择BOM模板]` + `.bom_bar`（父商品数量联动 / 清除BOM明细），
+  JS 逻辑与 `goods_purchase_order_plan.js` 逐字一致，并在 `.number` 的 change 里补 `obj.removeAttr('data-bom-ratio')`（手改即解除联动）。
+- ⚠️ `goods_bom/index` 的 `tree` 参数仍按请求参数决定（不传 = 旧平铺结构），所以没有其它遗留调用受影响。
+
+## 三、已验证（curl + headless Chrome/CDP 实测 erp.licheng.test，未改动业务数据）
+
+- 选择弹窗：10 个模板默认 10 行（子件隐藏）；点箭头展开 → 12 行；点子件行 → 选中其父模板（radio=父模板id）；
+  点另一个父行 → 选中切换；`确定` 关闭并回传 id；无 JS 异常。
+- BOM 列表页回归：32 行（10 父 + 22 子）、默认 10 行可见、展开正常、操作列/行高正常。
+- 采购预订单 add：点 [选择BOM模板] → 弹层 → 选「DY2403(HS-7)」→ 确定 → 生成 2 行（C13-0010 / C13-0009，数量 1/1），
+  `.bom_bar` 显示模板名与父商品。
+- 采购预订单(仓库) add：同上生成 2 行；父商品数量 1→3 → 子件数量 3/3；手改首行为 7 后联动解除，父数量改 5 → 7/5。
+- 商品计算器：无 `#bom-select`、有 [选择BOM模板]；选择后自动计算，`#bom-id=113`、显示「DY2403(HS-7) (A01-0003)」、
+  结果区「最大可组装数 417」正常。
+- `node --check`（4 个 JS）/ `php -l`（2 个控制器）通过。
+
+## 子件行规格三列修正（2026-11-04）
+
+- **问题**：BOM 列表/选择弹窗展开子件后，型号、规格2/厂商、规格3/封装三列为空。
+- **原因**：`GoodsBom::index()` 的子商品查询只取 `a.number,a.location,a.remark,g.goods_name,g.goods_code,g.product_type`，
+  没有这三列；前端 templet 也写死 `d.row_type == '1' ? ... : ''`。
+- **修复**：子商品查询补 `g.goods_specification_id,g.vendor_name,g.packaging` 并写入每条子件行（`$base_data` 先给三列空串兜底），
+  前端 `index` 与 `chosebom` 的 templet 改为直接输出该行的三列值（父行=父商品、子件行=子商品）。
+- 已验证：BOM 63（HS2000-MB-V1.6物料清单）子件 `R02-0001` 显示 型号「贴片电阻5.1Ω,5%,1/10W」/ 封装「0603」；
+  `L02-0001` 显示 型号「贴片磁珠GZ1608D601TF」/ 规格2「顺络」/ 规格3「0603」；列表页与选择弹窗一致，无 JS 异常。
+
+---
+
+# 销货出库 / 出库管理 搜索栏「出库状态」筛选（2026-11-04）
+
+> 涉及文件：`addons/kuerp/library/Goods.php`（新增 `outboundStatusCodes()`）、
+> `application/admin/controller/kuerp/{GoodsSalesOutbound,GoodsOutboundApply}.php`（`index()`）、
+> `application/admin/view/kuerp/{goods_sales_outbound,goods_outbound_apply}/index.html`、
+> `public/assets/js/backend/kuerp/{goods_sales_outbound,goods_outbound_apply}.js`、两个 lang。**无数据库迁移。**
+
+## 口径
+
+`outbound_status` 是**派生值**（按 `kuerp_goods_sales_info` 的 `purchase_code` 汇总 `SUM(number)/SUM(out_number)`），
+不是数据库列，所以**不能进 `filter`**（标准搜索栏按列过滤会查不到），走独立查询参数 `outbound_status`：
+
+| 值 | 含义 | 判定 |
+|---|---|---|
+| 0 | 未出库 | 已出库合计 <= 0（含无明细的单据，用 `NOT IN 已出库单号` 实现） |
+| 1 | 部分出库 | 0 < 已出库合计 < 计划数量 |
+| 2 | 全部出库 | 已出库合计 >= 计划数量 |
+
+## 实现
+
+- `Goods::outboundStatusCodes($status)` 返回 `['mode' => 'in'|'not in', 'codes' => [...]]`，控制器里直接
+  `$query->where('purchase_code', $mode, $codes)`；状态为空/非法时返回 `null`（不筛选、不查库）。
+  ⚠️ 无匹配时用哨兵单号 `__no_outbound_match__` 占位，避免 TP5 生成 `IN ()` 语法错误。
+- 两处 `index()` 都改成分步建 Query（`$query = ...; if ($filter) $query->where(...); $list = $query->paginate()`）。
+- 出库管理（`goods_outbound_apply`）的 `purchase_code` 就是销货单号，故同一份单号集合可直接复用；
+  即"该申请所属销货单的出库进度"。
+- 前端：`table.reload` 的 `where` 里除 `filter/op` 外单独带 `outbound_status`（同 `sales_recon` 的 `term_state` 写法），
+  `getSearch()/getOp()` 保持不动（它是按 id 显式取值的，不会把该字段带进 filter）。
+
+## 已验证（curl + headless Chrome/CDP 实测 erp.licheng.test，未改动业务数据）
+
+- 销货出库：不筛 11 条；状态 0/1/2 分别 4/2/5 条，与行内 `outbound_status` 完全一致，三者相加 = 11。
+- 出库管理：不筛 13 条；状态 0/1/2 分别 5/2/6 条，相加 = 13；单号级状态与销货出库页一致。
+- 浏览器实测两页搜索栏出现「请选择出库状态」（未出库/部分出库/全部出库），与既有下拉同一 layui 样式；
+  选 1 点搜索 → 销货出库只剩 XHD20261103002 / XHD20261103001；选 2 → 出库管理只剩 6 条，列表无 JS 异常。
+
+## 搜索栏「重置」按钮（2026-11-04）
+
+- 两个页面的搜索按钮后面各加一个 `layui-btn-primary` 的 **[重置]**（`#reset`，紧跟在 `#search` 后的
+  `layui-input-inline` 里，宽度 80px）：
+  `goods_sales_outbound/index.html` 与 `goods_outbound_apply/index.html`。
+- JS（两个文件的 `bindevent`/layui.use 块内）：清空 `.layui-search` 下所有 `input`/`select` 的值 →
+  `layui.form.render('select')` 刷新 layui 下拉显示 → 调已有的 `reloadTable()`（自然带上空的
+  `filter/op` 与 `outbound_status=''`），页码回到第 1 页。
+- ⚠️ 不用 `form.reset()`：layui 的 select 是渲染出来的 `.layui-form-select` 副本，原生 reset 后显示不会跟着变，
+  必须 `layui.form.render('select')`。
+- 已验证（headless Chrome/CDP 实测，未改业务数据）：两页选「全部出库」搜索 → 行收窄（销货出库 5 行 / 出库管理 6 行），
+  点 [重置] → 行恢复初始列表、`#outbound_status` 值与所有输入框均为空、下拉显示回到「请选择出库状态」，无 JS 异常。
+
+---
+
+# 销货出库：必须先在计划排期「排产」才能申请出库（2026-11-05）
+
+> 涉及文件：`application/admin/view/kuerp/goods_sales_outbound/index.html`（行按钮模板）、
+> `application/admin/controller/kuerp/GoodsSalesOutbound.php`（`apply()` GET/POST 守卫）。**无数据库迁移。**
+
+- **判定字段**：`fa_kuerp_goods_sales.production_status`（`enum('0','1')`）。计划排期列表勾选单据点【排产】
+  （`GoodsSalesSchedule::setproduction()`，`status=1` 并必填生产日期）后置 `'1'`；排期与销货单共用同一张表，
+  所以销货出库列表每行直接能读到该值。取消排产（status=0）不会清生产日期，但会把 `production_status` 归 `'0'` → 重新禁止申请。
+- **列表**：`#barDemoOutbound` 分支改为
+  `outbound_status != 2 && production_status != '1'` → 输出灰色不可点 `<span class="layui-btn layui-btn-xs layui-btn-disabled" title="请先在销货排期中完成排产，排产后才可申请出库">未排产</span>`；
+  已排产且未全部出库 → [申请出库]；已全部出库 → 原 [申请记录]（不受排产状态影响，历史记录仍可查）。
+- **服务端兜底**：`apply()` POST 在「已审核」校验后加 `production_status !== '1'` → `该销货单尚未排产，请先在销货排期中完成排产后申请出库`；
+  GET 同理，但 **`view=1`（只读查看历次申请/出库记录）放行**，避免撤销排产后连历史记录都打不开。
+- **列表「排产状态」列**（`goods_sales_outbound.js`，位置在「代发/直发」之后、「交货日期」之前，width 100）：
+  已排产绿字 `已排产`（有生产日期时 `title="生产日期：YYYY-MM-DD"` 悬停提示），未排产灰字 `未排产`。
+  lang 新增 `Production_status` / `Production_status 0|1` / `Production_date`（`goods_sales_outbound.php`），
+  JS 侧 `__('Production_status 1')` 与其它状态列同一写法（`Fast.lang` 会转小写查表）。
+- **不影响**：仓库侧「出库管理」（`goods_outbound_apply`）对已存在的待审申请照常审核/拒绝；送货单打印、撤销申请均无新增门槛。
+- 已验证（curl + headless Chrome/CDP 实测 erp.licheng.test，未新增/未修改业务数据）：
+  未排产单据 `apply/ids/15` GET/POST 均返回上述提示且 `fa_kuerp_goods_outbound_apply` 行数不变（13）；`view=1` 只读页 200；
+  已排产单据 `apply/ids/17` 过了排产校验（空数量时提示「请填写出库申请数量」且未落库）；
+  列表行按钮实测：已排产未出完 → 申请出库、未排产 → 灰色「未排产」（`cursor:not-allowed`、title 提示）、已全部出库 → 申请记录 / 仅编辑；
+  主表与右侧固定列行高均 41px 无错位，无 JS 异常。
+
+---
+
+# 后加按钮缺失的权限规则（2026-11-05）
+
+> 迁移：`addons/kuerp/migration_add_missing_button_auth_rules.sql`（已对 erp_licheng 执行，可重复执行）；
+> `install.sql` 1.6.29 段。**无代码改动。**
+
+## 为什么会出现“按钮加了、权限表没有”
+
+FastAdmin 的按钮显隐靠视图里的 `$auth->check($nowmenu.'/xxx')`，而它对**非超管**只在
+`fa_auth_rule` 里存在同名规则、且该角色被勾选时返回 true；后端的 `Backend` 鉴权也按同一张表。
+所以新加按钮时：
+
+- 方法**没有**写进 `$noNeedRight` → 缺规则时**除超管外谁都调不通**（提示“你没有权限”）；
+- 方法**写了** `$noNeedRight` → 后端不校验，但视图里仍用 `$auth->check` → 缺规则时**非超管看不到按钮**。
+
+## 本次补齐的 5 条
+
+| 规则 | 位置 | 症状 |
+|------|------|------|
+| `kuerp/goods_bom/printpage` | 商品BOM模板 列表行 [打印] | `Kuerp.php` 的 `$menu` 里早已有该条，数据库漏装 → 非超管看不到 |
+| `kuerp/goods_purchase/summary` | 采购单 列表 [汇总]（采购汇总页） | 同上（`summary` 在 `$noNeedRight`） |
+| `kuerp/process_order/printpage` | 外协订单 列表 [打印] | 同上（`printpage` 在 `$noNeedRight`） |
+| `kuerp/sales_recon/deldiff` | 销货对账 → 差异金额弹窗 [删除] | **后端真实鉴权**，缺规则时非超管完全无法删除差异 |
+| `kuerp/sales_recon/uploaddiff` | 销货对账 → 差异金额弹窗 [上传附件] | **后端真实鉴权**，缺规则时非超管完全无法上传 |
+
+## 仍然是 `$noNeedRight`、无法按角色控制的按钮
+
+这些功能正常但权限表里没有粒度，任何能进该页面的登录用户都能用（如需按角色控制，要同时加规则 +
+从 `$noNeedRight` 移除，否则加了规则也不会生效）：
+采购单打印 `goods_purchase/printpage`、采购单汇总 `goods_purchase/summary`、
+BOM打印 `goods_bom/printpage`、外协订单打印 `process_order/printpage`、组装单打印 `assemble/printpage`、
+送货单/出库申请单 `goods_outbound_apply/deliverynote|printpage`、
+采购入库 `goods_purchase_storage/storage|detail|printstorage`、
+采购单(仓库)打印 `goods_purchase_plan_warehouse/printpage`、
+确认收货 `goods_sales_order/confirmReceipt`（发货 `ship`）、
+计划排期「排产/预计完成日期/锁定零件/导出」`goods_sales_schedule/setproduction|setexpecteddelivery|lockGoods|unlockGoods|export`、
+采购预订单「一键生成采购单/导出/导入」`goods_purchase_order/batchGeneratePurchase|generateBySupplier|export|parseimport`、
+小程序用户 `mini_user/*`（整个控制器 `$noNeedRight=['*']`）。
+
+## 排查方法（下次新增按钮后自查）
+
+```bash
+# 1. 控制器公开方法（含继承/trait）
+grep -n "public function" application/admin/controller/kuerp/*.php
+# 2. 库里已有规则
+mysql -N -e "SELECT name FROM fa_auth_rule WHERE name LIKE 'kuerp/%'"
+# 3. 视图里用了 $auth->check 的按钮
+grep -rn "auth->check" application/admin/view/kuerp/
+```
+方法不在 `$noNeedRight` 且权限表无同名规则 = 必须补；方法在 `$noNeedRight` 但视图用了
+`$auth->check` = 建议补（否则按钮对非超管不显示）。
+
+## 注意
+
+- 新增规则后**仍需到 角色管理 勾选**才对该角色生效（超管 `rules='*'` 天然全通）。
+- `kuerp/stone_in|stone_out|stone_stock` 整套菜单/规则在库中都不存在（`fa_kuerp_stone_*` 表也不存在），
+  但 `Kuerp.php` 的 `$menu` 里有定义、控制器又是 `$noNeedRight=['*']` —— 属历史遗留死代码，本次未处理。
+
+## 补充（2026-11-05）：采购单入库「详情 / 打印 / 入库」纳入权限表
+
+> 迁移：`addons/kuerp/migration_add_goods_purchase_storage_auth_rules.sql`（已对 erp_licheng 执行，可重复执行）；
+> 代码：`GoodsPurchaseStorage.php` 的 `$noNeedRight` 去掉 `detail|printstorage|storage`；
+> `view/kuerp/goods_purchase_storage/index.html` 的 `#barDemoStorage` 三个按钮加 `$auth->check($nowmenu.'/...')`。
+
+- 原来是“能点但管不了”：三个方法在 `$noNeedRight`、权限表也没有记录，任何能进列表的角色都能看/打/入库。
+- 现在新增 `kuerp/goods_purchase_storage/detail`(详情)、`/printstorage`(打印)、`/storage`(入库) 三条规则（pid=628 采购单入库），
+  并**增量授予**所有已拥有 `kuerp/goods_purchase_storage/index` 的角色（仓储部/采购部/仓库专员/总经理…9 个），
+  升级后现有角色行为不变；之后可在 角色管理 → 采购单入库 里按需取消。
+- 仍在 `$noNeedRight`：`uploadenclosure|delenclosure|enclosurepicker|enclosurelist`（仓库角色没有原始单据模块权限，必须放行）
+  以及 `checkpurchase|getsuppliers|getunit|formatinfo*|getbranch|gettime` 等 AJAX 辅助接口、`printpage`（本控制器未使用）。
+- 实测（临时角色+临时账号，测后已删除并还原自增）：仅有 `index` 时列表能打开，三个动作均返回「你没有权限访问」，
+  行按钮带 `hiddens` 不显示；追加三条规则后三页 200、按钮出现；超管不受影响。
+
+---
+
+# 2026-11-05 线上部署记录（1.6.30）
+
+> 版本标记：`addons/kuerp/info.ini` = 1.6.30；线上根目录 `DEPLOY_VERSION.txt`（版本 + 19 个文件清单 + 执行的迁移）
+> 1.6.27~1.6.29 由其它会话于 11-04 分批上线（见 `DEPLOY.md` 版本清单），本次为 11-05 增量。
+
+- **代码 19 个文件**（FTP 逐个 md5 校验通过）：销货出库/出库管理「出库状态」派生筛选（`addons/kuerp/library/Goods::outboundStatusCodes()` + 两个控制器/视图/JS/lang）、
+  未排产禁止申请出库（`production_status` 列 + 按钮置灰）、送货单按钮从行上移到「申请记录」弹窗、
+  采购入库列表已全部入库隐藏「入库」按钮、采购入库详情「入库记录」面板、采购预订单(计划/仓库)隐藏供应商列（`common/menu.html` 的 `.supplier_sd`）、
+  BOM 打印页 A4 竖版列宽（`colgroup`）、`goods_purchase_storage` 详情/打印/入库纳入权限表（`$noNeedRight` 移除三项）。
+- **数据库**：结构逐表逐列一致（无 DDL）；执行 4 个迁移：
+  `migration_add_purchase_print_terms.sql`（2 个设置项，幂等）、`migration_widen_goods_specification_id.sql`（线上已 255，空操作）、
+  `migration_add_missing_button_auth_rules.sql`（新增规则 780-784）、
+  `migration_add_goods_purchase_storage_auth_rules.sql`（新增规则 785-787，并把三条增量授予已有 `goods_purchase_storage/index` 的 11 个角色，保证升级后行为不变）。
+- `application/extra/site.php` 线上仅改 `version` 1.0.7→1.0.8（刷新浏览器缓存），其余内容保持线上原样。
+- 部署后已清 `runtime/cache`、`runtime/temp`；登录页与 5 个 kuerp 列表页均 200；线上无 `.deploybak_/.tmpnew_` 残留。
+- 部署期间有并发编辑：`GoodsPurchaseStorage` 与新增迁移在 10:12-10:13 被再次修改，最终版已补传并校验。

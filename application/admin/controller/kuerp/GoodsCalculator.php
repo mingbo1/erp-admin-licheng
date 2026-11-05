@@ -34,11 +34,7 @@ class GoodsCalculator extends Backend
      */
     public function index()
     {
-        // 获取所有BOM模板列表供选择
-        $bomList = Db::name('kuerp_goods_bom')
-            ->field('id,bom_name,goods_code')
-            ->select();
-        $this->view->assign("bomList", $bomList);
+        // BOM 模板统一由 kuerp/goods_bom/chosebom 选择器选取（与各单据一致），页面不再下发下拉列表
 
         // 获取仓库列表（分仓模式使用，只显示零件仓）
         $stores = Db::name('kuerp_stores')->where(['status' => 1, 'store_type' => 'part'])->field('id,name')->select();

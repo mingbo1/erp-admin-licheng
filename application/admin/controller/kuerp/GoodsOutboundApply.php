@@ -54,8 +54,13 @@ class GoodsOutboundApply extends Backend
         $this->request->filter(['strip_tags', 'trim']);
         if ($this->request->isAjax()) {
             list($where, $sort, $order, $offset, $limit) = $this->buildparams();
-            $list = $this->model
-                ->where($where)
+            // 出库状态为派生筛选（按销货单号汇总销货明细的已出库数量），不能进 filter，走独立参数
+            $outboundFilter = \addons\kuerp\library\Goods::outboundStatusCodes($this->request->get('outbound_status', ''));
+            $query = $this->model->where($where);
+            if ($outboundFilter !== null) {
+                $query->where('purchase_code', $outboundFilter['mode'], $outboundFilter['codes']);
+            }
+            $list = $query
                 ->order('id', 'DESC')
                 ->paginate($limit);
             $rows = $list->items();

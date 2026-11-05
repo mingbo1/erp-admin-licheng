@@ -4,7 +4,7 @@
 > 部署方式：无 SSH，代码走 FTP（`118.31.20.155:39683` / `dyerp_dayan` / FTP 根 = 项目根）
 > 数据库：`mysql -h118.31.20.155 -udyerp_shengbokj_ -D dyerp_shengbokj_`
 
-**当前版本：`1.6.26`（2026-11-04）**
+**当前版本：`1.6.30`（2026-11-05）**
 
 版本号的唯一来源是 `addons/kuerp/info.ini` 的 `version`；每次上线递增末位，
 并在下表的「版本清单」里追加一行。线上根目录的 `DEPLOY_VERSION.txt` 记录线上实际部署的版本与文件清单。
@@ -15,6 +15,9 @@
 
 | 版本 | 部署日期 | 内容摘要 | 新增/执行的迁移 | 备注 |
 |------|---------|---------|----------------|------|
+| 1.6.30 | 2026-11-05 | 销货出库/出库管理「出库状态」筛选 + 未排产禁止申请出库（排产状态列）、送货单按钮从行上移到申请记录弹窗、采购入库列表已全部入库不再显示「入库」、采购入库详情加「入库记录」面板、采购预订单(计划)/仓库隐藏供应商列、BOM 打印页 A4 竖版列宽、采购入库 详情/打印/入库 纳入权限表 | `migration_add_missing_button_auth_rules.sql`（5 条规则）、`migration_add_goods_purchase_storage_auth_rules.sql`（3 条规则 + 授予已有查看权限的 11 个角色）、`migration_add_purchase_print_terms.sql`（2 个设置项，幂等）、`migration_widen_goods_specification_id.sql`（空操作） | 19 个文件；结构无变更；`site.version` 1.0.7→1.0.8 |
+| 1.6.29 | 2026-11-04 | BOM 列表/选择弹窗的**子件行**补显示 型号 / 规格2-厂商 / 规格3-封装（此前只显示在父商品行） | 无 | 2 改（`GoodsBom.php`、`goods_bom.js`）；`site.version` 1.0.5→1.0.6 |
+| 1.6.28 | 2026-11-04 | BOM 选择器统一为树形、商品计算器改用统一选择器、采购预订单(仓库)补「选择BOM模板」、采购单打印按客户模板改版、商品库存余额/收发存汇总去掉成本列、商品「规格型号」加长 | `migration_add_purchase_print_terms.sql`（执行，插入 2 个设置项）、`migration_widen_goods_specification_id.sql`（执行，线上已是 255 空操作） | 20 改 + 2 新；`site.version` 1.0.4→1.0.5（刷新浏览器缓存） |
 | 1.6.26 | 2026-11-04 | 成品入库成本计算（组装单/外协加工单）、出库管理审核出库校验库存、计划排期审核补建核销源单、付款申请详情[查看明细]、采购单列表按采购订单分组排序、商品/组装单/入库单界面细节 | `migration_add_payment_apply_recon_detail_auth.sql`（执行，幂等） | 33 个文件；数据库**无结构变更**（schema 与线上逐列一致） |
 | 1.6.25 | 2026-11-03 | 销货预订单仓库兜底 + 负库存出库、销货对账开票扣减差异、未付款按月合计、采购预订单调用BOM、组装单默认仓库 | `migration_allow_negative_stock.sql`（执行） | 45 个文件；`fa_kuerp_goods_stock.stock` 改为有符号 |
 | 1.6.24 | 2026-10-31 | 申请出库填写快递信息 + 送货单打印、销货订单发货按钮隐藏 | `migration_add_outbound_express.sql` | |

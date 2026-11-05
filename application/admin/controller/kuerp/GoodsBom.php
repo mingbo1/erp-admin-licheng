@@ -55,9 +55,8 @@ class GoodsBom extends Backend
                 ->order($sort, $order)
                 ->paginate($limit);
 
-            // 列表页(index)传 tree=1：每个模板先返回一条父商品行(row_type=1)，再返回其下子商品行(row_type=2)，
-            // 由前端默认折叠子件行、点击展开。
-            // BOM选择弹窗(chosebom)不传该参数，保持原「每行一条子件、父商品信息按 id 合并」的布局不变。
+            // 列表页(index)与BOM选择弹窗(chosebom)都传 tree=1：每个模板先返回一条父商品行(row_type=1)，
+            // 再返回其下子商品行(row_type=2)，由前端默认折叠子件行、点击展开。
             $tree = $this->request->param('tree', 0) ? 1 : 0;
 
             foreach ($list as $row) {
@@ -75,7 +74,7 @@ class GoodsBom extends Backend
                 $info = Db::name('kuerp_goods_bom_info')->alias('a')
                     ->join('kuerp_goods g', 'g.id=a.goods_id')
                     ->where(['a.bom_id' => $list_v['id'], 'a.type' => '2'])
-                    ->field('a.number,a.location,a.remark,g.goods_name,g.goods_code,g.product_type')
+                    ->field('a.number,a.location,a.remark,g.goods_name,g.goods_code,g.product_type,g.goods_specification_id,g.vendor_name,g.packaging')
                     ->select();
                 // 每个模板（父商品）公共字段
                 $base_data = [];
@@ -86,6 +85,10 @@ class GoodsBom extends Backend
                 $base_data['pname'] = $p_info ? $p_info['goods_name'] : '';
                 $base_data['pcode'] = $p_info ? $p_info['goods_code'] : '';
                 $base_data['child_count'] = count($info);
+                // 型号 / 规格2-厂商 / 规格3-封装（父行取父商品、子行取子商品）
+                $base_data['goods_specification_id'] = '';
+                $base_data['vendor_name'] = '';
+                $base_data['packaging'] = '';
                 // 树形模式：先输出父商品行
                 if ($tree) {
                     $row_data = $base_data;
@@ -111,6 +114,10 @@ class GoodsBom extends Backend
                     $row_data['code'] = $info_v['goods_code'];
                     $row_data['child_remark'] = $info_v['remark'];
                     $row_data['product_type'] = $info_v['product_type'];
+                    // 子商品的型号 / 规格2-厂商 / 规格3-封装（与父商品行同三列展示）
+                    $row_data['goods_specification_id'] = $info_v['goods_specification_id'];
+                    $row_data['vendor_name'] = $info_v['vendor_name'];
+                    $row_data['packaging'] = $info_v['packaging'];
                     $lists[] = $row_data;
                 }
                 // 如果没有子商品，也显示一行（非树形模式）

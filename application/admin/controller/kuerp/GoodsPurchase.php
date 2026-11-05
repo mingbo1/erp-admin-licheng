@@ -2569,10 +2569,32 @@ class GoodsPurchase extends Backend
         // 需求方 / 需求电话：取设置里的公司名称、公司电话
         $row['company_name'] = (string)Db::name('kuerp_sets')->where(['name' => 'company_name'])->value('value');
         $row['company_phone'] = (string)Db::name('kuerp_sets')->where(['name' => 'company_phone'])->value('value');
+        $row['company_address'] = (string)Db::name('kuerp_sets')->where(['name' => 'company_address'])->value('value');
         // 制单人
         $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('nickname');
         // 审核人
         $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('nickname');
+
+        // 单据标题：公司名称 + 采购订货单 / 采购退货单（purchase_type=1 为采购单，其余为退货单）
+        $docTitle = ((string)$row['purchase_type'] == '1') ? '采购订货单' : '采购退货单';
+        $row['print_title'] = $row['company_name'] . $docTitle;
+
+        // 订货说明里可配置的两条：收货信息、付款方式（设置 → 基础设置 可改）
+        $printSets = Db::name('kuerp_sets')
+            ->where('name', 'in', ['purchase_print_receipt', 'purchase_print_payment'])
+            ->column('value', 'name');
+        $row['receipt_text'] = !empty($printSets['purchase_print_receipt'])
+            ? (string)$printSets['purchase_print_receipt']
+            : trim('仓库  ' . $row['company_phone'] . '   ' . $row['company_address'] . '（走货梯）');
+        $row['payment_text'] = !empty($printSets['purchase_print_payment'])
+            ? (string)$printSets['purchase_print_payment']
+            : '收到合格、合法发票后60天内付款。若供方未按约出具发票，需方有权迟延付款，且不承担违约责任。';
+
+        // 价格/数量小数位（与其他单据保持同一口径）
+        $setData = \addons\kuerp\library\Goods::getSetData();
+        $setList = isset($setData['setList']) ? $setData['setList'] : [];
+        $price_decimal = isset($setList['price_decimal']['value']) ? (int)$setList['price_decimal']['value'] : 2;
+        $number_decimal = isset($setList['number_decimal']['value']) ? (int)$setList['number_decimal']['value'] : 0;
 
         // 采购单详情
         $purchase_info = Db::name('kuerp_goods_purchase_info')->where(['purchase_code' => $row['purchase_code']])->select();
@@ -2583,14 +2605,35 @@ class GoodsPurchase extends Backend
                 ->find();
             $purchase_info[$k]['goods_name'] = $goods ? $goods['goods_name'] : '';
             // 型号 / 规格2(厂商) / 规格3(封装)，商品不存在(孤儿明细)时留空
-            $purchase_info[$k]['goods_specification_id'] = $goods ? (string)$goods['goods_specification_id'] : '';
-            $purchase_info[$k]['vendor_name'] = $goods ? (string)$goods['vendor_name'] : '';
-            $purchase_info[$k]['packaging'] = $goods ? (string)$goods['packaging'] : '';
+            $goodsSpec = $goods ? trim((string)$goods['goods_specification_id']) : '';
+            $goodsVendor = $goods ? trim((string)$goods['vendor_name']) : '';
+            // 打印模板只有「规格」「封装」两列：规格 = 型号 + 规格2(厂商)，封装 = 规格3(封装)
+            $specParts = array_values(array_filter([$goodsSpec, $goodsVendor], function ($s) {
+                return $s !== '';
+            }));
+            $purchase_info[$k]['print_spec'] = implode(' / ', $specParts);
+            $purchase_info[$k]['print_packaging'] = $goods ? (string)$goods['packaging'] : '';
+            // 含税单价：未启用/未填写时回退未税单价
+            $purchase_info[$k]['print_tax_price'] = ($v['tax_included'] !== null && $v['tax_included'] !== '')
+                ? (float)$v['tax_included']
+                : (float)$v['unit_price'];
+            $purchase_info[$k]['print_tax_rate'] = $v['tax_rate'] !== null ? (float)$v['tax_rate'] : 0;
+            // 金额：价税合计金额，历史未写入时回退未税金额
+            $printAmount = $v['money_tax_price'] !== null ? (float)$v['money_tax_price'] : 0;
+            if ($printAmount == 0 && (float)$v['all_money'] != 0) {
+                $printAmount = (float)$v['all_money'];
+            }
+            $purchase_info[$k]['print_amount'] = $printAmount;
+            // 交货期：优先取明细行，其次单据头
+            $printDelivery = !empty($v['delivery_time']) ? (int)$v['delivery_time'] : (int)$row['delivery_time'];
+            $purchase_info[$k]['print_delivery'] = $printDelivery > 0 ? date('Y.m.d', $printDelivery) : '';
             $purchase_info[$k]['stores_name'] = Db::name('kuerp_stores')->where(['id' => $v['stores_id']])->value('name');
             $purchase_info[$k]['unit_name'] = Db::name('kuerp_unit')->where(['id' => $v['goods_unit']])->value('name');
         }
         $this->view->assign("row", $row);
         $this->view->assign("purchase_info", $purchase_info);
+        $this->view->assign("price_decimal", $price_decimal);
+        $this->view->assign("number_decimal", $number_decimal);
 
         // 增加打印次数
         $this->model->where(['id' => $ids])->setInc('print_num');

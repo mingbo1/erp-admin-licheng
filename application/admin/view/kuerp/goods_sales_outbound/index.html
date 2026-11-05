@@ -49,10 +49,21 @@
                                 <option value="1">{:__('Examine_status 1')}</option>
                             </select>
                         </div>
+                        <div class="layui-input-inline">
+                            <select name="outbound_status" id="outbound_status" placeholder="{:__('Outbound_status')}" class="layui-input">
+                                <option value="">请选择{:__('Outbound_status')}</option>
+                                <option value="0">{:__('Outbound_status 0')}</option>
+                                <option value="1">{:__('Outbound_status 1')}</option>
+                                <option value="2">{:__('Outbound_status 2')}</option>
+                            </select>
+                        </div>
                         <div class="layui-input-inline " style="width: 90px">
                             <button class="layui-btn layui-btn-sm" type="button" id="search" data-type="reload">
                                  <i class="layui-icon"></i> {:__('Search')}
                             </button>
+                         </div>
+                        <div class="layui-input-inline " style="width: 80px">
+                            <button class="layui-btn layui-btn-sm layui-btn-primary" type="button" id="reset">重置</button>
                          </div>
                     </form>
                     <table id="table" class="table table-striped table-bordered table-hover table-nowrap"
@@ -68,15 +79,15 @@
 <!-- 仓库人员专用行操作模板：出库须由计划部门申请、仓库在"出库管理"审核执行；同一销货单可并存多条申请
      撤销申请已移到「申请出库/申请记录」弹窗的历次申请记录列表里（每条待审记录各自的 [撤销]），行上不再放撤销按钮 -->
 <script type="text/html" id="barDemoOutbound">
-    {{# if(d.outbound_status != 2){ }}
+    {{# if(d.outbound_status != 2 && d.production_status != '1'){ }}
+    <!-- 计划排期未排产：禁止申请出库（按钮置灰，仅提示） -->
+    <span class="layui-btn layui-btn-xs layui-btn-disabled" title="请先在销货排期中完成排产，排产后才可申请出库">未排产</span>
+    {{# } else if(d.outbound_status != 2){ }}
     <a class="layui-btn layui-btn-xs layui-bg-orange {if condition="$auth->check($nowmenu.'/apply')!=1"}hiddens{/if}" lay-event="apply">申请出库</a>
     {{# } else if(d.apply_count > 0){ }}
     <!-- 已全部出库：申请出库入口隐藏，仍保留只读入口查看历次申请/出库记录 -->
     <a class="layui-btn layui-btn-xs layui-bg-gray {if condition="$auth->check($nowmenu.'/apply')!=1"}hiddens{/if}" lay-event="applyrecord">申请记录</a>
     {{# } }}
-    {{# if(d.printable_apply_count > 0){ }}
-    <!-- 送货单：有可打印的申请（待审核/已同意出库）时显示；多条申请时默认打印最新一条，历次记录里可逐条打印 -->
-    <a class="layui-btn layui-btn-xs layui-btn-primary" lay-event="deliverynote">送货单</a>
-    {{# } }}
+    <!-- 送货单不再放在行上：送货单对应的是「每一次出库申请」，请在 [申请出库/申请记录] 弹窗的历次申请记录里逐条打印 -->
     <a class="layui-btn layui-btn-xs {if condition="$auth->check($nowmenu.'/edit')!=1"}hiddens{/if}" lay-event="edit">编辑</a>
 </script>

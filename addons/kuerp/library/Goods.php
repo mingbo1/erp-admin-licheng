@@ -2425,4 +2425,56 @@ class Goods
         return 0;
     }
 
+    /**
+     * 出库状态派生筛选（销货单出库 / 出库管理 列表搜索栏使用）
+     * 口径与各列表 outbound_status 列一致：按销货单号汇总明细的 计划数量 / 已出库数量
+     *   0 未出库  已出库合计 <= 0（含无明细的单据）
+     *   1 部分出库 0 < 已出库合计 < 计划数量
+     *   2 全部出库 已出库合计 >= 计划数量
+     * 返回的 codes 可直接用于 where('purchase_code', $mode, $codes)；
+     * 无匹配时给一个不存在的单号占位，避免 TP5 生成 IN () 语法错误。
+     *
+     * @param string|int $status 0/1/2，其它值返回 null（不筛选）
+     * @return array|null ['mode' => 'in'|'not in', 'codes' => [...]]
+     */
+    public static function outboundStatusCodes($status)
+    {
+        $status = (string)$status;
+        if (!in_array($status, ['0', '1', '2'], true)) {
+            return null;
+        }
+        $sums = Db::name('kuerp_goods_sales_info')
+            ->field('purchase_code, SUM(number) AS total_number, SUM(out_number) AS total_out')
+            ->group('purchase_code')
+            ->select();
+        $outCodes = [];   // 已出库单号（部分 + 全部）
+        $partial = [];
+        $full = [];
+        foreach ($sums as $row) {
+            $totalNumber = (float)$row['total_number'];
+            $totalOut = (float)$row['total_out'];
+            if ($totalOut <= 0) {
+                continue;
+            }
+            $outCodes[] = $row['purchase_code'];
+            if ($totalOut < $totalNumber) {
+                $partial[] = $row['purchase_code'];
+            } else {
+                $full[] = $row['purchase_code'];
+            }
+        }
+        if ($status === '0') {
+            // 没有任何出库记录的销货单（含无明细的）都是"未出库"，用 NOT IN 已出库单号
+            if (empty($outCodes)) {
+                return null; // 全库都没出库过，无需筛选
+            }
+            return ['mode' => 'not in', 'codes' => $outCodes];
+        }
+        $codes = $status === '1' ? $partial : $full;
+        if (empty($codes)) {
+            $codes = ['__no_outbound_match__'];
+        }
+        return ['mode' => 'in', 'codes' => $codes];
+    }
+
 }

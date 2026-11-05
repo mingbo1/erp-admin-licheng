@@ -1,5 +1,98 @@
 define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp/layui/layui.js'], function ($, undefined, Backend, Table, Form, Layui) {
 
+    // ===== BOM 树形列表公共方法（BOM列表页 index 与选择弹窗 chosebom 共用）=====
+
+    // 行内文本转义（模板名称/商品名由用户填写）
+    function bomEscHtml(s) {
+        if (s === undefined || s === null) {
+            return '';
+        }
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // 「模板名称 / 子商品」列：父商品行显示折叠箭头 + 模板名称 + 子件数；子商品行显示缩进后的子件名称
+    function bomTreeTemplet(d) {
+        if (d.row_type == '1') {
+            var caret = d.child_count > 0
+                ? '<i class="layui-icon layui-icon-triangle-r bom-caret"></i>'
+                : '<i class="layui-icon layui-icon-circle bom-caret-empty"></i>';
+            var badge = '<span class="layui-badge layui-bg-gray bom-child-count">' + (d.child_count > 0 ? d.child_count + ' 个子件' : '无子件') + '</span>';
+            return '<span class="bom-parent-cell">' + caret + '<span class="bom-parent-name">' + bomEscHtml(d.bom_name) + '</span>' + badge + '</span>';
+        }
+        return '<span class="bom-child-cell"><i class="layui-icon layui-icon-subtraction"></i>' + bomEscHtml(d.name) + '</span>';
+    }
+
+    // 按 id 给行打标记（父行 data-bom-parent / 子行 data-bom-child），并按折叠状态显示或隐藏子件行
+    function bomRenderTree($view, rows, expanded) {
+        if (!$view.length) {
+            return;
+        }
+        var $mainTrs = $view.find('.layui-table-main > table > tbody > tr');
+        var $fixedTrs = $view.find('.layui-table-fixed-r .layui-table-body > table > tbody > tr');
+        if (!$mainTrs.length || $mainTrs.length !== rows.length) {
+            return; // 行数与数据不一致时不做处理，避免错位
+        }
+        var currentId = null;
+        for (var i = 0; i < rows.length; i++) {
+            var d = rows[i];
+            var $tr = $mainTrs.eq(i).add($fixedTrs.eq(i));
+            if (d.row_type == '1') {
+                currentId = String(d.id);
+                $tr.attr('data-bom-parent', currentId).removeAttr('data-bom-child').removeClass('bom-child-row');
+            } else {
+                $tr.attr('data-bom-child', currentId === null ? '' : currentId).removeAttr('data-bom-parent').addClass('bom-child-row');
+            }
+        }
+        // 应用折叠状态：expanded 里没有的就是折叠
+        $view.find('tr[data-bom-parent]').each(function () {
+            var id = $(this).attr('data-bom-parent');
+            bomToggleGroup($view, id, !!expanded[id]);
+        });
+        bomSyncRowHeight($view);
+    }
+
+    // 展开/折叠某个模板下的子件行（主表与右侧固定列同步）
+    function bomToggleGroup($view, id, open) {
+        var $children = $view.find('tr[data-bom-child="' + id + '"]');
+        if (open) {
+            $children.show();
+        } else {
+            $children.hide();
+        }
+        $view.find('tr[data-bom-parent="' + id + '"] .bom-caret')
+            .removeClass('layui-icon-triangle-r layui-icon-triangle-d')
+            .addClass(open ? 'layui-icon-triangle-d' : 'layui-icon-triangle-r');
+    }
+
+    // 固定列与主表逐行同步行高，避免折叠/展开后行错位
+    function bomSyncRowHeight($view) {
+        $view.find('.layui-table-main > table > tbody > tr').each(function (index, val) {
+            $view.find('.layui-table-fixed').each(function () {
+                $($(this).find('.layui-table-body tbody tr')[index]).height($(val).height());
+            });
+        });
+        $view.find('.layui-table-header tr').each(function (index, val) {
+            $view.find('.layui-table-fixed').each(function () {
+                $($(this).find('.layui-table-header tr')[index]).height($(val).height());
+            });
+        });
+    }
+
+    // 点击父商品行的折叠箭头（或模板名称）展开/折叠其子件
+    function bomBindTreeToggle(expanded) {
+        $(document).off('click.bomTree').on('click.bomTree', '.layui-table-view .bom-caret, .layui-table-view .bom-parent-name', function () {
+            var $view = $(this).closest('.layui-table-view');
+            var id = $(this).closest('tr').attr('data-bom-parent');
+            if (!id) {
+                return;
+            }
+            var open = !expanded[id];
+            expanded[id] = open;
+            bomToggleGroup($view, id, open);
+            bomSyncRowHeight($view);
+        });
+    }
+
     var Controller = {
         index: function () {
 
@@ -9,18 +102,6 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
 
                 // 已展开的模板 id 集合：默认全部折叠，点子件箭头才展开
                 var expanded = {};
-
-                // 「模板名称 / 子商品」列：父商品行显示折叠箭头 + 模板名称 + 子件数；子商品行显示缩进后的子件名称
-                function treeTemplet(d) {
-                    if (d.row_type == '1') {
-                        var caret = d.child_count > 0
-                            ? '<i class="layui-icon layui-icon-triangle-r bom-caret"></i>'
-                            : '<i class="layui-icon layui-icon-circle bom-caret-empty"></i>';
-                        var badge = '<span class="layui-badge layui-bg-gray bom-child-count">' + (d.child_count > 0 ? d.child_count + ' 个子件' : '无子件') + '</span>';
-                        return '<span class="bom-parent-cell">' + caret + '<span class="bom-parent-name">' + escHtml(d.bom_name) + '</span>' + badge + '</span>';
-                    }
-                    return '<span class="bom-child-cell"><i class="layui-icon layui-icon-subtraction"></i>' + escHtml(d.name) + '</span>';
-                }
 
                 table.render({
                     elem: '#table'
@@ -40,41 +121,41 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     , cellMinWidth: 100
                     , cols: [[
                         { checkbox: true, width: 55 }
-                        , { field: 'bom_name', title: __('Bom_name') + ' / ' + __('Child_goods_name'), minWidth: 300, templet: treeTemplet }
+                        , { field: 'bom_name', title: __('Bom_name') + ' / ' + __('Child_goods_name'), minWidth: 300, templet: bomTreeTemplet }
                         , {
                             field: 'pname', title: __('Parent_goods'), minWidth: 180, templet: function (d) {
-                                return d.row_type == '1' ? escHtml(d.pname) : '';
+                                return d.row_type == '1' ? bomEscHtml(d.pname) : '';
                             }
                         }
                         , {
                             field: 'code', title: __('Goods_code'), minWidth: 150, templet: function (d) {
-                                return escHtml(d.row_type == '1' ? d.pcode : d.code);
+                                return bomEscHtml(d.row_type == '1' ? d.pcode : d.code);
                             }
                         }
                         , {
                             field: 'goods_specification_id', title: __('Goods_specification_id'), minWidth: 130, templet: function (d) {
-                                // 仅父商品行展示父级商品的型号/规格2/规格3
-                                return d.row_type == '1' ? escHtml(d.goods_specification_id) : '';
+                                // 父行取父商品、子件行取子商品的型号
+                                return bomEscHtml(d.goods_specification_id);
                             }
                         }
                         , {
                             field: 'vendor_name', title: __('Vendor_name'), minWidth: 130, templet: function (d) {
-                                return d.row_type == '1' ? escHtml(d.vendor_name) : '';
+                                return bomEscHtml(d.vendor_name);
                             }
                         }
                         , {
                             field: 'packaging', title: __('Packaging'), minWidth: 130, templet: function (d) {
-                                return d.row_type == '1' ? escHtml(d.packaging) : '';
+                                return bomEscHtml(d.packaging);
                             }
                         }
                         , {
                             field: 'number', title: __('Child_number'), width: 110, templet: function (d) {
-                                return d.row_type == '1' ? '' : escHtml(d.number);
+                                return d.row_type == '1' ? '' : bomEscHtml(d.number);
                             }
                         }
                         , {
                             field: 'remark', title: __('Remark'), minWidth: 160, templet: function (d) {
-                                return escHtml(d.row_type == '1' ? d.remark : d.child_remark);
+                                return bomEscHtml(d.row_type == '1' ? d.remark : d.child_remark);
                             }
                         }
                         , {
@@ -86,86 +167,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     ]]
                     , done: function (res) {
                         // layui 把原 <table id="table"> 隐藏、在其后插入 .layui-table-view
-                        renderTree($(this.elem).next('.layui-table-view'), res.data || []);
+                        bomRenderTree($(this.elem).next('.layui-table-view'), res.data || [], expanded);
                     }
                 });
 
-                // 按 id 给行打标记（父行 data-bom-parent / 子行 data-bom-child），并按折叠状态显示或隐藏子件行
-                function renderTree($view, rows) {
-                    if (!$view.length) {
-                        return;
-                    }
-                    var $mainTrs = $view.find('.layui-table-main > table > tbody > tr');
-                    var $fixedTrs = $view.find('.layui-table-fixed-r .layui-table-body > table > tbody > tr');
-                    if (!$mainTrs.length || $mainTrs.length !== rows.length) {
-                        return; // 行数与数据不一致时不做处理，避免错位
-                    }
-                    var currentId = null;
-                    for (var i = 0; i < rows.length; i++) {
-                        var d = rows[i];
-                        var $tr = $mainTrs.eq(i).add($fixedTrs.eq(i));
-                        if (d.row_type == '1') {
-                            currentId = String(d.id);
-                            $tr.attr('data-bom-parent', currentId).removeAttr('data-bom-child').removeClass('bom-child-row');
-                        } else {
-                            $tr.attr('data-bom-child', currentId === null ? '' : currentId).removeAttr('data-bom-parent').addClass('bom-child-row');
-                        }
-                    }
-                    // 应用折叠状态：expanded 里没有的就是折叠
-                    $view.find('tr[data-bom-parent]').each(function () {
-                        var id = $(this).attr('data-bom-parent');
-                        toggleGroup($view, id, !!expanded[id]);
-                    });
-                    syncRowHeight($view);
-                }
-
-                // 展开/折叠某个模板下的子件行（主表与右侧固定列同步）
-                function toggleGroup($view, id, open) {
-                    var $children = $view.find('tr[data-bom-child="' + id + '"]');
-                    if (open) {
-                        $children.show();
-                    } else {
-                        $children.hide();
-                    }
-                    $view.find('tr[data-bom-parent="' + id + '"] .bom-caret')
-                        .removeClass('layui-icon-triangle-r layui-icon-triangle-d')
-                        .addClass(open ? 'layui-icon-triangle-d' : 'layui-icon-triangle-r');
-                }
-
-                // 固定列(操作列)与主表逐行同步行高，避免折叠/展开后行错位
-                function syncRowHeight($view) {
-                    $view.find('.layui-table-main > table > tbody > tr').each(function (index, val) {
-                        $view.find('.layui-table-fixed').each(function () {
-                            $($(this).find('.layui-table-body tbody tr')[index]).height($(val).height());
-                        });
-                    });
-                    $view.find('.layui-table-header tr').each(function (index, val) {
-                        $view.find('.layui-table-fixed').each(function () {
-                            $($(this).find('.layui-table-header tr')[index]).height($(val).height());
-                        });
-                    });
-                }
-
-                // 点击父商品行的折叠箭头（或模板名称）展开/折叠其子件
-                $(document).off('click.bomTree').on('click.bomTree', '.layui-table-view .bom-caret, .layui-table-view .bom-parent-name', function () {
-                    var $view = $(this).closest('.layui-table-view');
-                    var id = $(this).closest('tr').attr('data-bom-parent');
-                    if (!id) {
-                        return;
-                    }
-                    var open = !expanded[id];
-                    expanded[id] = open;
-                    toggleGroup($view, id, open);
-                    syncRowHeight($view);
-                });
-
-                // 行内文本转义（模板名称/商品名由用户填写）
-                function escHtml(s) {
-                    if (s === undefined || s === null) {
-                        return '';
-                    }
-                    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                }
+                bomBindTreeToggle(expanded);
 
                 table.on('toolbar(table)', function (obj) {
                     switch (obj.event) {
@@ -251,7 +257,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     } else if (obj.event === 'edit') {
                         Fast.api.open("kuerp/goods_bom/edit?ids=" + data.id, "编辑BOM模板", { area: ['90%', '75%'] });
                     } else if (obj.event === 'print') {
-                        Fast.api.open("kuerp/goods_bom/printpage?ids=" + data.id, "打印BOM模板", { area: ['90%', '75%'] });
+                        Fast.api.open("kuerp/goods_bom/printpage?ids=" + data.id, "打印BOM模板", { area: ['80%', '90%'] });
                     }
                 });
 
@@ -282,20 +288,19 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
         },
 
         chosebom: function () {
-            layui.config({
-                base: '/assets/addons/kuerp/layui/module/'
-            }).extend({
-                tableMerge: 'tableMerge'
-            });
-
-            layui.use(['table', 'upload', 'form', 'tableMerge'], function () {
+            layui.use(['table', 'upload', 'form'], function () {
                 var table = layui.table;
                 upload = layui.upload;
-                tableMerge = layui.tableMerge;
+
+                // 已展开的模板 id 集合：默认全部折叠，点子件箭头才展开（与BOM列表页一致）
+                var expanded = {};
+                // 当前选中的模板 id（跨搜索/翻页保留）
+                var selectedId = '';
 
                 table.render({
                     elem: '#table'
-                    , url: 'kuerp/goods_bom/index'
+                    // 与BOM列表页同一份树形数据：父商品行 + 默认折叠的子商品行
+                    , url: 'kuerp/goods_bom/index?tree=1'
                     , parseData: function (res) {
                         return {
                             "code": 0,
@@ -308,33 +313,105 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     , page: true
                     , cellMinWidth: 100
                     , cols: [[
-                        { type: 'radio', merge: ['id'] },
-                        { field: 'bom_name', title: __('Bom_name'), merge: ['id'] },
-                        { field: 'pname', title: __('Parent_goods'), merge: ['id'] },
-                        { field: 'pcode', title: __('Goods_code'), merge: ['id'] },
-                        { field: 'name', title: __('Child_goods_name') },
-                        { field: 'code', title: __('Goods_code') },
-                        { field: 'number', title: __('Child_number') },
-                        { field: 'remark', title: __('Remark') }
-                    ]],
-                    done: function () {
-                        tableMerge.render(this)
+                        {
+                            // 单选只挂在父商品行（勾选即代表整个模板）
+                            field: 'bom_pick', title: '', width: 55, templet: function (d) {
+                                return d.row_type == '1'
+                                    ? '<input type="radio" name="bom_pick" class="bom-pick" lay-ignore value="' + bomEscHtml(d.id) + '">'
+                                    : '';
+                            }
+                        }
+                        , { field: 'bom_name', title: __('Bom_name') + ' / ' + __('Child_goods_name'), minWidth: 300, templet: bomTreeTemplet }
+                        , {
+                            field: 'pname', title: __('Parent_goods'), minWidth: 180, templet: function (d) {
+                                return d.row_type == '1' ? bomEscHtml(d.pname) : '';
+                            }
+                        }
+                        , {
+                            field: 'code', title: __('Goods_code'), minWidth: 150, templet: function (d) {
+                                return bomEscHtml(d.row_type == '1' ? d.pcode : d.code);
+                            }
+                        }
+                        , {
+                            field: 'goods_specification_id', title: __('Goods_specification_id'), minWidth: 130, templet: function (d) {
+                                // 父行取父商品、子件行取子商品的型号
+                                return bomEscHtml(d.goods_specification_id);
+                            }
+                        }
+                        , {
+                            field: 'vendor_name', title: __('Vendor_name'), minWidth: 130, templet: function (d) {
+                                return bomEscHtml(d.vendor_name);
+                            }
+                        }
+                        , {
+                            field: 'packaging', title: __('Packaging'), minWidth: 130, templet: function (d) {
+                                return bomEscHtml(d.packaging);
+                            }
+                        }
+                        , {
+                            field: 'number', title: __('Child_number'), width: 110, templet: function (d) {
+                                return d.row_type == '1' ? '' : bomEscHtml(d.number);
+                            }
+                        }
+                        , {
+                            field: 'remark', title: __('Remark'), minWidth: 160, templet: function (d) {
+                                return bomEscHtml(d.row_type == '1' ? d.remark : d.child_remark);
+                            }
+                        }
+                    ]]
+                    , done: function (res) {
+                        var $view = $(this.elem).next('.layui-table-view');
+                        bomRenderTree($view, res.data || [], expanded);
+                        restorePick($view);
+
+                        // 点击行任意位置即选中该模板（点子件行则选中它的父模板；点折叠箭头只展开不选中）
+                        $view.off('click.bomPick').on('click.bomPick', '.layui-table-main > table > tbody > tr', function (e) {
+                            if ($(e.target).closest('.bom-caret, .bom-parent-name').length) {
+                                return;
+                            }
+                            var $tr = $(this);
+                            var id = $tr.attr('data-bom-parent');
+                            if (!id) {
+                                id = $tr.attr('data-bom-child'); // 子件行 → 选它的父模板
+                            }
+                            if (!id) {
+                                return;
+                            }
+                            pick(id);
+                        });
                     }
                 });
 
+                bomBindTreeToggle(expanded);
+
+                // 选中某个模板：记住 id 并同步单选按钮
+                function pick(id) {
+                    selectedId = String(id);
+                    var $view = $('.chosebom .layui-table-view');
+                    $view.find('.bom-pick').each(function () {
+                        this.checked = String($(this).val()) === selectedId;
+                    });
+                }
+
+                // 重新渲染后恢复上一页选中的模板
+                function restorePick($view) {
+                    if (!selectedId) {
+                        return;
+                    }
+                    var $radio = $view.find('.bom-pick').filter(function () {
+                        return String($(this).val()) === selectedId;
+                    });
+                    $radio.prop('checked', true);
+                }
+
                 table.on('toolbar(table)', function (obj) {
                     if (obj.event === 'sure') {
-                        var checkStatus = table.checkStatus(obj.config.id);
-                        var data = checkStatus.data;
-                        if (data.length < 1) {
+                        var bomId = $('.chosebom .layui-table-view .bom-pick:checked').val();
+                        if (!bomId) {
                             Toastr.error('请选择BOM模板！');
                             return;
                         }
-                        var ids = [];
-                        $(data).each(function (k, v) {
-                            ids.push({ id: v.id });
-                        });
-                        Fast.api.close(ids);
+                        Fast.api.close([{ id: parseInt(bomId, 10) }]);
                     }
                 });
 

@@ -31,11 +31,10 @@
                          </div>
                     </form>
                     <!-- 顶部合计统计：由 GoodsStock::total() 单独计算，只在页面加载/刷新/搜索时更新，翻页不重算 -->
+                    <!-- 价格相关统计（成本合计/平均单位成本）已去掉，只保留数量 -->
                     <div id="stock_total_bar" class="stock-total-bar">
                         <span class="stock-total-item">商品品种：<b id="total_goods">—</b></span>
                         <span class="stock-total-item">库存总量：<b id="total_stock">—</b></span>
-                        <span class="stock-total-item">成本合计：<b id="total_cost">—</b></span>
-                        <span class="stock-total-item">平均单位成本：<b id="total_unit_price">—</b></span>
                         <span id="total_stores"></span>
                     </div>
                     <table id="table" class="table table-striped table-bordered table-hover table-nowrap"

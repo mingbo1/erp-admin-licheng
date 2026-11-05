@@ -91,7 +91,16 @@ return [
     'Apply'                  => '申请出库',
     'Applycancel'            => '撤销申请',
     'Outbound_status'        => '出库状态',
+    'Outbound_status 0'      => '未出库',
+    'Outbound_status 1'      => '部分出库',
+    'Outbound_status 2'      => '全部出库',
     'Apply_status'           => '申请状态',
+
+    // 排产状态（计划排期里【排产】后置 1，未排产不允许申请出库）
+    'Production_status'      => '排产状态',
+    'Production_status 0'    => '未排产',
+    'Production_status 1'    => '已排产',
+    'Production_date'        => '生产日期',
 
     // 列表「状态」列（按库存与待出库数量判断，进度优先）
     'Stock_status'           => '状态',
