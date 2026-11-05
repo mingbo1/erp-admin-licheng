@@ -31,7 +31,8 @@ class GoodsOutboundApply extends Backend
      * 无需鉴权的方法,但需要登录（打印页与其余单据打印页一致）
      * @var array
      */
-    protected $noNeedRight = ['printpage', 'deliverynote'];
+    // printpage / deliverynote 已纳入权限表（kuerp/goods_outbound_apply/printpage|deliverynote）
+    protected $noNeedRight = [];
 
     public function _initialize()
     {

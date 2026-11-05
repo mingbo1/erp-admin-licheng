@@ -20,7 +20,9 @@
 
 <div class="summary-wrap">
     <div class="summary-head">
+        {if condition="$canExport"}
         <button type="button" class="btn btn-success summary-export" onclick="exportSummary()"><i class="fa fa-download"></i> 导出Excel</button>
+        {/if}
         <div class="summary-title"><i class="fa fa-list"></i> 采购汇总</div>
         <div class="summary-subtitle">已选择采购单，按 单号+商品+属性 汇总</div>
     </div>

@@ -15,7 +15,8 @@ use think\Session;
  */
 class GoodsPurchase extends Backend
 {
-    protected $noNeedRight = ['checkpurchase','getsuppliers','getunit','formatinfo','formatinfo2','getbranch','gettime','printpage','summary','export'];
+    // printpage / summary / export 已纳入权限表（kuerp/goods_purchase/printpage|summary|export）
+    protected $noNeedRight = ['checkpurchase','getsuppliers','getunit','formatinfo','formatinfo2','getbranch','gettime'];
     /**
      * GoodsPurchase模型对象
      * @var \app\admin\model\kuerp\GoodsPurchase
@@ -2663,6 +2664,8 @@ class GoodsPurchase extends Backend
         $this->assign('price_decimal', $data['price_decimal']);
         $this->assign('number_decimal', $data['number_decimal']);
         $this->assign('ids', implode(',', $idArr));
+        // 导出按钮权限（kuerp/goods_purchase/export），无权限时汇总页不显示导出
+        $this->assign('canExport', $this->auth->check('kuerp/goods_purchase/export'));
 
         return $this->view->fetch();
     }

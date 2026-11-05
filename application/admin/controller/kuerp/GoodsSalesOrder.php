@@ -14,7 +14,8 @@ use think\Session;
  */
 class GoodsSalesOrder extends Backend
 {
-    protected $noNeedRight = ['checkpurchase','checkexchange','ship','delDelivery','confirmReceipt','getCustomerSaleUser'];
+    // confirmReceipt 已纳入权限表（kuerp/goods_sales_order/confirmReceipt）
+    protected $noNeedRight = ['checkpurchase','checkexchange','ship','delDelivery','getCustomerSaleUser'];
     /**
      * GoodsSalesOrder模型对象
      * @var \app\admin\model\kuerp\GoodsSalesOrder

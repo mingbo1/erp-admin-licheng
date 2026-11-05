@@ -1427,6 +1427,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             storesJson.push({id: sd.stores_id, name: sd.stores_name, stock: sd.stock});
                         });
                         var storesJsonStr = JSON.stringify(storesJson).replace(/'/g, "&#39;").replace(/"/g, '&quot;');
+                        // 零件锁定/解锁按钮按权限显示（后端 lockGoods/unlockGoods 已并入权限表）
+                        var canLock = (Config.canLockGoods == 1 || Config.canLockGoods === true);
+                        var canUnlock = (Config.canUnlockGoods == 1 || Config.canUnlockGoods === true);
 
                         if (v.has_lock && v.lock_info) {
                             // 显示解锁按钮 + 锁定信息（按仓库）
@@ -1444,21 +1447,21 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 );
                             });
                             lockHtml = '<div style="margin-bottom:4px;">' + lockInfoHtml.join('<br>') + '</div>' +
-                                '<button type="button" class="btn btn-xs btn-warning unlock-goods"' +
+                                (canUnlock ? '<button type="button" class="btn btn-xs btn-warning unlock-goods"' +
                                 ' data-goods-id="' + v.goods_id + '"' +
                                 ' data-goods-code="' + v.goods_code + '"' +
                                 ' data-stores="' + storesJsonStr + '"' +
-                                ' data-schedule-id="' + scheduleIdForLock + '">解锁</button>';
+                                ' data-schedule-id="' + scheduleIdForLock + '">解锁</button>' : '');
                         } else {
                             // 显示锁定按钮（传入所有仓库信息）
-                            lockHtml = '<button type="button" class="btn btn-xs btn-success lock-goods"' +
+                            lockHtml = canLock ? '<button type="button" class="btn btn-xs btn-success lock-goods"' +
                                 ' data-goods-id="' + v.goods_id + '"' +
                                 ' data-goods-code="' + v.goods_code + '"' +
                                 ' data-goods-name="' + v.goods_name + '"' +
                                 ' data-required="' + v.required_total + '"' +
                                 ' data-stores="' + storesJsonStr + '"' +
                                 ' data-schedule-id="' + scheduleIdForLock + '"' +
-                                ' data-available="' + v.total_stock + '">锁定</button>';
+                                ' data-available="' + v.total_stock + '">锁定</button>' : '';
                         }
 
                         // 半成品且库存不足：提供「组装单」按钮，跳转组装单添加页预填组装该半成品

@@ -14,7 +14,8 @@ use think\Session;
  */
 class ProcessOrder extends Backend
 {
-    protected $noNeedRight = ['getunit', 'printpage', 'examine_fee'];
+    // printpage 已纳入权限表（kuerp/process_order/printpage）
+    protected $noNeedRight = ['getunit', 'examine_fee'];
 
     /**
      * ProcessOrder模型对象

@@ -3843,3 +3843,60 @@ grep -rn "auth->check" application/admin/view/kuerp/
 - `application/extra/site.php` 线上仅改 `version` 1.0.7→1.0.8（刷新浏览器缓存），其余内容保持线上原样。
 - 部署后已清 `runtime/cache`、`runtime/temp`；登录页与 5 个 kuerp 列表页均 200；线上无 `.deploybak_/.tmpnew_` 残留。
 - 部署期间有并发编辑：`GoodsPurchaseStorage` 与新增迁移在 10:12-10:13 被再次修改，最终版已补传并校验。
+
+## 补充（2026-11-05 第二批）：「后来新增的按钮」统一纳入权限表
+
+> 迁移：`addons/kuerp/migration_add_buttons_auth_rules_batch2.sql`（已对 erp_licheng 执行，可重复执行）；
+> `install.sql` 1.6.29（续二）段。
+> 原则：**加规则 → 控制器 $noNeedRight 移除该方法 → 视图/JS 加 `$auth->check` 隐藏按钮 → 规则增量授予
+> 「已拥有该模块查看权限」的角色**（升级后现有角色行为不变，后续可在 角色管理 里按需取消）。
+
+| 模块 | 动作（规则） | 视图/JS 显隐 | 授权给（拥有该 index 的角色） |
+|------|-------------|-------------|------------------------------|
+| 采购单 | `printpage` 打印、`summary` 汇总、`export` 导出 | 行模板 [打印] + 工具栏 [汇总]；汇总页导出按钮由 `summary()` 下发 `canExport` | `goods_purchase/index` |
+| 组装单 | `printpage` 打印、`outboundEdit` 实际出入库、`saveOutbound` 保存实际出入库 | 已有 `$auth->check` | `assemble/index` |
+| 外协订单 | `printpage` 打印 | 已有 `$auth->check` | `process_order/index` |
+| 商品BOM | `printpage` 打印 | 已有 `$auth->check` | `goods_bom/index` |
+| 出库管理 | `printpage` 打印申请单、`deliverynote` 打印送货单 | 行模板 + 详情页 | `goods_outbound_apply/index`；`deliverynote` 另含 `goods_sales_outbound/index`（计划部从销货出库页打印） |
+| 销货订单 | `confirmReceipt` 确认收货 | 行模板 | `goods_sales_order/index` |
+| 计划排期 | `setproduction` 排产、`setexpecteddelivery` 改完成日期、`lockGoods`/`unlockGoods` 零件锁定、`export` 导出 | 工具栏按钮加 `$auth->check`；BOM 表格的锁定/解锁按钮由 `edit()` 下发 `Config.canLockGoods/canUnlockGoods`，`goods_sales_schedule.js` 据此渲染 | `goods_sales_schedule/index` |
+| 采购预订单 | `export` 导出明细、`parseimport` 导入明细 | add/edit 页 `.po-io-bar` 两个按钮包 `{if $auth->check(...)}` | `goods_purchase_order/index` |
+| 采购单(仓库) | `printpage` 打印 | 行模板 | `goods_purchase_plan_warehouse/index`（当前无角色拥有，仅超管） |
+| 小程序用户 | `add`（并补齐 index/edit/del 授权） | 工具栏 add 按钮 + 行模板改由 `Config.canEditMiniUser/canDelMiniUser` 控制 | `mini_user/index` |
+
+- `MiniUser` 原为 `$noNeedRight=['*']`，现已改为 `[]`（菜单规则 index/edit/del 本就存在，本次只新增了 add）。
+- 计划排期工具栏的 审核/反审核、对单/反对单 按钮这次也一并补上了 `$auth->check`（之前完全没有，按钮对所有人可见）；
+  这两个方法**仍在 `$noNeedRight`**，本次只对齐了 UI。
+- 出库管理的 [打印申请单] 当前**没有任何角色拥有** `goods_outbound_apply/index`，故该规则暂未授予任何角色（仅超管）。
+- 实测（临时角色 + 临时账号，测后已删除并还原自增）：未授权时 6 个代表接口全部返回「你没有权限访问」、按钮带 `hiddens`；
+  授权后全部 200、按钮出现；超管各页面 200、模板无残留 `{if}`；汇总页导出按钮在授权/未授权间正确切换。
+
+### 顺带修复：小程序「轮播管理 / 首页导航」按钮权限名大小写不匹配（2026-11-05）
+
+`view/kuerp/mini_banner/index.html`、`mini_nav/index.html` 里写的是
+`$auth->check('kuerp/MiniBanner/add')`（驼峰），而 `fa_auth_rule` 里存的是 `kuerp/mini_banner/add`。
+`fast\Auth::check()` 只做 `strtolower` 精确比对，不会把驼峰转下划线，所以这些 check **恒为 false** →
+除超管外所有角色的 [添加]/[编辑]/[删除] 按钮都不显示。已把两个视图里的 `kuerp/MiniBanner/…`、`kuerp/MiniNav/…`
+统一改成 `kuerp/mini_banner/…`、`kuerp/mini_nav/…`（共 12 处）。
+
+> 同类未处理：`suppliers_user`（控制器 `$noNeedRight='*'` 且权限表无规则，页面无入口、button 恒隐藏）与
+> `stone_in/out/stock`（库中无规则/无表的历史死代码），两者都不影响现有业务。
+
+---
+
+# 销货单详情底部展示「出库记录」（2026-11-05）
+
+> 涉及文件：`application/admin/model/kuerp/GoodsOutboundApply.php`（新增静态 `buildHistory()`）、
+> `application/admin/controller/kuerp/GoodsSales.php`（`edit()` assign `outboundHistory`）、
+> `application/admin/controller/kuerp/GoodsSalesOutbound.php`（`apply()` 改为调用 `buildHistory()`）、
+> `application/admin/view/kuerp/goods_sales/edit.html`（末尾新增「出库记录」面板）。**无数据库迁移、无新权限。**
+
+- 口径：销货单详情（`kuerp/goods_sales/edit`，列表行 [编辑] 即详情页）底部，在「操作日志」面板之后新增 **「出库记录」** 面板，
+  内容与「销货出库」列表 → [申请出库 / 申请记录] 弹窗里的 **「历次申请记录」完全同源**
+  （`fa_kuerp_goods_outbound_apply` + `_info` + `out_data` 实际出库数量 + `express_data` 快递信息，最新在前）。
+- 列：申请单号 / 申请人 / 申请时间 / 申请内容 / 实际出库数量 / 快递信息 / 状态 / 审核人 / 审核时间 / 拒绝原因。
+  `实际出库数量` 仅 `status='1'`（已同意出库）才有值，其余显示灰色 `--`；状态 待审核（蓝）/ 已同意出库（绿）/ 已拒绝（红）/ 已撤销（灰）。
+- 两个页面共用 **`GoodsOutboundApply::buildHistory($salesId)`**（唯一数据装配入口，含 `goods_summary`/`out_summary`/
+  `express_list`/`express_summary`/`apply_admin_name`/`examine_admin_name`），**不要再复制一份**到任一侧。
+- 无记录时显示「暂无出库记录」；表格外包一层 `overflow-x:auto`，窄屏横向滚动不撑破页面（1600px 下单行显示不溢出）。
+- 面板在 `</form>` 之后，纯展示、无 input，不影响单据表单提交（销货出库页的申请弹窗逻辑与字段零改动）。

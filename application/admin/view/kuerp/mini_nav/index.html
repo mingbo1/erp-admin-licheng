@@ -6,8 +6,8 @@
                 <div class="widget-body no-padding">
                     <div id="toolbar" class="toolbar">
                         {:build_toolbar('refresh')}
-                        <a href="javascript:;" class="btn btn-primary btn-add {if condition="$auth->check('kuerp/MiniNav/add')!=1"}hidden{/if}" data-url="kuerp/MiniNav/add"><i class="fa fa-plus"></i> {:__('Add')}</a>
-                        <a href="javascript:;" class="btn btn-danger btn-del {if condition="$auth->check('kuerp/MiniNav/del')!=1"}hidden{/if}" data-url="kuerp/MiniNav/del"><i class="fa fa-trash"></i> {:__('Delete')}</a>
+                        <a href="javascript:;" class="btn btn-primary btn-add {if condition="$auth->check('kuerp/mini_nav/add')!=1"}hidden{/if}" data-url="kuerp/mini_nav/add"><i class="fa fa-plus"></i> {:__('Add')}</a>
+                        <a href="javascript:;" class="btn btn-danger btn-del {if condition="$auth->check('kuerp/mini_nav/del')!=1"}hidden{/if}" data-url="kuerp/mini_nav/del"><i class="fa fa-trash"></i> {:__('Delete')}</a>
                     </div>
 
                     <form class="form-horizontal" id="search-form">
@@ -28,8 +28,8 @@
                         </div>
                     </form>
                     <table id="table" class="table table-striped table-bordered table-hover table-nowrap"
-                           data-operate-edit="{:$auth->check('kuerp/MiniNav/edit')}"
-                           data-operate-del="{:$auth->check('kuerp/MiniNav/del')}"
+                           data-operate-edit="{:$auth->check('kuerp/mini_nav/edit')}"
+                           data-operate-del="{:$auth->check('kuerp/mini_nav/del')}"
                            width="100%">
                     </table>
                 </div>

@@ -16,7 +16,8 @@ class MiniUser extends Backend
 {
     protected $model = null;
 
-    protected $noNeedRight = ['*'];
+    // 小程序用户改为按权限控制（kuerp/mini_user/index|add|edit|del）
+    protected $noNeedRight = [];
 
     protected $relationSearch = true;
 
@@ -32,6 +33,9 @@ class MiniUser extends Backend
         $this->view->assign("statusList", $this->model->getStatusList());
         $this->view->assign("apptypeList", $this->model->getApptypeList());
         $this->view->assign("userTypeList", $this->model->getUserTypeList());
+        // 行内按钮权限（行模板在 JS 里拼 HTML，只能用 config 下发）
+        $this->assignconfig('canEditMiniUser', $this->auth->check('kuerp/mini_user/edit') ? 1 : 0);
+        $this->assignconfig('canDelMiniUser', $this->auth->check('kuerp/mini_user/del') ? 1 : 0);
     }
 
     /**

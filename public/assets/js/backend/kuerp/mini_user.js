@@ -38,7 +38,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             return d.status == 'normal' ? '<span class="label label-success">正常</span>' : '<span class="label label-default">禁用</span>';
                         }},
                         { field: 'id', title: __('Operate'), width: 160, templet: function (d) {
-                            return '<a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a><a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="del">删除</a>';
+                            var canEdit = (Config.canEditMiniUser == 1 || Config.canEditMiniUser === true);
+                            var canDel = (Config.canDelMiniUser == 1 || Config.canDelMiniUser === true);
+                            return (canEdit ? '<a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>' : '') +
+                                   (canDel ? '<a class="layui-btn layui-btn-xs layui-btn-danger" lay-event="del">删除</a>' : '');
                         }}
                     ]]
                 });

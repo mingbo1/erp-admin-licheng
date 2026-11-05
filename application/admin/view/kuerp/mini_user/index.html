@@ -8,7 +8,7 @@
                     <script type="text/html" id="toolbar">
                         <div class="layui-btn-container">
                             <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-cyan btn-refresh" lay-event="refresh"><i class="layui-icon">&#xe669;</i> {:__('Refresh')}</button>
-                            <button class="layui-btn layui-btn-sm layui-btn-success btn-add" lay-event="add"><i class="layui-icon">&#xe654;</i> {:__('Add')}</button>
+                            <button class="layui-btn layui-btn-sm layui-btn-success btn-add {if condition="$auth->check($nowmenu.'/add')!=1"}hiddens{/if}" lay-event="add"><i class="layui-icon">&#xe654;</i> {:__('Add')}</button>
                         </div>
                     </script>
 

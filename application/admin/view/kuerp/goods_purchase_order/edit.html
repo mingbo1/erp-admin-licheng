@@ -56,8 +56,12 @@
     <div class="table_box">
         {if condition="$row.examine_status==1 && isset($set['examine']['is_checked']) && $set['examine']['is_checked']==1"}<div id="mark" class="has-audit"></div>{/if}
         <div class="po-io-bar" style="margin:6px 0 8px;">
+            {if condition="$auth->check('kuerp/goods_purchase_order/export')==1"}
             <button type="button" class="btn btn-info" id="btn-po-export"><i class="fa fa-download"></i> 导出</button>
+            {/if}
+            {if condition="$auth->check('kuerp/goods_purchase_order/parseimport')==1"}
             <button type="button" class="btn btn-success" id="btn-po-import"><i class="fa fa-upload"></i> 导入</button>
+            {/if}
             <input type="file" id="po-import-file" accept=".xlsx,.xls" style="display:none">
             <span style="margin-left:10px;color:#888;font-size:12px;">
                 导出 / 导入使用同一份Excel模板：<b>商品单位、仓库、供应商</b>为下拉选择（数据取自系统资料）；导出按当前明细生成，明细为空时即为空白模板；<b>导入会替换当前全部明细</b>。

@@ -23,7 +23,8 @@ use think\Session;
  */
 class GoodsPurchaseOrder extends Backend
 {
-    protected $noNeedRight = ['checkexchange','checkpurchase','checksuppliercount','batchgeneratepurchase','generatebysupplier','export','parseimport'];
+    // export / parseimport 已纳入权限表（kuerp/goods_purchase_order/export|parseimport）
+    protected $noNeedRight = ['checkexchange','checkpurchase','checksuppliercount','batchgeneratepurchase','generatebysupplier'];
     /** 导入模板 / 导出明细共用的隐藏选项表名 */
     const EXCEL_OPT_SHEET = 'Lists';
     /** 模板预留的可填写行数（数据自第 2 行开始） */

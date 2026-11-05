@@ -14,7 +14,8 @@ use think\Session;
  */
 class GoodsSalesSchedule extends Backend
 {
-    protected $noNeedRight = ['getunit','formatinfo','getbranch','gettime','printpage','getschedulegoods','counter','examine','getbomrequirement','lockgoods','unlockgoods','getlockstatus','getCustomerSaleUser','setproduction','export','setexpecteddelivery'];
+    // setproduction / setexpecteddelivery / lockGoods / unlockGoods / export 已纳入权限表
+    protected $noNeedRight = ['getunit','formatinfo','getbranch','gettime','printpage','getschedulegoods','counter','examine','getbomrequirement','getlockstatus','getCustomerSaleUser'];
     /**
      * GoodsSalesSchedule模型对象
      * @var \app\admin\model\kuerp\GoodsSalesSchedule
@@ -547,6 +548,9 @@ class GoodsSalesSchedule extends Backend
             $purchase_info[$purchase_info_k]['allow_stock'] = isset($stockMap[$key]) ? $stockMap[$key] : 0;
         }
         $this->view->assign("purchase_info", $purchase_info);
+        // BOM 零件锁定/解锁按钮权限（kuerp/goods_sales_schedule/lockgoods|unlockgoods）
+        $this->assignconfig('canLockGoods', $this->auth->check('kuerp/goods_sales_schedule/lockgoods') ? 1 : 0);
+        $this->assignconfig('canUnlockGoods', $this->auth->check('kuerp/goods_sales_schedule/unlockgoods') ? 1 : 0);
 
         return $this->view->fetch();
     }

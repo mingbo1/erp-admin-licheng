@@ -11,8 +11,9 @@ namespace app\admin\controller\kuerp;
  */
 class GoodsPurchasePlanWarehouse extends GoodsPurchasePlan
 {
-    // 只读页面：仅打印保持公开(与采购单(计划)一致)，不再暴露录入页用的取单位/批次/格式化接口
-    protected $noNeedRight = ['printpage'];
+    // 只读页面：录入页用的取单位/批次/格式化接口一律不暴露；
+    // 打印已纳入权限表（kuerp/goods_purchase_plan_warehouse/printpage）
+    protected $noNeedRight = [];
 
     /**
      * 只读页面不支持添加

@@ -14,7 +14,8 @@ use think\Session;
  */
 class Assemble extends Backend
 {
-    protected $noNeedRight = ['savetemp', 'outboundedit', 'saveoutbound', 'printpage'];
+    // printpage / outboundEdit / saveOutbound 已纳入权限表；savetemp(模板保存)仍放行
+    protected $noNeedRight = ['savetemp'];
     /**
      * Assemble模型对象
      * @var \app\admin\model\kuerp\Assemble

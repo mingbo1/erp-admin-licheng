@@ -63,9 +63,9 @@
     <a class="layui-btn layui-btn-xs" lay-event="detail">详情</a>
     <!-- 打印：待审核/已同意出库打印送货单（与销货出库页同一版式）；已拒绝/已撤销保留原出库申请单打印 -->
     {{# if(d.status == '0' || d.status == '1'){ }}
-    <a class="layui-btn layui-btn-xs layui-btn-primary" lay-event="deliverynote">送货单</a>
+    <a class="layui-btn layui-btn-xs layui-btn-primary {if condition="$auth->check($nowmenu.'/deliverynote')!=1"}hiddens{/if}" lay-event="deliverynote">送货单</a>
     {{# } else { }}
-    <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="print">打印申请单</a>
+    <a class="layui-btn layui-btn-xs layui-btn-normal {if condition="$auth->check($nowmenu.'/printpage')!=1"}hiddens{/if}" lay-event="print">打印申请单</a>
     {{# } }}
     {{# if(d.status == '0'){ }}
     <a class="layui-btn layui-btn-xs layui-bg-blue {if condition="$auth->check($nowmenu.'/examine')!=1"}hiddens{/if}" lay-event="examine">审核出库</a>

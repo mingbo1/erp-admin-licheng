@@ -190,7 +190,7 @@
                     <button type="button" class="btn btn-danger btn-embossed btn-refuse {if condition="$auth->check($nowmenu.'/refuse')!=1"}hiddens{/if}"><i class="fa fa-ban"></i> 拒绝出库</button>
                     {/if}
                     {if condition="$row.status == '0' || $row.status == '1'"}
-                    <button type="button" class="btn btn-info btn-embossed btn-deliverynote"><i class="fa fa-truck"></i> 打印送货单</button>
+                    <button type="button" class="btn btn-info btn-embossed btn-deliverynote {if condition="$auth->check($nowmenu.'/deliverynote')!=1"}hiddens{/if}"><i class="fa fa-truck"></i> 打印送货单</button>
                     {/if}
                     <button type="button" class="btn btn-default btn-embossed" onclick="parent.Layer.closeAll();"><i class="fa fa-close"></i> 取消</button>
                 </div>

@@ -7658,3 +7658,197 @@ UPDATE `__PREFIX__auth_group`
 SET `rules` = TRIM(BOTH ',' FROM CONCAT(`rules`, ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_storage/storage')))
 WHERE FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_storage/index'), `rules`)
   AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_storage/storage'), `rules`);
+
+
+--
+-- 1.6.29（续二）
+-- 把「后来新增的按钮」对应的动作纳入权限表（第二批：打印/汇总/导出/导入/排产/锁定/确认收货/小程序用户）
+-- 详细说明见 addons/kuerp/migration_add_buttons_auth_rules_batch2.sql
+--
+
+INSERT INTO `__PREFIX__auth_rule` (`type`,`status`,`name`,`title`,`icon`,`condition`,`remark`,`ismenu`,`createtime`,`updatetime`,`weigh`,`pid`)
+SELECT 'file','normal','kuerp/goods_purchase/printpage','打印','fa fa-circle-o','','','0',UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),'0',
+       (SELECT `id` FROM (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase') t)
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase/printpage');
+
+INSERT INTO `__PREFIX__auth_rule` (`type`,`status`,`name`,`title`,`icon`,`condition`,`remark`,`ismenu`,`createtime`,`updatetime`,`weigh`,`pid`)
+SELECT 'file','normal','kuerp/goods_purchase/export','导出','fa fa-circle-o','','','0',UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),'0',
+       (SELECT `id` FROM (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase') t)
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase/export');
+
+INSERT INTO `__PREFIX__auth_rule` (`type`,`status`,`name`,`title`,`icon`,`condition`,`remark`,`ismenu`,`createtime`,`updatetime`,`weigh`,`pid`)
+SELECT 'file','normal','kuerp/assemble/saveOutbound','保存实际出入库','fa fa-circle-o','','','0',UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),'0',
+       (SELECT `id` FROM (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/assemble') t)
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/assemble/saveOutbound');
+
+INSERT INTO `__PREFIX__auth_rule` (`type`,`status`,`name`,`title`,`icon`,`condition`,`remark`,`ismenu`,`createtime`,`updatetime`,`weigh`,`pid`)
+SELECT 'file','normal','kuerp/goods_outbound_apply/printpage','打印申请单','fa fa-circle-o','','','0',UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),'0',
+       (SELECT `id` FROM (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_outbound_apply') t)
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_outbound_apply/printpage');
+
+INSERT INTO `__PREFIX__auth_rule` (`type`,`status`,`name`,`title`,`icon`,`condition`,`remark`,`ismenu`,`createtime`,`updatetime`,`weigh`,`pid`)
+SELECT 'file','normal','kuerp/goods_outbound_apply/deliverynote','打印送货单','fa fa-circle-o','','','0',UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),'0',
+       (SELECT `id` FROM (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_outbound_apply') t)
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_outbound_apply/deliverynote');
+
+INSERT INTO `__PREFIX__auth_rule` (`type`,`status`,`name`,`title`,`icon`,`condition`,`remark`,`ismenu`,`createtime`,`updatetime`,`weigh`,`pid`)
+SELECT 'file','normal','kuerp/goods_sales_order/confirmReceipt','确认收货','fa fa-circle-o','','','0',UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),'0',
+       (SELECT `id` FROM (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_order') t)
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_order/confirmReceipt');
+
+INSERT INTO `__PREFIX__auth_rule` (`type`,`status`,`name`,`title`,`icon`,`condition`,`remark`,`ismenu`,`createtime`,`updatetime`,`weigh`,`pid`)
+SELECT 'file','normal','kuerp/goods_sales_schedule/setproduction','排产','fa fa-circle-o','','','0',UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),'0',
+       (SELECT `id` FROM (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule') t)
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule/setproduction');
+
+INSERT INTO `__PREFIX__auth_rule` (`type`,`status`,`name`,`title`,`icon`,`condition`,`remark`,`ismenu`,`createtime`,`updatetime`,`weigh`,`pid`)
+SELECT 'file','normal','kuerp/goods_sales_schedule/setexpecteddelivery','修改预计生产完成日期','fa fa-circle-o','','','0',UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),'0',
+       (SELECT `id` FROM (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule') t)
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule/setexpecteddelivery');
+
+INSERT INTO `__PREFIX__auth_rule` (`type`,`status`,`name`,`title`,`icon`,`condition`,`remark`,`ismenu`,`createtime`,`updatetime`,`weigh`,`pid`)
+SELECT 'file','normal','kuerp/goods_sales_schedule/lockGoods','锁定零件库存','fa fa-circle-o','','','0',UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),'0',
+       (SELECT `id` FROM (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule') t)
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule/lockGoods');
+
+INSERT INTO `__PREFIX__auth_rule` (`type`,`status`,`name`,`title`,`icon`,`condition`,`remark`,`ismenu`,`createtime`,`updatetime`,`weigh`,`pid`)
+SELECT 'file','normal','kuerp/goods_sales_schedule/unlockGoods','解锁零件库存','fa fa-circle-o','','','0',UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),'0',
+       (SELECT `id` FROM (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule') t)
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule/unlockGoods');
+
+INSERT INTO `__PREFIX__auth_rule` (`type`,`status`,`name`,`title`,`icon`,`condition`,`remark`,`ismenu`,`createtime`,`updatetime`,`weigh`,`pid`)
+SELECT 'file','normal','kuerp/goods_sales_schedule/export','导出','fa fa-circle-o','','','0',UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),'0',
+       (SELECT `id` FROM (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule') t)
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule/export');
+
+INSERT INTO `__PREFIX__auth_rule` (`type`,`status`,`name`,`title`,`icon`,`condition`,`remark`,`ismenu`,`createtime`,`updatetime`,`weigh`,`pid`)
+SELECT 'file','normal','kuerp/goods_purchase_order/export','导出明细','fa fa-circle-o','','','0',UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),'0',
+       (SELECT `id` FROM (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_order') t)
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_order/export');
+
+INSERT INTO `__PREFIX__auth_rule` (`type`,`status`,`name`,`title`,`icon`,`condition`,`remark`,`ismenu`,`createtime`,`updatetime`,`weigh`,`pid`)
+SELECT 'file','normal','kuerp/goods_purchase_order/parseimport','导入明细','fa fa-circle-o','','','0',UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),'0',
+       (SELECT `id` FROM (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_order') t)
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_order/parseimport');
+
+INSERT INTO `__PREFIX__auth_rule` (`type`,`status`,`name`,`title`,`icon`,`condition`,`remark`,`ismenu`,`createtime`,`updatetime`,`weigh`,`pid`)
+SELECT 'file','normal','kuerp/goods_purchase_plan_warehouse/printpage','打印','fa fa-circle-o','','','0',UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),'0',
+       (SELECT `id` FROM (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_plan_warehouse') t)
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_plan_warehouse/printpage');
+
+INSERT INTO `__PREFIX__auth_rule` (`type`,`status`,`name`,`title`,`icon`,`condition`,`remark`,`ismenu`,`createtime`,`updatetime`,`weigh`,`pid`)
+SELECT 'file','normal','kuerp/mini_user/add','添加','fa fa-circle-o','','','0',UNIX_TIMESTAMP(),UNIX_TIMESTAMP(),'0',
+       (SELECT `id` FROM (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/mini_user') t)
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/mini_user/add');
+
+-- 增量授权：只对已拥有该模块「查看」权限的角色追加，已有该规则的角色跳过（不覆盖任何现有规则）
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase/printpage')))
+WHERE (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase/index'), `rules`))
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase/printpage'), `rules`);
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase/export')))
+WHERE (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase/index'), `rules`))
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase/export'), `rules`);
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase/summary')))
+WHERE (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase/index'), `rules`))
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase/summary'), `rules`);
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/assemble/printpage')))
+WHERE (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/assemble/index'), `rules`))
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/assemble/printpage'), `rules`);
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/assemble/outboundEdit')))
+WHERE (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/assemble/index'), `rules`))
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/assemble/outboundEdit'), `rules`);
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/assemble/saveOutbound')))
+WHERE (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/assemble/index'), `rules`))
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/assemble/saveOutbound'), `rules`);
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/process_order/printpage')))
+WHERE (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/process_order/index'), `rules`))
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/process_order/printpage'), `rules`);
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_bom/printpage')))
+WHERE (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_bom/index'), `rules`))
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_bom/printpage'), `rules`);
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_outbound_apply/printpage')))
+WHERE (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_outbound_apply/index'), `rules`))
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_outbound_apply/printpage'), `rules`);
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_outbound_apply/deliverynote')))
+WHERE (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_outbound_apply/index'), `rules`) OR FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_outbound/index'), `rules`))
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_outbound_apply/deliverynote'), `rules`);
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_order/confirmReceipt')))
+WHERE (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_order/index'), `rules`))
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_order/confirmReceipt'), `rules`);
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule/setproduction')))
+WHERE (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule/index'), `rules`))
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule/setproduction'), `rules`);
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule/setexpecteddelivery')))
+WHERE (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule/index'), `rules`))
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule/setexpecteddelivery'), `rules`);
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule/lockGoods')))
+WHERE (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule/index'), `rules`))
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule/lockGoods'), `rules`);
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule/unlockGoods')))
+WHERE (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule/index'), `rules`))
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule/unlockGoods'), `rules`);
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule/export')))
+WHERE (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule/index'), `rules`))
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_schedule/export'), `rules`);
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_order/export')))
+WHERE (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_order/index'), `rules`))
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_order/export'), `rules`);
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_order/parseimport')))
+WHERE (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_order/index'), `rules`))
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_order/parseimport'), `rules`);
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_plan_warehouse/printpage')))
+WHERE (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_plan_warehouse/index'), `rules`))
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_plan_warehouse/printpage'), `rules`);
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/mini_user/add')))
+WHERE (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/mini_user/index'), `rules`))
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/mini_user/add'), `rules`);
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/mini_user/edit')))
+WHERE (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/mini_user/index'), `rules`))
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/mini_user/edit'), `rules`);
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/mini_user/del')))
+WHERE (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/mini_user/index'), `rules`))
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/mini_user/del'), `rules`);

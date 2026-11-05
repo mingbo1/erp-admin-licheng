@@ -16,7 +16,8 @@ use PhpOffice\PhpSpreadsheet\Reader\Csv;
  */
 class GoodsBom extends Backend
 {
-    protected $noNeedRight = ['getbomdetail', 'chosegoods', 'chosebom', 'preview', 'matchGoods', 'createGoods', 'createBom', 'printpage'];
+    // printpage 已纳入权限表（kuerp/goods_bom/printpage）
+    protected $noNeedRight = ['getbomdetail', 'chosegoods', 'chosebom', 'preview', 'matchGoods', 'createGoods', 'createBom'];
     /**
      * GoodsBom模型对象
      * @var \app\admin\model\kuerp\GoodsBom
