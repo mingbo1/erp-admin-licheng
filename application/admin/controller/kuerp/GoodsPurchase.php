@@ -811,6 +811,9 @@ class GoodsPurchase extends Backend
         }
         $this->view->assign("row", $row);
 
+        // 退货出库记录（购货退货单审核后，仓库在采购单入库页执行「退货出库」产生的记录）
+        $this->view->assign("return_log_list", \addons\kuerp\library\ReturnOutbound::logs($row['id']));
+
         // 编辑页展示：供应商电话、需求方/需求电话（取设置里的公司名称、公司电话）
         $this->view->assign('supplyer_phone', $this->supplierPhone($row['supplyer_code']));
         $this->view->assign('company_name', (string)Db::name('kuerp_sets')->where(['name' => 'company_name'])->value('value'));

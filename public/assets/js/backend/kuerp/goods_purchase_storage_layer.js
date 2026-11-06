@@ -49,6 +49,8 @@
                 updateTotal();
             });
         });
+        // 默认值为各行的待入库数量，初始化时先汇总一次「本次入库总数量」
+        updateTotal();
 
         // 表单 AJAX 提交
         form.addEventListener('submit', function (e) {

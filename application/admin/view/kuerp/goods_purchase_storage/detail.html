@@ -24,6 +24,15 @@
         .log-table th { background: #f0f0f0; font-weight: bold; }
         .log-table td.left { text-align: left; }
         .log-table .highlight { color: #ff5722; font-weight: bold; }
+        /* 每条操作记录下方展开的明细表格 */
+        .log-detail-row > td { padding: 0; background: #fafafa; text-align: left; }
+        .log-detail-wrap { padding: 6px 10px 10px 22px; }
+        .log-detail-title { font-size: 12px; color: #666; margin: 4px 0 6px; }
+        .log-detail-table { width: 100%; border-collapse: collapse; background: #fff; }
+        .log-detail-table th, .log-detail-table td { padding: 4px 6px; border: 1px solid #e0e0e0; font-size: 12px; text-align: center; }
+        .log-detail-table th { background: #f5f5f5; font-weight: normal; color: #666; }
+        .log-detail-table td.left { text-align: left; }
+        .log-detail-table td.num { text-align: right; }
         .log-empty { color: #999; padding: 10px 0; }
         .enc-item { display: inline-block; margin: 2px 10px 2px 0; vertical-align: middle; }
         .enc-item img { max-width: 40px; max-height: 40px; vertical-align: middle; border: 1px solid #e5e5e5; }
@@ -127,11 +136,10 @@
         <table class="log-table">
             <thead>
                 <tr>
-                    <th style="width:140px;">入库时间</th>
-                    <th style="width:100px;">本次入库数量</th>
-                    <th>入库明细</th>
-                    <th style="width:220px;">原始单据</th>
-                    <th style="width:80px;">操作人</th>
+                    <th style="width:170px;">入库时间</th>
+                    <th style="width:120px;">本次入库数量</th>
+                    <th>原始单据</th>
+                    <th style="width:90px;">操作人</th>
                 </tr>
             </thead>
             <tbody>
@@ -139,7 +147,6 @@
                 <tr>
                     <td>{$log.createtime|date='Y-m-d H:i:s',###}</td>
                     <td class="highlight">{$log.total_number}</td>
-                    <td class="left">{$log.detail_text|htmlentities}</td>
                     <td class="left">
                         {if condition="!empty($log['enclosures'])"}
                         {foreach name="log.enclosures" item="enc"}
@@ -151,11 +158,114 @@
                     </td>
                     <td>{$log.admin_name|htmlentities}</td>
                 </tr>
+                {/* 本次入库明细：每个商品一行（表格形式） */}
+                <tr class="log-detail-row">
+                    <td colspan="4">
+                        <div class="log-detail-wrap">
+                            <div class="log-detail-title">本次入库明细</div>
+                            {if condition="!empty($log['detail_list'])"}
+                            <table class="log-detail-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width:60px;">序号</th>
+                                        <th style="width:150px;">商品编号</th>
+                                        <th>商品名称</th>
+                                        <th style="width:130px;">仓库</th>
+                                        <th style="width:90px;">单位</th>
+                                        <th style="width:120px;">数量</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {foreach name="log.detail_list" item="d" key="dk"}
+                                    <tr>
+                                        <td>{$dk+1}</td>
+                                        <td>{$d.goods_code|default=''|htmlentities}</td>
+                                        <td class="left">{$d.goods_name|default=''|htmlentities}</td>
+                                        <td>{$d.stores_name|default=''|htmlentities}</td>
+                                        <td>{$d.unit_name|default=''|htmlentities}</td>
+                                        <td class="num">{$d.number|default=''}</td>
+                                    </tr>
+                                    {/foreach}
+                                </tbody>
+                            </table>
+                            {else/}
+                            <span style="color:#999;font-size:12px;">无明细</span>
+                            {/if}
+                        </div>
+                    </td>
+                </tr>
                 {/foreach}
             </tbody>
         </table>
         {else}
         <p class="log-empty">暂无入库记录</p>
+        {/if}
+    </div>
+
+    {/* 退货出库记录：购货退货单审核后，仓库执行「退货出库」时每次一条 */}
+    <div class="log-panel">
+        <div class="log-title">退货出库记录</div>
+        {if condition="!empty($return_log_list)"}
+        <table class="log-table">
+            <thead>
+                <tr>
+                    <th style="width:170px;">出库时间</th>
+                    <th style="width:200px;">退货单号</th>
+                    <th style="width:120px;">本次出库数量</th>
+                    <th style="width:90px;">操作人</th>
+                </tr>
+            </thead>
+            <tbody>
+                {foreach name="return_log_list" item="rlog"}
+                <tr>
+                    <td>{$rlog.createtime|date='Y-m-d H:i:s',###}</td>
+                    <td>{$rlog.exchange_codes|htmlentities}</td>
+                    <td class="highlight">{$rlog.total_number}</td>
+                    <td>{$rlog.admin_name|htmlentities}</td>
+                </tr>
+                {/* 本次出库明细：每个商品一行（表格形式） */}
+                <tr class="log-detail-row">
+                    <td colspan="4">
+                        <div class="log-detail-wrap">
+                            <div class="log-detail-title">本次出库明细</div>
+                            {if condition="!empty($rlog['detail_list'])"}
+                            <table class="log-detail-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width:60px;">序号</th>
+                                        <th style="width:160px;">退货单号</th>
+                                        <th style="width:140px;">商品编号</th>
+                                        <th>商品名称</th>
+                                        <th style="width:120px;">仓库</th>
+                                        <th style="width:80px;">单位</th>
+                                        <th style="width:110px;">数量</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {foreach name="rlog.detail_list" item="d" key="dk"}
+                                    <tr>
+                                        <td>{$dk+1}</td>
+                                        <td>{$d.exchange_code|htmlentities}</td>
+                                        <td>{$d.goods_code|default=''|htmlentities}</td>
+                                        <td class="left">{$d.goods_name|default=''|htmlentities}</td>
+                                        <td>{$d.stores_name|default=''|htmlentities}</td>
+                                        <td>{$d.unit_name|default=''|htmlentities}</td>
+                                        <td class="num">{$d.number|default=''}</td>
+                                    </tr>
+                                    {/foreach}
+                                </tbody>
+                            </table>
+                            {else/}
+                            <span style="color:#999;font-size:12px;">无明细</span>
+                            {/if}
+                        </div>
+                    </td>
+                </tr>
+                {/foreach}
+            </tbody>
+        </table>
+        {else}
+        <p class="log-empty">暂无退货出库记录</p>
         {/if}
     </div>
 </div>

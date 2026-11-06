@@ -43,9 +43,17 @@ class GoodsPurchaseStorage extends GoodsPurchase
             // 排序：同一采购订单(GHDD)的采购单排在一起，分组按采购订单创建时间倒序；
             // 没有关联采购订单的采购单按自身创建时间参与排序（规则见模型方法）
             $mainAlias = \think\Loader::parseName(basename(str_replace('\\', '/', get_class($this->model))));
-            $list = $this->model
+            // 入库状态是派生值（按采购单号汇总明细的已入库数量），不是数据库列，不能进 filter，走独立参数
+            $storageFilter = \app\admin\model\kuerp\GoodsPurchase::storageStatusCodes($this->request->get('storage_status', ''));
+            $query = $this->model
                 ->with(['suppliers','preparation','examine','secondExamine'])
-                ->where($where)
+                ->where($where);
+            if ($storageFilter !== null) {
+                // 退货单没有入库概念（列表里入库状态显示 —），筛选时一并排除
+                $query->where('purchase_type', 1)
+                    ->where('purchase_code', $storageFilter['mode'], $storageFilter['codes']);
+            }
+            $list = $query
                 ->orderRaw(\app\admin\model\kuerp\GoodsPurchase::orderSqlByPurchaseOrder($mainAlias))
                 ->paginate($limit);
 
@@ -76,9 +84,16 @@ class GoodsPurchaseStorage extends GoodsPurchase
             foreach ($list as $list_k=>$list_v){
                 if($list_v['purchase_type']!=1){
                     $list[$list_k]['storage_status'] = '';
+                    $list[$list_k]['return_outbound_pending'] = 0;
                     continue;
                 }
                 $list[$list_k]['storage_status'] = isset($storageStatusMap[$list_v['purchase_code']]) ? $storageStatusMap[$list_v['purchase_code']] : 0;
+                //退货出库：该采购单下「已审核且未出完」的退货单明细行数，>0 时列表显示「退货出库」按钮
+                $list[$list_k]['return_outbound_pending'] = 0;
+                if (!empty($list[$list_k]['returns_order_id'])) {
+                    $pendingLines = \addons\kuerp\library\ReturnOutbound::pendingLines($list_v['id'], $list_v['purchase_code']);
+                    $list[$list_k]['return_outbound_pending'] = count($pendingLines);
+                }
             }
             $result = array("total" => $list->total(), "rows" => $list->items());
 
@@ -174,6 +189,8 @@ class GoodsPurchaseStorage extends GoodsPurchase
         $this->view->assign("purchase_info", $purchase_info);
         // 入库记录（每次入库一条，含该次入库的原始单据），与入库弹窗底部「操作记录」同源
         $this->view->assign("log_list", $this->buildStorageLogs($row['id']));
+        // 退货出库记录（每次退货出库一条）
+        $this->view->assign("return_log_list", \addons\kuerp\library\ReturnOutbound::logs($row['id']));
 
         return $this->view->fetch();
     }
@@ -696,6 +713,55 @@ class GoodsPurchaseStorage extends GoodsPurchase
         $this->view->assign("row", $row);
         $this->view->assign("purchase_info", $purchase_info);
         $this->view->assign("log_list", $this->buildStorageLogs($row['id']));
+
+        return $this->view->fetch();
+    }
+
+    /**
+     * 退货出库
+     * GET: 显示出库表单（退货单明细 + 本次出库数量）
+     * POST: 执行出库（扣库存/成本/收发明细，并写本次出库操作记录）
+     *
+     * 购货退货单【审核】只做账务，库存实际由这里出库时扣减（见 addons/kuerp/library/ReturnOutbound.php）
+     */
+    public function returnoutbound($ids = null)
+    {
+        $row = $this->model->get($ids);
+        if (!$row) {
+            $this->error(__('No Results were found'));
+        }
+        $adminIds = $this->getDataLimitAdminIds();
+        if (is_array($adminIds)) {
+            if (!in_array($row[$this->dataLimitField], $adminIds)) {
+                $this->error(__('You have no permission'));
+            }
+        }
+
+        $pending = \addons\kuerp\library\ReturnOutbound::pendingLines($row['id'], $row['purchase_code']);
+        if (empty($pending)) {
+            $this->error('该采购单没有待出库的退货单');
+        }
+
+        if ($this->request->isPost()) {
+            $outData = $this->request->post('out_data/a');
+            if (!is_array($outData) || empty($outData)) {
+                $this->error('请填写本次退货出库数量');
+            }
+            try {
+                $result = \addons\kuerp\library\ReturnOutbound::outbound($row, $outData);
+            } catch (\Exception $e) {
+                $this->error($e->getMessage());
+            }
+            $this->success('退货出库成功，本次出库' . $result['total_number'] . '件', null, ['remaining' => $result['remaining']]);
+        }
+
+        // GET：显示出库表单
+        $supplyer_name = Db::name('kuerp_suppliers')->where(['supplyer_code' => $row['supplyer_code']])->value('supplyer_name');
+        $row['supplyer_name'] = $supplyer_name ? $supplyer_name : '';
+
+        $this->view->assign("row", $row);
+        $this->view->assign("pending_list", $pending);
+        $this->view->assign("return_log_list", \addons\kuerp\library\ReturnOutbound::logs($row['id']));
 
         return $this->view->fetch();
     }

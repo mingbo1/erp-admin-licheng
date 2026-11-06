@@ -100,7 +100,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             return '<span style="color:#999">'+__('Storage_status 0')+'</span>';
                         }},
                         {field: 'note', title: __('Note')},
-                        {fixed: 'right', title:__('Operate'), toolbar: '#barDemoStorage', width:180}
+                        {fixed: 'right', title:__('Operate'), toolbar: '#barDemoStorage', width:240}
                     ]]
                 });
 
@@ -142,6 +142,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         where: {
                             filter:JSON.stringify(getSearch()),
                             op:JSON.stringify(getOp()),
+                            // 入库状态为派生筛选，不能进 filter（不是数据库字段），单独传参
+                            storage_status: $('#storage_status').val() || ''
                         }
                         ,page: {
                             curr: 1
@@ -170,11 +172,29 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 table.reload('table');
                             }
                         });
+                    }else if(obj.event === 'returnoutbound'){
+                        // 退货出库 - 打开退货出库页面（退货单审核后，由仓库实际出库时扣减库存）
+                        Fast.api.open('kuerp/goods_purchase_storage/returnoutbound/ids/'+data.id, '退货出库', {
+                            area: ['92%', '78%'],
+                            callback: function(){
+                                table.reload('table');
+                            }
+                        });
                     }
                 });
 
                 // 搜索
                 $("#search").on("click", function () {
+                    reloadTable();
+                });
+
+                // 重置搜索条件
+                $('#reset').on('click', function () {
+                    $('.layui-search').find('input').val('');
+                    $('.layui-search').find('select').val('');
+                    if (layui.form) {
+                        layui.form.render('select');
+                    }
                     reloadTable();
                 });
 

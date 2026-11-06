@@ -59,10 +59,22 @@
                                 <option value="1">{:__('Examine_status 1')}</option>
                             </select>
                         </div>
+                        <div class="layui-input-inline">
+                            <!-- 入库状态为派生筛选（不是数据库字段），不加 name，避免混进 filter；JS 里单独传 storage_status -->
+                            <select id="storage_status" placeholder="{:__('Storage_status')}" class="layui-input">
+                                <option value="">请选择{:__('Storage_status')}</option>
+                                <option value="0">{:__('Storage_status 0')}</option>
+                                <option value="1">{:__('Storage_status 1')}</option>
+                                <option value="2">{:__('Storage_status 2')}</option>
+                            </select>
+                        </div>
                         <div class="layui-input-inline " style="width: 90px">
                             <button class="layui-btn layui-btn-sm" type="button" id="search" data-type="reload">
                                  <i class="layui-icon"></i> {:__('Search')}
                             </button>
+                         </div>
+                        <div class="layui-input-inline " style="width: 80px">
+                            <button class="layui-btn layui-btn-sm layui-btn-primary" type="button" id="reset">重置</button>
                          </div>
                     </form>
                     <table id="table" class="table table-striped table-bordered table-hover table-nowrap"
@@ -81,5 +93,9 @@
     <!-- 已全部入库（storage_status=2）的采购单不再显示入库按钮 -->
     {{# if(d.examine_status == 1 && d.check_status == 1 && d.storage_status != 2){ }}
     <a class="layui-btn layui-btn-xs layui-bg-orange {if condition="$auth->check($nowmenu.'/storage')!=1"}hiddens{/if}" lay-event="storage">入库</a>
+    {{# } }}
+    <!-- 已审核退货单且还有未出库数量时显示「退货出库」 -->
+    {{# if(d.return_outbound_pending > 0){ }}
+    <a class="layui-btn layui-btn-xs layui-bg-red {if condition="$auth->check($nowmenu.'/returnoutbound')!=1"}hiddens{/if}" lay-event="returnoutbound">退货出库</a>
     {{# } }}
 </script>

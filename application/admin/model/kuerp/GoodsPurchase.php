@@ -101,6 +101,55 @@ class GoodsPurchase extends Model
         return $map;
     }
 
+    /**
+     * 按入库状态反查采购单号（列表页「入库状态」是派生值，不能进 filter，走独立查询参数）
+     *
+     * 口径与 storageStatusMap() 完全一致：
+     * 已入库数量 <= 0 → 0 未入库；0 < 已入库 < 采购数量 → 1 部分入库；已入库 >= 采购数量 → 2 已入库。
+     *
+     * @param mixed $status 0/1/2；空或非法返回 null（不筛选）
+     * @return array|null ['mode' => 'in'|'not in', 'codes' => [...]]
+     */
+    public static function storageStatusCodes($status)
+    {
+        $status = (string)$status;
+        if (!in_array($status, ['0', '1', '2'], true)) {
+            return null;
+        }
+        $rows = Db::name('kuerp_goods_purchase_info')
+            ->field('purchase_code, SUM(number) AS sum_number, SUM(storage_number) AS sum_stored')
+            ->group('purchase_code')
+            ->select();
+        $storedCodes = [];   // 已有入库记录的单号（部分 + 全部）
+        $partial = [];
+        $full = [];
+        foreach ($rows as $row) {
+            $sumNumber = (float)$row['sum_number'];
+            $sumStored = (float)$row['sum_stored'];
+            if ($sumStored <= 0) {
+                continue;
+            }
+            $storedCodes[] = $row['purchase_code'];
+            if ($sumStored < $sumNumber) {
+                $partial[] = $row['purchase_code'];
+            } else {
+                $full[] = $row['purchase_code'];
+            }
+        }
+        if ($status === '0') {
+            // 没有任何入库记录的采购单（含无明细的）都是"未入库"
+            if (empty($storedCodes)) {
+                return null; // 全库都没入库过，无需筛选
+            }
+            return ['mode' => 'not in', 'codes' => $storedCodes];
+        }
+        $codes = $status === '1' ? $partial : $full;
+        if (empty($codes)) {
+            $codes = ['__no_storage_match__'];
+        }
+        return ['mode' => 'in', 'codes' => $codes];
+    }
+
     public function getPayStatusList()
     {
         return ['0' => __('Pay_status 0'), '1' => __('Pay_status 1'), '2' => __('Pay_status 2')];
