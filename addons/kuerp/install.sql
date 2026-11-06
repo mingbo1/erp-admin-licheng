@@ -7852,3 +7852,45 @@ UPDATE `__PREFIX__auth_group`
 SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/mini_user/del')))
 WHERE (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/mini_user/index'), `rules`))
   AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/mini_user/del'), `rules`);
+
+
+--
+-- 1.6.33
+-- 采购退货单：仓库「退货出库」
+--   退货单审核只做账务，库存/成本/收发明细/序列号/批次改为仓库执行「退货出库」时扣减。
+--   1) kuerp_goods_exchange_info 增加 out_number（累计退货出库数量，单据单位）
+--   2) 新表 kuerp_goods_return_outbound_log（每次退货出库一条操作记录）
+--   3) 权限规则 goods_purchase_storage/returnoutbound，并授予已有采购单入库查看权限的角色
+--
+
+ALTER TABLE `__PREFIX__kuerp_goods_exchange_info`
+  ADD COLUMN `out_number` double(15,4) NOT NULL DEFAULT '0.0000'
+  COMMENT '累计退货出库数量(单据单位)' AFTER `retreat_number`;
+
+CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_return_outbound_log` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `purchase_id` int(11) NOT NULL DEFAULT '0' COMMENT '采购单ID (kuerp_goods_purchase.id)',
+  `purchase_code` varchar(50) NOT NULL DEFAULT '' COMMENT '采购单号',
+  `exchange_codes` varchar(255) NOT NULL DEFAULT '' COMMENT '本次涉及的退货单号(逗号分隔)',
+  `total_number` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '本次出库总数量(单据单位)',
+  `total_basics` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '本次出库总数量(基本单位)',
+  `detail` text COMMENT '本次出库明细JSON',
+  `admin_id` int(11) NOT NULL DEFAULT '0' COMMENT '操作人',
+  `createtime` bigint(16) DEFAULT NULL COMMENT '操作时间',
+  PRIMARY KEY (`id`),
+  KEY `purchase_id` (`purchase_id`),
+  KEY `purchase_code` (`purchase_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='采购退货出库操作记录';
+
+INSERT INTO `__PREFIX__auth_rule`
+  (`type`, `pid`, `name`, `title`, `icon`, `url`, `condition`, `remark`, `ismenu`, `menutype`, `extend`, `py`, `pinyin`, `createtime`, `updatetime`, `weigh`, `status`)
+SELECT '1', `id`, 'kuerp/goods_purchase_storage/returnoutbound', '退货出库', 'fa fa-sign-out', '', '', '', '0', NULL, '', 'thck', 'tuihuochuku', UNIX_TIMESTAMP(), UNIX_TIMESTAMP(), '0', 'normal'
+FROM `__PREFIX__auth_rule`
+WHERE `name` = 'kuerp/goods_purchase_storage'
+LIMIT 1;
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_storage/returnoutbound')))
+WHERE `rules` <> '*'
+  AND (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_storage/index'), `rules`))
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_storage/returnoutbound'), `rules`);
