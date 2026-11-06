@@ -161,7 +161,7 @@
                             {/foreach}
                         </div>
                     </td>
-                    <td><div><input type="text" class="goods_specification_id" readonly></div><div data-select-enhance="skip" style="display:none"><select name="row[stores_id][]" class="form-control stores_id">
+                    <td><div><input type="text" class="goods_specification_id" readonly value="{$info.unit.goods.goods_specification_id|default=''|htmlentities}"></div><div data-select-enhance="skip" style="display:none"><select name="row[stores_id][]" class="form-control stores_id">
                                 <option value=""></option>
                                 {foreach name="storesList" item="vo"}
                                 <option value="{$vo.id}" {if condition="$vo.id==$info.stores_id"}selected{/if}>{$vo.name}</option>
