@@ -27,8 +27,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     ,cols: [[
                         {checkbox: true, fixed: 'left'},
                         {field: 'title', title: __('Supplier_type_name'), operate: 'LIKE', fixed: 'left'},
-                        {field: 'image', title: __('Supplier_type_image'), operate: false,templet: function (d) {
-                                return "<a href='javascript:;'><img src="+d.image+"></a>";
+                        //图片固定 40×40 缩略图（object-fit:contain）：行高统一，且不会因原图过大把行撑高
+                        //（行高一变，fixed:'left' 的勾选/类别名称列是另一张表，会逐行错位）
+                        {field: 'image', title: __('Supplier_type_image'), operate: false, width: 120, templet: function (d) {
+                                return Controller.api.imageCell(d.image);
                             }},
                         {field: 'status', title: __('Status'),templet: function (d) {
                             if(d.status==1){
@@ -46,6 +48,28 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             }},
                         {fixed: 'right', title:__('Operate'), toolbar: '#barDemo', width:150}
                     ]]
+                    //图片列含缩略图，行高可能高于固定列默认行高，逐行同步行高，避免左侧「类别名称」列与右侧字段错位
+                    ,done: function () {
+                        $(".layui-table-main tr").each(function (index, val) {
+                            $(".layui-table-fixed").each(function () {
+                                $($(this).find(".layui-table-body tbody tr")[index]).height($(val).height());
+                            });
+                        });
+                        $(".layui-table-header tr").each(function (index, val) {
+                            $(".layui-table-fixed").each(function () {
+                                $($(this).find(".layui-table-header thead tr")[index]).height($(val).height());
+                            });
+                        });
+                    }
+                });
+
+                //点击缩略图查看原图
+                $(document).on('click', '.cat-thumb-preview', function () {
+                    var src = $(this).data('src');
+                    if (!src) {
+                        return;
+                    }
+                    Layer.photos({photos: {title: '', data: [{src: src}]}, anim: 5, shadeClose: true});
                 });
 
                 //窗口尺寸变化时重算表格高度（兜底，layui 对 'full-' 高度本身也会自适应）
@@ -213,6 +237,20 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
             Controller.api.bindevent(false);
         },
         api: {
+            escapeHtml: function (str) {
+                return String(str == null ? '' : str)
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            },
+            //图片列：统一 40×40 盒子（无图也占同样高度），行高保持一致
+            imageCell: function (url) {
+                if (!url) {
+                    return "<span class='cat-thumb'></span>";
+                }
+                var src = Controller.api.escapeHtml(url);
+                return "<a href='javascript:;' class='cat-thumb-preview' data-src='" + src + "' title='" + __('点击查看大图') + "'>" +
+                    "<img class='cat-thumb' src='" + src + "'></a>";
+            },
             bindevent: function (reloadStatus=true) {
                 Form.api.bindevent($("form[role=form]"), function(data, ret){
                     if(reloadStatus){

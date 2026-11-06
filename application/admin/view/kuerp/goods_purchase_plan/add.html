@@ -1,4 +1,35 @@
 {include file="kuerp/common/menu" /}
+<style>
+    /* 型号 / 规格2·厂商 / 规格3·封装 三列加宽，内容过长时自动换行显示 */
+    #purchase_table th.col_spec,#goods_table th.col_spec{white-space: normal;line-height:16px;}
+    #purchase_table th.col_spec1,#goods_table th.col_spec1{min-width:160px;}
+    #purchase_table th.col_spec2,#goods_table th.col_spec2{min-width:140px;}
+    #purchase_table th.col_spec3,#goods_table th.col_spec3{min-width:120px;}
+    #purchase_table .spec_cell,#goods_table .spec_cell{display:flex;align-items:center;justify-content:center;min-height:32px;}
+    #purchase_table .spec_cell input,#goods_table .spec_cell input{display:none;}
+    #purchase_table .spec_cell .spec_text,#goods_table .spec_cell .spec_text{display:block;width:100%;text-align:center;line-height:16px;font-size:12px;
+        padding:4px 3px;white-space:normal;word-break:break-all;overflow-wrap:anywhere;}
+    /* 数量 / 价格 / 税额等数字列收窄 */
+    #purchase_table input.number,
+    #purchase_table input.basic_nmber,
+    #purchase_table input.allow_stock,
+    #purchase_table input.default_unit,
+    #purchase_table input.unit_price,
+    #purchase_table input.tax_included,
+    #purchase_table input.all_money,
+    #purchase_table input.tax_money,
+    #purchase_table input.money_tax_price,
+    #goods_table input.number,
+    #goods_table input.basic_nmber,
+    #goods_table input.allow_stock,
+    #goods_table input.default_unit,
+    #goods_table input.unit_price,
+    #goods_table input.tax_included,
+    #goods_table input.all_money,
+    #goods_table input.tax_money,
+    #goods_table input.money_tax_price{min-width:0;width:64px;}
+    #purchase_table input.tax_rate,#goods_table input.tax_rate{min-width:0;width:52px;}
+</style>
 <form id="add-form" class="form-horizontal" role="form" data-toggle="validator" method="POST" action="">
 
     <div class="row">
@@ -51,7 +82,7 @@
                             </span>
                         </span>
                     </th>
-                    <th>型号</th><th>规格2/厂商</th><th>规格3/封装</th><th>{:__('Goods_note')}</th><th class="goods_attr_sd">{:__('Goods_attr')}</th><th>{:__('Goods_unit')}</th><th>{:__('Stores_id')}</th><th>{:__('Allow_stock')}</th>
+                    <th class="col_spec col_spec1">型号</th><th class="col_spec col_spec2">规格2/厂商</th><th class="col_spec col_spec3">规格3/封装</th><th>{:__('Goods_note')}</th><th class="goods_attr_sd">{:__('Goods_attr')}</th><th>{:__('Goods_unit')}</th><th>{:__('Stores_id')}</th><th>{:__('Allow_stock')}</th>
                     <th class="goods_batch_sd">批次</th><th class="goods_batch_sd">生产日期</th><th class="goods_batch_sd">保质期(天)</th><th class="goods_batch_sd">有效期至</th>
                     <th>{:__('Number')}</th><th class="goods_multi_unit_sd">{:__('Default_unit')}</th><th class="goods_multi_unit_sd">{:__('Basic_nmber')}</th>
                     <th>{:__('Remark')}</th>
@@ -66,7 +97,7 @@
                             <input type="text" class="ipt goods_name">
                         </div>
                     </td>
-                    <td><div><input type="text" class="goods_specification_id" readonly></div></td><td><div><input type="text" class="vendor_name" readonly></div></td><td><div><input type="text" class="packaging" readonly></div></td>
+                    <td class="col_spec col_spec1"><div class="spec_cell"><input type="text" class="goods_specification_id" readonly><span class="spec_text"></span></div></td><td class="col_spec col_spec2"><div class="spec_cell"><input type="text" class="vendor_name" readonly><span class="spec_text"></span></div></td><td class="col_spec col_spec3"><div class="spec_cell"><input type="text" class="packaging" readonly><span class="spec_text"></span></div></td>
                     <td><div><input type="text" name="row[goods_note][]" class="goods_note" readonly></div></td>
                     <td class="goods_attr_sd">
                         <div>
@@ -123,7 +154,7 @@
                             <input type="text" class="ipt goods_name" value="{$info.goods_code} {$info.goods_name|default=''}">
                         </div>
                     </td>
-                    <td><div><input type="text" class="goods_specification_id" readonly></div></td><td><div><input type="text" class="vendor_name" readonly></div></td><td><div><input type="text" class="packaging" readonly></div></td>
+                    <td class="col_spec col_spec1"><div class="spec_cell"><input type="text" class="goods_specification_id" readonly><span class="spec_text"></span></div></td><td class="col_spec col_spec2"><div class="spec_cell"><input type="text" class="vendor_name" readonly><span class="spec_text"></span></div></td><td class="col_spec col_spec3"><div class="spec_cell"><input type="text" class="packaging" readonly><span class="spec_text"></span></div></td>
                     <td><div><input type="text" name="row[goods_note][]" class="goods_note" value="{$info.goods_note|htmlentities}" readonly></div></td>
                     <td class="goods_attr_sd">
                         <div>
@@ -180,7 +211,7 @@
                             <input type="text" class="ipt goods_name">
                         </div>
                     </td>
-                    <td><div><input type="text" class="goods_specification_id" readonly></div></td><td><div><input type="text" class="vendor_name" readonly></div></td><td><div><input type="text" class="packaging" readonly></div></td>
+                    <td class="col_spec col_spec1"><div class="spec_cell"><input type="text" class="goods_specification_id" readonly><span class="spec_text"></span></div></td><td class="col_spec col_spec2"><div class="spec_cell"><input type="text" class="vendor_name" readonly><span class="spec_text"></span></div></td><td class="col_spec col_spec3"><div class="spec_cell"><input type="text" class="packaging" readonly><span class="spec_text"></span></div></td>
                     <td><div><input type="text" name="row[goods_note][]" class="goods_note" readonly></div></td>
                     <td class="goods_attr_sd">
                         <div>

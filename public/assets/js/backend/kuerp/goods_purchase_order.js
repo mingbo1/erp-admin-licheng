@@ -770,6 +770,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             obj.find('.goods_specification_id').val(goods.goods.goods_specification_id || '');
                             obj.find('.vendor_name').val(goods.goods.vendor_name || '');
                             obj.find('.packaging').val(goods.goods.packaging || '');
+                            renderSpecText(obj);
                             if(goods.goods.batch==1){
                                 obj.find('.guarantee').val(goods.goods.shelf_life);
                             }
@@ -1036,6 +1037,13 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                 $(document).on("change", ".goods_name", function(){
                     changeWidth()
                 });
+                // 型号 / 规格2·厂商 / 规格3·封装：把只读输入框的值同步到可换行的文本节点
+                function renderSpecText(obj) {
+                    $(obj).find('input.goods_specification_id,input.vendor_name,input.packaging').each(function () {
+                        var $input = $(this);
+                        $input.closest('td').find('.spec_text').text($input.val() || '');
+                    });
+                }
                 function changeWidth() {
                     allwidth = 165;
                     var goods_code = document.getElementsByClassName("goods_name");
@@ -1147,6 +1155,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             obj.find('.goods_specification_id').val(goods.goods.goods_specification_id || '');
                             obj.find('.vendor_name').val(goods.goods.vendor_name || '');
                             obj.find('.packaging').val(goods.goods.packaging || '');
+                            renderSpecText(obj);
                             $(goods.unit).each(function (k,v) {
                                 if(v.id==goods_unit){
                                     obj.find('.allow_stock').val(v.stock);
@@ -1178,6 +1187,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             obj.find('.goods_specification_id').val(goods.goods.goods_specification_id || '');
                             obj.find('.vendor_name').val(goods.goods.vendor_name || '');
                             obj.find('.packaging').val(goods.goods.packaging || '');
+                            renderSpecText(obj);
                             $(goods.unit).each(function (k,v) {
                                 if(v.id==goods_unit){
                                     obj.find('.allow_stock').val(v.stock);
@@ -1209,6 +1219,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             obj.find('.goods_specification_id').val(goods.goods.goods_specification_id || '');
                             obj.find('.vendor_name').val(goods.goods.vendor_name || '');
                             obj.find('.packaging').val(goods.goods.packaging || '');
+                            renderSpecText(obj);
                             $(goods.unit).each(function (k,v) {
                                 if(v.id==goods_unit){
                                     obj.find('.allow_stock').val(v.stock);
@@ -1603,6 +1614,26 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         }
                     });
                 });
+
+                // 编辑页已有明细：按商品编号回填型号 / 规格2·厂商 / 规格3·封装
+                // （服务端模板这三列只输出空的只读输入框，值由前端从商品档案带出）
+                (function initSpecText() {
+                    var goodsMap = {};
+                    var gl = Config.goodsList || [];
+                    for (var i = 0; i < gl.length; i++) {
+                        if (gl[i] && gl[i].goods_code) { goodsMap[gl[i].goods_code] = gl[i]; }
+                    }
+                    $('#goods_table tr').each(function () {
+                        var tr = $(this);
+                        var code = tr.find('.goods_code').val();
+                        if (!code || !goodsMap[code]) { return; }
+                        var g = goodsMap[code];
+                        tr.find('.goods_specification_id').val(g.goods_specification_id || '');
+                        tr.find('.vendor_name').val(g.vendor_name || '');
+                        tr.find('.packaging').val(g.packaging || '');
+                        renderSpecText(tr);
+                    });
+                })();
 
                 Form.api.bindevent($("form[role=form]"), function(data, ret){
                     $.ajax( {

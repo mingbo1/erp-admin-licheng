@@ -1,4 +1,26 @@
 {include file="kuerp/common/menu" /}
+<style>
+    /* 型号 / 规格2·厂商 / 规格3·封装 三列加宽，内容过长时自动换行显示 */
+    #goods_table th.col_spec{white-space: normal;line-height:16px;}
+    #goods_table th.col_spec1{min-width:160px;}
+    #goods_table th.col_spec2{min-width:140px;}
+    #goods_table th.col_spec3{min-width:120px;}
+    #goods_table .spec_cell{display:flex;align-items:center;justify-content:center;min-height:32px;}
+    #goods_table .spec_cell input{display:none;}
+    #goods_table .spec_cell .spec_text{display:block;width:100%;text-align:center;line-height:16px;font-size:12px;
+        padding:4px 3px;white-space:normal;word-break:break-all;overflow-wrap:anywhere;}
+    /* 数量 / 价格 / 税额等数字列收窄 */
+    #goods_table input.number,
+    #goods_table input.basic_nmber,
+    #goods_table input.allow_stock,
+    #goods_table input.default_unit,
+    #goods_table input.unit_price,
+    #goods_table input.tax_included,
+    #goods_table input.all_money,
+    #goods_table input.tax_money,
+    #goods_table input.money_tax_price{min-width:0;width:64px;}
+    #goods_table input.tax_rate{min-width:0;width:52px;}
+</style>
 <form id="add-form" class="form-horizontal" role="form" data-toggle="validator" method="POST" action="">
     <div class="row">
         <div class="col-xs-12 col-sm-3 col-md-3 col-lg-3">
@@ -95,7 +117,7 @@
                             </span>
                         </span>
                 </th>
-                <th>型号</th><th>规格2/厂商</th><th>规格3/封装</th><th>{:__('Goods_note')}</th><th class="goods_attr_sd">{:__('Goods_attr')}</th><th>{:__('Goods_unit')}</th><th>{:__('Stores_id')}</th><th>{:__('Supplyer_code')}</th><th>{:__('Allow_stock')}</th>
+                <th class="col_spec col_spec1">型号</th><th class="col_spec col_spec2">规格2/厂商</th><th class="col_spec col_spec3">规格3/封装</th><th>{:__('Goods_note')}</th><th class="goods_attr_sd">{:__('Goods_attr')}</th><th>{:__('Goods_unit')}</th><th>{:__('Stores_id')}</th><th>{:__('Supplyer_code')}</th><th>{:__('Allow_stock')}</th>
                 <th>{:__('Number')}</th><th class="goods_multi_unit_sd">{:__('Default_unit')}</th><th class="goods_multi_unit_sd">{:__('Basic_nmber')}</th><th>{:__('Unit_price')}</th><th class="goods_tax_sd">{:__('Tax_included')}</th>
                 <!-- <th>{:__('Discount')}</th>
                  <th>{:__('Dis_money')}</th>-->
@@ -114,7 +136,7 @@
                         <input type="text" class="ipt goods_name">
                     </div>
                 </td>
-                    <td><div><input type="text" class="goods_specification_id" readonly></div></td><td><div><input type="text" class="vendor_name" readonly></div></td><td><div><input type="text" class="packaging" readonly></div></td>
+                    <td class="col_spec col_spec1"><div class="spec_cell"><input type="text" class="goods_specification_id" readonly><span class="spec_text"></span></div></td><td class="col_spec col_spec2"><div class="spec_cell"><input type="text" class="vendor_name" readonly><span class="spec_text"></span></div></td><td class="col_spec col_spec3"><div class="spec_cell"><input type="text" class="packaging" readonly><span class="spec_text"></span></div></td>
                 <td><div><input type="text" name="row[goods_note][]" class="goods_note" readonly></div></td>
                 <td class="goods_attr_sd">
                     <div>
@@ -178,7 +200,7 @@
                         <input type="text" class="ipt goods_name">
                     </div>
                 </td>
-                    <td><div><input type="text" class="goods_specification_id" readonly></div></td><td><div><input type="text" class="vendor_name" readonly></div></td><td><div><input type="text" class="packaging" readonly></div></td>
+                    <td class="col_spec col_spec1"><div class="spec_cell"><input type="text" class="goods_specification_id" readonly><span class="spec_text"></span></div></td><td class="col_spec col_spec2"><div class="spec_cell"><input type="text" class="vendor_name" readonly><span class="spec_text"></span></div></td><td class="col_spec col_spec3"><div class="spec_cell"><input type="text" class="packaging" readonly><span class="spec_text"></span></div></td>
                 <td><div><input type="text" name="row[goods_note][]" class="goods_note" readonly></div></td>
                 <td class="goods_attr_sd">
                     <div>
