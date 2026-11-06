@@ -4,7 +4,7 @@
 > 部署方式：无 SSH，代码走 FTP（`118.31.20.155:39683` / `dyerp_dayan` / FTP 根 = 项目根）
 > 数据库：`mysql -h118.31.20.155 -udyerp_shengbokj_ -D dyerp_shengbokj_`
 
-**当前版本：`1.6.31`（2026-11-05）**
+**当前版本：`1.6.36`（2026-11-06）**
 
 版本号的唯一来源是 `addons/kuerp/info.ini` 的 `version`；每次上线递增末位，
 并在下表的「版本清单」里追加一行。线上根目录的 `DEPLOY_VERSION.txt` 记录线上实际部署的版本与文件清单。
@@ -15,6 +15,11 @@
 
 | 版本 | 部署日期 | 内容摘要 | 新增/执行的迁移 | 备注 |
 |------|---------|---------|----------------|------|
+| 1.6.36 | 2026-11-06 | 销货排期（`goods_sales_schedule`）编辑页「型号」列空白：数据行的 `.goods_specification_id` 只读框模板里没有 `value`，只有选商品/改单位/改仓库/改属性时由 JS 回填 → 打开编辑页时历史行型号恒为空（后端 `edit()` 本就 assign 了 `unit.goods.goods_specification_id`）。`edit.html` 数据行补 `value="{$info.unit.goods.goods_specification_id\|default=''\|htmlentities}"` | 无（未做任何 DDL） | 2 文件（视图 + info.ini）；`site.version` 不变（无 JS/CSS）；线上清空 `runtime/temp` 52 个编译模板 + `runtime/cache` 3 个配置缓存；线上核查 `XHD20261106001` 三个商品（X04-0001/X01-0046/A01-0020）型号均已维护，修复后可见。同类「只读型号框无 value」写法仍在 split/adjustment/warehousing/warehouse/process_order 的 edit 页，本次未改 |
+| 1.6.35 | 2026-11-06 | 采购单入库「入库状态」筛选 + [重置]；收发明细/收发汇总/商品库存余额 三页「型号规格」搜索；采购入库弹窗「本次入库数量」默认待入库数量；采购入库/退货出库 操作记录改为每条记录下方展开明细表格；组装单列表默认按单据日期倒序 | 无（mysqldump --no-data 全库 183 表比对零差异） | 19 文件 + site.php；`goods_log.js` 改为「线上版本 + 型号规格搜索」合并版（保留线上 基本单位数量/单位成本/成本 列），自此本地与线上一致；`site.version` 1.0.11→1.0.12 |
+| 1.6.34 | 2026-11-05 | 销货对账明细：①收款状态口径修正（销货单 `pay_status` 1=全部/2=部分，对账工作台 1=部分/2=已收款，`buildItemRows()` 直接透传导致全额收款显示「部分收款」）→ 新增 `SalesRecon::docPayStatus()` 1↔2 互换；②单号可复制（`.recon-doc-code` 放开 user-select + 点击复制） | 无 | 4 个文件；`site.version` 1.0.10→1.0.11；线上 `XHD20261104001`（327 全额已收）修正后显示「已收款」 |
+| 1.6.33 | 2026-11-05 | 采购退货「退货出库」：退货单**审核只做账务**，库存/成本/收发明细/序列号/批次改由仓库在「采购单入库」列表点【退货出库】时按本次数量扣减（可分批，全部出完按钮消失）；已有出库记录时禁止反审核/删除；采购单详情与采购入库详情展示「退货出库记录」；计划部门「采购预订单」编辑页去掉「生成采购单」按钮 | `migration_add_goods_return_outbound.sql`（加 `exchange_info.out_number`、新表 `goods_return_outbound_log`、权限规则 803 + 按 index 增量授予 11 个角色；含历史已审核退货单 `out_number=retreat_number` 回填） | 14 个文件（4 新增）；`site.version` 1.0.9→1.0.10；线上原有退货单 GHTH20261105001 已回填为「已全部出库」 |
+| 1.6.32 | 2026-11-05 | 采购预订单明细 ≥50 行时保存 500（`Undefined array key "preferential_rate"`）的定位与兜底：PHP `max_input_vars=1000` 会静默截断表单尾部字段与多余明细行，新增 `GoodsPurchaseOrder::checkFormTruncated()`，add/edit 在解析前校验尾部字段与各明细列长度，被截断时返回中文提示而非 500（`GoodsPurchaseOrder`、`GoodsPurchaseOrderPlan` 共 4 处调用） | 无 | 2 改；**需服务器侧把 `public/.user.ini` 的 `max_input_vars` 调到 10000**（该文件属主 root，FTP 无法改，须在宝塔面板改），否则 ≥50 行仍存不进去，只是报错变友好 |
 | 1.6.31 | 2026-11-05 | 第二批「后加按钮」纳入权限表：采购单打印/汇总/导出、组装单打印/实际出入库/保存、外协订单打印、BOM打印、出库管理打印申请单/送货单、销货订单确认收货、计划排期排产/锁定零件/导出/改完成日期、采购预订单导出/导入明细、采购单(仓库)打印、小程序用户增删改；`mini_banner`/`mini_nav` 权限名驼峰改下划线（此前非超管看不到按钮） | `migration_add_buttons_auth_rules_batch2.sql`（15 条规则 788-802 + 按 index 增量授权） | 29 代码文件 + install.sql + 迁移 + site.php（含销货单详情底部「出库记录」面板）；结构无变更；`site.version` 1.0.8→1.0.9 |
 | 1.6.30 | 2026-11-05 | 销货出库/出库管理「出库状态」筛选 + 未排产禁止申请出库（排产状态列）、送货单按钮从行上移到申请记录弹窗、采购入库列表已全部入库不再显示「入库」、采购入库详情加「入库记录」面板、采购预订单(计划)/仓库隐藏供应商列、BOM 打印页 A4 竖版列宽、采购入库 详情/打印/入库 纳入权限表 | `migration_add_missing_button_auth_rules.sql`（5 条规则）、`migration_add_goods_purchase_storage_auth_rules.sql`（3 条规则 + 授予已有查看权限的 11 个角色）、`migration_add_purchase_print_terms.sql`（2 个设置项，幂等）、`migration_widen_goods_specification_id.sql`（空操作） | 19 个文件；结构无变更；`site.version` 1.0.7→1.0.8 |
 | 1.6.29 | 2026-11-04 | BOM 列表/选择弹窗的**子件行**补显示 型号 / 规格2-厂商 / 规格3-封装（此前只显示在父商品行） | 无 | 2 改（`GoodsBom.php`、`goods_bom.js`）；`site.version` 1.0.5→1.0.6 |
@@ -53,9 +58,12 @@
 |------|------|
 | `application/extra/addons.php` | 线上注册了 `cms` 插件（钩子/路由），本地没有；覆盖会禁用 CMS |
 | `application/extra/site.php` | 线上站点名/备案号/版本与本地占位值不同 |
-| `public/assets/js/backend/kuerp/goods_log.js` | 线上版本更新（含「基本单位数量」两列），覆盖会退回旧功能 |
 | `application/config.php` | 本地 `login_captcha=false` 是开发便利，线上保持验证码开启 |
 | `.env` / `.env.sample` | 含线上数据库与 FTP 凭据，**不进版本库** |
+
+> `public/assets/js/backend/kuerp/goods_log.js` 曾在 1.6.30~1.6.34 期间列为「不部署」（线上版比本地多
+> 基本单位数量/单位成本/成本 列）。1.6.35 已按「线上版本 + 型号规格搜索」合并后上线，本地与线上一致，
+> 该文件恢复正常部署。若将来再出现线上手工改过而本地没有的 JS，处理方式同样是**以线上为底合并**，不要整文件覆盖。
 
 ---
 

@@ -1239,6 +1239,28 @@ class GoodsPurchasePlanWarehouse extends GoodsPurchasePlan   // 同命名空间,
   `detail/ids/999913` 1 条多商品记录（J05-0017×12、J08-0001×2）；900px 内表格不溢出、图片 40px 高，无 JS 异常；
   无记录的单据（`detail/ids/999907`）显示「暂无入库记录」。
 
+### 入库/出库明细改为表格展示（2026-11-06）
+
+> 仅三个视图，无控制器/JS/数据库改动：`goods_purchase_storage/{detail,storage,returnoutbound}.html`
+
+- 原来「入库明细」「出库明细」是把 `detail_list` 拼成一串文本（`detail_text`：`编号 名称 × 数量单位、…`），
+  现在改为 **每条操作记录下方追加一行 `tr.log-detail-row`（colspan 铺满），内嵌明细子表格**：
+  - 入库：`序号 / 商品编号 / 商品名称 / 仓库 / 单位 / 数量`（数据取日志 JSON 的 `goods_code/goods_name/stores_name/unit_name/number`）
+  - 退货出库：多一列 `退货单号`（`exchange_code`，一次出库可来自多张退货单）
+- 主表列由 5 列缩为 4 列：`入库时间 / 本次入库数量 / 原始单据 / 操作人`（退货出库为 `出库时间 / 退货单号 / 本次出库数量 / 操作人`）——
+  明细列只有 ~340px，塞 5 列子表必然挤，改到记录下方整行展开后 900px 页面内可读性最好。
+- 子表字段一律写 `{$d.xxx|default=''|htmlentities}`：`default` 在 TP5 编译成 `isset(...)?...:''`，
+  历史日志 JSON 缺键时不会抛 `Undefined array key`（PHP8 下会直接 500）。`default` 必须写在 `htmlentities` **前面**
+  （后置时 `default` 会退化成 `htmlentities($d['x']) ?: ''`，isset 保护就没了）。
+- 明细为空（老数据 `detail` 为 NULL）显示「无明细」，主表照常渲染。
+- `buildStorageLogs()` / `ReturnOutbound::logs()` 的 `detail_text` **保留未删**——`purchase_recon/{audit,detail}.html`
+  与 `goods_purchase/edit.html` 的「退货出库记录」仍在用它（那几处明细列只有 250px 左右，嵌子表会挤，维持文本）。
+- 入库弹窗的有无附件交互不受影响：`goods_purchase_storage_layer.js` 只按 `.enc-list[data-log-id]` / `.enc-item` 取节点。
+- 已验证（curl + headless Chrome/CDP 实测 erp.licheng.test，测试数据已还原）：`detail/ids/999913` 3 条记录
+  （入库 2 条各 2 商品 + 退货出库 1 条 2 商品）子表渲染正确、表格宽 866px 不溢出；
+  `storage/ids/999903` 操作记录 1 条子表正常；`returnoutbound/ids/999913`「出库记录」子表正常；
+  把某条 log 的 `detail` 临时置 NULL → 显示「无明细」、无 500（已还原）。
+
 ## 三、已验证（curl 登录 + headless Chrome/CDP 实测 erp.licheng.test，测试数据已还原）
 
 - 迁移：新表建立；`enclosure_log.type` 枚举含 '7'。
@@ -1363,7 +1385,8 @@ TP5 错误处理器（`app_debug=true`）转成 `ErrorException` → 500。前�
 
 > 涉及文件：仅 `application/admin/controller/kuerp/GoodsSalesOrder.php`（`add()` / `edit()` 单据行校验，纯后端）
 
-- **背景**：销货订单 add/edit 页的「仓库」列是隐藏的（模板里 `div[data-select-enhance=skip][style=display:none]` 包着 `select.stores_id`），
+- **背景**：销货订单 add/edit 页的「仓库」列当时是隐藏的（模板里 `div[data-select-enhance=skip][style=display:none]` 包着 `select.stores_id`；
+  **2026-11-05 已改回独立可见列**，见文末「销货预订单 add/edit 恢复可见的「仓库」列」），
   仓库只在选货时由前端从商品档案的 `manager_warehouse_id`（首选仓库）自动带出（`.chose_goods_tr` 的 `data-store` / `Config.goodsList`）。
   商品没维护首选仓库（`manager_warehouse_id=0`）或该仓库没有库存时，行上的 `stores_id` 为空，保存报「请选择仓库」——**用户无从选择**，提示误导。
 - **改动**：两处单据行校验里把商品查询提前，仓库为空时改为 `$this->error('商品'.$goods['goods_name'].'库存不足')`；
@@ -1784,15 +1807,19 @@ $give_account = (float)$give_account + $customers_money_default;   // 总欠款�
 
 ---
 
-# 采购入库弹窗：本次入库数量默认 0 + 入库前选择原始单据（2026-10-23）
+# 采购入库弹窗：本次入库数量默认待入库数量 + 入库前选择原始单据（2026-10-23，2026-11-06 默认值改回待入库数量）
 
 > 涉及文件：`application/admin/controller/kuerp/GoodsPurchaseStorage.php`、`application/admin/view/kuerp/goods_purchase_storage/{storage,enclosurepicker}.html`（后者新增）、
 > `public/assets/js/backend/kuerp/{goods_purchase_storage,goods_purchase_storage_layer}.js`（**无数据库迁移**）
 
 ## 改动
 
-- **本次入库数量默认 0**：`storage.html` 的 `.storage-number` 由 `value="{$remainNum}"`（默认=待入库数量，不填就整批入库）改为 `value="0"`，
-  必须由仓库自己填写；`max` 仍为待入库数量，JS 的「至少一项 >0」校验与「部分入库」确认（`confirm`）行为不变。
+- **本次入库数量默认 = 待入库数量**（2026-11-06 按用户要求由 `value="0"` 改回 `value="{$remainNum}"`）：
+  `storage.html` 的 `.storage-number` 默认填该行待入库数量，直接点【确认入库】= 整批入库，要部分入库就手工改小；
+  `max` 仍为待入库数量（`max="{$remainNum}"`），JS 的「至少一项 >0」校验与「部分入库」确认（`confirm`）行为不变
+  （默认值下 `allFull` 为真，不会弹部分入库确认）。
+  `goods_purchase_storage_layer.js` 的 `init()` 里在绑定完 input 监听后**补一次 `updateTotal()`**：
+  汇总行「本次入库总数量」`#storage-total` 原先只在 input/change 时刷新，默认有值时会一直显示 0，必须初始化时就汇总一次。
 - **入库前选原始单据**：表单底部（汇总行与 [确认入库] 之间）新增「原始单据：……」区域 =
   `#sel-enc-list`（已选预览：缩略图/文件图标 + 文件名 + × 移除）+ `[+ 选择原始单据]` +
   隐藏域 `<input type="hidden" name="enclosure_ids">`（逗号分隔 ID，随 FormData 一起提交）。
@@ -3900,3 +3927,259 @@ grep -rn "auth->check" application/admin/view/kuerp/
   `express_list`/`express_summary`/`apply_admin_name`/`examine_admin_name`），**不要再复制一份**到任一侧。
 - 无记录时显示「暂无出库记录」；表格外包一层 `overflow-x:auto`，窄屏横向滚动不撑破页面（1600px 下单行显示不溢出）。
 - 面板在 `</form>` 之后，纯展示、无 input，不影响单据表单提交（销货出库页的申请弹窗逻辑与字段零改动）。
+
+---
+
+# 销货预订单 add/edit 恢复可见的「仓库」列（2026-11-05）
+
+> 涉及文件：`application/admin/view/kuerp/goods_sales_order/{add,edit}.html`（**纯前端，无控制器/JS/数据库改动**）
+
+- **背景**：`select.stores_id` 原先被塞在「型号」单元格里、用 `div[data-select-enhance="skip"][style="display:none"]` 藏起来，
+  仓库只能由选货时的商品首选仓库自动带出，用户改不了。
+- **改动**：把 `select.stores_id` 从「型号」单元格移到 **「商品单位」之后、「可用库存」之前**的独立列，
+  去掉 `data-select-enhance="skip"` 与 `display:none`（由 select-enhancer 转成 bootstrap-select，带关键字搜索），
+  表头新增 `<th style="min-width:110px">{:__('Stores_id')}</th>`（lang key 早已存在=仓库）。
+  - `min-width` 必须保留：不加时该列被挤到 55px，下拉只剩一个箭头看不到仓库名；加后列宽 110px、表格总宽不变（其余列自动收窄）。
+  - edit 页历史行仍带 `value="{$info.stores_id}"` 的 `selected`，回显不受影响；已审核单据整行 `disabled` 时同样只读。
+- **数据流零改动**：`row[stores_id][]` 与 `row[goods_code][]` 一样按 DOM 顺序序列化，字段名与提交结构完全不变；
+  `.chose_goods_tr` 选货 / `.goods_code` change 仍把 `manager_warehouse_id` 写进该 select，
+  手动改仓库走既有 `.stores_id` change 处理器刷新「可用库存」（`kuerp/goods_purchase/getUnit`）。
+- **商品无首选仓库时该列显示空**，保存仍由服务端 `Goods::resolveStoreId()` 按商品类型兜底（零件仓/成品仓/半成品仓），
+  与 2026-11-03 规则一致 —— 空值 = 自动，不是错误。
+- **已实测**（headless Chrome + CDP）：add 页 17 列（th 与各行 td 数量一致）、仓库列宽 110px、转成 bootstrap-select；
+  选 `C13-0001` 自动带出「零件仓」、可用库存 1994；手动改「成品仓」→ 可用库存刷新为 0、按钮文案同步；
+  用页面自身 `$('#add-form').serializeArray()` 真实提交一张两行单据（第 2 行手动选成品仓）→ 落库
+  `stores_id=6 / 5` 与界面一致（测试单 XHDD20261105001 与 info、log 已删除，`AUTO_INCREMENT` 还原为 18/87/116）。
+  edit 页（已审核单 id=16）17 列、仓库列显示原值 `5` 且为只读。
+- **未改动**：销货单 `goods_sales`、计划排期 `goods_sales_schedule`、组装单等页面的仓库列保持原样。
+
+---
+
+# 明细行过多导致表单被 PHP `max_input_vars` 静默截断（2026-11-05）
+
+> 涉及文件：`application/admin/controller/kuerp/GoodsPurchaseOrder.php`（新增 `checkFormTruncated()`）、
+> `GoodsPurchaseOrderPlan.php`（继承同名方法，add/edit 各调用一次）
+
+## 现象
+
+采购预订单（`kuerp/goods_purchase_order/add`）选择「HS-15C扩展板BOM」（**52 个子件**）后保存，
+报 `Undefined array key "preferential_rate"`（PHP7 中文：未定义数组索引）/ 500。行数少时正常。
+
+## 根因
+
+PHP 的 `max_input_vars`（**默认 1000**）在解析表单阶段就**静默丢弃超出部分**，业务代码拿不到：
+每行明细提交 20 个字段（goods_code/goods_note/goods_attr/goods_unit/stores_id/row_supplyer_code/allow_stock/
+number/default_unit/basic_nmber/unit_price/tax_included/discount/dis_money/all_money/tax_rate/tax_money/
+money_tax_price/remark/sales_order_id），表头 7 个、表单尾部 4 个（note/preferential_rate/preferential_money/real_money）。
+**总字段数 = 11 + 20×行数**，所以约 **≥50 行**就超限；尾部字段（表单最后提交的）先被丢弃 → 第 256 行取不到 → 500。
+本地实测：≤49 行完整，52 行时尾部全丢、明细列长度也不一致（goods_code 50 个 / all_money 49 个）。
+
+## 修复
+
+1. **服务器**：`public/.user.ini` 追加 `max_input_vars=10000`（约可容纳 1000 行明细）。
+   ⚠️ 该文件线上属主是 `root:root 644`，**FTP 无法重命名/覆盖/删除**（553 / 451），必须在宝塔面板改；
+   PHP-FPM 读 .user.ini 有 `user_ini.cache_ttl`（默认 300s）缓存，改完等 5 分钟或重启 PHP。
+2. **代码兜底**：`GoodsPurchaseOrder::checkFormTruncated($params)` 在 `preExcludeFields()` 之后、逐行解析之前调用，
+   校验①尾部 4 个字段是否都存在 ②每条明细的 19 个数组长度是否都等于 `goods_code` 的数量；
+   命中则 `error('提交的明细行过多，服务器已截断表单数据（PHP max_input_vars=xxx）…')`，
+   避免 500，**也避免静默保存成少了明细行的单据**（截断只丢尾部，不报错时前端毫无感知，最危险）。
+   已在 `GoodsPurchaseOrder::add/edit` 与 `GoodsPurchaseOrderPlan::add/edit` 共 4 处调用
+   （`GoodsPurchaseOrderPlanWarehouse` 是只读子类，add/edit 直接 error，不涉及）。
+3. 其它单据（销货单/采购单/组装单…）同样是 `row[x][]` 数组提交，行数极多时同理会被截断；
+   已提高 `max_input_vars` 后不再是问题，新增大批量单据表单时留意该上限。
+
+---
+
+# 采购退货出库：库存扣减从「退货单审核」移到仓库「退货出库」（2026-11-05）
+
+> 迁移：`addons/kuerp/migration_add_goods_return_outbound.sql`（已对 erp_licheng 执行，可重复执行）；
+> `install.sql` 1.6.33 段 + `info.ini` 1.6.33。
+> 新增：`addons/kuerp/library/ReturnOutbound.php`、
+> `application/admin/view/kuerp/goods_purchase_storage/returnoutbound.html`、
+> `public/assets/js/backend/kuerp/goods_return_outbound_layer.js`。
+> 改动：`GoodsExchange.php`、`GoodsPurchaseStorage.php`、`GoodsPurchase.php`、三个视图、`goods_purchase_storage.js`。
+
+## 流程
+
+```
+购货退货单 add → 审核（只做账务） → 采购单入库列表行出现 [退货出库]
+   → 弹窗（退货单明细 + 本次出库数量，可分批） → 确认
+   → 扣库存/成本 + 写收发明细 + 写「退货出库操作记录」
+   → 该退货单全部出完 → 列表按钮消失；采购单详情/采购入库详情可见出库记录
+```
+
+## 关键口径
+
+- **审核不再动库存**：`GoodsExchange::examine()` 里库存/成本/`kuerp_goods_log`(business_type=3)/
+  序列号(`store_status=2`)/批次库存 的全部代码已删除（审核仍做：应付、收付款、台账、开票、采购汇总、订单 `store_number`）。
+  反审核同理不再恢复库存；两者都只改账务。
+- **守卫**：`out_number>0`（已有出库）时禁止**反审核**、禁止**删除**退货单；再次打开出库页提示「该采购单没有待出库的退货单」。
+- **关联关系**：采购单 → 退货单有两套：`kuerp_goods_excpur`（表头级，`purchase_id`=采购单ID，`type='2'`）与
+  `kuerp_goods_excpur_info`（行级，`purchase_id`=采购单明细行ID）。`ReturnOutbound::relatedInfoIds()` 取并集。
+- **累计出库**：`fa_kuerp_goods_exchange_info.out_number`（单据单位）。剩余可出 = `retreat_number - out_number`。
+- **基础单位换算**：与审核旧逻辑一致 —— 单位 `type=2 && is_main!=1` 时乘 `kuerp_unit_conversion.advance_rate`。
+- **成本**：按 `all_money × 本次/retreat_number` 分摊，**最后一批吃尾差**（整行成本恒等于 `all_money`）；
+  已结转成本取 `kuerp_goods_log` 该行 `out_cost` 合计。
+- **库存校验**：按 `商品+仓库+属性` 汇总本次各行的基础单位数量，超出可用库存整单拒绝并回滚（与旧审核口径一致）。
+  无库存行直接报「未查询到商品X在仓库[Y]的库存，不能退货出库」。
+- **操作记录**：`fa_kuerp_goods_return_outbound_log`（purchase_id/purchase_code/exchange_codes/total_number/
+  total_basics/detail JSON/admin_id/createtime），`ReturnOutbound::logs()` 供三个页面复用。
+
+## 页面
+
+| 页面 | 改动 |
+|------|------|
+| 采购单入库列表 `goods_purchase_storage` | `index()` 下发 `return_outbound_pending`（该采购单下已审核且未出完的退货单明细行数）；`#barDemoStorage` 加 `{{# if(d.return_outbound_pending > 0) }}` 的 [退货出库]（`$auth->check($nowmenu.'/returnoutbound')`）；操作列宽 180→240 |
+| 退货出库弹窗 `returnoutbound.html` | 明细列：退货单号/商品编号/名称/型号/规格2/规格3/属性/单位/仓库/退货数量/已出库/剩余可出/**本次出库数量**（默认 0，max=剩余）；下方「出库记录」面板 |
+| 采购入库详情 `goods_purchase_storage/detail.html` | 末尾新增「退货出库记录」面板 |
+| 采购单详情 `goods_purchase/edit.html` | `</form>` 之后新增「退货出库记录」表格（无记录时整块不渲染，`GoodsPurchase::edit()` assign `return_log_list`） |
+
+## 权限
+
+`kuerp/goods_purchase_storage/returnoutbound`（迁移新建，pid=628 采购单入库），**不在 `$noNeedRight`**，后端真实鉴权；
+迁移同时增量授予「已拥有 `goods_purchase_storage/index`」的角色（只加不删）。
+
+## 已验证（curl 登录 erp.licheng.test 实测，测试数据已按快照还原）
+
+- 审核：退货单审核后 `goods_stock.stock`/`cost_money`、`goods.inventory`、`goods_log` 全部零变动（改前会立刻扣减）。
+- 列表：关联采购单行 `return_outbound_pending=1`、`returns_order_id` 正确；出完变 0。
+- 分批出库：2/5 → 库存 10036→10034、成本 240→222.3（44.25×2/5）、`out_number=2`、日志行写入；
+  再出 3 → 库存 10031、成本 195.75、`out_number=5`，两次成本合计 = 44.25（尾差正确）。
+- 校验：超量「本次出库数量(99)超过剩余可出库数量(2)」、全 0「请填写本次退货出库数量」、无待出库「该采购单没有待出库的退货单」、反审核被拦截、删除被拦截。
+- 页面：采购单详情与采购入库详情均渲染两条出库记录（时间/退货单号/数量/明细含仓库/操作人）。
+- 审核→反审核往返库存零变动；改前 `unset` 缺失导致的 `fields not exists:[out_number]`（退货单明细行的 out_number 被带进
+  `kuerp_goods_purchase_info` / `kuerp_goods_purchase_summary` 的 insertAll）已修复。
+- ⚠️ 若日后启用序列号/批次：序列号在**整行出完**时统一标记 `store_status=2` 并写 `kuerp_goods_serial_log`；
+  批次按本次基础单位数量扣 `kuerp_goods_batch_stock` 并写 `kuerp_goods_batch_log`，整行出完时把
+  `kuerp_goods_batch_exchange_info.status` 置 '1'（当前本库 `batch`/`serial` 均为关闭，未实机验证）。
+
+---
+
+# 销货对账明细：收款状态显示反了 + 单号可复制（2026-11-05）
+
+> 涉及文件：`application/admin/controller/kuerp/SalesRecon.php`（新增 `docPayStatus()`）、
+> `public/assets/js/backend/kuerp/sales_recon.js`（`Controller.items`）、
+> `application/admin/view/kuerp/sales_recon/items.html`。**无数据库迁移、无权限变更。**
+
+## 一、收款状态显示反了（线上现象：全额收款显示「部分收款」）
+
+**两套 `pay_status` 字段的值语义相反**，`buildItemRows()` 之前把单据值直接透传给工作台（`items` 页）用：
+
+| 字段 | 0 | 1 | 2 | 写入方 |
+|---|---|---|---|---|
+| `kuerp_goods_sales.pay_status`、`kuerp_goods_sales_exchange.retreat_status` | 未收(退) | **全部**收(退) | **部分**收(退) | `Collection::examine()`、`Writeoff::examine()`（`$more_money<=0?1:2`），lang `Pay_status 1=全部收款` |
+| `kuerp_sales_recon.pay_status`（对账单） | 未收款 | **部分**收款 | **已**收款 | `SalesRecon` 模型 `recalcPay()`，`sales_recon.js` 的 `payTag()`、筛选下拉 |
+
+工作台卡片/筛选用的是第二套口径，但取的是第一套的字段值 → **全部收款显示「部分收款」、部分收款显示「已收款」**。
+线上实例：`XHD20261104001`（real 317 + 客户承担 10 = 327，pay_money 327，`pay_status=1`）在「销货对账明细」里显示「部分收款」。
+
+**修复**：`SalesRecon::docPayStatus($status)` 做 1↔2 互换（0 不变），`buildItemRows()` 的销货单与退货单两处都过它，
+返回给前端的 `pay_status` 统一为对账口径；工作台「收款状态」筛选（值 0/1/2 仍取自 items.html 下拉）随之正确。
+`applyItemFilters()` / `filteredDocKeys()` 共用同一份行数据，无需另改。
+
+**已验证**（curl 登录 erp.licheng.test 实测）：`itemlist?customers_id=19&recon_status=2` 中
+`XHD20261028001`（1201 全额已收）返回 `pay_status=2`（改前为 1）；`pay_status=2` 筛选命中该单、`pay_status=1` 为空（改前相反）。
+
+## 二、销货单号可复制
+
+`.recon-doc-head` 有 `user-select:none`（点击展开/收起），单号选不中也复制不了。现：
+
+- `items.html`：`.recon-doc-code` 单独放开 `user-select:text` + `cursor:copy`；
+- `sales_recon.js`：单号加 `title="点击复制单号"`，点击事件 `.recon-doc-code` → `copyText()`（Clipboard API，失败回退
+  `textarea + execCommand`）+ `Toastr.success('已复制：单号')`，并 `stopPropagation()` 不触发展开；
+  `.recon-doc-head` 的展开处理器同时跳过单号（双保险）。
+
+⚠️ 线上部署后需递增 `application/extra/site.php` 的 `version`（该文件有意不随代码部署），否则
+`/assets/js/backend/kuerp/sales_recon.js` 会被 nginx 12h 缓存挡住，用户看到的仍是旧行为（或强刷）。
+
+---
+
+# 采购入库「入库状态」筛选 + 重置按钮 / 收发明细·汇总·库存余额表「型号规格」搜索（2026-11-06）
+
+> 无数据库迁移、无新权限（沿用原有 index）。
+
+## 一、采购单入库（kuerp/goods_purchase_storage）搜索栏
+
+- **入库状态筛选**：搜索栏新增下拉 `#storage_status`（未入库/部分入库/已入库）。
+  `storage_status` 是**派生值**（按采购单号汇总 `kuerp_goods_purchase_info` 的 `SUM(number)/SUM(storage_number)`），
+  不是数据库列 → **不能进 `filter`**，下拉刻意**不写 `name`**（该页 `getSearch()/getOp()` 是按 `.layui-search [name]`
+  全量收集的，写了 name 就会拼进 filter 导致 SQL 报错），改由 `reloadTable()` 单独传 `storage_status`。
+- **反查实现**：`\app\admin\model\kuerp\GoodsPurchase::storageStatusCodes($status)`（口径与 `storageStatusMap()` 一致）
+  返回 `['mode'=>'in'|'not in','codes'=>[...]]`；控制器 `index()` 里 `$query->where('purchase_type',1)->where('purchase_code',$mode,$codes)`
+  —— 退货单没有入库概念（列表显示 `—`），筛选时一并排除。空匹配用哨兵 `__no_storage_match__` 占位避免 `IN ()`。
+- **重置按钮**：`#search` 右侧新增 `#reset`（`layui-btn-primary`，宽 80px）。
+  ⚠️ 不能 `form.reset()`：layui 的 select 是渲染出来的副本，原生 reset 后显示不变，必须
+  `$('.layui-search').find('input/select').val('')` + `layui.form.render('select')` 再 `reloadTable()`。
+- 已验证（curl + headless Chrome/CDP）：不筛 11 条；`storage_status=2` → 4 条、`=0` → 7 条（4+7=11）；下拉转 layui 样式且隐藏原生 select；
+  选「已入库」点搜索 → 共 4 条；点 [重置] → 回到共 11 条、下拉值清空；无 JS 异常。
+
+## 二、型号规格搜索（goods_log 收发明细表 / goods_log_summary 收发汇总表 / goods_stock 商品库存余额表）
+
+- 三页搜索栏都新增文本框 `#goods_specification_id`（placeholder「型号规格」），模糊匹配商品档案
+  `kuerp_goods.goods_specification_id`（varchar，存的是型号文本，不是外键）。
+- ⚠️ **这三张表都没有该列，不能进 `filter`**（`buildparams` 会把 key 前缀成 `goods_log.`/`goods_stock.` → 未知列），
+  一律走**独立查询参数** `goods_specification_id`，JS 里与 `filter` 一起放进 `table.reload` 的 `where`：
+  - `GoodsLog::index()`：先 `Db::name('kuerp_goods')->where('goods_specification_id','like','%x%')->column('id')`，
+    再 `where('goods_log.goods_id','in',ids)`（匹配不到用 `[0]` 占位）；
+  - `GoodsLogSummary::index()`：分组查询本就 `join kuerp_goods goods`，直接 `where('goods.goods_specification_id','like',...)`
+    （`getTotalRow()` 按分组键汇总，自动跟着过滤）；
+  - `GoodsStock::getSearchWhere()`：追加 `$where['goods.goods_specification_id'] = ['LIKE',"%x%"]`；
+    该方法被 `index()` 与顶部合计 `total()` **共用**，所以 JS 的 `loadTotal()` 也必须带 `goods_specification_id`
+    （`currentSpec` 变量，搜索时更新），否则合计栏与列表口径不一致。
+- 已验证（curl + headless Chrome/CDP，未改动任何业务数据）：`CBB` → goods_log 75→26 条、goods_log_summary 38→7 条、
+  goods_stock 680→53 条且顶部合计同步 680/3,124,461 → 53/111,674；不存在型号三页均 0 条；无 JS 异常。
+
+---
+
+# 组装单列表默认排序改为「单据日期倒序」（2026-11-06）
+
+> 涉及文件：仅 `application/admin/controller/kuerp/Assemble.php`（`index()` 默认排序）。**无数据库迁移、无视图/JS 改动。**
+
+- 默认排序由「生产日期升序（未排产排最后）→ 生成日期升序」改为 **`purchase_time DESC, id DESC`**：
+  按**单据日期**倒序，最近的排最前；同一天的按 id 倒序（同一单号的多行是同一批插入，id 相邻，
+  保证列表 `merge:['purchase_code']` 的合并单元格不被拆开）。
+- 前端点表头排序时仍走 `if ($this->request->param('sort'))` 分支，行为不变；`assemble.js` 的 `table.render`
+  没有 `initSort`/`autoSort`，所以不点表头时一定走这个默认排序。
+- `purchase_time` 为 0/NULL 的历史脏数据在 DESC 下自然排到最后，无需额外处理。
+- 已验证（curl 登录 erp.licheng.test）：`kuerp/assemble/index` 13 条返回顺序
+  `ZZ20261103002(11-03) → ZZ20261103001(11-03) → ZZ20261027001(10-27) → ZZ20261013001(10-13) → …→ ZZ20260926001(09-26)`，
+  同日的 14 在 13 前、10 在 9 前（id 倒序正确）。
+
+
+---
+
+# 分类管理列表：图片缩略图统一 40×40 + 固定列行高同步（2026-11-06）
+
+> 涉及文件（**纯前端，无数据库/控制器改动**）：6 个分类列表的 JS 与 index.html ——
+> `goods_type`(商品分类)、`supplyertype`(供应商分类)、`customertype`(客户分类)、
+> `expend_type`(支出类别)、`income_type`(收入类别)、`settlementtype`(结算方式)
+
+## 现象与根因
+
+线上商品分类加到 30 多个、且有的分类图片很大（如「柑橘」），列表出现「类别名称和右边字段对不上」，
+行高也高低不一。
+
+根因是 layui 的两件事叠加：
+
+1. 图片列 `templet` 直接输出 `<img src=xxx>`，**没有约束尺寸** → 行高由原图自然高度决定（900×900 的图能把行撑到几百 px）。
+2. `checkbox` 与「类别名称」两列是 `fixed:'left'`，layui 把它们渲染成**另一张独立的表**（`.layui-table-fixed-l`），
+   行高各自独立。主表行被大图撑高而固定列仍是 28px → 越往下错得越多（实测第 2 行 top 182 vs 194，第 10 行 554 vs 618）。
+
+## 修复
+
+- 图片列统一走 `Controller.api.imageCell(url)`：输出 `<img class='cat-thumb'>`，
+  CSS（各视图 index.html 内联 `<style>`）`width/height:40px + object-fit:contain` →
+  **原图再大也固定 40×40**；**没有图片时输出同尺寸占位 `<span class='cat-thumb'>`**，行高完全一致。
+- `table.render` 增加 `done` 回调，按主表行高逐行写回 `.layui-table-fixed` 的 tbody/thead 行（与 `goods.js`/`suppliers.js` 同一写法），
+  即使以后某个单元格再变高也不会错位（`table.reload`/搜索/翻页后自动重跑）。
+- 顺带：图片包的 `<a>` 原来点了没反应，现在点缩略图 `Layer.photos` 弹原图（`.cat-thumb-preview`，事件委托在 document 上）。
+- 空图片原来输出 `<img src=>`（浏览器显示破图图标），现在是无图的浅灰占位块。
+
+## 已验证（headless Chrome + CDP 实测 erp.licheng.test，临时造的测试图片已删除）
+
+- 临时放 900×900 / 800×120 / 400×200 / 60×60 四张图后：6 个页面所有行高恒为 **53px**、
+  主表与固定列每行 `top/height` **完全一致**；缩略图实测一律 40×40（naturalWidth 900 → 渲染 40）。
+- 反证：把缩略图样式还原成原始尺寸后立刻复现错位（main `[141,182,245…]` vs fixed `[141,194,247…]`）。
+- 点击缩略图弹出层 `.layui-layer-photos`，`img.src` 为原图地址；6 个页面均无 JS 异常；`node --check` 全通过。
+
+⚠️ 部署后需递增 `application/extra/site.php` 的 `version`（该文件有意不随代码部署），否则浏览器会继续用缓存的旧 JS。
