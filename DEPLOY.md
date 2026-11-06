@@ -4,7 +4,7 @@
 > 部署方式：无 SSH，代码走 FTP（`118.31.20.155:39683` / `dyerp_dayan` / FTP 根 = 项目根）
 > 数据库：`mysql -h118.31.20.155 -udyerp_shengbokj_ -D dyerp_shengbokj_`
 
-**当前版本：`1.6.36`（2026-11-06）**
+**当前版本：`1.6.39`（2026-11-06）**
 
 版本号的唯一来源是 `addons/kuerp/info.ini` 的 `version`；每次上线递增末位，
 并在下表的「版本清单」里追加一行。线上根目录的 `DEPLOY_VERSION.txt` 记录线上实际部署的版本与文件清单。
@@ -15,6 +15,9 @@
 
 | 版本 | 部署日期 | 内容摘要 | 新增/执行的迁移 | 备注 |
 |------|---------|---------|----------------|------|
+| 1.6.39 | 2026-11-06 | 采购单 / 采购预订单 / 采购预订单(计划) / 采购计划 四个模块**添加+编辑页**明细表：「型号 / 规格2-厂商 / 规格3-封装」三列加宽（min-width 160/140/120）并改为可折行显示（原为 100% 宽只读 input，超长被截断），数量/单价/税额等数字列收窄（64px，税率 52px）；JS 新增 `renderSpecText()` 在选商品/换属性/换单位/换仓库后同步文本，并新增 `initSpecText()` 在打开编辑页时按商品档案回填三列（此前这三个编辑页三列恒为空） | 无（未做任何 DDL） | 12 文件（8 视图 + 4 JS）；`site.version` 不用改——线上 `app_debug` 开启、`urlArgs=time()`，`/assets/` 12h 缓存天然绕过；`goods_purchase*.js` 三份与 `goods_purchase/{add,edit}.html` 是 CRLF，按字节改写保留行尾 |
+| 1.6.38 | 2026-11-06 | 外协加工单 / 外协订单**详情页**（`process/detail.html`、`process_order/detail.html`）的「出库原材料」「入库成品」两表在商品名称后新增 **型号 / 规格2-厂商 / 规格3-封装** 三列（取 `kuerp_goods` 的 `goods_specification_id`/`vendor_name`/`packaging`）；顺带修复这两页两列常年显示 `-`：`goods_unit_name` 从未查询赋值、`goods_attr_name` 取 `kuerp_goods_attr.attr_code`；原表头写作「型号」实为辅助属性名，已更名为「属性」 | 无（未做任何 DDL） | 4 文件（2 控制器 + 2 视图）；纯服务端渲染、无 JS/CSS，`site.version` 不用改；线上 4 个文件逐个 md5 校验通过、无 `.tmpnew`/`.deploybak` 残留；`info.ini` 线上原为 1.6.36（1.6.37 分类缩略图那批只传了 12 个前端文件、漏了 info.ini），本次一并升到 1.6.38 |
+| 1.6.37 | 2026-11-06 | 6 个分类列表（商品分类/供应商分类/客户分类/支出类别/收入类别/结算方式）图片列统一 40×40 缩略图（`Controller.api.imageCell()` + 各视图 `.cat-thumb` 样式），空图输出同尺寸占位；`table.render` 加 `done` 回调逐行同步固定列行高；点缩略图 `Layer.photos` 看原图。修复「分类图片过大 → 行高不一致 → 左侧类别名称与右侧字段错位」 | 无 | 12 个文件（6 JS + 6 视图）；`site.version` **不用改**——线上 `app_debug` 开启，`urlArgs` 是 `time()`（每请求唯一，实测 `backend.css?v=` 每次不同），`/assets/` 的 12h 缓存天然被绕过；线上清空 `runtime/cache`+`runtime/temp` 34 个文件；线上逐个 md5 校验通过、无 `.tmpnew`/`.deploybak` 残留 |
 | 1.6.36 | 2026-11-06 | 销货排期（`goods_sales_schedule`）编辑页「型号」列空白：数据行的 `.goods_specification_id` 只读框模板里没有 `value`，只有选商品/改单位/改仓库/改属性时由 JS 回填 → 打开编辑页时历史行型号恒为空（后端 `edit()` 本就 assign 了 `unit.goods.goods_specification_id`）。`edit.html` 数据行补 `value="{$info.unit.goods.goods_specification_id\|default=''\|htmlentities}"` | 无（未做任何 DDL） | 2 文件（视图 + info.ini）；`site.version` 不变（无 JS/CSS）；线上清空 `runtime/temp` 52 个编译模板 + `runtime/cache` 3 个配置缓存；线上核查 `XHD20261106001` 三个商品（X04-0001/X01-0046/A01-0020）型号均已维护，修复后可见。同类「只读型号框无 value」写法仍在 split/adjustment/warehousing/warehouse/process_order 的 edit 页，本次未改 |
 | 1.6.35 | 2026-11-06 | 采购单入库「入库状态」筛选 + [重置]；收发明细/收发汇总/商品库存余额 三页「型号规格」搜索；采购入库弹窗「本次入库数量」默认待入库数量；采购入库/退货出库 操作记录改为每条记录下方展开明细表格；组装单列表默认按单据日期倒序 | 无（mysqldump --no-data 全库 183 表比对零差异） | 19 文件 + site.php；`goods_log.js` 改为「线上版本 + 型号规格搜索」合并版（保留线上 基本单位数量/单位成本/成本 列），自此本地与线上一致；`site.version` 1.0.11→1.0.12 |
 | 1.6.34 | 2026-11-05 | 销货对账明细：①收款状态口径修正（销货单 `pay_status` 1=全部/2=部分，对账工作台 1=部分/2=已收款，`buildItemRows()` 直接透传导致全额收款显示「部分收款」）→ 新增 `SalesRecon::docPayStatus()` 1↔2 互换；②单号可复制（`.recon-doc-code` 放开 user-select + 点击复制） | 无 | 4 个文件；`site.version` 1.0.10→1.0.11；线上 `XHD20261104001`（327 全额已收）修正后显示「已收款」 |
