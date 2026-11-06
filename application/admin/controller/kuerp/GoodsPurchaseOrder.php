@@ -185,6 +185,46 @@ class GoodsPurchaseOrder extends Backend
         return $this->view->fetch();
     }
 
+    /**
+     * 检测提交的表单是否被 PHP max_input_vars 截断
+     *
+     * 明细每行约 20 个字段，服务器默认上限 1000 时约 50 行就会被**静默截断**：
+     * 表单最后提交的尾部字段（note/preferential_rate/preferential_money/real_money）
+     * 以及多余的明细行会被 PHP 直接丢弃，后面按 $params[...] 取值就会抛「未定义数组索引」。
+     * 这里提前给出可读提示，既不报 500，也避免静默保存成少了明细行的单据。
+     */
+    protected function checkFormTruncated($params)
+    {
+        if (empty($params['goods_code'])) {
+            return;
+        }
+        // 表单尾部固定提交的字段
+        $tailFields = ['note', 'preferential_rate', 'preferential_money', 'real_money'];
+        // 每条明细固定提交的字段（各列长度必须与 goods_code 一致）
+        $rowFields = ['goods_note', 'goods_attr', 'goods_unit', 'stores_id', 'row_supplyer_code', 'allow_stock',
+            'number', 'default_unit', 'basic_nmber', 'unit_price', 'tax_included', 'discount', 'dis_money',
+            'all_money', 'tax_rate', 'tax_money', 'money_tax_price', 'remark', 'sales_order_id'];
+        $truncated = false;
+        foreach ($tailFields as $field) {
+            if (!isset($params[$field])) {
+                $truncated = true;
+                break;
+            }
+        }
+        if (!$truncated) {
+            $count = count($params['goods_code']);
+            foreach ($rowFields as $field) {
+                if (!isset($params[$field]) || !is_array($params[$field]) || count($params[$field]) !== $count) {
+                    $truncated = true;
+                    break;
+                }
+            }
+        }
+        if ($truncated) {
+            $this->error('提交的明细行过多，服务器已截断表单数据（PHP max_input_vars=' . ini_get('max_input_vars') . '），请让管理员调大 max_input_vars 后重试，或将单据拆成多张录入');
+        }
+    }
+
     public function add($type='')
     {
         if ($this->request->isPost()) {
@@ -197,6 +237,7 @@ class GoodsPurchaseOrder extends Backend
                 $examine= Db::name('kuerp_sets')->where(['name'=>'examine'])->value('is_checked');
 
                 $params = $this->preExcludeFields($params);
+                $this->checkFormTruncated($params);
                 $admin = Session::get('admin');
 
                 if(empty($params['purchase_code'])){
@@ -646,6 +687,7 @@ class GoodsPurchaseOrder extends Backend
             $params = $this->request->post("row/a");
             if ($params) {
                 $params = $this->preExcludeFields($params);
+                $this->checkFormTruncated($params);
 
                 if(empty($params['purchase_code'])){
                     $this->error('请填写单据编号');

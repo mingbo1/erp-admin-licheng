@@ -105,6 +105,7 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
                 }
 
                 $params = $this->preExcludeFields($params);
+                $this->checkFormTruncated($params);
                 $admin = Session::get('admin');
 
                 if (empty($params['purchase_code'])) {
@@ -520,6 +521,7 @@ class GoodsPurchaseOrderPlan extends GoodsPurchaseOrder
             $params = $this->request->post("row/a");
             if ($params) {
                 $params = $this->preExcludeFields($params);
+                $this->checkFormTruncated($params);
 
                 if (empty($params['purchase_code'])) {
                     $this->error('请填写单据编号');
