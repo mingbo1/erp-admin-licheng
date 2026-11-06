@@ -109,7 +109,8 @@
     .recon-doc-row1 > * { margin-right: 12px; }
     .recon-doc-caret { display: inline-block; width: 14px; color: #999; transition: transform .15s; }
     .recon-doc.is-open .recon-doc-caret { transform: rotate(90deg); }
-    .recon-doc-code { font-weight: 600; color: #1E9FFF; }
+    /* 单号可选中/可点击复制（父级 .recon-doc-head 是 user-select:none，这里要单独放开） */
+    .recon-doc-code { font-weight: 600; color: #1E9FFF; cursor: copy; -webkit-user-select: text; user-select: text; }
     .recon-doc-type { display: inline-block; padding: 0 6px; border-radius: 2px; font-size: 12px; line-height: 20px; background: #e2ecf8; color: #1E9FFF; }
     .recon-doc-type.return { background: #fdecea; color: #ff5722; }
     .recon-doc-tags > span { margin-left: 6px; font-size: 12px; }

@@ -1684,6 +1684,28 @@ class SalesRecon extends Backend
     }
 
     /**
+     * 单据收款/退款状态 → 对账工作台口径
+     *
+     * 两套状态值语义相反，不能直接透传：
+     *   销货单 pay_status / 退货单 retreat_status：0 未收(退)、1 全部收(退)、2 部分收(退)
+     *     —— 写入见 Collection::examine()、Writeoff::examine()（$more_money <= 0 ? 1 : 2）
+     *   对账工作台 / 对账单 sales_recon.pay_status：0 未收款、1 部分收款、2 已收款
+     *     —— 见 SalesRecon 模型 recalcPay()、前端 payTag()、筛选下拉
+     * 不转换会把「全部收款」显示成「部分收款」（反之亦然）。
+     */
+    protected function docPayStatus($status)
+    {
+        $status = (string)$status;
+        if ($status === '1') {
+            return '2';
+        }
+        if ($status === '2') {
+            return '1';
+        }
+        return '0';
+    }
+
+    /**
      * 构造工作台行（商品行 + 单据级字段只放首行）
      */
     protected function buildItemRows($sales, $returns)
@@ -1755,12 +1777,12 @@ class SalesRecon extends Backend
             if ($type == '1') {
                 $outStatus = isset($outStatusMap[$d['purchase_code']]) ? $outStatusMap[$d['purchase_code']] : 0;
                 $invoiceStatus = isset($invoiceStatusMap[$d['purchase_code']]) ? $invoiceStatusMap[$d['purchase_code']] : 0;
-                $payStatus = $d['pay_status'];
+                $payStatus = $this->docPayStatus($d['pay_status']);
                 $expressNo = isset($expressMap[$d['purchase_code']]) ? $expressMap[$d['purchase_code']] : '';
             } else {
                 $outStatus = null;
                 $invoiceStatus = null;
-                $payStatus = $d['retreat_status'];
+                $payStatus = $this->docPayStatus($d['retreat_status']);
                 $expressNo = '';
             }
 

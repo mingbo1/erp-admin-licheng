@@ -316,6 +316,33 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', 'addtabs', '/assets/a
                     });
                 }
 
+                // 复制文本（优先 Clipboard API；iframe / 旧浏览器回退 execCommand）
+                function fallbackCopy(text) {
+                    var ta = document.createElement('textarea');
+                    ta.value = text;
+                    ta.style.position = 'fixed';
+                    ta.style.top = '-1000px';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    var ok = false;
+                    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+                    document.body.removeChild(ta);
+                    if (ok) { Toastr.success('已复制：' + text); }
+                    else { Toastr.warning('复制失败，请手动选中单号复制'); }
+                }
+
+                function copyText(text) {
+                    if (navigator.clipboard && window.isSecureContext) {
+                        navigator.clipboard.writeText(text).then(function () {
+                            Toastr.success('已复制：' + text);
+                        }, function () {
+                            fallbackCopy(text);
+                        });
+                    } else {
+                        fallbackCopy(text);
+                    }
+                }
+
                 function outTag(v, type) {
                     if (type == '2') return '<span style="color:#ccc">—</span>';
                     if (v == '2') return '<span style="color:#5fb878">已出库</span>';
@@ -385,7 +412,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', 'addtabs', '/assets/a
                     s += '<input type="checkbox" class="doc-check" value="' + esc(d.doc_key) + '"'
                         + (locked ? ' disabled title="该单据已对账，不能重复生成对账单"' : '') + '>';
                     s += '<span class="recon-doc-caret layui-icon layui-icon-right"></span>';
-                    s += '<span class="recon-doc-code">' + esc(d.doc_code) + '</span>';
+                    s += '<span class="recon-doc-code" title="点击复制单号">' + esc(d.doc_code) + '</span>';
                     s += '<span class="recon-doc-type' + (isReturn ? ' return' : '') + '">'
                         + (isReturn ? '销货退货单' : '销货单') + '</span>';
                     s += '<span>' + esc(d.doc_time_text) + '</span>';
@@ -492,9 +519,16 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', 'addtabs', '/assets/a
                     });
                 }
 
+                // 点击单号复制（不触发展开/收起）
+                $('#items-list').on('click', '.recon-doc-code', function (e) {
+                    e.stopPropagation();
+                    copyText($(this).text());
+                });
+
                 // 展开/收起商品明细（点复选框不触发展开）
                 $('#items-list').on('click', '.recon-doc-head', function (e) {
                     if ($(e.target).is('input')) { return; }
+                    if ($(e.target).closest('.recon-doc-code').length) { return; }
                     var $doc = $(this).closest('.recon-doc');
                     $doc.toggleClass('is-open');
                     $doc.find('.recon-doc-body').toggle($doc.hasClass('is-open'));
