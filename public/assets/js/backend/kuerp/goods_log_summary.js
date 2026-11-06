@@ -184,6 +184,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         where: {
                             filter:JSON.stringify(getSearch()),
                             op:JSON.stringify(getOp()),
+                            // 型号规格是商品档案字段，本表没有该列，单独传参
+                            goods_specification_id: $.trim($('#goods_specification_id').val()) || ''
                         }
                     });
                 }
@@ -217,6 +219,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         where: {
                             filter:JSON.stringify(getSearch()),
                             op:JSON.stringify(getOp()),
+                            // 型号规格是商品档案字段，本表没有该列，单独传参
+                            goods_specification_id: $.trim($('#goods_specification_id').val()) || ''
                         }
                     });
                 });

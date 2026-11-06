@@ -158,8 +158,8 @@ class Assemble extends Backend
                 // 前端显式指定排序时按指定字段
                 $query->order($sort, $order);
             } else {
-                // 默认：先按生产日期（未排产的排在最后），再按组装单生成日期
-                $query->orderRaw('(produce_date IS NULL OR produce_date = 0) ASC, produce_date ASC, createtime ASC, id ASC');
+                // 默认：按单据日期倒序（最近的排前面），同一天的再按 id 倒序，保证同一单号的多行相邻（列表按 purchase_code 合并单元格）
+                $query->orderRaw('purchase_time DESC, id DESC');
             }
             $list = $query->paginate($limit);
 

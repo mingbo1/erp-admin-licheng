@@ -271,6 +271,12 @@ class GoodsStock extends Backend
                 }
             }
         }
+        //规格型号是商品档案(kuerp_goods)的字段，goods_stock 表没有该列，走独立查询参数
+        //（列表与顶部统计共用本方法，两处口径一致）
+        $goodsSpec = trim((string)input('goods_specification_id'));
+        if ($goodsSpec !== '') {
+            $where['goods.goods_specification_id'] = ['LIKE', "%{$goodsSpec}%"];
+        }
         return $where;
     }
 

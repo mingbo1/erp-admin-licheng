@@ -83,10 +83,25 @@ class GoodsLog extends Backend
                 }
             }
 
-            $list = $this->model
+            //规格型号是商品档案(kuerp_goods)的字段，goods_log 表没有该列，不能进 filter，
+            //因此走独立查询参数：先按型号模糊匹配出商品ID，再过滤本表 goods_id
+            $goodsSpec = trim((string)$this->request->get('goods_specification_id', ''));
+            $specGoodsIds = null;
+            if ($goodsSpec !== '') {
+                $specGoodsIds = Db::name('kuerp_goods')
+                    ->where('goods_specification_id', 'like', '%' . $goodsSpec . '%')
+                    ->column('id');
+            }
+
+            $query = $this->model
                 ->with(['goods','stores'])
                 ->where($where)
-                ->where($wheres)
+                ->where($wheres);
+            if ($specGoodsIds !== null) {
+                //匹配不到商品时用 0 占位，避免生成 IN () 语法错误
+                $query->where('goods_log.goods_id', 'in', empty($specGoodsIds) ? [0] : $specGoodsIds);
+            }
+            $list = $query
                 ->order('business_type','ASC')
                 ->order($sort, $order)
                 ->paginate($limit);

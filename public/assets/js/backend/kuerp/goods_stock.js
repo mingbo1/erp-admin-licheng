@@ -87,13 +87,15 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
 
                 //当前搜索条件（顶部统计与列表共用，翻页时不变）
                 var currentFilter = {};
+                //型号规格（商品档案字段，走独立参数，与 filter 一起提交给列表与顶部统计）
+                var currentSpec = '';
                 //加载顶部合计统计：只在页面加载/刷新/搜索时调用，翻页不调用
                 var loadTotal = function () {
                     $.ajax({
                         url: 'kuerp/goods_stock/total',
                         type: 'GET',
                         dataType: 'json',
-                        data: {filter: JSON.stringify(currentFilter)},
+                        data: {filter: JSON.stringify(currentFilter), goods_specification_id: currentSpec},
                         success: function (res) {
                             if (res.code != 1) {
                                 Toastr.error(res.msg || '统计加载失败');
@@ -121,7 +123,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         page: {curr: 1},
                         where: {
                             filter: JSON.stringify(currentFilter),
-                            op: JSON.stringify({'goods_id': 'IN', 'stores_id': 'IN'})
+                            op: JSON.stringify({'goods_id': 'IN', 'stores_id': 'IN'}),
+                            //型号规格是商品档案字段，本表没有该列，单独传参
+                            goods_specification_id: currentSpec
                         }
                     });
                 };
@@ -228,6 +232,8 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                         }
                         //搜索条件同时作用于列表与顶部统计（统计按条件全量算，只在搜索时更新）
                         currentFilter = search;
+                        //型号规格（商品档案字段）走独立参数
+                        currentSpec = $.trim($('#goods_specification_id').val()) || '';
                         reloadTable();
                         loadTotal();
                      });

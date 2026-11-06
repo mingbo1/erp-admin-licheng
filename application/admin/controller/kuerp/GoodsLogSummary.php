@@ -84,12 +84,19 @@ class GoodsLogSummary extends Backend
                 }
             }
 
+            //规格型号是商品档案(kuerp_goods)的字段，goods_log 表没有该列，不能进 filter，走独立查询参数
+            $goodsSpec = trim((string)$this->request->get('goods_specification_id', ''));
+
             //按 商品+仓库 分组：先取全部分组键算总数，再按当前页切片，
             //不能整表查出来后既当 rows 又当 total（会导致每页都返回全部数据、分页对不上）
-            $groupKeyList = Db::name('kuerp_goods_log')->alias('goods_log')
+            $query = Db::name('kuerp_goods_log')->alias('goods_log')
                 ->join('kuerp_goods goods','goods.id=goods_log.goods_id')
                 ->join('kuerp_stores stores','stores.id=goods_log.stores_id')
-                ->where($where)
+                ->where($where);
+            if ($goodsSpec !== '') {
+                $query->where('goods.goods_specification_id', 'like', '%' . $goodsSpec . '%');
+            }
+            $groupKeyList = $query
                 ->group('goods_log.goods_id,goods_log.stores_id')
                 ->field('goods_log.goods_id,goods_log.stores_id')
                 ->order('goods_log.goods_id','asc')
