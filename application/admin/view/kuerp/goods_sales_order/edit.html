@@ -144,7 +144,7 @@
                         </span>
                     </th>
                     <th>型号</th>
-                    <th class="goods_attr_sd">{:__('Goods_attr')}</th><th>{:__('Goods_unit')}</th><th>{:__('Allow_stock')}</th>
+                    <th class="goods_attr_sd">{:__('Goods_attr')}</th><th>{:__('Goods_unit')}</th><th style="min-width:110px">{:__('Stores_id')}</th><th>{:__('Allow_stock')}</th>
                     <th>{:__('Number')}</th><th class="goods_multi_unit_sd">{:__('Default_unit')}</th>
                     <!-- <th>{:__('Basic_nmber')}</th> -->
                     <th>{:__('Unit_price')}</th><th class="goods_tax_sd">{:__('Tax_included')}</th>
@@ -161,12 +161,7 @@
                             <input type="text" class="ipt goods_name">
                         </div>
                     </td>
-                    <td><div><input type="text" class="goods_specification_id" readonly></div><div data-select-enhance="skip" style="display:none"><select name="row[stores_id][]" class="form-control stores_id">
-                                <option value=""></option>
-                                {foreach name="storesList" item="vo"}
-                                <option value="{$vo.id}">{$vo.name}</option>
-                                {/foreach}
-                            </select></div></td>
+                    <td><div><input type="text" class="goods_specification_id" readonly></div></td>
                     
                     <input type="hidden" name="row[goods_note][]" class="goods_note">
                     <td class="goods_attr_sd">
@@ -180,6 +175,16 @@
                         <div>
                             <select name="row[goods_unit][]" class="form-control goods_unit">
                                 <option value=""></option>
+                            </select>
+                        </div>
+                    </td>
+                    <td>
+                        <div>
+                            <select name="row[stores_id][]" class="form-control stores_id">
+                                <option value=""></option>
+                                {foreach name="storesList" item="vo"}
+                                <option value="{$vo.id}">{$vo.name}</option>
+                                {/foreach}
                             </select>
                         </div>
                     </td>
@@ -216,12 +221,7 @@
                             {/foreach}
                         </div>
                     </td>
-                    <td><div><input type="text" class="goods_specification_id" readonly value="{$info.goods_specification_id|htmlentities}"></div><div data-select-enhance="skip" style="display:none"><select name="row[stores_id][]" class="form-control stores_id">
-                                <option value=""></option>
-                                {foreach name="storesList" item="vo"}
-                                <option value="{$vo.id}" {if condition="$vo.id==$info.stores_id"}selected{/if}>{$vo.name}</option>
-                                {/foreach}
-                            </select></div></td>
+                    <td><div><input type="text" class="goods_specification_id" readonly value="{$info.goods_specification_id|htmlentities}"></div></td>
                     
                     <input type="hidden" name="row[goods_note][]" class="goods_note" value="{$info.goods_note|htmlentities}">
                     <td class="goods_attr_sd">
@@ -241,6 +241,16 @@
                                 {foreach name="info.unit.unit" item="vo"}
                                 {if condition="$vo.id==$info.default_unit"}{php}$unit_name=$vo['name'];{/php}{/if}
                                 <option value="{$vo.id}" {if condition="$vo.id==$info.goods_unit"}selected{/if}>{$vo.name}</option>
+                                {/foreach}
+                            </select>
+                        </div>
+                    </td>
+                    <td>
+                        <div>
+                            <select name="row[stores_id][]" class="form-control stores_id">
+                                <option value=""></option>
+                                {foreach name="storesList" item="vo"}
+                                <option value="{$vo.id}" {if condition="$vo.id==$info.stores_id"}selected{/if}>{$vo.name}</option>
                                 {/foreach}
                             </select>
                         </div>
@@ -274,12 +284,7 @@
                             <input type="text" class="ipt goods_name">
                         </div>
                     </td>
-                    <td><div><input type="text" class="goods_specification_id" readonly></div><div data-select-enhance="skip" style="display:none"><select name="row[stores_id][]" class="form-control stores_id">
-                                <option value=""></option>
-                                {foreach name="storesList" item="vo"}
-                                <option value="{$vo.id}">{$vo.name}</option>
-                                {/foreach}
-                            </select></div></td>
+                    <td><div><input type="text" class="goods_specification_id" readonly></div></td>
                     
                     <input type="hidden" name="row[goods_note][]" class="goods_note">
                     <td class="goods_attr_sd">
@@ -293,6 +298,16 @@
                         <div>
                             <select name="row[goods_unit][]" class="form-control goods_unit">
                                 <option value=""></option>
+                            </select>
+                        </div>
+                    </td>
+                    <td>
+                        <div>
+                            <select name="row[stores_id][]" class="form-control stores_id">
+                                <option value=""></option>
+                                {foreach name="storesList" item="vo"}
+                                <option value="{$vo.id}">{$vo.name}</option>
+                                {/foreach}
                             </select>
                         </div>
                     </td>
