@@ -4,7 +4,7 @@
 > 部署方式：无 SSH，代码走 FTP（`118.31.20.155:39683` / `dyerp_dayan` / FTP 根 = 项目根）
 > 数据库：`mysql -h118.31.20.155 -udyerp_shengbokj_ -D dyerp_shengbokj_`
 
-**当前版本：`1.6.39`（2026-11-06）**
+**当前版本：`1.6.40`（2026-11-07）**
 
 版本号的唯一来源是 `addons/kuerp/info.ini` 的 `version`；每次上线递增末位，
 并在下表的「版本清单」里追加一行。线上根目录的 `DEPLOY_VERSION.txt` 记录线上实际部署的版本与文件清单。
@@ -15,6 +15,7 @@
 
 | 版本 | 部署日期 | 内容摘要 | 新增/执行的迁移 | 备注 |
 |------|---------|---------|----------------|------|
+| 1.6.40 | 2026-11-07 | 采购单打印页（`goods_purchase/printpage`）**移除底部「订货说明」1~5 条**（交货方式/收货地址/付款方式/质量保证/合同声明），明细后直接接签字栏；其中第 2、3 条原由设置项提供的两个配置项 `purchase_print_receipt` / `purchase_print_payment` 一并下线，设置 → 基础设置 不再出现 | `migration_remove_purchase_print_terms.sql`（DELETE 两个设置项，可重复执行；远端旧 `migration_add_purchase_print_terms.sql` 已删除） | 5 上传 + 1 删除；无 DDL；`site.version` 不改（无 JS/CSS）；远端 `fa_kuerp_sets` 两行已删（COUNT=0）；清 `runtime/cache` 3 项 + `runtime/temp` 47 项 |
 | 1.6.39 | 2026-11-06 | 采购单 / 采购预订单 / 采购预订单(计划) / 采购计划 四个模块**添加+编辑页**明细表：「型号 / 规格2-厂商 / 规格3-封装」三列加宽（min-width 160/140/120）并改为可折行显示（原为 100% 宽只读 input，超长被截断），数量/单价/税额等数字列收窄（64px，税率 52px）；JS 新增 `renderSpecText()` 在选商品/换属性/换单位/换仓库后同步文本，并新增 `initSpecText()` 在打开编辑页时按商品档案回填三列（此前这三个编辑页三列恒为空） | 无（未做任何 DDL） | 12 文件（8 视图 + 4 JS）；`site.version` 不用改——线上 `app_debug` 开启、`urlArgs=time()`，`/assets/` 12h 缓存天然绕过；`goods_purchase*.js` 三份与 `goods_purchase/{add,edit}.html` 是 CRLF，按字节改写保留行尾 |
 | 1.6.38 | 2026-11-06 | 外协加工单 / 外协订单**详情页**（`process/detail.html`、`process_order/detail.html`）的「出库原材料」「入库成品」两表在商品名称后新增 **型号 / 规格2-厂商 / 规格3-封装** 三列（取 `kuerp_goods` 的 `goods_specification_id`/`vendor_name`/`packaging`）；顺带修复这两页两列常年显示 `-`：`goods_unit_name` 从未查询赋值、`goods_attr_name` 取 `kuerp_goods_attr.attr_code`；原表头写作「型号」实为辅助属性名，已更名为「属性」 | 无（未做任何 DDL） | 4 文件（2 控制器 + 2 视图）；纯服务端渲染、无 JS/CSS，`site.version` 不用改；线上 4 个文件逐个 md5 校验通过、无 `.tmpnew`/`.deploybak` 残留；`info.ini` 线上原为 1.6.36（1.6.37 分类缩略图那批只传了 12 个前端文件、漏了 info.ini），本次一并升到 1.6.38 |
 | 1.6.37 | 2026-11-06 | 6 个分类列表（商品分类/供应商分类/客户分类/支出类别/收入类别/结算方式）图片列统一 40×40 缩略图（`Controller.api.imageCell()` + 各视图 `.cat-thumb` 样式），空图输出同尺寸占位；`table.render` 加 `done` 回调逐行同步固定列行高；点缩略图 `Layer.photos` 看原图。修复「分类图片过大 → 行高不一致 → 左侧类别名称与右侧字段错位」 | 无 | 12 个文件（6 JS + 6 视图）；`site.version` **不用改**——线上 `app_debug` 开启，`urlArgs` 是 `time()`（每请求唯一，实测 `backend.css?v=` 每次不同），`/assets/` 的 12h 缓存天然被绕过；线上清空 `runtime/cache`+`runtime/temp` 34 个文件；线上逐个 md5 校验通过、无 `.tmpnew`/`.deploybak` 残留 |

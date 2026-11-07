@@ -3568,8 +3568,8 @@ UPDATE fa_kuerp_sales_invoicing SET pay_money=200, give_money=0, invoice_status=
 # 采购单打印按客户模板改版（2026-11-04）
 
 > 模板：`资料/财务功能/采购单打印模板.xlsx`
-> 迁移：`addons/kuerp/migration_add_purchase_print_terms.sql`（已对 erp_licheng 执行，可重复执行）；
-> `install.sql` 1.6.27 段 + `info.ini` 1.6.27。
+> 迁移：`addons/kuerp/migration_remove_purchase_print_terms.sql`（1.6.40 起替代已删除的 `migration_add_purchase_print_terms.sql`）；
+> `install.sql` 1.6.27 段（INSERT 已删）+ 1.6.40 段（DELETE）+ `info.ini` 1.6.40。
 > 涉及文件：`application/admin/controller/kuerp/GoodsPurchase.php`（`printpage()`）、
 > `application/admin/view/kuerp/goods_purchase/{printpage,index,edit}.html`、`public/assets/js/backend/kuerp/goods_purchase.js`（整页重写）。
 > 入口：采购单**列表行操作栏**的 [打印]（`lay-event="print"` → `Fast.api.open("kuerp/goods_purchase/printpage?ids=X", "打印", {area:['90%','85%']})`）。
@@ -3588,7 +3588,8 @@ UPDATE fa_kuerp_sales_invoicing SET pay_money=200, give_money=0, invoice_status=
   - 标题 = **公司名称 + 「采购订货单」**（`purchase_type != 1` 时为「采购退货单」）。
   - 三格分列比例 `A:D | E:H | I:K`（`采购编号：GHD…` 17 位单号需要 3 列宽，早先 2 列会折行）。
 - 合计行：`合计数量：`（A–E 合并）+ 数量列数值；`合计金额：`（含税价列）+ 空税率列 + 金额列数值。
-- 明细之后依次：单据备注（`note` 非空时）、**订货说明 1–5 条**、签字栏（需方代表 / 供方代表 / 签定日期）。
+- 明细之后依次：单据备注（`note` 非空时）、签字栏（需方代表 / 供方代表 / 签定日期）。
+  **订货说明 1–5 条已整块移除**（2026-11-07 / 1.6.40，按用户要求"这段文字内容都去掉"），原 `.po-terms` 样式一并删除。
 - 日期一律输出 `Y.m.d`（模板口径）；价格/数量按设置项 `price_decimal` / `number_decimal` 格式化。
 
 ## 二、字段口径
@@ -3607,18 +3608,16 @@ UPDATE fa_kuerp_sales_invoicing SET pay_money=200, give_money=0, invoice_status=
 
 ⚠️ 模板没有「单位」列 —— 页面上不再输出单位名称，表头固定写「数量（个）」。若日后要按单位显示，需改表头或把单位拼进数量格。
 
-## 三、可配置项（模板里标注"可更改"的两条）
+## 三、可配置项（1.6.40 已全部下线）
 
-`fa_kuerp_sets` 新增两个 type=1 设置项，在 **设置 → 基础设置** 里可改（`Sets::index` 对 type=1 自动渲染成文本框）：
+原「订货说明」第 2/3 条曾抽成两个 type=1 设置项（`purchase_print_receipt` 采购单打印收货信息、
+`purchase_print_payment` 采购单打印付款方式），在 设置 → 基础设置 可改。**2026-11-07 随订货说明整块移除而一并下线**：
 
-| name | 昵称 | 打印页位置 |
-|------|------|-----------|
-| `purchase_print_receipt` | 采购单打印收货信息 | 订货说明第 2 条「收货地址：」 |
-| `purchase_print_payment` | 采购单打印付款方式 | 订货说明第 3 条「付款方式：」 |
-
-- 取不到/为空时自动兜底（**不需要**先执行迁移也能正常打印）：
-  收货信息 = `仓库  {company_phone}   {company_address}（走货梯）`；付款方式 = 内置默认文案。
-- 订货说明第 1/4/5 条（交货方式、质量保证、合同声明）是固定文案，写死在视图里。
+- 视图 `printpage.html` 删除整段 `<tr><td class="po-terms">`（含 1~5 条文案）与对应 CSS；
+- `GoodsPurchase::printpage()` 删除读取这两个设置项并拼 `receipt_text` / `payment_text` 的代码；
+- `migration_add_purchase_print_terms.sql` 已删除，改为 `migration_remove_purchase_print_terms.sql`（`DELETE` 两个设置项，可重复执行）；
+  `install.sql` 移除 1.6.27 的 INSERT，末尾 1.6.40 段追加同样的 DELETE。
+- 恢复方式：`git show <commit>:addons/kuerp/migration_add_purchase_print_terms.sql` 重跑设置项，再按 1.6.27 的视图/控制器补回。
 
 ## 四、其它
 

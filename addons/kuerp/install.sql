@@ -7571,15 +7571,9 @@ ALTER TABLE `__PREFIX__kuerp_goods_stock`
 
 --
 -- 1.6.27
--- 采购单打印按客户模板（采购单打印模板.xlsx）改版
--- 「订货说明」里的收货信息、付款方式抽成设置项，可在 设置 → 基础设置 修改
+-- 采购单打印按客户模板改版（1.6.40 起「订货说明」整块已移除，原两个设置项
+-- purchase_print_receipt / purchase_print_payment 一并下线，见 1.6.40 段）
 --
-
-INSERT INTO `__PREFIX__kuerp_sets` (`type`,`is_edit`,`name`,`nickname`,`value`,`admin_id`,`notice`,`explain`,`is_checked`)
-VALUES ('1','0','purchase_print_receipt','采购单打印收货信息','仓库  18974630250   浙江省杭州市萧山区新街街道长鸣路500号中交智慧交通科技园14幢2楼（走货梯）','0',
-        '采购单打印「订货说明」第2条的收货地址与联系电话','留空则自动取 公司电话 + 公司地址','0'),
-       ('1','0','purchase_print_payment','采购单打印付款方式','收到合格、合法发票后60天内付款。若供方未按约出具发票，需方有权迟延付款，且不承担违约责任。','0',
-        '采购单打印「订货说明」第3条的付款方式','留空则使用内置默认文案','0');
 
 --
 -- 1.6.28
@@ -7894,3 +7888,10 @@ SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` 
 WHERE `rules` <> '*'
   AND (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_storage/index'), `rules`))
   AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_purchase_storage/returnoutbound'), `rules`);
+
+--
+-- 1.6.40
+-- 采购单打印「订货说明」整块移除，两个设置项同时下线（已安装的库由
+-- migration_remove_purchase_print_terms.sql 清理，重复执行安全）
+--
+DELETE FROM `__PREFIX__kuerp_sets` WHERE `name` IN ('purchase_print_receipt', 'purchase_print_payment');

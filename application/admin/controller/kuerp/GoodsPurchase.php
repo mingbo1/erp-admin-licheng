@@ -2583,17 +2583,6 @@ class GoodsPurchase extends Backend
         $docTitle = ((string)$row['purchase_type'] == '1') ? '采购订货单' : '采购退货单';
         $row['print_title'] = $row['company_name'] . $docTitle;
 
-        // 订货说明里可配置的两条：收货信息、付款方式（设置 → 基础设置 可改）
-        $printSets = Db::name('kuerp_sets')
-            ->where('name', 'in', ['purchase_print_receipt', 'purchase_print_payment'])
-            ->column('value', 'name');
-        $row['receipt_text'] = !empty($printSets['purchase_print_receipt'])
-            ? (string)$printSets['purchase_print_receipt']
-            : trim('仓库  ' . $row['company_phone'] . '   ' . $row['company_address'] . '（走货梯）');
-        $row['payment_text'] = !empty($printSets['purchase_print_payment'])
-            ? (string)$printSets['purchase_print_payment']
-            : '收到合格、合法发票后60天内付款。若供方未按约出具发票，需方有权迟延付款，且不承担违约责任。';
-
         // 价格/数量小数位（与其他单据保持同一口径）
         $setData = \addons\kuerp\library\Goods::getSetData();
         $setList = isset($setData['setList']) ? $setData['setList'] : [];

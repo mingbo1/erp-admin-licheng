@@ -1,51 +1,32 @@
-version: 1.6.31
-deploy_time: 2026-11-05 11:15 (CST)
+version: 1.6.40
+deploy_time: 2026-11-07 13:15 (CST)
 server: 118.31.20.155 / dyerp_shengbokj_
-db_schema_change: none（仅权限数据变更）
+db_schema_change: none（仅数据：删除 2 个设置项）
 db_migrations_run:
-  addons/kuerp/migration_add_buttons_auth_rules_batch2.sql (insert 15 auth_rule: 788-802 + 按 index 增量授权)
-site_version: 1.0.9（application/extra/site.php 仅改 version，刷新浏览器缓存）
-files: 32（29 代码 + install.sql + 新迁移 + site.php）
+  addons/kuerp/migration_remove_purchase_print_terms.sql (DELETE fa_kuerp_sets 中 purchase_print_receipt / purchase_print_payment)
+site_version: 不改（本次无 JS/CSS 改动；app_debug 开启、urlArgs=time()，/assets/ 12h 缓存不受影响）
+files: 5 上传 + 1 删除（远端旧迁移）
 
 [deployed files]
-application/admin/controller/kuerp/Assemble.php
-application/admin/controller/kuerp/GoodsBom.php
-application/admin/controller/kuerp/GoodsOutboundApply.php
-application/admin/controller/kuerp/GoodsPurchase.php
-application/admin/controller/kuerp/GoodsPurchaseOrder.php
-application/admin/controller/kuerp/GoodsPurchasePlanWarehouse.php
-application/admin/controller/kuerp/GoodsSalesOrder.php
-application/admin/controller/kuerp/GoodsSalesSchedule.php
-application/admin/controller/kuerp/MiniUser.php
-application/admin/controller/kuerp/ProcessOrder.php
-application/admin/view/kuerp/goods_outbound_apply/detail.html
-application/admin/view/kuerp/goods_outbound_apply/index.html
-application/admin/view/kuerp/goods_purchase/index.html
-application/admin/view/kuerp/goods_purchase/summary.html
-application/admin/view/kuerp/goods_purchase_order/add.html
-application/admin/view/kuerp/goods_purchase_order/edit.html
-application/admin/view/kuerp/goods_purchase_plan_warehouse/index.html
-application/admin/view/kuerp/goods_sales_order/index.html
-application/admin/view/kuerp/goods_sales_outbound/apply.html
-application/admin/view/kuerp/goods_sales_schedule/index.html
-application/admin/view/kuerp/mini_banner/index.html
-application/admin/view/kuerp/mini_nav/index.html
-application/admin/view/kuerp/mini_user/index.html
-public/assets/js/backend/kuerp/goods_sales_schedule.js
-public/assets/js/backend/kuerp/mini_user.js
-addons/kuerp/install.sql
-addons/kuerp/migration_add_buttons_auth_rules_batch2.sql
-application/admin/controller/kuerp/GoodsSales.php（销货单详情底部「出库记录」面板数据）
-application/admin/controller/kuerp/GoodsSalesOutbound.php（历次申请记录改用 model buildHistory）
-application/admin/model/kuerp/GoodsOutboundApply.php（新增静态 buildHistory()）
-application/admin/view/kuerp/goods_sales/edit.html（出库记录表格）
-application/extra/site.php（仅 version 1.0.8 → 1.0.9）
+application/admin/view/kuerp/goods_purchase/printpage.html   （删除整段「订货说明」1~5 条 + .po-terms 样式）
+application/admin/controller/kuerp/GoodsPurchase.php          （printpage() 删除读取两个设置项/拼 receipt_text、payment_text）
+addons/kuerp/install.sql                                      （移除 1.6.27 的 INSERT；末尾新增 1.6.40 段 DELETE）
+addons/kuerp/info.ini                                         （version 1.6.39 → 1.6.40）
+addons/kuerp/migration_remove_purchase_print_terms.sql        （新增）
+
+[deleted remote files]
+addons/kuerp/migration_add_purchase_print_terms.sql           （旧迁移，重复执行会把两个设置项又插回去）
 
 [intentionally not deployed]
 application/extra/addons.php
-public/assets/js/backend/kuerp/goods_log.js  (online version is newer)
+application/extra/site.php
 application/config.php
+public/assets/js/backend/kuerp/goods_log.js
+
+[post-deploy]
+runtime/cache 3 项、runtime/temp 47 项已清空
+远端 fa_kuerp_sets 两行已删除（执行后 COUNT=0）
 
 [backups]
-remote: ~/erp-deploy-backup/2026-11-05/remote/
-db:     ~/erp-db-backup/2026-11-05/auth_before.sql
+remote: ~/erp-deploy-backup/20261107/remote/
+db:     ~/erp-db-backup/20261107/fa_kuerp_sets_print_terms_before.sql
