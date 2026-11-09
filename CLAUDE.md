@@ -2616,7 +2616,12 @@ php think kuerp:stock_summary --period=2026-09 # 指定月份
    ```
    这样最新一期期末恒等于「商品库存余额表」，不会因历史日志成本缺失而漂移；首期差额自动落成期初。
 4. **未满月份期末写 NULL**（不是 0）：`is_complete = period_end <= time()`，页面/导出/合计都显示空白并附提示。判断以**月份**为准（空数据的未来月份 `is_complete` 也是 0），不要改成「看行是否有 null」。
-5. **缺快照自动补算**：`index()` 打开没有快照的月份会现场 `build()`（仅 `<= 当月`），未来月份不建。导出不自动补算，无数据直接提示。
+5. **快照新鲜度（2026-11-09 改）**：`StockSummary::ensureSnapshot($period)` 统一判断（`index` 的 ajax 分支与 `export` 都调）：
+   - 该月**没有**快照 → 现场 `build()`（仅 `<= 当月`，未来月份不建）；
+   - **当月（未结束）→ 每次请求都重算**，所以组装单/外协加工单刚填的入库成本、刚做的出入库立刻反映到「本期入库单价/金额、出库单价」；
+   - **已结束月份** → 该月 `kuerp_goods_log` 的 `MAX(updatetime)` > 快照 `MAX(createtime)` 时重算一次（补录/改单/重审能自动跟上）。
+   ⚠️ 已结束月份里**删除**收发明细（反审核）不会刷新 `updatetime`，检测不到 → 仍需手工点【重新计算】。
+   ⚠️ 改前是「只有没有快照才补算」，导致 11-02 生成的当月快照看不到 11-04 之后的组装入库，用户看到「成本没算进去」。
 6. 零行不落库：期初/入库/出库/期末全为 0 的 商品+仓库 组合跳过。
 
 ## 已知数据现状（不是 bug）
@@ -3452,6 +3457,13 @@ UPDATE fa_kuerp_sales_invoicing SET pay_money=200, give_money=0, invoice_status=
 - **分批出/入库**（`saveOutbound()`，用 `batchLineCost()`）：
   - 本批成本 = 整行 `cost_money × 本批基本数量 / 整行基本数量`
   - 最后一批 = 整行成本 − 已结转成本（已结转金额取 `goods_log` 里该 `purchase_id` 的 `out_cost/enter_cost` 合计，避免四舍五入尾差）
+  - **组合件「成本单价」可手填（2026-11-09）**：`outbound_edit.html` 组合件入库表新增「成本单价」列（按**基本单位**计价），
+    `in_data[id][unit_cost]` 默认 = 商品档案「预估成本」（`outboundEdit()` 下发 `estimate_cost`，辅助属性优先 `kuerp_goods_attr.purchase`）。
+    **填了就以填写值为准（含 0）：本批成本 = 成本单价 × basic_number**；仅当字段未提交/被清空时才走上面的 `batchLineCost()` 分摊。
+    `in_data` 由旧的标量 `in_data[id]=数量` 改为 `in_data[id][in_number]`，`saveOutbound()` 同时兼容两种格式。
+    本次使用的成本单价会回写到 `kuerp_assemble_info.unit_cost`（加工单本来就写 `process_info.unit_cost`），
+    供后续查看/计算；`cost_money`（子件成本合计，自动分摊的分母）**不回写**。
+    注意手填批次与自动批次混用时，最后一批仍按 `整行 cost_money − 已结转(含手填)` 吃尾差，可能为 0 或很小。
 - **库存与台账**：`goods_stock.cost_money` 子件出库减、组合件入库加；`goods_log` 的 `business_type=13` 写 `out_unit/out_cost`、
   `business_type=12` 写 `enter_unit/enter_cost`（这些字段此前被注释，本次恢复）。
 - **历史单据**：`examine()` / `examineInbound()` / `saveOutbound()` 开头调 `ensureAssembleCost()` 自动补算；
@@ -3464,7 +3476,11 @@ UPDATE fa_kuerp_sales_invoicing SET pay_money=200, give_money=0, invoice_status=
   - 原材料成本按计划入库数量分摊：`本行分摊 = Σ原材料成本 × 本行计划数量 / 全部成品计划数量`，最后一批吃尾差
   - 加工费按本批入库数量占本次提交总数量的比例分摊
   - `本批成本 = 分摊原材料成本 + 本批加工费`；`unit_cost = 本批成本 / 本批 basic_number`
-  - **入库成本输入框默认留空**（`outbound_edit.html`），留空走自动计算；手工填 >0 时以「手填单价 × basic_number」为准
+  - **「成本单价」输入框默认填商品档案「预估成本」**（`goods.purchase`，辅助属性商品优先 `kuerp_goods_attr.purchase`；
+    `outboundEdit()` 下发 `estimate_cost`，`outbound_edit.html` 的 `value="{$item.estimate_cost|default=0}"`），
+    用户可直接修改。**填了就以填写值为准（含 0）**，只有字段未提交/被清空（`trim((string)$in_row['unit_cost']) === ''`）
+    时才回退自动计算（分摊原材料成本 + 本批加工费）。
+    ⚠️ 2026-11-09 之前是「默认留空、`$unit_cost > 0` 才以手填为准」，两种口径不要混用。
   - `process_info.cost_money` 累计改用 `IFNULL(cost_money,0)+x`（原来 `NULL + x = NULL`，累计永远为空）
 - **加工费仍单独记账**（`kuerp_process_fee` + 账户流水 + `kuerp_cost`），**未从费用表移除**。
   若担心与存货成本重复反映，需要另行确认是否停记 `kuerp_cost`。
@@ -4608,3 +4624,47 @@ $qty = ($type == '2') ? (float)$info['retreat_number'] : (float)$info['number'];
   本次已对两张草稿对账单执行刷新：`KHDZ20261109002`（退货行 -100/-10 → **-20/-5**，`total_number` 0 → **85**）、
   `KHDZ20261109001`（-2/-1 → **-1/-1**，`total_number` -3 → **-2**），金额均未变。
 - 已验证：`sales_recon/edit?ids=4` 候选单据行显示退货数量 -25；`detail?ids=4` 明细行为 -20/-5，金额 -180.80/-28.25 不变。
+- **排序**：`buildItemRows()` 中销货单/退货单统一按**单据日期倒序**（最近在前），同一天按单号倒序。
+  影响：销货对账工作台（`sales_recon/items`）、对账单编辑页候选单据列表、`salesdocs()`、生成对账单的 `filteredDocKeys()`（顺序无关）。
+  对账单快照/详情/打印仍按 `sales_recon_doc.sort`（建单时的勾选顺序），不受影响。
+
+# 销货退货单核销源单「已核销金额」写成 0（2026-11-09 / 1.6.45）
+
+> 迁移：`addons/kuerp/migration_fix_return_writeoff_source_money.sql`（已对 erp_licheng 与线上执行，可重复执行）；
+> 涉及文件：`application/admin/controller/kuerp/Collection.php`（`buildReconSources()`）、
+> `application/admin/controller/kuerp/GoodsSalesExchange.php`（`examine()` 写 `kuerp_writeoff_source`）。**无 DDL。**
+
+## 现象
+
+销货对账 → **[去收款]**（`kuerp/collection/add?recon_id=X`）预填的源单表里，**退货单的「已核销金额」恒为 0**，
+但「未核销金额」是按真实退款算的 → 「单据金额 − 已核销 ≠ 未核销」，合计行也对不上。
+线上 KHDZ20261109001：单据金额 1450 / -180 / -113 / 113（合计 1270）、已核销全是 0、未核销 1450 / 0 / -13 / 113（合计 **1550**）。
+同一份数据在「选择源单」弹窗（`Writeoff::chosereceivable`，用 `source.money`）也一样显示 0。
+
+## 两个缺陷（缺一不可，只改一处仍有行对不上）
+
+1. `Collection::buildReconSources()`：无 `kuerp_writeoff_log` 时「已核销」回落成**写死的 0**，
+   应为源单自身的 `money`（与 `chosereceivable` 的 `pay_money = money` 口径一致）。
+2. `GoodsSalesExchange::examine()`：写源单时 `'money' => -pay_money`，而退货单的 `pay_money`
+   （表单隐藏域，从原销货单带过来）**恒为 0**，真正的已退款金额是 **`retreat_money`**
+   → 源单出现 `price - money <> write_off`。改为 `-retreat_money`。
+
+## 口径（回答"未核销对不对"）
+
+- **未核销金额本身是对的**。退货单源单 `price = -(real_money + customers_money)`、`write_off = -arrears`（还差多少要退给客户）。
+- 合计 1550 = 对账单净额 1270 + 已退给客户的 280（100 + 180）—— 客户当前实际欠款就是 1550，
+  与 `SalesRecon` 模型的 `recalcPay()`（已收 = Σ销货 `pay_money` − Σ退货 `retreat_money` = -280，
+  剩余 = 1270 − (−280) = 1550）以及收款单默认收款金额一致。
+- 修好后每行满足「单据金额 − 已核销 = 未核销」，合计行为 1270 / **-280** / 1550。
+
+## 历史数据
+
+`migration_fix_return_writeoff_source_money.sql` 按 `money = price - write_off` 纠正，
+**已有 `writeoff_log` 的源单跳过**（真实已核销以日志为准）。线上命中 2 行：
+`XHTH20261107001`（-226 / -126）与 `XHTH20261108001`（-113 / -13）的 `money` 由 0 变 -100。
+
+## 已验证（本地造数与线上核对，测试数据已清空并还原自增）
+
+- 本地按线上同款 4 张单据重建：修前与线上截图逐格一致；修后 `1450/0/1450`、`113/0/113`、`-113/-100/-13`、`-180/-180/0`，
+  合计 `1270 / -280 / 1550`，逐行与合计均平账；`recon_id` 预填链路 `Config.presetSources` 解析确认。
+- 线上：`fa_kuerp_writeoff_source` 中 `ROUND(price-money,4) <> write_off` 的行数由 2 归 0；两文件 md5 与本地一致。

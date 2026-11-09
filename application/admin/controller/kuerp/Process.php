@@ -1620,12 +1620,14 @@ class Process extends Backend
         $info_list = Db::name('kuerp_process_info')->alias('a')
             ->join('kuerp_goods g', 'g.id=a.goods_id')
             ->where(['a.process_code' => $row['process_code']])
-            ->field('a.*,g.goods_name,g.goods_specification_id,g.vendor_name,g.packaging')
+            ->field('a.*,g.goods_name,g.goods_specification_id,g.vendor_name,g.packaging,g.purchase as goods_purchase')
             ->order('a.type', 'ASC')
             ->select();
         foreach ($info_list as &$v) {
             $v['stores_name'] = Db::name('kuerp_stores')->where(['id' => $v['stores_id']])->value('name');
             $v['unit_name'] = Db::name('kuerp_unit')->where(['id' => $v['goods_unit']])->value('name');
+            // 入库成本默认值 = 商品档案的「预估成本」(基本单位)，用户可在弹窗内直接修改
+            $v['estimate_cost'] = (float)$v['goods_purchase'];
             // 属性名称
             $v['attr_name'] = '';
             if (!empty($v['goods_attr'])) {
@@ -1633,9 +1635,13 @@ class Process extends Backend
                     ->join('kuerp_aux_combination ac', 'ac.id=ga.combination_id')
                     ->join('kuerp_auxiliary a', 'a.id=ac.auxiliary_id')
                     ->where(['ga.goods_id' => $v['goods_id'], 'ga.id' => $v['goods_attr']])
-                    ->field('a.attr_name')
+                    ->field('a.attr_name,ga.purchase as attr_purchase')
                     ->find();
                 $v['attr_name'] = $attr ? $attr['attr_name'] : '';
+                // 辅助属性商品优先取该属性的预估成本（为 0 时回退商品档案）
+                if ($attr && (float)$attr['attr_purchase'] > 0) {
+                    $v['estimate_cost'] = (float)$attr['attr_purchase'];
+                }
             }
         }
         unset($v);
@@ -2026,11 +2032,12 @@ class Process extends Backend
                 // 本批加工费：按本批入库数量占本次提交总入库数量的比例分摊
                 $batch_fee = ($total_process_fee > 0 && $totalInNumberThis > 0)
                     ? round($total_process_fee * ($in_number / $totalInNumberThis), 4) : 0;
-                if ($unit_cost > 0) {
-                    // 手工填写了入库单价：以手填为准
+                // 入库成本默认由页面填入商品档案的「预估成本」并允许用户修改，填了（含 0）就以填写值为准；
+                // 仅当该字段未提交/被清空时，才回退到自动计算（分摊原材料成本 + 本批加工费）
+                $cost_submitted = isset($in_row['unit_cost']) && trim((string)$in_row['unit_cost']) !== '';
+                if ($cost_submitted) {
                     $cost_money = round($unit_cost * $basic_number, 4);
                 } else {
-                    // 未手填：成本 = 分摊原材料成本 + 本批加工费
                     $cost_money = round($batch_material + $batch_fee, 4);
                     $unit_cost = $basic_number > 0 ? round($cost_money / $basic_number, 4) : 0;
                 }

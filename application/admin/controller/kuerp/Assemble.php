@@ -2358,16 +2358,23 @@ class Assemble extends Backend
         $info_list = Db::name('kuerp_assemble_info')->alias('a')
             ->join('kuerp_goods g', 'g.id=a.goods_id')
             ->where(['a.purchase_code' => $row['purchase_code']])
-            ->field('a.*,g.goods_name,g.goods_specification_id,g.vendor_name,g.packaging')
+            ->field('a.*,g.goods_name,g.goods_specification_id,g.vendor_name,g.packaging,g.purchase as goods_purchase')
             ->order('a.type', 'ASC')
             ->select();
         foreach ($info_list as &$v) {
             $v['stores_name'] = Db::name('kuerp_stores')->where(['id' => $v['stores_id']])->value('name');
             $v['unit_name'] = Db::name('kuerp_unit')->where(['id' => $v['goods_unit']])->value('name');
+            // 组合件入库成本默认值 = 商品档案的「预估成本」(基本单位)，用户可在弹窗内直接修改
+            $v['estimate_cost'] = (float)$v['goods_purchase'];
             // 属性名称
             $v['attr_name'] = '';
             if (!empty($v['goods_attr'])) {
-                $attribute_id = Db::name('kuerp_goods_attr')->where(['id' => $v['goods_attr']])->value('attribute_id');
+                $attr_row = Db::name('kuerp_goods_attr')->where(['id' => $v['goods_attr']])->field('attribute_id,purchase')->find();
+                // 辅助属性商品优先取该属性的预估成本（为 0 时回退商品档案）
+                if ($attr_row && (float)$attr_row['purchase'] > 0) {
+                    $v['estimate_cost'] = (float)$attr_row['purchase'];
+                }
+                $attribute_id = $attr_row ? $attr_row['attribute_id'] : 0;
                 if ($attribute_id) {
                     $attribute_ids = Db::name('kuerp_aux_combination')->where(['id' => $attribute_id])->value('attr_ids');
                     if ($attribute_ids) {
@@ -2462,7 +2469,7 @@ class Assemble extends Backend
         // 接收子件实际出库数量
         $out_data = $this->request->post('out_data/a'); // ['info_id' => out_number, ...]
         // 接收组合件实际入库数量
-        $in_data = $this->request->post('in_data/a');   // ['info_id' => in_number, ...]
+        $in_data = $this->request->post('in_data/a');   // ['info_id' => ['in_number' => .., 'unit_cost' => ..], ...]（兼容 ['info_id' => in_number]）
 
         $has_out = false;
         $has_in = false;
@@ -2683,8 +2690,12 @@ class Assemble extends Backend
         $update_in_info = [];
 
         if (!empty($in_data)) {
-            foreach ($in_data as $info_id => $in_number) {
-                $in_number = (float)$in_number;
+            foreach ($in_data as $info_id => $in_row) {
+                // 兼容旧格式（in_data[id] = 数量）与现格式（in_data[id][in_number] / [unit_cost]）
+                if (!is_array($in_row)) {
+                    $in_row = ['in_number' => $in_row];
+                }
+                $in_number = (float)(isset($in_row['in_number']) ? $in_row['in_number'] : 0);
                 if ($in_number <= 0) {
                     continue;
                 }
@@ -2700,10 +2711,17 @@ class Assemble extends Backend
                 $has_in = true;
                 $goods = Db::name('kuerp_goods')->where(['id' => $info['goods_id']])->find();
                 $basic_number = round(($info['basic_number'] / max($info['number'], 0.0001)) * $in_number, 4);
-                // 本批入库成本（按基本数量比例分摊，最后一批吃尾差）
-                $already_in_cost = (float)Db::name('kuerp_goods_log')
-                    ->where(['purchase_id' => $info['id'], 'business_type' => '12'])->sum('enter_cost');
-                $in_cost = $this->batchLineCost($info, $basic_number, $in_number, (float)$info['in_number'], $already_in_cost);
+                // 本批入库成本：
+                // 页面默认填入商品档案的「预估成本」并允许用户修改，填了（含 0）就以填写值为准；
+                // 仅当该字段未提交/被清空时，才按子件成本分摊自动计算（最后一批吃尾差）
+                $cost_submitted = isset($in_row['unit_cost']) && trim((string)$in_row['unit_cost']) !== '';
+                if ($cost_submitted) {
+                    $in_cost = round((float)$in_row['unit_cost'] * $basic_number, 4);
+                } else {
+                    $already_in_cost = (float)Db::name('kuerp_goods_log')
+                        ->where(['purchase_id' => $info['id'], 'business_type' => '12'])->sum('enter_cost');
+                    $in_cost = $this->batchLineCost($info, $basic_number, $in_number, (float)$info['in_number'], $already_in_cost);
+                }
 
                 // 商品表库存增加
                 $status = false;
@@ -2905,6 +2923,8 @@ class Assemble extends Backend
                 $update_in_info[] = [
                     'id'        => $info_id,
                     'in_number' => round($info['in_number'] + $in_number, 4),
+                    // 记录本次使用的成本单价（手填值，或自动分摊出来的单价），供后续查看与计算
+                    'unit_cost' => $basic_number > 0 ? round($in_cost / $basic_number, 4) : 0,
                 ];
             }
         }
@@ -3072,7 +3092,10 @@ class Assemble extends Backend
                     Db::name('kuerp_goods_serial_log')->insertAll($serial_log_in);
                 }
                 foreach ($update_in_info as $ui) {
-                    Db::name('kuerp_assemble_info')->where(['id' => $ui['id']])->update(['in_number' => $ui['in_number']]);
+                    Db::name('kuerp_assemble_info')->where(['id' => $ui['id']])->update([
+                        'in_number' => $ui['in_number'],
+                        'unit_cost' => $ui['unit_cost'],
+                    ]);
                 }
             }
 

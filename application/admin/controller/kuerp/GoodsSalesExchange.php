@@ -1562,7 +1562,9 @@ class GoodsSalesExchange extends Backend
                         'purchase_code' => $list_v['purchase_code'],
                         'purchase_time' => $list_v['purchase_time'],
                         'price' => -($list_v['real_money']+$list_v['customers_money']),
-                        'money' => -$list_v['pay_money'],
+                        // 已核销金额取「本次退款」retreat_money（pay_money 在退货单上恒为 0），
+                        // 保证 price - money = write_off，收款单/核销单的「已核销金额」列才与未核销一致
+                        'money' => -$list_v['retreat_money'],
                         'write_off' => -$list_v['arrears'],
                         'remark' => $list_v['note'],
                     ];

@@ -45,17 +45,10 @@ class StockSummary extends Backend
             }
             list($where, $sort, $order, $offset, $limit) = $this->buildparams();
 
-            // 该月份还没有快照（首次查看历史月 / 定时任务没跑）→ 现场补算一次。
-            // 只补算到当月为止，未来月份不建。
-            if (!Db::name('kuerp_stock_summary')->where(['period' => $period])->count()) {
-                if (preg_match('/^\d{4}-\d{2}$/', $period) && $period <= date('Y-m')) {
-                    try {
-                        StockSummaryLib::build($period, true);
-                    } catch (\Exception $e) {
-                        // 补算失败不阻断页面，下面的查询会返回空并提示
-                    }
-                }
-            }
+            // 快照新鲜度：缺失 → 补算；当月（未结束）每次打开都按最新收发明细重算；
+            // 已结束的月份若在快照生成之后又有收发明细变动（补录/改单/反审核后重审），也重算一次。
+            // 只算到当月为止，未来月份不建。失败不阻断页面（下面查询会返回旧快照或空）。
+            $this->ensureSnapshot($period);
 
             $build = function () use ($period, $where, $storesId) {
                 $query = Db::name('kuerp_stock_summary')->where('period', $period);
@@ -156,6 +149,46 @@ class StockSummary extends Backend
     }
 
     /**
+     * 确保快照与最新收发明细一致
+     *
+     * - 没有快照（首次查看该月 / 定时任务没跑）→ 现场补算
+     * - 当月（未结束）→ 每次打开都按最新收发明细重算，组装单/外协加工单新填的入库成本等立即反映
+     * - 已结束的月份 → 快照生成后该月又有收发明细变动（补录 / 改单 / 反审核后重审）时重算一次
+     *
+     * 未来月份不建快照。任何异常都不阻断页面。
+     *
+     * @param string $period YYYY-MM
+     */
+    protected function ensureSnapshot($period)
+    {
+        if (!preg_match('/^\d{4}-\d{2}$/', $period) || $period > date('Y-m')) {
+            return;
+        }
+        try {
+            $needBuild = !Db::name('kuerp_stock_summary')->where(['period' => $period])->count();
+            if (!$needBuild) {
+                if (!StockSummaryLib::isComplete($period)) {
+                    $needBuild = true;
+                } else {
+                    list($start, $end) = StockSummaryLib::periodRange($period);
+                    $latest = (int)Db::name('kuerp_goods_log')
+                        ->where('business_type', '<>', '1')
+                        ->where('purchase_time', '>=', $start)
+                        ->where('purchase_time', '<', $end)
+                        ->max('updatetime');
+                    $builtAt = (int)Db::name('kuerp_stock_summary')->where(['period' => $period])->max('createtime');
+                    $needBuild = $latest > $builtAt;
+                }
+            }
+            if ($needBuild) {
+                StockSummaryLib::build($period, true);
+            }
+        } catch (\Exception $e) {
+            // 补算失败不阻断页面（下面查询会返回旧快照或空）
+        }
+    }
+
+    /**
      * 重新计算（POST period）
      */
     public function rebuild()
@@ -201,6 +234,7 @@ class StockSummary extends Backend
         if ($period === '') {
             $period = StockSummaryLib::defaultPeriod();
         }
+        $this->ensureSnapshot($period);
         if (!Db::name('kuerp_stock_summary')->where(['period' => $period])->count()) {
             $this->error('该月份暂无数据，请先点【重新计算】');
         }

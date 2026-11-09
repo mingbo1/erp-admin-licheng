@@ -689,6 +689,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                     if(keyword!=''){
                         search.keyword = keyword;
                     }
+                    //型号单独查询
+                    var goods_specification_id = $('#goods_specification_id').val();
+                    if(goods_specification_id!=''){
+                        search.goods_specification_id = goods_specification_id;
+                    }
                     var store = $('#store').val();
                     if(store!=''){
                         search.store = store;

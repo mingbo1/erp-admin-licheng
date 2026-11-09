@@ -374,7 +374,9 @@ class Collection extends Backend
                     'business_type'    => $typeText,
                     'times'            => $row['purchase_time'] ? date('Y-m-d', $row['purchase_time']) : '',
                     'sale_money'       => $row['price'],
-                    'write_off'        => $log ? $log['money'] : 0,
+                    // 无核销记录时用源单自身的已核销金额（退货单是已退款金额）
+                    // 原写死 0 会让退货单显示「已核销 0 / 未核销 -13」，与单据金额对不上
+                    'write_off'        => $log ? $log['money'] : $row['money'],
                     'write_off_price'  => $log ? $log['write_off'] : $row['write_off'],
                     'purchase_numbers' => $row['purchase_code'],
                     'remark'           => $row['remark'],

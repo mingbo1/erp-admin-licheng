@@ -2503,6 +2503,10 @@ class Goods extends Backend
                 if(!empty($filter['keyword'])){
                     $where['goods_code|goods_name|goods_barcode'] = ['like','%'.$filter['keyword'].'%'];
                 }
+                //型号单独查询
+                if(!empty($filter['goods_specification_id'])){
+                    $where['goods_specification_id'] = ['like','%'.$filter['goods_specification_id'].'%'];
+                }
                 if(!empty($filter['type'])){
                     $where['goods_type_id'] = ['in',$filter['type']];
                 }
@@ -2514,7 +2518,7 @@ class Goods extends Backend
                 }
             }
             if(!empty($data['goods_name'])){
-                $where['goods_code|goods_name|goods_barcode'] = ['like','%'.$data['goods_name'].'%'];
+                $where['goods_code|goods_name|goods_barcode|goods_specification_id'] = ['like','%'.$data['goods_name'].'%'];
             }
             $where['status'] = '1';
             //常用客户优先：带 customers_id 时，"常用客户"含该客户的商品排前，其余保持 id 升序（其余单据不传参则完全维持原行为）

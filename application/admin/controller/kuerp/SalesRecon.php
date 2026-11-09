@@ -1721,11 +1721,12 @@ class SalesRecon extends Backend
         if (empty($docs)) {
             return [];
         }
+        // 按单据日期倒序：最近的在前面（同一天按单号倒序，大号在前）
         usort($docs, function ($a, $b) {
             if ($a['row']['purchase_time'] == $b['row']['purchase_time']) {
-                return strcmp($a['row']['purchase_code'], $b['row']['purchase_code']);
+                return strcmp($b['row']['purchase_code'], $a['row']['purchase_code']);
             }
-            return $a['row']['purchase_time'] < $b['row']['purchase_time'] ? -1 : 1;
+            return $a['row']['purchase_time'] < $b['row']['purchase_time'] ? 1 : -1;
         });
 
         $codes = array_column(array_column($docs, 'row'), 'purchase_code');
