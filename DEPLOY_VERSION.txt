@@ -30,3 +30,37 @@ runtime/cache 3 项、runtime/temp 47 项已清空
 [backups]
 remote: ~/erp-deploy-backup/20261107/remote/
 db:     ~/erp-db-backup/20261107/fa_kuerp_sets_print_terms_before.sql
+
+version: 1.6.47
+deploy_time: 2026-11-09 16:40 (CST)
+server: 118.31.20.155 / dyerp_shengbokj_
+db_schema_change: 无 DDL（本次无数据库改动）
+db_migrations_run: 无
+site_version: 1.0.16 → 1.0.17（7 个列表 JS 变更，需刷新浏览器缓存）
+files: 9 个（8 改 + info.ini 1.6.46 → 1.6.47）
+runtime: 清空 runtime/cache 与 runtime/temp（17 个文件）
+
+[1.6.47 列表固定列行高错位（窄屏才出现）]
+public/assets/js/backend/kuerp/goods_sales_exchange.js           （对账状态两行导致行高 70px，done 同步固定列）
+public/assets/js/backend/kuerp/goods_purchase_order.js           （多供应商 <br>，104px 行）
+public/assets/js/backend/kuerp/goods_purchase_order_plan.js      （同上）
+public/assets/js/backend/kuerp/goods_purchase_order_plan_warehouse.js（同上）
+public/assets/js/backend/kuerp/enclosure.js                      （100px 缩略图，done + 捕获 img load 再同步）
+public/assets/js/backend/kuerp/enclosuresale.js                  （同上）
+public/assets/js/backend/kuerp/datainfo.js                       （库存预警：图片定尺寸 50x50 + done/延时同步；空图片不再输出破图）
+application/admin/controller/kuerp/Datainfo.php                  （stockworing 返回 rows 前 array_values，修复 res.data.forEach 抛错、库存预警底色从未生效）
+addons/kuerp/info.ini                                            （version 1.6.46 → 1.6.47）
+
+[intentionally not deployed]
+application/extra/addons.php
+application/config.php
+public/assets/js/backend/kuerp/goods_log.js
+（application/extra/site.php 按惯例只把 version 改为 1.0.17，其余内容保持线上原样）
+
+[post-deploy]
+登录页与 kuerp/goods_sales_exchange、goods_purchase_order、goods_purchase_order_plan、
+enclosure、enclosuresale、datainfo/stockworing、goods_sales 均 200；
+线上 goods_sales_exchange.js 已含固定列行高同步代码。
+
+[backups]
+remote: ~/erp-deploy-backup/20261109c/remote/

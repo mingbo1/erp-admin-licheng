@@ -4,7 +4,7 @@
 > 部署方式：无 SSH，代码走 FTP（`118.31.20.155:39683` / `dyerp_dayan` / FTP 根 = 项目根）
 > 数据库：`mysql -h118.31.20.155 -udyerp_shengbokj_ -D dyerp_shengbokj_`
 
-**当前版本：`1.6.46`（2026-11-09）**
+**当前版本：`1.6.47`（2026-11-09）**
 
 版本号的唯一来源是 `addons/kuerp/info.ini` 的 `version`；每次上线递增末位，
 并在下表的「版本清单」里追加一行。线上根目录的 `DEPLOY_VERSION.txt` 记录线上实际部署的版本与文件清单。
@@ -15,6 +15,7 @@
 
 | 版本 | 部署日期 | 内容摘要 | 新增/执行的迁移 | 备注 |
 |------|---------|---------|----------------|------|
+| 1.6.47 | 2026-11-09 | **列表固定列（操作列/左侧固定列）行高错位**：窄屏出现横向滚动、固定列浮出时，主表里因 `<br>` / 缩略图变高的行与固定列默认 41px 行高对不上，按钮/单元格逐行上漂（宽屏不溢出所以正常）。①销货退货单（对账状态 `已对账<br>KHDZ…`，漂 14~58px）、②采购预订单 ③采购预订单(计划) ④采购预订单(仓库)（多供应商 `<br>`，最大 104px 行漂 63px）、⑤原始单据/销售原始单据（100px 缩略图，<500px 宽才错位）、⑥数据面板-库存预警（商品图片）。统一在 `table.render` 的 `done` 里同步固定列行高；图片类另处理加载时序（datainfo 图片定尺寸、enclosure 捕获 img load 再同步）。顺带修 **`Datainfo::stockworing()` 返回的 `rows` 是对象不是数组**（`unset` 过滤后键不连续），导致前端 `done` 一直抛 `res.data.forEach is not a function`、库存预警红/黄底色从未生效 —— 改为 `array_values()` 重排 | 无（无 DDL、无迁移、无权限变更） | 9 文件（7 JS + Datainfo.php + info.ini）；**`site.version` 1.0.16 → 1.0.17**；线上逐个 md5 校验一致、无 `.tmpnew/.deploybak` 残留；清 `runtime/cache`+`runtime/temp` 17 个文件；登录页 + 7 个 kuerp 页面 200 |
 | 1.6.46 | 2026-11-09 | ①**组装单 / 外协加工单「实际入库」成本单价可手填**：默认取商品档案「预估成本」（辅助属性优先），页面直接改，填了（含 0）以填写值为准，留空才按原逻辑自动分摊（组合件按子件成本、外协按原材料成本+加工费）；入库时把本次单价回写 `assemble_info.unit_cost`。②**收发存汇总快照自动保鲜**：当月每次打开按最新收发明细重算；已结束月份若快照生成后又有收发变动（补录/改单/反审核后重审）也重算一次；未来月份不建快照。③**选货支持型号搜索**：选货弹窗新增「型号」输入框，`Goods::chosegoods` 支持 `goods_specification_id` 过滤（关键字搜索也纳入型号）。④销货对账工作台单据改为**单据日期倒序** | 无（`assemble_info/process_info.unit_cost` 线上列已存在） | 10 文件（9 改 + info.ini）；无 DDL、无权限变更；**`site.version` 1.0.15 → 1.0.16**（goods.js 变更）；线上逐个 md5 校验一致、无 `.tmpnew/.deploybak` 残留；清 `runtime/cache` 2 + `runtime/temp` 27；登录页与 8 个 kuerp 页面 200 |
 | 1.6.45 | 2026-11-09 | **销货退货单核销源单「已核销金额」显示 0**：销货对账→去收款 / 收款单「选择源单」里，退货单的已核销恒为 0、未核销却是真实剩余（如 -113 的退货显示 0 / -13），导致「单据金额 − 已核销 ≠ 未核销」、合计行对不上（KHDZ20261109001：单据 1270 / 已核销 0 / 未核销 1550）。①`Collection::buildReconSources()` 无 `kuerp_writeoff_log` 时「已核销」回落取源单 `money`（原写死 0）；②`GoodsSalesExchange::examine()` 写源单 `money` 改用 `-retreat_money`（原用 `-pay_money`，退货单该字段恒 0），保证 `price - money = write_off` | `migration_fix_return_writeoff_source_money.sql`（数据修正，可重复执行；线上更新 2 行：XHTH20261107001 / XHTH20261108001 的 money 0 → -100） | 2 改 + 2 新增（迁移、info.ini 1.6.45）；无 DDL、无权限变更；`site.version` 不改（纯 PHP）；线上 2 文件 + info.ini md5 校验一致、无 `.tmpnew/.deploybak` 残留；清 `runtime/cache`+`runtime/temp` 85 个文件；登录页与 3 个 kuerp 页面 200 |
 | 1.6.44 | 2026-11-09 | ①**销货退货单：仓库「退货入库」** —— 退货单审核只做账务（不再加库存/成本/收发明细/序列号/批次），改由销货单出库列表行 [退货入库] 弹窗按本次数量分批入库（全部入完按钮消失）；已有入库记录时禁止反审核/删除退货单；出库编辑页新增「出库记录 / 退货入库记录」面板。②同批上线 11-08 未上线项：**销货单打印改为送货单版式**（价格列默认隐藏）、生成退货单明细补 型号/规格2/规格3、**纯退货/净额为负的对账单收款状态不再误判「已收款」**、分类列表缩略图、组装单排期生产备注带入 | `migration_add_goods_return_inbound.sql`（`goods_sales_exchange_info.out_number` 新增并回填已审核退货单=retreat_number、新表 `kuerp_goods_return_inbound_log`、规则 `goods_sales_outbound/returninbound` 增量授予已有 index 的角色） | 36 文件（25 改 + 11 新增）；**`site.version` 1.0.13 → 1.0.14**；线上实测：out_number 回填 2 行（2/10）、新表已建、规则 808 落库；登录页+8 个 kuerp 页面 200；清 `runtime/cache` 3 + `runtime/temp` 40 |

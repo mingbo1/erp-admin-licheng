@@ -153,6 +153,19 @@ define(['jquery', 'bootstrap', 'backend', 'addtabs', 'table', 'echarts', 'echart
                 //表格固定高度：表头/合计行常驻，横向滚动条固定在可视区底部，页面不再整页滚动。
                 //'full-xx' 会在窗口缩放时自动重算高度；xx = 表格顶部距页面顶端的高度 + 表格下方内边距(15+15+2)
                 var tableGap = Math.ceil($('#table').offset().top) + 32;
+                //主表行可能因商品图片、单元格换行而高于固定列默认行高，逐行同步到固定列
+                var syncFixedRowHeight = function () {
+                    $(".layui-table-main tr").each(function (index, val) {
+                        $(".layui-table-fixed").each(function () {
+                            $($(this).find(".layui-table-body tbody tr")[index]).height($(val).height());
+                        });
+                    });
+                    $(".layui-table-header tr").each(function (index, val) {
+                        $(".layui-table-fixed").each(function () {
+                            $($(this).find(".layui-table-header thead tr")[index]).height($(val).height());
+                        });
+                    });
+                };
                 table.render({
                     elem: '#table'
                     ,height: 'full-' + tableGap
@@ -179,7 +192,10 @@ define(['jquery', 'bootstrap', 'backend', 'addtabs', 'table', 'echarts', 'echart
                         {field: 'goods_name', title: __('商品名称'), fixed: 'left'},
                         {field: 'goods_barcode', title: __('商品条码')},
                         {field: 'goods_image', title: __('商品图片'), operate: false,templet: function (d) {
-                                return "<a href='javascript:;'><img src="+d.goods_image+"></a>";
+                                if(!d.goods_image){
+                                    return '';
+                                }
+                                return '<a href="javascript:;"><img src="' + d.goods_image + '" style="width:50px;height:50px;object-fit:contain;"></a>';
                             }},
                         {field: 'unit', title: __('单位'),templet: function (d) {
                                 if(d.more_unit==1){
@@ -213,6 +229,11 @@ define(['jquery', 'bootstrap', 'backend', 'addtabs', 'table', 'echarts', 'echart
                                 tr.find('td[data-field="stock"]').css({'background-color': '#ffffcc', 'color': '#660'});
                             }
                         });
+                        // 商品图片列会让主表行高于固定列（左侧商品分类/编号/名称）默认行高，
+                        // 逐行同步行高，否则表格横向溢出、固定列浮出时左侧列会逐行错位
+                        //（固定左侧列在 done 之后才重建，需再延后执行一次）
+                        syncFixedRowHeight();
+                        setTimeout(syncFixedRowHeight, 0);
                     }
                 });
 

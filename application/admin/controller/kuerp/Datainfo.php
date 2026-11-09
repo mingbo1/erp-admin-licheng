@@ -463,6 +463,9 @@ class Datainfo extends Backend
                     }
                 }
             }
+            // unset 过滤后数组键不连续，json_encode 会输出对象而非数组，
+            // 前端 res.data.forEach 会直接抛错（行高同步/库存预警底色都不生效），这里重排索引
+            $list = array_values($list);
             $result = array("total" => sizeof($list), "rows" => $list);
 
             return json($result);

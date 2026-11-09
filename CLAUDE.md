@@ -4668,3 +4668,74 @@ $qty = ($type == '2') ? (float)$info['retreat_number'] : (float)$info['number'];
 - 本地按线上同款 4 张单据重建：修前与线上截图逐格一致；修后 `1450/0/1450`、`113/0/113`、`-113/-100/-13`、`-180/-180/0`，
   合计 `1270 / -280 / 1550`，逐行与合计均平账；`recon_id` 预填链路 `Config.presetSources` 解析确认。
 - 线上：`fa_kuerp_writeoff_source` 中 `ROUND(price-money,4) <> write_off` 的行数由 2 归 0；两文件 md5 与本地一致。
+
+---
+
+# 列表「固定列」行高错位：全后台排查与统一修复（2026-11-09）
+
+> 涉及文件（**无数据库迁移**）：
+> `public/assets/js/backend/kuerp/{goods_sales_exchange,goods_purchase_order,goods_purchase_order_plan,goods_purchase_order_plan_warehouse,enclosure,enclosuresale,datainfo}.js`、
+> `application/admin/controller/kuerp/Datainfo.php`
+
+## 现象与根因（与 2026-10-20 采购订单那条同一机制）
+
+layui 的 `fixed:'right'`（操作列）/ `fixed:'left'` 列是**与主表分离的另一张表**，行高各自独立，
+默认单元格 `height:28px`。而 kuerp.css 把 `.layui-table-cell{height:auto}` 覆盖了，任何让单元格变成
+**多行**的内容（`<br>`、缩略图）都会把主表行撑高，固定列仍按单行渲染 → **每往下一行就多漂一点**。
+
+固定列只有在表格**横向溢出**时才浮出来（宽屏放得下 → 直接显示主表里的那一列），所以这个 bug 一律
+表现为「**页面比较窄时才错位，宽屏正常**」。
+
+## 本次受影响页面
+
+| 页面 | 撑高原因 | 实测修复前（主表 vs 固定列） |
+|------|---------|------------------------------|
+| 销货退货单 `goods_sales_exchange` | 「对账状态」已对账时 `已对账<br>KHDZ…` 两行 | `[70,70,41,41]` vs `[41,41,41,41]`，按钮逐行高 14/43/58/58px |
+| 采购预订单 `goods_purchase_order` | 供应商/关联采购单多值用 `<br>` 拼接 | 7 个供应商那行 104px，末尾行漂 63px |
+| 采购预订单(计划) `..._plan` | 同上 | `[41,41,41,74,41,74]` vs 全 41 |
+| 采购预订单(仓库) `..._plan_warehouse` | 同上 | 44 vs 41 |
+| 原始单据 `enclosure` / `enclosuresale` | 缩略图 `max-height:100px`，行高 61~113px | **只在窗口 < 500px、固定列浮出时**错位 |
+| 数据面板-库存预警 `datainfo/stockworing` | 商品图片 50px，行 63px | 左侧固定列（分类/编号/名称）漂移 |
+
+## 修复
+
+1. 统一在 `table.render` 的 **`done`** 里逐行把主表行高写进固定列（主表 + 表头），
+   与 `goods.js` / `goods_sales.js` / `assemble.js` / 分类列表的既有写法一致：
+   ```js
+   $(".layui-table-main tr").each(function (index, val) {
+       $(".layui-table-fixed").each(function () {
+           $($(this).find(".layui-table-body tbody tr")[index]).height($(val).height());
+       });
+   });
+   $(".layui-table-header tr").each(...);   // 表头同样同步
+   ```
+   `$(".layui-table-fixed")` 同时覆盖 `.layui-table-fixed-l` 与 `.layui-table-fixed-r`。
+2. **图片类单元格**要注意时序：`done` 执行时图片可能还没加载（行还没变高）。
+   - `datainfo`：给 `<img>` 写死 `width:50px;height:50px;object-fit:contain`（占位高度立即确定，与 goods.js 同尺度），
+     顺带修掉 `src=` 未加引号导致空图片时 `style` 被吃进 src 的老 bug；空图片直接返回空串。
+   - `enclosure` / `enclosuresale`：保留 `max-height:100px` 原尺寸，额外用**捕获阶段的 img load 监听**再同步一次：
+     `document.addEventListener('load', e => { if (e.target.nodeName === 'IMG') syncFixedRowHeight(); }, true);`
+3. 库存预警列表**左侧固定列在 `done` 之后才重建**，所以 `done` 内要 `syncFixedRowHeight(); setTimeout(syncFixedRowHeight, 0);` 各跑一次。
+
+## 顺带修掉的隐藏 bug（Datainfo::stockworing）
+
+`stockworing()` 用 `unset($list[$k])` 过滤后数组键不连续，`json()` 把 `rows` 编码成**对象**而不是数组，
+前端 `done` 第一行 `res.data.forEach` 直接抛 `TypeError`，导致：
+「当前库存」红/黄底色**从未生效过**、本次加的行高同步也不会执行。
+已在 `json()` 之前 `$list = array_values($list);`，实测页面无 JS 异常、库存预警底色恢复。
+
+## 已验证（headless Chrome + CDP 实测本地 erp.licheng.test；只读，未改业务数据）
+
+- 1280 / 1000 / 800 / 700 四档宽度 + 点工具栏刷新重载：以上页面主表与固定列的**每行 top/height 完全一致**，按钮中心偏差 0。
+- 420 / 380px（手机宽度，固定列才浮出）下 `enclosure` `[61,61,61,69,113…]`、`enclosuresale` `[61,113,41,41]` 两边一致。
+- 库存预警 `stockworing`：`[41,63]` 两边一致，`res.data.forEach` 异常消失，库存列红色底色生效。
+- 其余 40+ 个 kuerp 列表（`goods_sales_outbound`、`process`、`assemble`、`goods_purchase`、`goods_sales`、
+  `goods_sales_order`、`production_manage`、`goods_outbound_apply`、`purchase_recon`、`sales_recon` 等）
+  实测行高全部为 41（无多行单元格）或已有同步逻辑，无需改动；`goods_location`、`unit`、`auxiliary` 等表格不横向溢出，
+  固定列不浮出，也不受影响。
+- `php -l`（Datainfo.php）/ `node --check`（7 个 JS）全部通过。
+
+## 部署提醒
+
+线上 `public/assets/` 有 12 小时缓存：传完 JS 必须递增 `application/extra/site.php` 的 `version`（`require-backend.js` 用它做 `urlArgs`），
+否则用户会继续用旧 JS。

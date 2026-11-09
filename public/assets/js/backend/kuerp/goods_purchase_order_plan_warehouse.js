@@ -42,6 +42,21 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     ,toolbar: '#thisToolbar' //开启头部工具栏，并为其绑定左侧模板
                     ,page: true
                     ,cellMinWidth: 100 //全局定义常规单元格的最小宽度，layui 2.2.1 新增
+                    // 供应商/关联采购单等多供应商单元格会换行，主表行高于固定列默认行高；
+                    // 逐行把主表行高同步到右侧固定列，否则页面变窄出现横向滚动时操作列会逐行上漂
+                    ,done: function () {
+                        $(".layui-table-main tr").each(function (index, val) {
+                            $(".layui-table-fixed").each(function () {
+                                $($(this).find(".layui-table-body tbody tr")[index]).height($(val).height());
+                            });
+                        });
+                        $(".layui-table-header tr").each(function (index, val) {
+                            $(".layui-table-fixed").each(function () {
+                                $($(this).find(".layui-table-header thead tr")[index]).height($(val).height());
+                            });
+                        });
+                    }
+
                     ,cols: [[
                         {checkbox: true},
                         {field: 'purchase_time', title: __('Purchase_time'),templet: function (d) {

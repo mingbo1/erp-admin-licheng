@@ -15,6 +15,27 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', 'upload', '/assets/ad
                     range: true
                 });
 
+
+                //主表行可能因原始单据缩略图等高内容而高于固定列默认行高，逐行同步到固定列，
+                //否则窗口较窄、固定列浮出时操作列会逐行错位（图片异步加载，故额外在 done 后再同步一次）
+                var syncFixedRowHeight = function () {
+                    $(".layui-table-main tr").each(function (index, val) {
+                        $(".layui-table-fixed").each(function () {
+                            $($(this).find(".layui-table-body tbody tr")[index]).height($(val).height());
+                        });
+                    });
+                    $(".layui-table-header tr").each(function (index, val) {
+                        $(".layui-table-fixed").each(function () {
+                            $($(this).find(".layui-table-header thead tr")[index]).height($(val).height());
+                        });
+                    });
+                };
+                //缩略图加载完成后主表行高才确定，捕获图片 load 事件再同步一次
+                document.addEventListener('load', function (e) {
+                    if (e.target && e.target.nodeName === 'IMG') {
+                        syncFixedRowHeight();
+                    }
+                }, true);
                 table.render({
                     elem: '#table'
                     ,url:'kuerp/enclosuresale/index'
@@ -29,6 +50,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', 'upload', '/assets/ad
                     ,toolbar: '#thisToolbar' //开启头部工具栏，并为其绑定左侧模板
                     ,page: true
                     ,cellMinWidth: 80 //全局定义常规单元格的最小宽度，layui 2.2.1 新增
+                    //原图缩略图会让主表行变高，逐行同步到右侧固定列，否则窄屏固定列浮出时操作列逐行错位
+                    ,done: function () {
+                        syncFixedRowHeight();
+                        setTimeout(syncFixedRowHeight, 0);
+                    }
                     ,cols: [[
                         {checkbox: true},
                         {field: 'name', title: __('文件名称'), operate: 'LIKE', templet: function (d) {
