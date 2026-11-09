@@ -2461,12 +2461,21 @@ class Process extends Backend
         $info_list = Db::name('kuerp_process_info')->alias('a')
             ->join('kuerp_goods g', 'g.id=a.goods_id')
             ->where(['a.process_code' => $row['process_code']])
-            ->field('a.*,g.goods_name')
+            ->field('a.*,g.goods_name,g.goods_specification_id,g.vendor_name,g.packaging')
             ->order('a.type', 'ASC')
             ->select();
         foreach ($info_list as &$v) {
             $v['store_name'] = Db::name('kuerp_stores')->where(['id' => $v['stores_id']])->value('name');
+            $v['goods_unit_name'] = Db::name('kuerp_unit')->where(['id' => $v['goods_unit']])->value('name');
+            $v['goods_attr_name'] = $v['goods_attr'] ? Db::name('kuerp_goods_attr')->where(['id' => $v['goods_attr']])->value('attr_code') : '';
+            // 型号 / 规格2(厂商) / 规格3(封装)：取商品档案，空值统一显示 -
+            $v['goods_unit_name'] = !empty($v['goods_unit_name']) ? $v['goods_unit_name'] : '-';
+            $v['goods_attr_name'] = !empty($v['goods_attr_name']) ? $v['goods_attr_name'] : '-';
+            $v['goods_specification_id'] = !empty($v['goods_specification_id']) ? $v['goods_specification_id'] : '-';
+            $v['vendor_name'] = !empty($v['vendor_name']) ? $v['vendor_name'] : '-';
+            $v['packaging'] = !empty($v['packaging']) ? $v['packaging'] : '-';
         }
+        unset($v);
 
         // 加工费记录
         $fee_list = Db::name('kuerp_process_fee')->alias('f')

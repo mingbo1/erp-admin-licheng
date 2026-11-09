@@ -386,7 +386,8 @@ class SalesRecon extends Backend
             $invoices[$k]['term_state'] = $this->termState($dueDate, $row['pay_status'], $today, $this->remindDays);
         }
         // 应开票金额 = 总金额 total_amount（销货合计 + 客户承担费用）+ 对账差异 diff_money
-        $shouldInvoice = $this->invoiceBase($row);
+        // 净额为负（纯退货 / 退货冲抵后仍为负）时没有可开票金额，展示为 0（开票页同样按 0 拦截）
+        $shouldInvoice = max(0, $this->invoiceBase($row));
 
         // 收款记录
         $codes = array_column($docs, 'doc_code');
@@ -1845,7 +1846,8 @@ class SalesRecon extends Backend
                     'packaging'         => isset($goods['packaging']) ? $goods['packaging'] : '',
                     'attr_name'         => isset($attrMap[$info['goods_attr']]) ? $attrMap[$info['goods_attr']] : '',
                     'unit_name'         => isset($unitMap[$info['goods_unit']]) ? $unitMap[$info['goods_unit']] : '',
-                    'number'            => $sign * (float)$info['number'],
+                    // 退货单明细的 number 是「原销货数量」，实际退货数量在 retreat_number（金额也按后者计算）
+                    'number'            => $sign * (float)($type == '2' ? $info['retreat_number'] : $info['number']),
                     'unit_price'        => (float)$info['unit_price'],
                     'tax_included'      => (float)$info['tax_included'],
                     'tax_rate'          => (float)$info['tax_rate'],
@@ -2071,7 +2073,8 @@ class SalesRecon extends Backend
 
             foreach ($infos as $info) {
                 $goods = isset($goodsMap[$info['goods_code']]) ? $goodsMap[$info['goods_code']] : [];
-                $number = $sign * (float)$info['number'];
+                // 退货单明细的 number 是「原销货数量」，实际退货数量在 retreat_number（金额也按后者计算）
+                $number = $sign * (float)($type == '2' ? $info['retreat_number'] : $info['number']);
                 $totalNumber += $number;
                 Db::name('kuerp_sales_recon_info')->insert([
                     'recon_id'          => $reconId,

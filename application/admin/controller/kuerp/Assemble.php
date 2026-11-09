@@ -633,6 +633,8 @@ class Assemble extends Backend
         // 从销货排期生成组装单：预填组合件和BOM子件
         $schedule_id = $this->request->get('schedule_id');
         $scheduleGoodsCode = $this->request->get('goods_code');
+        // 排期行（父级商品）上的「生产备注」，带到组装单页面展示
+        $scheduleProductionRemark = '';
         if (!empty($schedule_id) && !empty($scheduleGoodsCode)) {
             // 查询排期信息获取销货订单号
             $salesOrderId = '';
@@ -656,6 +658,18 @@ class Assemble extends Backend
                 $scheduleGoodsUnit = $scheduleInfo ? (int)$scheduleInfo['goods_unit'] : '';
                 $scheduleDefaultUnit = $scheduleInfo ? (int)$scheduleInfo['default_unit'] : '';
                 $scheduleGoodsAttr = $scheduleInfo ? (int)$scheduleInfo['goods_attr'] : '';
+
+                // 该商品行上的「生产备注」：同一排期同一商品可能有多行（不同属性/仓库），取第一条非空值
+                $remarkRows = Db::name('kuerp_goods_sales_info')
+                    ->where(['purchase_code' => $schedule['purchase_code'], 'goods_code' => $scheduleGoodsCode])
+                    ->order('id asc')
+                    ->column('production_remark');
+                foreach ((array)$remarkRows as $remarkRow) {
+                    if (trim((string)$remarkRow) !== '') {
+                        $scheduleProductionRemark = trim((string)$remarkRow);
+                        break;
+                    }
+                }
             }
 
             // BOM半成品排产：半成品不在排期商品行中（排期明细里查不到），
@@ -716,7 +730,9 @@ class Assemble extends Backend
             $this->assignconfig('scheduleDefaultUnit', isset($scheduleDefaultUnit) ? $scheduleDefaultUnit : '');
             $this->assignconfig('scheduleGoodsAttr', isset($scheduleGoodsAttr) ? $scheduleGoodsAttr : '');
             $this->assignconfig('scheduleBomChildren', $bomChildren);
+            $this->assignconfig('scheduleProductionRemark', $scheduleProductionRemark);
         }
+        $this->view->assign('scheduleProductionRemark', $scheduleProductionRemark);
 
         // 关联销货订单信息（销货订单号 / 备注 / 明细品号与功率、生产备注）
         $salesOrderInfo = $this->getSalesOrderInfo(isset($salesOrderId) ? $salesOrderId : '');

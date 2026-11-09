@@ -173,6 +173,14 @@ class Kuerp extends Addons
                                 ['name'=>'kuerp/goods_sales_schedule/del','title'=>'删除','icon'=>'fa fa-circle-o','ismenu'=>'0','weigh'=>'0'],
                             ],
                         ],
+                        // 排产管理：计划排期的只读副本，仅显示已排产单据，只有刷新/导出/查看详情
+                        ['name'=>'kuerp/production_manage','title'=>'排产管理','icon'=>'fa fa-tasks','ismenu'=>'1','weigh'=>'97',
+                            'sublist'=>[
+                                ['name'=>'kuerp/production_manage/index','title'=>'查看','icon'=>'fa fa-circle-o','ismenu'=>'0','weigh'=>'0'],
+                                ['name'=>'kuerp/production_manage/detail','title'=>'查看详情','icon'=>'fa fa-circle-o','ismenu'=>'0','weigh'=>'0'],
+                                ['name'=>'kuerp/production_manage/export','title'=>'导出','icon'=>'fa fa-circle-o','ismenu'=>'0','weigh'=>'0'],
+                            ],
+                        ],
                         ['name'=>'kuerp/goods_sales','title'=>'销货单','icon'=>'fa fa-bar-chart','ismenu'=>'1','weigh'=>'95',
                             'sublist'=>[
                                 ['name'=>'kuerp/goods_sales/index','title'=>'查看','icon'=>'fa fa-circle-o','ismenu'=>'0','weigh'=>'0'],

@@ -1,5 +1,5 @@
 {include file="kuerp/common/menu" /}
-{if condition="empty($salesOrderInfo)"}<style>.so_col{display:none;}</style>{/if}
+{if condition="empty($salesOrderInfo) && empty($scheduleProductionRemark)"}<style>.so_col{display:none;}</style>{/if}
 <form id="add-form" class="form-horizontal assemble_form" role="form" data-toggle="validator" method="POST" action="">
 
     <div class="row">

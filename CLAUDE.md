@@ -424,6 +424,10 @@ BOM零件需求列表（`GoodsSalesSchedule::getBomRequirement()`）和「生成
 
 **2026-10-21 出库/入库弹窗改版**（与 7.9 外协加工单同构）：
 - `out_number_ipt` / `in_number_ipt` 默认值由「剩余可出/可入数量」改为 `value="0"`；`assemble.js` 的 `Form.api.bindevent` 第 4 参（submit 前置回调）校验「所有 `.out_number_ipt/.in_number_ipt` 均 ≤0 → `Toastr.error('请至少填写一项实际出库/入库数量')` 并 return false」，不发请求（后端本就 `< =0 跳过`，全 0 时 `请至少填写一项实际出库/入库数量` 兜底）。
+  ⚠️ **2026-11-08 组装单已回退为默认填满**（用户要求「出库入库数量需要默认填充为全部数量」）：`assemble/outbound_edit.html` 两个输入框的 `value` 改回
+  `{:number_format($item['number'] - $item['out_number'|'in_number'], $set['number_decimal']['value'], '.', '')}`（按 `number_decimal` 格式化，如 `10`），
+  `max` 仍是剩余可出/可入数量；`assemble.js` 的「全 ≤0 拦截」保留作手工清零时的兜底（注释同步改）。
+  **外协加工单 `process/outbound_edit.html` 未改，仍是 `value="0"`** —— 两处不再同构，改一处时注意别按对方套用。
 - [确认出库/入库]/[取消] 从 form 末尾移入主面板 `panel-body` 内（组合件入库表之后的 `<hr>` + 按钮行），与表单同属一个盒子。
 - 新增 **「出库/入库操作记录」独立面板**（主面板之后、页面最下方）：`Assemble::outboundEdit()` 查 `kuerp_goods_log`（**`purchase_code=单据编号 AND business_type IN (12,13)`**，12=组合件入库 / 13=子件出库，与 process 的 16/17 不同），`LEFT JOIN kuerp_goods` 带三规格字段，服务端补 `stores_name`/`admin_name`/`is_out`，`createtime DESC, id DESC`（最新在前），空态"暂无出库/入库记录"。列：时间/类型/商品编号/商品名称/型号/规格2/规格3/仓库/数量/操作人 —— **不含单价/金额**：`Assemble::saveOutbound()` 写 `kuerp_goods_log` 时 `out_unit`/`out_cost`/`enter_unit`/`enter_cost` 一律留空（与 process 的写法不同，那边有写）。反审核会删除 12/13 两类的 log 行，故反审核后记录清空。
 - ⚠️ 组装单出/入库全部完成后 `outboundEdit()` 直接报"该单据已完成全部出库和入库"，弹窗不可再打开 → 记录面板只在**分批未完成**时可见（这是既有守卫，未改）。
@@ -2717,11 +2721,51 @@ curl + headless Chrome/CDP 实测 erp.licheng.test（测试数据已还原）：
   `setproduction()` 现在 status=1 时**必须**带合法日期（`请选择生产日期` / `生产日期格式错误`），
   **取消排产（status=0）不改生产日期**。
 - **审核**：原「审核 - 填写预计交付日期」弹窗改名「审核 - 填写预计生产完成日期」，尺寸 `430×220 → 520×250`。
+  ⚠️ **2026-11-09 起该按钮已整体下线**（审核/反审核按钮、`examine()` 方法、权限规则一并移除，见下一节）。
 - 列表在「是否排产」后新增「生产日期」列（空值显示灰色 `—`）。
 - **带入组装单**：排期「生成组装单」→ `kuerp/assemble/add?schedule_id=..` 时，`Assemble::add()` 下发
   `scheduleProduceDate`，`assemble.js` 的 `initScheduleBom` 预填 `#c-produce_date`（仅 add 页有该输入框，edit 页不受影响）。
 
 ---
+
+# 计划排期：「审核/反审核」下线，工具栏改为「预计生产完成时间」批量设置（2026-11-09，1.6.42）
+
+> 迁移：`addons/kuerp/migration_remove_sales_schedule_examine.sql`（已对 erp_licheng 执行，可重复执行）；
+> `install.sql` 1.6.42 段 + `info.ini` 1.6.42。
+> 涉及文件：`application/admin/controller/kuerp/GoodsSalesSchedule.php`、
+> `application/admin/view/kuerp/goods_sales_schedule/index.html`、`public/assets/js/backend/kuerp/goods_sales_schedule.js`
+
+## 去掉的
+
+- 列表工具栏的 **[反审核] / [审核]** 两个按钮（它们在 `{if $set['examine']['is_checked']==1}` 块内；
+  **对单/反对单保留**）。
+- 后端 `GoodsSalesSchedule::examine($ids, $examine)` 整个方法删除（含审核时补建
+  `kuerp_writeoff_source` / `kuerp_accounts_receivable` + 客户 `need_receive_account` 的逻辑）。
+  排期/销货单的审核改在 **销货单列表（kuerp/goods_sales）** 完成，该控制器方法未动。
+- `$noNeedRight` 里的 `'examine'`；权限表规则 `kuerp/goods_sales_schedule/examine`（本地 id=697）由迁移删除，
+  **同时从各角色 `fa_auth_group.rules` 串里摘掉该 id**（存储过程循环，可重复执行）。
+  `Kuerp.php` 的 `$menu` 与 `install.sql` 原本就没有这条规则，无需改。
+  ⚠️ 删除方法后直接访问 `kuerp/goods_sales_schedule/examine` 会落到 TP5「System Error」（方法不存在），已实测。
+
+## 新增的
+
+- 工具栏在**原 [审核] 的位置**（`fright` 右浮组、最左）新增 **[预计生产完成时间]**（`lay-event="expected"`，
+  `layui-bg-orange`，权限沿用已有规则 `kuerp/goods_sales_schedule/setexpecteddelivery`）。
+  勾选 1 条或多条 → 弹窗（`520×250`，laydate，默认今天，必须选日期）→ 统一写入同一日期。
+- 前端走 **POST** `kuerp/goods_sales_schedule/setExpectedDelivery`（`$.ajax`，`ids` 为逗号串，支持批量）：
+  该接口原来就是"行内编辑/批量改期"的入口，本次只是多一个按钮入口，**后端零改动**。
+  成功后 `$('.btn-refresh').click()` 刷新列表并关弹窗。
+- 列表「预计生产完成时间」列的**行内编辑（`edit:'text'`）保留**，两条入口并存。
+
+## 已验证（headless Chrome + CDP / curl 实测本地 erp.licheng.test，测试数据已还原）
+
+- 工具栏按钮顺序：刷新 / 删除 / 反对单 / 对单 / **预计生产完成时间** / 排产 / 取消排产 / 导出（审核、反审核已消失）。
+- 勾选 2 条（id 26、27）→ 点按钮 → 弹层标题「填写预计生产完成时间」、默认今天（2026-11-09）→ 改为 `2026-12-01`
+  → 确定 → 两行 `expected_delivery_date` 落库为 `2026-12-01`，弹层关闭、列表刷新；测后已改回 NULL。
+- 未勾选直接点：`Toastr.error('请选择要设置预计生产完成时间的数据')`，不发请求。
+- 迁移：`fa_auth_rule` 697 删除，角色 6/14/17/26 的 `rules` 串中 697 一并摘除；`setexpecteddelivery`(795) 等其余规则不变。
+- `php -l` / `node --check` 通过。
+
 
 # 销货订单状态改为「按销货单实际出库数量」派生（2026-10-29）
 
@@ -2982,6 +3026,27 @@ curl + headless Chrome/CDP 实测 erp.licheng.test（测试数据已还原）：
 - 已验证：`edit?ids=3` 组合件行显示 `250W 17-山藤/R 黑红白蓝黄绿`，表头 th 与行 td 均 18 列、无 JS 异常；
   `add?schedule_id=5&goods_code=A02-0003` 由 JS 回填（16 列，新增页无「已入库/剩余入库」两列）；
   `edit?ids=12`（无销货订单）两列 `display:none`、表头 18/行 18 仍对齐、无面板。
+
+## 补充（2026-11-09）：从计划排期生成组装单时，生产备注取排期行（不再只看销货订单）
+
+- **问题**：排期「生成组装单」(`assemble/add?schedule_id=X&goods_code=Y`) 页面的生产备注原本只来自
+  `Config.salesOrderInfo`（销货**订单**明细）。排期行可能没有关联订单，或在排期里改过生产备注，导致组装单页面为空/显示旧值。
+- **服务端**：`Assemble::add()` 的排期分支里读 `kuerp_goods_sales_info.production_remark`（按 `purchase_code`+`goods_code`，
+  `order('id asc')->column()` 遍历取**第一条非空值**——同一排期同一商品可能有多行）→ `assignconfig('scheduleProductionRemark')`
+  + `view->assign`；BOM半成品（不在排期明细里的行）为空串。
+- **模板**：`assemble/add.html` 首行的 `.so_col` 隐藏条件由 `empty($salesOrderInfo)` 改为
+  `empty($salesOrderInfo) && empty($scheduleProductionRemark)`（否则无关联订单时整列被隐藏，排期的备注看不到）。
+  `edit.html` 未改（仍按 `sales_order_id`）。
+- **前端**：`assemble.js` 的 `changeGoods()` success 里，`getSalesOrderItem()` 取完订单值后，
+  若 `goods_code === Config.scheduleGoodsCode && Config.scheduleProductionRemark` 则**用排期值覆盖**生产备注
+  （排期是较新的数据源；品号与功率仍取订单值，未改）。
+- 两列仍是只读、无 `name`，**不落库**（组装单表无该字段），仅页面展示。
+- 已验证（headless Chrome + CDP，排期 24 / `A01-0001`：排期备注 `1122345`、订单备注为空）：
+  父行生产备注 `1122345`、品号与功率仍为订单的「大雁面贴」、`.so_col` 可见、BOM 子件 4 行正常；
+  排期 27 / `X01-0044` 显示 `线长10M`；排期商品与组装商品不一致（`X01-0003`）时为空；
+  排期 25 / `X01-0002`（排期备注为空）父行为空、不报错；
+  普通 `assemble/add`（无排期参数）两列仍 `display:none`（实测 `0x0` + `display:none`）、行为不变；
+  `assemble/edit/ids/3` 200 正常。
 
 ---
 
@@ -4182,3 +4247,364 @@ money_tax_price/remark/sales_order_id），表头 7 个、表单尾部 4 个（n
 - 点击缩略图弹出层 `.layui-layer-photos`，`img.src` 为原图地址；6 个页面均无 JS 异常；`node --check` 全通过。
 
 ⚠️ 部署后需递增 `application/extra/site.php` 的 `version`（该文件有意不随代码部署），否则浏览器会继续用缓存的旧 JS。
+
+---
+
+# 采购/销货「生成退货单」明细显示型号 / 规格2·厂商 / 规格3·封装（2026-11-08）
+
+> 涉及文件（**纯前端，无控制器/视图/数据库改动**）：
+> `public/assets/js/backend/kuerp/goods_exchange.js`、`public/assets/js/backend/kuerp/goods_sales_exchange.js`
+
+## 现象与根因
+
+- 采购单 `kuerp/goods_purchase` 行 [生成退货单]（`goods_exchange/add?ids=`）、
+  销货单 `kuerp/goods_sales` 行 [生成退货单]（`goods_sales_exchange/add?ids=`）打开的 add 页，
+  明细三列 **型号 / 规格2/厂商 / 规格3/封装** 是空白。
+- 视图（`goods_exchange/add.html`、`goods_sales_exchange/add.html`）里这三列对应的是**只读空 input**
+  （`class="goods_specification_id|vendor_name|packaging"`），只在 `changeGoods()`（手动选商品/扫码/联想）成功回调里赋值；
+  由源单据预填的行是服务端渲染的，**不会触发 changeGoods**，所以永远为空。
+- `goods_purchase.js` / `goods_purchase_order.js` 早前已用 `initSpecText` IIFE 解决同一问题，两个退货单 JS 漏做。
+
+## 修复
+
+在两个 JS 的 `bindevent` 内、`Form.api.bindevent(...)` 之前各加一个 `initSpecText` IIFE：
+
+```js
+(function initSpecText() {
+    var goodsMap = {}, gl = Config.goodsList || [];
+    for (var i = 0; i < gl.length; i++) {
+        if (gl[i] && gl[i].goods_code) { goodsMap[gl[i].goods_code] = gl[i]; }
+    }
+    $('.goods_code').each(function () {
+        var tr = $(this).closest('tr'), code = $(this).val();
+        if (!code || !goodsMap[code]) { return; }
+        var g = goodsMap[code];
+        tr.find('.goods_specification_id').val(g.goods_specification_id || '');
+        tr.find('.vendor_name').val(g.vendor_name || '');
+        tr.find('.packaging').val(g.packaging || '');
+    });
+})();
+```
+
+- 数据源 `Config.goodsList`：两个控制器的 `_initialize` 都已 `assignconfig('goodsList', $model->getGoodsList())`
+  （`getGoodsList()` = `Goods` 模型 `status=1` 全字段），三列字段天然齐全。
+- 选择器用 `.goods_code`（隐藏模板行为空值自动跳过）+ `closest('tr')`，**add 与 edit 页都生效**
+  （两页的 table 没有 id，不能像 goods_purchase 那样写 `#goods_table`）。
+- 编辑页顺带修好：此前 `goods_exchange/edit`、`goods_sales_exchange/edit` 的这三列同样是空的。
+
+## 注意
+
+- 两个 JS 都是 **CRLF** 文件（goods_exchange.js 内还混有少量 LF 行），改动务必**按字节读写**
+  （`open(p,'rb')` + 显式 `\r\n`），否则会产出几百行只差行尾的假 diff。
+  用 Edit 工具时若匹配块里含 LF 行，会被改写成 CRLF —— 改完用 `git diff --stat` 确认只有预期行数。
+- `vendor_name`（规格2/厂商）大量商品为空是**数据本身为空**，不是没生效。
+- 已验证（headless Chrome + CDP 实测 erp.licheng.test，未改动业务数据）：
+  `goods_exchange/add?ids=22` 14 行全部显示型号/封装（如 `K04-0002 | M5六角，M3*25 | 铜`）；
+  `goods_sales_exchange/add?ids=27` 显示 `X01-0044 | HS60-400W-3000转`、`A01-0006 | HS-2`；
+  两个 edit 页同样显示；`node --check` 通过。
+
+---
+
+# 采购对账：退货单冲减数量取错字段 + 「上传对账单」404（2026-11-08）
+
+> 迁移：`addons/kuerp/migration_fix_purchase_recon_return_number.sql`（已对 erp_licheng 与线上执行，可重复执行）；
+> `info.ini` 1.6.41。
+> 涉及文件：`application/admin/controller/kuerp/PurchaseRecon.php`、
+> `application/admin/view/kuerp/purchase_recon/detail.html`、`public/assets/js/backend/kuerp/purchase_recon.js`
+
+## 一、退货单数量口径：`retreat_number`，不是 `number`
+
+- `fa_kuerp_goods_exchange.number` = **原采购数量**（明细 `number` 的合计，退货单页面上那列「数量」），
+  真正退了多少在 **`retreat_number`**（明细行也有同名列，两者合计相等）。金额用 `real_money`（价税合计）。
+- 采购对账原先 6 处取 `number`，导致退货 4 件的单据在对账里显示 −40、对账单 `total_number` 被算成 0：
+  `calcTotals()`、`upsertInfo()`、`purchaselist()`（候选单据）、`purchases()`（全供应商单据列表）、
+  `buildTemplateData()`（对账单明细/打印/导出）的「单据级数量」与「商品行数量」。
+  现统一改为 `retreat_number`。
+- `buildTemplateData()` 对退货单**只取 `retreat_number > 0` 的明细行**（未退的商品行不再显示成 −10、金额 0），
+  过滤后无行时才回退到「单据级一行」兜底。
+- 金额不需要动：`real_money` 本来正确；对账净额 = Σ采购 `real_money` − Σ退货 `real_money`。
+- 历史数据：`migration_fix_purchase_recon_return_number.sql` 把已有 `purchase_recon_info`（doc_type='2'）
+  的 `number` 改成 −`retreat_number` 并重算主表合计（线上 `DZD20261108001`：−40 → −4，`total_number` 0 → 36）。
+  已进入财务一审（status≥1）的对账单金额不会变，只是把「数量」列纠正。
+
+## 二、⚠️ TP5 `url()` 只认三段：`{:url('a/b/c/ids/' . $id)}` 会丢掉前两段
+
+`think\Url::build()` 把路径按 `/` 切开后，**取最后三段当 module/controller/action**，其余丢弃：
+
+```php
+{:url('kuerp/purchase_recon/uploadfile/ids/' . $row['id'])}
+// => /eXvpGbzZYD.php/uploadfile/ids/5   ← kuerp/purchase_recon 被吃掉 → 404
+```
+
+`sales_recon` 的上传是 JS 里 `Fast.api.fixurl('kuerp/purchase_recon/uploadfile/ids/' + id)` 拼的，没走 `url()`，
+所以一直正常；`purchase_recon/detail.html` 是唯一用 4 段 `url()` 的地方，采购对账单的
+「+ 上传对账单」因此**从上线起就一直失败**（ajax 拿到 404 的 HTML → 走 error 分支 → 提示「上传失败，请重试」，
+PHP 侧无任何错误日志，容易误判成服务器/大小/格式问题）。
+
+- 正确写法：`{:url('kuerp/purchase_recon/uploadfile')}`（三段）+ JS 里拼 `/ids/' + reconId`；
+  或 `{:url('kuerp/purchase_recon/uploadfile', ['ids' => $row['id']])}`（参数走数组）。
+- 排查同类问题的捷径：视图里 `grep -rn "{:url('[^']*/[^']*/[^']*/"`，命中 4 段以上的都要改。
+- 判断「前端上传失败」属于哪一类：**页面提示的是 `res.msg`** = 走到了后端（格式/大小/权限拒绝，中文提示）；
+  **提示「上传失败，请重试」** = jQuery error 分支（HTTP 非 2xx / 返回不是 JSON），先按 URL 与 nginx 413 查。
+  线上 nginx 单请求上限 50MB（超了返回 413 HTML），`application/extra/upload.php` 的 `maxsize` 是 30MB。
+
+## 三、已验证（本地 + 线上 curl/CDP 实测）
+
+- 本地造「采购单 3 件 + 退货单退 1 件（明细行 `retreat_number=1`、另有一行 `retreat_number=0`）」：
+  对账明细只出 1 行退货（数量 −1、金额 −4.50），`total_number` 2；候选单据列表与全供应商列表均 −1。
+- 线上（`dyerp.dayanjishu.com`）：详情页退货行 −4 / −6.80、「对账单据明细」数量 −4、`total_number` 36、
+  单据列表接口 −4；浏览器（headless Chrome/CDP）点「+ 上传对账单」→
+  `POST /eXvpGbzZYD.php/kuerp/purchase_recon/uploadfile/ids/5` → **200**，附件出现在「对账单原始单据」。
+  测试用的附件（`fa_kuerp_enclosure` / `_log` / `fa_attachment` 三名行 + `/uploads/20261108/` 3 个文件）已全部删除、
+  自增值已还原。
+- ⚠️ 线上对账单 `DZD20261108001` 的退货单金额是 **6.80**（价税合计），其中退款 6.70 走账户、
+  0.10 冲减应付（`payment_log` 已按此记账）。对账用 `real_money`（6.80）才是与台账一致的应收/应付口径；
+  若希望 0.10 也不留，应把退货单的「退款金额」改成 6.80，而不是在对账里扣 6.70。
+
+---
+
+# 销货单打印改为「送货单」版式（2026-11-08）
+
+> 涉及文件：`application/admin/controller/kuerp/GoodsSales.php`（`printpage()` 重写）、
+> `application/admin/view/kuerp/goods_sales/printpage.html`（整页重写）。**无数据库迁移、无权限变更**（`printpage` 仍在 `$noNeedRight`）。
+
+## 目标
+
+销货单列表 / 编辑页顶部的 [打印] 打开 `kuerp/goods_sales/printpage/ids/X`，版式改为与
+**销货出库 → 申请记录 → [打印送货单]**（`kuerp/goods_outbound_apply/deliverynote`）**完全一致**。
+入口与 URL 不变，`edit.html` 的打印链接零改动。
+
+## 版式（与 deliverynote.html 逐字同构）
+
+- 标题 `{$company_name}送货单` + 公司地址（`kuerp_sets` 的 `company_name` / `company_address`）。
+- 表头两行：客户名称 / 销货日期 / 业务员 ｜ 联络人 / 联系电话 / 品号（客户物料编码 `kuerp_customer_goodscoding`，多个「、」连接）。
+- 明细 8 列：序 / 产品名称 / 型号规格 / 品号与功率 / 数量 / [单价] / [金额] / 备注。
+- 页脚合并单元格：备注标签 + 快递公司/快递单号 + 单据备注（`kuerp_goods_sales.note`）+ [销售价格/税额/合计]。
+- 签字栏（请核对后签字回传 / 签收人 / 日期）+ 四联说明 + 打印时间。
+- **价格列默认隐藏**（`.price-hide`），顶部「显示价格」勾选后显示单价/金额/销售价格/税额/合计 —— 与送货单同一套交互。
+- `{include file="kuerp/common/printstyle" /}`：屏幕 210mm 一张 A4、`.print-wrap` 718px(=190mm)，与打印输出同宽（实测 `content=793.7px`、`wrap=718.1px`、无横向溢出）。
+
+## 口径
+
+| 项 | 取值 |
+|----|------|
+| 型号规格 | `kuerp_goods.goods_specification_id`（孤儿商品留空） |
+| 品号与功率 | 销货明细 `remark`（订单带入），为空时回退 `kuerp_goods_sales_order_info.remark`（按 `purchase_code`=销货单 `purchase_order_id`，同商品取第一条非空） |
+| 数量 | `kuerp_goods_sales_info.number` |
+| 单价 | `all_money / number`（保留 `price_decimal+2` 位），算不出时回退 `unit_price` —— 与送货单同一算法 |
+| 金额 | 明细 `all_money`（未税金额，已含优惠分摊） |
+| 税额 / 合计 | `tax_money` / `all_money + tax_money`（税金关闭时 `tax_money=0`，合计=金额） |
+| 备注列 | 明细 `goods_note` |
+| 快递信息 | 该销货单下所有 `status IN ('0','1')` 的 `kuerp_goods_outbound_apply.express_data` 合并去空后「、」连接（无申请则留空） |
+| 联络人/电话 | 客户档案 `kuerp_customers_user` 首选联系人，回退客户档案 `connet_name` / `customer_mobile|customer_phone` |
+
+- `print_num` 仍照旧 `setInc`，但页面不再显示「打印次数」（与送货单一致，只显示打印时间）。
+
+## 已验证（本地 erp.licheng.test curl + headless Chrome/CDP）
+
+- `printpage/ids/24`（XHD20261104001，2 行明细、已有出库申请带顺丰单号）→ 200，标题「浙江大雁…送货单」、
+  客户/联络人/业务员/备注/快递公司(顺丰速运)/快递单号/合计 ￥317.00 全部正确；默认价格列隐藏，勾选「显示价格」后 8 列全出。
+- `ids/22`、`23`、`25`（含无快递、有京东快递、有备注/无备注）均 200，无 Fatal/Undefined。
+- `php -l` 通过。
+
+## 注意
+
+- 旧的 printpage 元素（`.info-grid` / `.summary-row` / `#summary-total` 勾选、代发·直发/收货地址行、`_price` 税金列）**已全部移除**，
+  不要按旧变量名（`purchase_info` / `$row.print_num`）回查模板。
+- 快递信息来自**出库申请**，只填了申请但尚未出库的单据也会带出快递号（与送货单「待审核也可打印」口径一致）。
+
+---
+
+# 销货退货单：仓库「退货入库」（2026-11-09，1.6.44）
+
+> 迁移：`addons/kuerp/migration_add_goods_return_inbound.sql`（已对 erp_licheng 执行，可重复执行）；
+> `install.sql` 1.6.44 段 + `info.ini` 1.6.44。
+> 新增：`addons/kuerp/library/ReturnInbound.php`、
+> `application/admin/view/kuerp/goods_sales_outbound/returninbound.html`、
+> `public/assets/js/backend/kuerp/goods_return_inbound_layer.js`。
+> 改动：`GoodsSalesExchange.php`（`examine()` / `del()`）、`GoodsSalesOutbound.php`（`index()` + 新增 `returninbound()`）、
+> `view/kuerp/goods_sales_outbound/index.html`、`public/assets/js/backend/kuerp/goods_sales_outbound.js`。
+
+## 流程（与「采购退货出库」同构，方向相反）
+
+```
+销货退货单 add → 审核（只做账务） → 销货单出库列表行出现 [退货入库]
+   → 弹窗（该销货单关联的退货单明细 + 本次入库数量，可分批） → 确认
+   → 加库存/成本 + 写收发明细 + 写「退货入库操作记录」
+   → 该退货单全部入完 → 列表按钮消失
+```
+
+## 关键口径
+
+- **审核不再动库存**：`GoodsSalesExchange::examine()` 里库存/成本/`kuerp_goods_log`(business_type=5)/
+  序列号(store_status=1)/批次库存 的代码全部删除，移到 `ReturnInbound::inbound()`；
+  审核仍做应付/退款/台账/开票/销售记录（`kuerp_goods_sales_info`/`_summary` 的负数行）等账务。
+  反审核同理不再恢复库存。
+- **守卫**：`out_number>0`（已有入库）时禁止**反审核**、禁止**删除**退货单；再次打开入库页提示「该销货单没有待入库的退货单」。
+- **销货单 ↔ 退货单关联**（`ReturnInbound::relatedInfoIds()`）：
+  `kuerp_goods_sales_info`（销货单明细）→ `kuerp_goods_saleexc_info.purchase_id`：
+  `type=2` 直接对应销货单明细行；`type=1` 是销货订单明细行，需经 `kuerp_goods_saleord_info`（order_id/purchase_id）桥接回销货单明细；
+  另加表头级 `kuerp_goods_saleexc`（purchase_id=销货单ID, type=2）兜底。
+  **独立新建的退货单（purchase_type=0）没有来源销货单，不会出现在这个入口**（与采购退货出库的处理一致）。
+- **累计入库**：`fa_kuerp_goods_sales_exchange_info.out_number`（单据单位），剩余可入 = `retreat_number - out_number`。
+- **基础单位换算**：单位 `type=2 && is_main!=1` 时乘 `kuerp_unit_conversion.advance_rate`。
+- **成本**：与旧审核口径完全一致 —— 取商品基本单位的采购价（`GoodsPurchase::getUnit` 的 `purchase`），
+  `cost = 采购价 × 本次基本数量`；库存行不存在时**自动新建**（旧审核是报「库存不足」，入方向不应拦截）。
+- **操作记录**：`fa_kuerp_goods_return_inbound_log`（sales_id/sales_code/exchange_codes/total_number/total_basics/
+  detail JSON/admin_id/createtime），`ReturnInbound::logs()` 供弹窗渲染（每条记录下方展开本次入库明细子表）。
+- **迁移补列时回填**：新增 `out_number` 列的同时，把**已审核**的退货单 `out_number` 置为 `retreat_number`
+  （历史库存已在审核时加过），避免上线后重复入库/反审核减不回去。只在加列当次执行。
+
+## 列表按钮与权限
+
+- `GoodsSalesOutbound::index()` 每行下发 `return_inbound_pending`（`ReturnInbound::pendingCount()`）；
+  `#barDemoOutbound` 在 `>0` 时输出绿色 [退货入库]（`lay-event="returninbound"`，`$auth->check($nowmenu.'/returninbound')`）。
+- 权限规则 `kuerp/goods_sales_outbound/returninbound`（pid=639 销货单出库），迁移已增量授予
+  所有拥有 `kuerp/goods_sales_outbound/index` 的角色（只加不删）。
+
+## 已验证（curl + headless Chrome/CDP 实测本地 erp.licheng.test，测试数据已按快照还原）
+
+- 审核：造退货单（2 行，分别对应销货单两行明细）→ `examine` 返回审核成功，`goods_stock.stock` / `cost_money`、
+  `goods.inventory`、`out_number` **零变动**（改前会立刻加库存）。
+- 列表：`goods_sales_outbound/index` 该行 `return_inbound_pending=2`；浏览器实测行按钮为「申请记录 / 退货入库 / 编辑」。
+- 弹窗：`returninbound?ids=24` 200，两行明细、`in_data[info_id]` 输入框、剩余可入、入库记录区齐全。
+- 分批入库：先进 1 件 → 库存 26→27、inventory 同步、`out_number=1`、`goods_log`(business_type=5) 写入、
+  `goods_return_inbound_log` 1 行（detail JSON 含商品/仓库/单位/数量）、响应 `remaining=1`；
+  再进剩余 → `remaining=0`、库存 198→199；列表 `return_inbound_pending=0`（按钮消失）、重开弹窗提示无待入库。
+- 校验：超量「本次入库数量(5)超过剩余可入库数量(1)」；反审核/删除/编辑 均提示「已有退货入库记录」；
+  删除「已有退货入库记录，不能删除」。
+- `php -l`（3 个 PHP）/ `node --check`（2 个 JS）通过；测试单据、收发明细、入库记录与库存/成本/自增值全部还原。
+
+---
+
+# 排产管理（production_manage，计划排期的只读副本，2026-11-09 / 1.6.43）
+
+> 新增：`application/admin/controller/kuerp/ProductionManage.php`、
+> `application/admin/view/kuerp/production_manage/{index,detail}.html`、
+> `public/assets/js/backend/kuerp/production_manage.js`、
+> `application/admin/lang/zh-cn/kuerp/production_manage.php`、
+> `addons/kuerp/migration_add_production_manage.sql`。
+> 改动：`GoodsSalesSchedule.php`（两个扩展点）、`Kuerp.php` `$menu`、`install.sql`（1.6.43 段）、`info.ini`（1.6.43）。
+
+## 页面口径
+
+- **数据同源**：与「计划排期」共用 `fa_kuerp_goods_sales` 表，**只显示已排产**（`production_status='1'`）的销货单。
+- **工具栏只有 刷新 / 导出**（无添加/删除/对单/排产/取消排产/预计生产完成时间）。
+  导出沿用计划排期逻辑（勾选行后 form POST `kuerp/production_manage/export`，下载 `排产管理YYYYmmddHHmmss.xlsx`，
+  工作表名同为「排产管理」）。
+- **行操作只有 [查看详情]**（`lay-event="detail"` → `Fast.api.open('kuerp/production_manage/detail?ids=X')`），
+  没有编辑/删除。详情页为服务端渲染的只读页（表头信息 + 商品明细，商品明细含 型号/规格2/规格3/属性/单位/仓库/数量/品号与功率/生产备注 与合计）。
+- **搜索**：单据编号 / 单据日期(区间) / **生产日期** / 客户 / 制单人 / 对单状态。
+  生产日期是 `varchar(10)` 的 `YYYY-MM-DD`，按 `op=LIKE`（`%日期%`）单日精确匹配。
+
+## 实现要点
+
+- `ProductionManage extends GoodsSalesSchedule`（子类继承，不复制代码）：
+  - 覆写 `applyIndexExtraWhere($query)` 追加 `production_status='1'`（父类 `index()` 新增的钩子）；
+  - 覆写 `exportDocName()` 返回「排产管理」（父类 `export()` 新增的钩子，用于文件名与 sheet 名）；
+  - `add/edit/del/setproduction/setExpectedDelivery/counter/lockGoods/unlockGoods` 一律 `$this->error('排产管理为只读页面…')`
+    （这些方法都继承自父类，其中 `counter` 在父类 `$noNeedRight` 里，必须显式封死）；
+  - `detail($ids)` 装配只读数据（`$this->model->get()` + 客户/销售员/制单人/审核人/订单备注 + 明细 JOIN 商品/仓库/单位/属性），
+    并下发 `number_decimal`、`aux_on`（辅助属性列开关，用于空行/合计行 colspan 同步减 1）。
+  - 父类 `appendDeliveryModeText()` 由 `private` 改为 `protected`，供子类复用。
+- 列表 JS 只保留 `index`（不再有 add/edit 的 `bindevent`），列与计划排期一致，但 `expected_delivery_date` **不再是行内可编辑**
+  （无 `edit:'text'`、无 `table.on('edit')`），行工具栏模板换成 `#barDemoProdManage`（只有 [查看详情]）。
+- 菜单：销货组下 `kuerp/production_manage`（weigh 97，计划排期 98 之后），子规则 查看/查看详情/导出。
+  迁移把菜单 + 三条子规则**增量授予**「已拥有 `kuerp/goods_sales_schedule` 菜单或 index 权限」的角色
+  （计划部/计划专员/生产部/总经理等），升级后现有角色行为不变，之后可在 角色管理 → 排产管理 里按需取消。
+
+## 已验证（curl + headless Chrome/CDP 实测本地 erp.licheng.test）
+
+- 列表：`total=8`（库里 `production_status='1'` 正好 8 条，共 26 条销货单），工具栏只有「刷新/导出」，每行只有「查看详情」，
+  14 列表头与搜索栏 6 个字段正常；搜索 `production_date=2026-11-06` → 1 条 `XHD20261104001`。
+- 详情：`detail/ids/24` 200，表头（单据编号/客户/销售员/单据日期/生产日期/预计生产完成日期/是否排产/代发直发/对单状态/
+  制单人/审核状态/审核人/销货订单号/收货地址/备注）与 2 行商品明细 + 合计 2 全部正确；弹层内渲染正常。
+- 只读守卫：`add/edit/del` 均返回「排产管理为只读页面，不能…」。
+- 导出：POST `ids=24` → xlsx，`Content-Disposition: 排产管理20261109110701.xlsx`，`workbook.xml` 的 sheet 名为「排产管理」。
+- 权限：临时账号（计划部角色）可见菜单/按钮、index/detail 200；改成财务部（无计划排期权限）后 index/detail 均「你没有权限访问」；
+  临时账号与 `fa_auth_group_access` 行已删除、`fa_admin` 自增已还原。
+- 侧栏（清 `runtime/cache` 后）出现「销货 → 排产管理」。
+
+### 出库编辑页展示「出库记录 / 退货入库记录」（2026-11-09）
+
+- `GoodsSalesOutbound::edit()` GET 分支末尾 assign：
+  `outboundHistory` = `GoodsOutboundApply::buildHistory($row['id'])`（与「销货单详情」同一数据源，含历次出库申请/实际出库数量/快递信息/审核状态）、
+  `returnInboundLogs` = `ReturnInbound::logs($row['id'])`（该销货单的历次退货入库记录）。
+- `view/kuerp/goods_sales_outbound/edit.html` 在「来源销货订单信息」面板之后新增两个面板：
+  **出库记录**（申请单号/申请人/申请时间/申请内容/实际出库数量/快递信息/状态/审核人/审核时间/拒绝原因）与
+  **退货入库记录**（入库时间/退货单号/本次入库数量/入库明细 `detail_text`/操作人），无数据时分别显示「暂无出库记录 / 暂无退货入库记录」。
+  两个面板都在 `</form>` 之外，纯展示，不影响单据表单提交。
+
+## 纯退货 / 净额为负的对账单：收款状态不再误判「已收款」（2026-11-09）
+
+> 涉及文件：`application/admin/model/kuerp/SalesRecon.php`（`recalcPay()` / `businessStatusText()`）、
+> `application/admin/controller/kuerp/SalesRecon.php`（`detail()` 的应开票金额展示）。**无数据库迁移。**
+
+### 问题
+
+`SalesRecon::recalcPay()` 原逻辑 `if ($total <= 0) $status = '2'`：只要应收净额 ≤ 0 就直接标「已收款」。
+对**只含退货单**的对账单（如 `KHDZ20261109001`：净额 -10、`pay_money=0`）会显示**已收款**，
+但实际一分钱没收到/没退。副作用（都按 `pay_status=0` 才放行）：
+
+- 删除对账单被拦「已开票或已有收款，不能删除」
+- 撤销对账被拦「已有收款的对账单不能撤销」
+- 差异金额弹窗 `canEdit=false`，新增/删除差异被拦「已收款完成」
+
+### 修复
+
+```php
+if ($total > 0) {                     // 有应收：0 未收 / 1 部分 / 2 已收（原逻辑不变）
+    $status = $payMoney <= 0 ? '0' : ($payMoney >= $total ? '2' : '1');
+} else {                              // 净额 <= 0（纯退货 / 完全冲抵，没有应收）
+    $status = ($total == 0 || $payMoney <= $total + 0.0001) ? '2' : '0';
+}
+```
+
+- 已收金额 `$payMoney` = Σ销货 `pay_money` − Σ退货 `retreat_money`（退货退款为负）。
+  净额为 **0** → 视为结清（2）；净额为**负** → 只有退款已经覆盖到净额（`payMoney <= total`）才算结清，
+  否则是 **未收款（0）**，删除/撤销/差异登记随之恢复可用。
+- `businessStatusText()`：已对账且净额 < 0、未结清时显示 **「已对账·待退款」**（不再显示「已对账·待开票」，退货没有可开票金额）。
+- `detail()` 的「应开票」金额改为 `max(0, invoiceBase)`，负净额显示 **￥0.00**（开票接口本就按 0 拦截）。
+
+### 已验证（curl 实测本地 erp.licheng.test）
+
+- `KHDZ20261109001`（1 张退货单、净额 -10、已收 0）：列表/详情重算前 `pay_status=2`（已收款）→ 修复后 `pay_status=0`（未收款），
+  库中冗余字段同步为 0；`已收金额` 仍为 0，`应开票` 由 ￥-10.00 变为 ￥0.00。
+- 其它对账单不受影响（`KHDZ20261102001` 已收 10266/应收 10266 仍为 2；`KHDZ20261105001` 未收仍为 0）。
+- 列表行按钮：`开票`/`去收款` 追加 `(total_amount + diff_money) > 0` 条件 —— 净额为负的对账单不再出现这两个按钮
+  （负额没有可开票金额，去收款也无意义，退款走退货单/付款单）。
+- 已验证：`sales_recon/index` 页面 200、模板条件正常渲染。
+
+### 销货单编辑页也回显「退货入库记录」（2026-11-09）
+
+- `GoodsSales::edit()` 追加 assign `returnInboundLogs` = `ReturnInbound::logs($row['id'])`。
+- `view/kuerp/goods_sales/edit.html` 在「出库记录」面板之后新增 **退货入库记录** 面板
+  （入库时间 / 退货单号 / 本次入库数量 / 入库明细 `detail_text` / 操作人；无数据显示「暂无退货入库记录」），
+  与「销货出库 → 退货入库」弹窗、同单「销货出库编辑页」的数据同源。
+
+## 销货对账：退货单明细数量取 `retreat_number`（2026-11-09）
+
+> 涉及文件：`application/admin/controller/kuerp/SalesRecon.php`（`buildItemRows()` / `buildSnapshot()`）。**无数据库迁移。**
+
+### 问题
+
+`kuerp_goods_sales_exchange_info.number` 存的是**原销货数量**（退货单录入时把原单数量一起带过来），
+实际退货数量在 **`retreat_number`**（金额 `all_money`/`money_tax_price` 也按后者计算）。
+`buildItemRows()`（工作台明细）与 `buildSnapshot()`（对账单明细快照）原来都用 `number`，导致：
+`XHTH20261109002`（原销 100/10，实退 20/5）在销货对账明细里显示 **-100 / -10**，
+对账单 `total_number` 也被算错（KHDZ20261109002 快照 total_number=0，正确应为 85）。
+
+### 修复
+
+两处统一：`$type == '2'`（退货单）取 `retreat_number`，销货单仍取 `number`：
+
+```php
+$qty = ($type == '2') ? (float)$info['retreat_number'] : (float)$info['number'];
+'number' => $sign * $qty,
+```
+
+- 金额不受影响（本来就按 `money_tax_price` 分摊）。
+- 已存在的对账单快照不会自动纠正，需在「编辑/刷新明细」里走 `SalesRecon::sync()` 重建；
+  本次已对两张草稿对账单执行刷新：`KHDZ20261109002`（退货行 -100/-10 → **-20/-5**，`total_number` 0 → **85**）、
+  `KHDZ20261109001`（-2/-1 → **-1/-1**，`total_number` -3 → **-2**），金额均未变。
+- 已验证：`sales_recon/edit?ids=4` 候选单据行显示退货数量 -25；`detail?ids=4` 明细行为 -20/-5，金额 -180.80/-28.25 不变。

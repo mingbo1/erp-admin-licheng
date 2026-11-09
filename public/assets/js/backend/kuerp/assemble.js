@@ -1462,6 +1462,10 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                             }
                             // 关联销货订单：带出品号与功率 / 生产备注（只读列，不参与提交）
                             var soItem = getSalesOrderItem(goods_code);
+                            // 从计划排期生成：父级商品的生产备注以排期行为准（排期可能已在订单备注基础上修改）
+                            if (Config.scheduleGoodsCode && goods_code === Config.scheduleGoodsCode && Config.scheduleProductionRemark) {
+                                soItem.production_remark = Config.scheduleProductionRemark;
+                            }
                             obj.find('.so_remark').val(soItem.remark);
                             obj.find('.so_production_remark').val(soItem.production_remark);
                             if(goods.goods.batch==1){
@@ -1912,7 +1916,7 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     parent.Layer.closeAll();
                     parent.$('.btn-refresh').click();
                 }, null, function () {
-                    // 实际出库/入库数量默认均为 0：一项都没填时不允许提交，避免误点直接出库/入库
+                    // 实际出库/入库数量默认已按「待出/待入数量」填满；若用户手工全部清成 0，仍拦截提交
                     var total = 0;
                     $('#outbound-form .out_number_ipt, #outbound-form .in_number_ipt').each(function () {
                         var val = parseFloat($(this).val());

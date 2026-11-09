@@ -164,44 +164,53 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 }
                             );
                         break;
-                        case 'examine':
+                        case 'expected':
                             if(data.length<=0){
-                                Toastr.error('请选择要审核的数据');return;
+                                Toastr.error('请选择要设置预计生产完成时间的数据');return;
                             }
-                            // 弹窗填写预计生产完成日期（批量选中的排期统一写入同一日期）
-                            var todayStr = layui.util.toDateString(new Date(), 'yyyy-MM-dd');
+                            // 弹窗填写预计生产完成时间（批量选中的排期统一写入同一日期）
+                            var todayExpectedStr = layui.util.toDateString(new Date(), 'yyyy-MM-dd');
                             layer.open({
                                 type: 1,
-                                title: '审核 - 填写预计生产完成日期',
+                                title: '填写预计生产完成时间',
                                 shadeClose: false,
                                 area: ['520px', '250px'],
                                 content: '<div class="form-horizontal" role="form" style="padding:24px 10px 0;overflow:hidden;">' +
                                     '<div class="form-group">' +
-                                    '<label class="control-label col-xs-4">预计生产完成日期:</label>' +
-                                    '<div class="col-xs-7"><input type="text" class="form-control" id="examine-expected-date" value="' + todayStr + '" readonly placeholder="请选择日期"></div>' +
+                                    '<label class="control-label col-xs-4">预计生产完成时间:</label>' +
+                                    '<div class="col-xs-7"><input type="text" class="form-control" id="expected-date" value="' + todayExpectedStr + '" readonly placeholder="请选择日期"></div>' +
                                     '</div>' +
                                     '<div class="form-group" style="margin-top:-6px;">' +
-                                    '<div class="col-xs-offset-4 col-xs-7"><span class="help-block" style="margin:0;">已选 ' + data.length + ' 条，审核通过后统一写入该日期（列表中可再修改）</span></div>' +
+                                    '<div class="col-xs-offset-4 col-xs-7"><span class="help-block" style="margin:0;">已选 ' + data.length + ' 条，统一写入该日期（列表中可再修改）</span></div>' +
                                     '</div>' +
                                     '</div>',
                                 btn: ['确定', '取消'],
                                 yes: function(index){
-                                    var expectedDate = $('#examine-expected-date').val();
+                                    var expectedDate = $('#expected-date').val();
                                     if(!/^\d{4}-\d{2}-\d{2}$/.test(expectedDate)){
-                                        Toastr.error('请选择预计生产完成日期');return;
+                                        Toastr.error('请选择预计生产完成时间');return;
                                     }
-                                    Fast.api.ajax("kuerp/goods_sales_schedule/examine?examine=1&ids="+ids+"&expected_delivery_date="+expectedDate, function () {
-                                        $('.btn-refresh').click();
-                                    },'',true);
-                                    layer.close(index);
+                                    // setExpectedDelivery 只接受 POST（ids 支持逗号分隔的多个 id）
+                                    $.ajax({
+                                        url: "kuerp/goods_sales_schedule/setExpectedDelivery",
+                                        type: "POST",
+                                        data: {'ids': ids, 'expected_delivery_date': expectedDate},
+                                        success: function(res){
+                                            if(res.code==1){
+                                                Toastr.success(res.msg || '预计生产完成时间已更新');
+                                                $('.btn-refresh').click();
+                                                layer.close(index);
+                                            }else{
+                                                Toastr.error(res.msg || '更新失败');
+                                            }
+                                        },
+                                        error: function(){
+                                            Toastr.error('更新失败');
+                                        }
+                                    });
                                 }
                             });
-                            laydate.render({ elem: '#examine-expected-date', trigger: 'click' });
-                            break;
-                        case 'examine_f':
-                            Fast.api.ajax("kuerp/goods_sales_schedule/examine?examine=2&ids="+ids, function () {
-                                $('.btn-refresh').click();
-                            },'',true);
+                            laydate.render({ elem: '#expected-date', trigger: 'click' });
                             break;
                         case 'counter':
                             Fast.api.ajax("kuerp/goods_sales_schedule/counter?counter=1&ids="+ids, function () {

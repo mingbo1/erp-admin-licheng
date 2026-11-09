@@ -88,6 +88,10 @@
     <!-- 已全部出库：申请出库入口隐藏，仍保留只读入口查看历次申请/出库记录 -->
     <a class="layui-btn layui-btn-xs layui-bg-gray {if condition="$auth->check($nowmenu.'/apply')!=1"}hiddens{/if}" lay-event="applyrecord">申请记录</a>
     {{# } }}
+    <!-- 退货入库：销货退货单审核只做账务，退回的货物由仓库在这里分批入库；全部入库后按钮消失 -->
+    {{# if(d.return_inbound_pending > 0){ }}
+    <a class="layui-btn layui-btn-xs layui-bg-green {if condition="$auth->check($nowmenu.'/returninbound')!=1"}hiddens{/if}" lay-event="returninbound">退货入库</a>
+    {{# } }}
     <!-- 送货单不再放在行上：送货单对应的是「每一次出库申请」，请在 [申请出库/申请记录] 弹窗的历次申请记录里逐条打印 -->
     <a class="layui-btn layui-btn-xs {if condition="$auth->check($nowmenu.'/edit')!=1"}hiddens{/if}" lay-event="edit">编辑</a>
 </script>

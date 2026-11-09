@@ -469,8 +469,11 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form','/assets/addons/kuerp/
                     ,cellMinWidth: 100 //全局定义常规单元格的最小宽度，layui 2.2.1 新增
                     ,cols: [[
                         {checkbox: true},
-                        {field: 'goods_code', title: __('Goods_code'), minWidth: 110, hide: true},
                         {field: 'id', title: 'ID', minWidth: 80},
+                        {field: 'goods_code', title: __('Goods_code'), minWidth: 130, templet: function (d) {
+                                // 商品编号完整展示，过长换行
+                                return '<div style="white-space:normal;word-break:break-all;line-height:18px;padding:2px 0;" title="' + (d.goods_code || '') + '">' + (d.goods_code || '') + '</div>';
+                            }},
                         {field: 'goods_name', title: __('Goods_name'), minWidth: 220, templet: function (d) {
                                 // 商品名称完整展示，过长换行；带客户参数时常用客户商品加"常用"标识
                                 var name = d.goods_name;

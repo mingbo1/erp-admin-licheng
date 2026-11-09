@@ -2,158 +2,150 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>{:__('Sales_detail')} - {$row.purchase_code|htmlentities}</title>
+    <title>送货单 - {$row.purchase_code|htmlentities}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: "Microsoft YaHei", "SimSun", Arial, sans-serif; font-size: 14px; color: #333; padding: 20px; }
-        .print-wrap { max-width: 800px; margin: 0 auto; }
-        .print-title { text-align: center; font-size: 22px; font-weight: bold; margin-bottom: 20px; }
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; margin-bottom: 15px; }
-        .info-grid .item { padding: 4px 0; }
-        .goods-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-        .goods-table th, .goods-table td { padding: 6px 8px; border: 1px solid #666; text-align: center; }
-        .goods-table th { background: #f0f0f0; font-weight: bold; }
-        .goods-table td.left { text-align: left; }
-        .goods-table td.right { text-align: right; }
-        .summary-row { text-align: right; margin-bottom: 15px; }
-        .summary-row span { display: inline-block; margin-left: 20px; font-size: 15px; }
-        .summary-row .bold { font-weight: bold; font-size: 16px; }
-        .footer-info { margin-top: 30px; }
-        .footer-info span { display: inline-block; margin-right: 30px; }
-        .print-time { text-align: right; color: #999; margin-top: 20px; font-size: 12px; }
+        body { font-family: "Microsoft YaHei", "SimSun", Arial, sans-serif; font-size: 13px; color: #000; padding: 20px; }
+        .print-wrap { max-width: 900px; margin: 0 auto; }
+        .no-print { text-align: center; margin-bottom: 16px; }
+        .no-print button { padding: 7px 28px; font-size: 15px; cursor: pointer; }
+        .no-print label { margin-left: 18px; font-size: 14px; cursor: pointer; }
+        .dn-title { text-align: center; font-size: 22px; font-weight: bold; letter-spacing: 2px; margin-bottom: 6px; }
+        .dn-address { font-size: 12px; margin-bottom: 6px; }
+        .dn-table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
+        .dn-table th, .dn-table td { border: 1px solid #000; padding: 4px 6px; font-size: 12.5px; }
+        .dn-table th { font-weight: bold; text-align: center; background: #f7f7f7; }
+        .dn-head td { height: 26px; }
+        .dn-head .lb { text-align: right; white-space: nowrap; }
+        .dn-table .left { text-align: left; }
+        .dn-table .right { text-align: right; }
+        .dn-table .center { text-align: center; }
+        .dn-foot { width: 100%; border-collapse: collapse; margin-top: -1px; }
+        .dn-foot td { border: 1px solid #000; padding: 4px 6px; font-size: 12.5px; }
+        .dn-foot .lb { text-align: left; white-space: nowrap; }
+        .dn-foot .right { text-align: right; }
+        /* 价格默认隐藏：勾选「显示价格」后移除 price-hide */
+        .price-hide .col-price, .price-hide .label-price { display: none; }
+        .dn-sign { margin-top: 16px; font-size: 13px; line-height: 30px; }
+        .dn-sign .line { display: flex; justify-content: space-between; }
+        .dn-copy { margin-top: 14px; font-size: 12px; color: #333; }
+        .print-time { text-align: right; color: #888; font-size: 11px; margin-top: 8px; }
         @media print {
             body { padding: 0; }
             .no-print { display: none; }
+            .print-time { display: none; }
         }
-        .no-print { text-align: center; margin-bottom: 20px; }
-        .no-print button { padding: 8px 30px; font-size: 16px; cursor: pointer; }
-        .print-field-option { display: inline-block; margin-right: 20px; font-size: 15px; cursor: pointer; vertical-align: middle; }
-        .print-field-option input { vertical-align: middle; margin-right: 4px; }
     </style>
 {include file="kuerp/common/printstyle" /}
 </head>
 <body>
 <div class="no-print">
-    <label class="print-field-option" {if condition="!isset($row['real_money']) || $row['real_money']<=0"}style="display:none"{/if}><input type="checkbox" class="print-field-toggle" data-target="summary-total" checked> {:__('Total_amount')}</label>
-    <label class="print-field-option" {if condition="!isset($row['pay_money']) || $row['pay_money']<=0"}style="display:none"{/if}><input type="checkbox" class="print-field-toggle" data-target="summary-pay" checked> {:__('Pay_amount')}</label>
-    <label class="print-field-option" {if condition="!isset($row['arrears']) || $row['arrears']<=0"}style="display:none"{/if}><input type="checkbox" class="print-field-toggle" data-target="summary-arrears" checked> {:__('Arrears_amount')}</label>
-    <button onclick="window.print()">🖨 {:__('Print')}</button>
+    <button type="button" onclick="window.print()">🖨 打印</button>
+    <label><input type="checkbox" id="chk_show_price"> 显示价格</label>
+    <span style="color:#999;margin-left:10px;font-size:12px;">（默认隐藏单价/金额/销售价格/税额/合计）</span>
 </div>
 
-<div class="print-wrap">
-    <div class="print-title">{:__('Sales_detail')}</div>
+<div class="print-wrap price-hide" id="dn_sheet">
+    <div class="dn-title">{$company_name|htmlentities}送货单</div>
+    <div class="dn-address">地址：{$company_address|default=''|htmlentities}</div>
 
-    <div class="info-grid">
-        <div class="item"><strong>{:__('Purchase_code')}：</strong>{$row.purchase_code|htmlentities}</div>
-        <div class="item"><strong>{:__('Purchase_time')}：</strong>{$row.purchase_time|date='Y-m-d',###}</div>
-        <div class="item"><strong>{:__('Customers_id')}：</strong>{$row.customer_name|htmlentities}</div>
-        <div class="item"><strong>{:__('Purchase_type')}：</strong>{if condition="$row.purchase_type==1"}销货{else/}退货{/if}</div>
-        <div class="item"><strong>{:__('Sale_user_name')}：</strong>{$row.sale_user_name|htmlentities}</div>
-        <div class="item"><strong>{:__('Receiving_address')}：</strong>{$row.receiving_address|htmlentities}</div>
-        <div class="item"><strong>{:__('Delivery_mode')}：</strong>{$row.delivery_mode_text|default=''}</div>
-    </div>
+    <table class="dn-table dn-head">
+        <tr>
+            <td class="left" colspan="4">客户名称：{$customer_name|htmlentities}</td>
+            <td class="lb" style="width:80px;">销货日期：</td>
+            <td style="width:100px;">{$sales_date}</td>
+            <td class="lb" style="width:70px;">业务员：</td>
+            <td style="width:100px;">{$sale_user_name|htmlentities}</td>
+        </tr>
+        <tr>
+            <td class="lb" style="width:60px;">联络人：</td>
+            <td colspan="2">{$contact_name|htmlentities}</td>
+            <td class="lb" style="width:70px;">联系电话：</td>
+            <td colspan="2">{$contact_mobile|htmlentities}</td>
+            <td class="lb" style="width:50px;">品号：</td>
+            <td>{$customer_codes|htmlentities}</td>
+        </tr>
+    </table>
 
-    <table class="goods-table">
+    <table class="dn-table">
         <thead>
             <tr>
-                <th>序号</th>
-                <th>{:__('Goods_code')}</th>
-                <th>{:__('Goods_name')}</th>
-                <th>型号</th>
-                <th>{:__('Unit_name')}</th>
-                <th>{:__('Number')}</th>
-                <th>{:__('Unit_price')}</th>
-                <th>{:__('All_money')}</th>
-                {if condition="isset($set['taxes']['is_checked']) && $set['taxes']['is_checked']==1"}
-                <th>{:__('Tax_included')}</th>
-                <th>{:__('Tax_rate')}</th>
-                <th>{:__('Tax_money')}</th>
-                <th>{:__('Money_tax_price')}</th>
-                {/if}
-                <th>品号与功率</th>
+                <th style="width:42px;">序</th>
+                <th>产品名称</th>
+                <th style="width:130px;">型号规格</th>
+                <th style="width:120px;">品号与功率</th>
+                <th style="width:80px;">数量</th>
+                <th class="col-price" style="width:80px;">单价</th>
+                <th class="col-price" style="width:90px;">金额</th>
+                <th style="width:110px;">备注</th>
             </tr>
         </thead>
         <tbody>
-            {php}$total_number = 0;$total_money = 0;$total_tax = 0;$total_tax_price = 0;{/php}
-            {foreach name="purchase_info" item="info" key="k"}
-            {php}$total_number += $info['number'];$total_money += $info['all_money'];$total_tax += $info['tax_money'];$total_tax_price += $info['money_tax_price'];{/php}
+            {foreach name="infoList" item="info" key="k"}
             <tr>
-                <td>{$k+1}</td>
-                <td>{$info.goods_code|htmlentities}</td>
+                <td class="center">{$k+1}</td>
                 <td class="left">{$info.goods_name|htmlentities}</td>
-                <td>{$info.goods_specification_id|htmlentities}</td>
-                <td>{$info.unit_name|htmlentities}</td>
-                <td class="right">{$info.number|htmlentities}</td>
-                <td class="right">{$info.unit_price|htmlentities}</td>
-                <td class="right">{$info.all_money|htmlentities}</td>
-                {if condition="isset($set['taxes']['is_checked']) && $set['taxes']['is_checked']==1"}
-                <td class="right">{$info.tax_included|htmlentities}</td>
-                <td class="right">{$info.tax_rate|htmlentities}</td>
-                <td class="right">{$info.tax_money|htmlentities}</td>
-                <td class="right">{$info.money_tax_price|htmlentities}</td>
-                {/if}
-                <td class="left">{$info.remark|htmlentities}</td>
+                <td class="center">{$info.spec|default=''|htmlentities}</td>
+                <td class="center">{$info.power|default=''|htmlentities}</td>
+                <td class="right">{:number_format($info['number'], $number_decimal, '.', '')}</td>
+                <td class="col-price right">{:number_format($info['unit_price'], $price_decimal, '.', '')}</td>
+                <td class="col-price right">{:number_format($info['sales_price'], $price_decimal, '.', '')}</td>
+                <td class="left">{$info.remark|default=''|htmlentities}</td>
             </tr>
             {/foreach}
-            {if condition="empty($purchase_info)"}
-            {if condition="isset($set['taxes']['is_checked']) && $set['taxes']['is_checked']==1"}
-            <tr><td colspan="13">无明细数据</td></tr>
-            {else/}
-            <tr><td colspan="9">无明细数据</td></tr>
-            {/if}
+            {if condition="empty($infoList)"}
+            <tr><td colspan="8" class="center" style="color:#999;">暂无销货明细</td></tr>
             {/if}
         </tbody>
-        <tfoot>
-            <tr>
-                <th colspan="5">合计</th>
-                <th class="right">{$total_number}</th>
-                <th></th>
-                <th class="right">{$total_money}</th>
-                {if condition="isset($set['taxes']['is_checked']) && $set['taxes']['is_checked']==1"}
-                <th></th>
-                <th></th>
-                <th class="right">{$total_tax}</th>
-                <th class="right">{$total_tax_price}</th>
-                {/if}
-                <th></th>
-            </tr>
-        </tfoot>
     </table>
 
-    <div class="summary-row">
-        {if condition="isset($row['real_money']) && $row['real_money']>0"}
-        <span id="summary-total">{:__('Total_amount')}：<strong>￥{$row.real_money|htmlentities}</strong></span>
-        {/if}
-        {if condition="isset($row['pay_money']) && $row['pay_money']>0"}
-        <span id="summary-pay">{:__('Pay_amount')}：<strong>￥{$row.pay_money|htmlentities}</strong></span>
-        {/if}
-        {if condition="isset($row['arrears']) && $row['arrears']>0"}
-        <span id="summary-arrears">{:__('Arrears_amount')}：<strong>￥{$row.arrears|htmlentities}</strong></span>
-        {/if}
-    </div>
+    <table class="dn-foot">
+        <tr>
+            <td rowspan="3" class="lb" style="width:60px;">备注</td>
+            <td rowspan="3" style="vertical-align: top;">
+                <div>快递公司：{$express_companies_text|default=''|htmlentities}</div>
+                <div>快递单号：{$express_nos_text|default=''|htmlentities}</div>
+            </td>
+            <td rowspan="3" style="vertical-align: top; color:#333;">{$row.note|default=''|htmlentities}</td>
+            <td class="lb label-price" style="width:90px;">销售价格：</td>
+            <td class="right col-price" style="width:120px;">￥{:number_format($total_sales_price, $price_decimal, '.', '')}</td>
+        </tr>
+        <tr>
+            <td class="lb label-price">税额：</td>
+            <td class="right col-price">￥{:number_format($total_tax, $price_decimal, '.', '')}</td>
+        </tr>
+        <tr>
+            <td class="lb label-price">合计：</td>
+            <td class="right col-price">￥{:number_format($total_money, $price_decimal, '.', '')}</td>
+        </tr>
+    </table>
 
-    {if condition="!empty($row['note'])"}
-    <div class="footer-info">
-        <strong>{:__('Note')}：</strong>{$row.note|htmlentities}
+    <div class="dn-sign">
+        <div class="line">
+            <span>请核对后签字回传</span>
+            <span>谢谢！</span>
+            <span>签收人：____________________</span>
+            <span>日期：____________________</span>
+        </div>
     </div>
-    {/if}
-
-    <div class="print-time">
-        打印时间：{:date('Y-m-d H:i:s')} &nbsp;|&nbsp; 打印次数：{$row.print_num + 1}
-    </div>
+    <div class="dn-copy">第一联白色为存根联&nbsp;&nbsp;&nbsp;&nbsp;第二联红色为客户联&nbsp;&nbsp;&nbsp;&nbsp;第三联黄色为记帐联&nbsp;&nbsp;&nbsp;&nbsp;第四联蓝色为仓库联</div>
+    <div class="print-time">打印时间：{$printTime}</div>
 </div>
 
 <script>
-    // 勾选/取消勾选 → 显示/隐藏对应字段（不勾选打印即不显示）
-    var toggles = document.querySelectorAll('.print-field-toggle');
-    for (var i = 0; i < toggles.length; i++) {
-        toggles[i].addEventListener('change', function() {
-            var target = document.getElementById(this.getAttribute('data-target'));
-            if (target) {
-                target.style.display = this.checked ? '' : 'none';
-            }
-        });
-    }
+    (function () {
+        var chk = document.getElementById('chk_show_price');
+        var sheet = document.getElementById('dn_sheet');
+        if (chk && sheet) {
+            chk.addEventListener('change', function () {
+                if (chk.checked) {
+                    sheet.classList.remove('price-hide');
+                } else {
+                    sheet.classList.add('price-hide');
+                }
+            });
+        }
+    })();
 </script>
 </body>
 </html>

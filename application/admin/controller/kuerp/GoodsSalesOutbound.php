@@ -208,6 +208,8 @@ class GoodsSalesOutbound extends Backend
                 $purchase_id = Db::name('kuerp_goods_saleexc')->where(['purchase_id'=>$list_v['id']])->column('exchange_id');
                 $purchase = Db::name('kuerp_goods_sales_exchange')->where(['id'=>['in',$purchase_id]])->column('purchase_code');
                 $list[$list_k]['returns_order_id'] = implode(',',$purchase);
+                // 待退货入库明细行数（>0 时列表显示「退货入库」按钮；退货单审核只做账务，库存在此入库）
+                $list[$list_k]['return_inbound_pending'] = \addons\kuerp\library\ReturnInbound::pendingCount($list_v['id'], $list_v['purchase_code']);
                 // 如果交货时间为空，从关联的销货订单获取
                 if (empty($list_v['delivery_time']) && !empty($list_v['purchase_order_id']) && isset($orderDeliveryMap[$list_v['purchase_order_id']])) {
                     $list_v['delivery_time'] = $orderDeliveryMap[$list_v['purchase_order_id']];
@@ -822,6 +824,11 @@ class GoodsSalesOutbound extends Backend
             }
         }
         $this->view->assign("order_goods_list", $order_goods_list);
+
+        // 出库记录（历次出库申请 + 实际出库数量 + 快递信息），与「销货单详情」同源
+        $this->view->assign('outboundHistory', \app\admin\model\kuerp\GoodsOutboundApply::buildHistory($row['id']));
+        // 退货入库记录（该销货单关联退货单的历次入库）
+        $this->view->assign('returnInboundLogs', \addons\kuerp\library\ReturnInbound::logs($row['id']));
 
         return $this->view->fetch();
     }
@@ -2829,6 +2836,55 @@ class GoodsSalesOutbound extends Backend
             $this->error('该申请已被处理，无法撤销');
         }
         $this->success('已撤销出库申请[' . $row['apply_code'] . ']');
+    }
+
+    /**
+     * 退货入库
+     * GET: 显示入库表单（该销货单关联的、已审核未入完的退货单明细 + 本次入库数量）
+     * POST: 执行入库（加库存/成本/收发明细/序列号/批次，并写本次入库操作记录）
+     *
+     * 销货退货单【审核】只做账务，库存实际由这里入库时增加（见 addons/kuerp/library/ReturnInbound.php）
+     */
+    public function returninbound($ids = null)
+    {
+        $row = $this->model->get($ids);
+        if (!$row) {
+            $this->error(__('No Results were found'));
+        }
+        $adminIds = $this->getDataLimitAdminIds();
+        if (is_array($adminIds)) {
+            if (!in_array($row[$this->dataLimitField], $adminIds)) {
+                $this->error(__('You have no permission'));
+            }
+        }
+
+        $pending = \addons\kuerp\library\ReturnInbound::pendingLines($row['id'], $row['purchase_code']);
+        if (empty($pending)) {
+            $this->error('该销货单没有待入库的退货单');
+        }
+
+        if ($this->request->isPost()) {
+            $inData = $this->request->post('in_data/a');
+            if (!is_array($inData) || empty($inData)) {
+                $this->error('请填写本次退货入库数量');
+            }
+            try {
+                $result = \addons\kuerp\library\ReturnInbound::inbound($row, $inData);
+            } catch (\Exception $e) {
+                $this->error($e->getMessage());
+            }
+            $this->success('退货入库成功，本次入库' . $result['total_number'] . '件', null, ['remaining' => $result['remaining']]);
+        }
+
+        // GET：显示出库表单
+        $customer_name = Db::name('kuerp_customers')->where(['id' => $row['customers_id']])->value('customer_name');
+        $row['customer_name'] = $customer_name ? $customer_name : '';
+
+        $this->view->assign("row", $row);
+        $this->view->assign("pending_list", $pending);
+        $this->view->assign("return_log_list", \addons\kuerp\library\ReturnInbound::logs($row['id']));
+
+        return $this->view->fetch();
     }
 
     /**

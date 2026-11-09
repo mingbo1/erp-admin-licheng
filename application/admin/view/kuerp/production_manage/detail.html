@@ -1,0 +1,125 @@
+{include file="kuerp/common/menu" /}
+<style>
+    .pm-info-table th { width: 110px; background: #fafafa; font-weight: normal; color: #666; white-space: nowrap; }
+    .pm-info-table td { word-break: break-all; }
+    .pm-goods-table th, .pm-goods-table td { text-align: center; vertical-align: middle; }
+    .pm-section-title { font-size: 14px; font-weight: bold; margin: 18px 0 8px; padding-left: 8px; border-left: 3px solid #5FB878; }
+</style>
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <h3 class="panel-title">排产详情</h3>
+    </div>
+    <div class="panel-body">
+        <table class="table table-bordered pm-info-table">
+            <tr>
+                <th>{:__('Purchase_code')}</th>
+                <td>{$row.purchase_code|htmlentities}</td>
+                <th>{:__('Customers_id')}</th>
+                <td>{$row.customer_name|htmlentities}</td>
+                <th>{:__('Sale_user')}</th>
+                <td>{$row.sale_user_name|htmlentities}</td>
+            </tr>
+            <tr>
+                <th>{:__('Purchase_time')}</th>
+                <td>{if condition="!empty($row.purchase_time)"}{$row.purchase_time|date='Y-m-d',###}{/if}</td>
+                <th>{:__('Production_date')}</th>
+                <td>{if condition="!empty($row.production_date)"}{$row.production_date|htmlentities}{else/}<span style="color:#ccc">—</span>{/if}</td>
+                <th>{:__('Expected_delivery_date')}</th>
+                <td>{if condition="!empty($row.expected_delivery_date)"}{$row.expected_delivery_date|htmlentities}{else/}<span style="color:#ccc">—</span>{/if}</td>
+            </tr>
+            <tr>
+                <th>{:__('Production_status')}</th>
+                <td>
+                    {if condition="$row.production_status=='1'"}
+                    <span style="color:#5FB878;">{:__('Production_status 1')}</span>
+                    {else/}
+                    <span style="color:#999;">{:__('Production_status 0')}</span>
+                    {/if}
+                </td>
+                <th>{:__('Delivery_mode')}</th>
+                <td>{$row.delivery_mode_text|default=''}</td>
+                <th>{:__('Check_status')}</th>
+                <td>
+                    {if condition="$row.check_status=='1'"}{:__('Check_status 1')}{else/}{:__('Check_status 0')}{/if}
+                </td>
+            </tr>
+            <tr>
+                <th>{:__('Preparation_id')}</th>
+                <td>{$row.preparation_name|htmlentities}</td>
+                <th>{:__('Examine_status')}</th>
+                <td>{if condition="$row.examine_status=='1'"}{:__('Examine_status 1')}{else/}{:__('Examine_status 0')}{/if}</td>
+                <th>{:__('Examine_id')}</th>
+                <td>{$row.examine_name|htmlentities}</td>
+            </tr>
+            <tr>
+                <th>{:__('Sales_order_id')}</th>
+                <td colspan="5">
+                    {if condition="!empty($row.purchase_order_id)"}{$row.purchase_order_id|htmlentities}{else/}<span style="color:#ccc">—</span>{/if}
+                </td>
+            </tr>
+            <tr>
+                <th>{:__('Receiving_address')}</th>
+                <td colspan="5">{if condition="!empty($row.receiving_address)"}{$row.receiving_address|htmlentities}{else/}<span style="color:#ccc">—</span>{/if}</td>
+            </tr>
+            <tr>
+                <th>{:__('Note')}</th>
+                <td colspan="5">
+                    {if condition="!empty($row.order_note)"}<div>订单备注：{$row.order_note|htmlentities}</div>{/if}
+                    {if condition="!empty($row.note)"}<div>排期备注：{$row.note|htmlentities}</div>{/if}
+                    {if condition="empty($row.order_note) && empty($row.note)"}<span style="color:#ccc">—</span>{/if}
+                </td>
+            </tr>
+        </table>
+
+        <div class="pm-section-title">商品明细</div>
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped pm-goods-table">
+                <thead>
+                <tr>
+                    <th>序号</th>
+                    <th>{:__('Goods_code')}</th>
+                    <th>{:__('Goods_name')}</th>
+                    <th>型号</th>
+                    <th>规格2/厂商</th>
+                    <th>规格3/封装</th>
+                    <th class="goods_attr_sd">{:__('Goods_attr')}</th>
+                    <th>{:__('Unit_name')}</th>
+                    <th>{:__('Stores_name')}</th>
+                    <th>{:__('Number')}</th>
+                    <th>品号与功率</th>
+                    <th>生产备注</th>
+                </tr>
+                </thead>
+                <tbody>
+                {if condition="!empty($info_list)"}
+                {foreach name="info_list" item="vo" key="k"}
+                <tr>
+                    <td>{$k+1}</td>
+                    <td>{$vo.goods_code|htmlentities}</td>
+                    <td>{$vo.goods_name|htmlentities}</td>
+                    <td>{$vo.goods_specification_id|default=''|htmlentities}</td>
+                    <td>{$vo.vendor_name|default=''|htmlentities}</td>
+                    <td>{$vo.packaging|default=''|htmlentities}</td>
+                    <td class="goods_attr_sd">{$vo.attr_name|default=''|htmlentities}</td>
+                    <td>{$vo.unit_name|default=''|htmlentities}</td>
+                    <td>{$vo.stores_name|default=''|htmlentities}</td>
+                    <td>{:number_format($vo['number'], $number_decimal, '.', '')}</td>
+                    <td>{$vo.remark|default=''|htmlentities}</td>
+                    <td>{$vo.production_remark|default=''|htmlentities}</td>
+                </tr>
+                {/foreach}
+                <tr>
+                    <td colspan="{if condition="$aux_on == 1"}9{else/}8{/if}" style="text-align:right;font-weight:bold;">合计</td>
+                    <td style="font-weight:bold;">{:number_format($total_number, $number_decimal, '.', '')}</td>
+                    <td colspan="2"></td>
+                </tr>
+                {else/}
+                <tr>
+                    <td colspan="{if condition="$aux_on == 1"}12{else/}11{/if}" style="color:#999;">暂无商品明细</td>
+                </tr>
+                {/if}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

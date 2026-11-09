@@ -81,6 +81,12 @@ class SalesRecon extends Model
         if ($payStatus === '2') {
             return '已完成';
         }
+        // 净额为负（纯退货 / 退货冲抵后仍为负）：没有应收，等的是退款，不是开票
+        $total = round((float)(isset($row['total_amount']) ? $row['total_amount'] : 0)
+            + (float)(isset($row['diff_money']) ? $row['diff_money'] : 0), 4);
+        if ($total < 0) {
+            return '已对账·待退款';
+        }
         if ($invoiceStatus === '0') {
             return '已对账·待开票';
         }
@@ -132,14 +138,22 @@ class SalesRecon extends Model
         $payMoney = round($payMoney, 4);
         // 应收总额 = 原总金额 + 对账差异合计（差异正=客户多付，负=客户少付）
         $total = round((float)$recon['total_amount'] + (float)$recon['diff_money'], 4);
-        if ($total <= 0) {
-            $status = '2';
-        } elseif ($payMoney <= 0) {
-            $status = '0';
-        } elseif ($payMoney >= $total) {
-            $status = '2';
+        if ($total > 0) {
+            // 有应收：未收款 / 部分收款 / 已收款
+            if ($payMoney <= 0) {
+                $status = '0';
+            } elseif ($payMoney >= $total) {
+                $status = '2';
+            } else {
+                $status = '1';
+            }
         } else {
-            $status = '1';
+            // 净额 <= 0（纯退货 / 销售被退货完全冲抵，没有应收）：
+            // 不能一律当作「已收款」——否则会出现已收金额 0 却显示已收款，
+            // 并且会挡住删除、撤销对账、差异登记（这些操作都按 pay_status=0 才放行）。
+            // 净额刚好为 0 视为已结清；净额为负时，只有退货退款（retreat_money，计入 $payMoney 为负）
+            // 已经覆盖到净额才算结清，否则仍是未收款（业务状态显示「已对账·待退款」）。
+            $status = ($total == 0 || $payMoney <= $total + 0.0001) ? '2' : '0';
         }
         Db::name('kuerp_sales_recon')->where(['id' => $reconId])->update([
             'pay_money'  => $payMoney,

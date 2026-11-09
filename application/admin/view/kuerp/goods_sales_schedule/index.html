@@ -13,9 +13,8 @@
                             {if condition="isset($set['examine']['is_checked']) && $set['examine']['is_checked']==1"}
                             <button class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger fright {if condition="$auth->check($nowmenu.'/counter')!=1"}hiddens{/if}" lay-event="counter_f"><i class="layui-icon">&#xe6c9;</i> 反对单</button>
                             <button class="layui-btn layui-icon-btn layui-btn-sm fright {if condition="$auth->check($nowmenu.'/counter')!=1"}hiddens{/if}" lay-event="counter"><i class="layui-icon">&#xe6c9;</i> 对单</button>
-                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-btn-danger fright {if condition="$auth->check($nowmenu.'/examine')!=1"}hiddens{/if}" lay-event="examine_f"><i class="layui-icon">&#xe674;</i> 反审核</button>
-                            <button class="layui-btn layui-icon-btn layui-btn-sm fright {if condition="$auth->check($nowmenu.'/examine')!=1"}hiddens{/if}" lay-event="examine"><i class="layui-icon">&#xe674;</i> 审核</button>
                             {/if}
+                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-orange fright {if condition="$auth->check($nowmenu.'/setexpecteddelivery')!=1"}hiddens{/if}" lay-event="expected"><i class="layui-icon">&#xe637;</i> 预计生产完成时间</button>
                             <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-blue {if condition="$auth->check($nowmenu.'/setproduction')!=1"}hiddens{/if}" lay-event="production"><i class="layui-icon">&#xe674;</i> 排产</button>
                             <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-blue {if condition="$auth->check($nowmenu.'/setproduction')!=1"}hiddens{/if}" lay-event="production_f"><i class="layui-icon">&#xe674;</i> 取消排产</button>
                             <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-green {if condition="$auth->check($nowmenu.'/export')!=1"}hiddens{/if}" lay-event="export"><i class="layui-icon">&#xe682;</i> 导出</button>

@@ -94,13 +94,13 @@
     {{# if(d.recon_status != '0' && d.invoice_status == '0' && d.pay_status == '0'){ }}
     <a class="layui-btn layui-btn-xs layui-btn-warm {if condition="$auth->check($nowmenu.'/cancelconfirm')!=1"}hiddens{/if}" lay-event="cancelconfirm">撤销对账</a>
     {{# } }}
-    {{# if(d.recon_status == '2' && d.invoice_status != '2'){ }}
+    {{# if(d.recon_status == '2' && d.invoice_status != '2' && (d.total_amount + d.diff_money) > 0){ }}
     <a class="layui-btn layui-btn-xs layui-bg-orange {if condition="$auth->check($nowmenu.'/invoice')!=1"}hiddens{/if}" lay-event="invoice">开票</a>
     {{# } }}
     {{# if(d.recon_status != '2'){ }}
     <a class="layui-btn layui-btn-xs layui-btn-primary {if condition="$auth->check($nowmenu.'/diff')!=1"}hiddens{/if}" lay-event="diff">差异金额</a>
     {{# } }}
-    {{# if(d.recon_status == '2' && d.pay_status != '2'){ }}
+    {{# if(d.recon_status == '2' && d.pay_status != '2' && (d.total_amount + d.diff_money) > 0){ }}
     <a class="layui-btn layui-btn-xs layui-bg-green" lay-event="collect">去收款</a>
     {{# } }}
 </script>

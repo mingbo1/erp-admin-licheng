@@ -795,7 +795,7 @@ class PurchaseRecon extends Backend
 
         $purchases = $purchaseQuery->field('id,purchase_code,purchase_time,number,real_money,pay_money,recon_id')
             ->order('purchase_time asc,id asc')->limit(500)->select();
-        $exchanges = $exchangeQuery->field('id,purchase_code,purchase_time,number,real_money,retreat_money,recon_id')
+        $exchanges = $exchangeQuery->field('id,purchase_code,purchase_time,number,retreat_number,real_money,retreat_money,recon_id')
             ->order('purchase_time asc,id asc')->limit(500)->select();
 
         $statusMap = \app\admin\model\kuerp\GoodsPurchase::storageStatusMap(array_column($purchases, 'purchase_code'));
@@ -821,7 +821,8 @@ class PurchaseRecon extends Backend
                 'doc_code'           => $item['purchase_code'],
                 'doc_time'           => $item['purchase_time'],
                 'doc_time_text'      => $item['purchase_time'] ? date('Y-m-d', $item['purchase_time']) : '',
-                'number'             => -1 * (float)$item['number'],
+                // 退货单按「实际退货数量」冲减，主表 number 是原采购数量
+                'number'             => -1 * (float)$item['retreat_number'],
                 'real_money'         => -1 * (float)$item['real_money'],
                 'paid_money'         => -1 * (float)$item['retreat_money'],
                 'storage_status'     => null,
@@ -903,7 +904,7 @@ class PurchaseRecon extends Backend
                     $query->where($isReturn ? 'retreat_status' : 'pay_status', (string)$filter['pay_state']);
                 }
                 $fields = $isReturn
-                    ? 'id,purchase_code,purchase_time,supplyer_code,number,real_money,retreat_money as pay_money,retreat_status as pay_status,recon_id,recon_code,examine_status'
+                    ? 'id,purchase_code,purchase_time,supplyer_code,number,retreat_number,real_money,retreat_money as pay_money,retreat_status as pay_status,recon_id,recon_code,examine_status'
                     : 'id,purchase_code,purchase_time,supplyer_code,number,real_money,pay_money,pay_status,recon_id,recon_code,examine_status';
                 return $query->field($fields)->select();
             };
@@ -921,7 +922,7 @@ class PurchaseRecon extends Backend
                 $exchangeRows[$k]['doc_id'] = $row['id'];
                 $exchangeRows[$k]['doc_code'] = $row['purchase_code'];
                 $exchangeRows[$k]['doc_time'] = $row['purchase_time'];
-                $exchangeRows[$k]['number'] = -1 * (float)$row['number'];
+                $exchangeRows[$k]['number'] = -1 * (float)$row['retreat_number'];
                 $exchangeRows[$k]['real_money'] = -1 * (float)$row['real_money'];
                 $exchangeRows[$k]['pay_money'] = -1 * (float)$row['pay_money'];
             }
@@ -1291,11 +1292,17 @@ class PurchaseRecon extends Backend
                 continue;
             }
             $lines = Db::name($infoTable)->where(['purchase_code' => $doc['purchase_code']])->select();
+            if ($isReturn) {
+                // 购货退货单：只统计「实际退货数量 > 0」的明细行，行上的 number 是原采购数量，不能用于对账
+                $lines = array_values(array_filter($lines, function ($line) {
+                    return isset($line['retreat_number']) && (float)$line['retreat_number'] > 0;
+                }));
+            }
             if (empty($lines)) {
                 // 兼容历史/异常单据：没有明细行时按单据级金额输出一行
                 $lines = [[
                     'goods_code'      => '',
-                    'number'          => $doc['number'],
+                    'number'          => $isReturn ? $doc['retreat_number'] : $doc['number'],
                     'unit_price'      => 0,
                     'tax_included'    => 0,
                     'tax_rate'        => 0,
@@ -1344,7 +1351,7 @@ class PurchaseRecon extends Backend
                     'supplyer_name'=> $recon['supplyer_name'],
                     'goods_name'   => isset($goods['goods_name']) ? $goods['goods_name'] : '',
                     'spec'         => isset($goods['goods_specification_id']) ? $goods['goods_specification_id'] : '',
-                    'number'       => (float)$line['number'] * $sign,
+                    'number'       => (float)($isReturn ? $line['retreat_number'] : $line['number']) * $sign,
                     'tax_included' => (float)$line['tax_included'],
                     'unit_price'   => (float)$line['unit_price'],
                     'tax_rate'     => (float)$line['tax_rate'],
@@ -1583,7 +1590,8 @@ class PurchaseRecon extends Backend
             $money += (float)$purchase['real_money'];
         }
         foreach ($exchanges as $exchange) {
-            $number -= (float)$exchange['number'];
+            // 购货退货单主表的 number 是「原采购数量」（明细 number 合计），实际退货数量在 retreat_number
+            $number -= (float)$exchange['retreat_number'];
             $money -= (float)$exchange['real_money'];
         }
         return [
@@ -1629,7 +1637,7 @@ class PurchaseRecon extends Backend
             'purchase_id'    => $doc['id'],
             'purchase_code'  => $doc['purchase_code'],
             'purchase_time'  => $doc['purchase_time'],
-            'number'         => $isReturn ? -1 * (float)$doc['number'] : (float)$doc['number'],
+            'number'         => $isReturn ? -1 * (float)$doc['retreat_number'] : (float)$doc['number'],
             'real_money'     => $isReturn ? -1 * (float)$doc['real_money'] : (float)$doc['real_money'],
             'storage_status' => $isReturn ? 0 : (isset($statusMap[$doc['purchase_code']]) ? $statusMap[$doc['purchase_code']] : 0),
             'remark'         => '',

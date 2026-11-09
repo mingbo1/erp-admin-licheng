@@ -182,6 +182,15 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                                 $('.btn-refresh').click();
                             }
                         });
+                    } else if(obj.event === 'returninbound'){
+                        //退货入库：该销货单关联的退货单（已审核、未入完）分批入库
+                        Fast.api.open("kuerp/goods_sales_outbound/returninbound?ids="+data.id, "退货入库", {
+                            type:2,
+                            area:['95%','80%'],
+                            callback:function(value){
+                                $('.btn-refresh').click();
+                            }
+                        });
                     } else if(obj.event === 'edit'){
                         Fast.api.open("kuerp/goods_sales_outbound/edit?ids="+data.id, "编辑",{ area:['90%','75%'],});
                     }

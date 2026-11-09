@@ -91,7 +91,7 @@
                         <td>
                             {if condition="$row.examine_status==1"}
                                 {if condition="$item.out_number < $item.number"}
-                                <input type="number" name="out_data[{$item.id}]" class="form-control out_number_ipt number_decimal" value="0" min="0" max="{$item.number - $item.out_number}" step="0.0001" placeholder="实际出库数量">
+                                <input type="number" name="out_data[{$item.id}]" class="form-control out_number_ipt number_decimal" value="{:number_format($item['number'] - $item['out_number'], isset($set['number_decimal']['value']) ? (int)$set['number_decimal']['value'] : 0, '.', '')}" min="0" max="{$item.number - $item.out_number}" step="0.0001" placeholder="实际出库数量">
                                 {else}
                                 <span style="color:green">已全部出库</span>
                                 {/if}
@@ -152,7 +152,7 @@
                         <td>
                             {if condition="$row.inbound_status==1"}
                                 {if condition="$item.in_number < $item.number"}
-                                <input type="number" name="in_data[{$item.id}]" class="form-control in_number_ipt number_decimal" value="0" min="0" max="{$item.number - $item.in_number}" step="0.0001" placeholder="实际入库数量">
+                                <input type="number" name="in_data[{$item.id}]" class="form-control in_number_ipt number_decimal" value="{:number_format($item['number'] - $item['in_number'], isset($set['number_decimal']['value']) ? (int)$set['number_decimal']['value'] : 0, '.', '')}" min="0" max="{$item.number - $item.in_number}" step="0.0001" placeholder="实际入库数量">
                                 {else}
                                 <span style="color:green">已全部入库</span>
                                 {/if}

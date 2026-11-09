@@ -15,7 +15,7 @@ use think\Session;
 class GoodsSalesSchedule extends Backend
 {
     // setproduction / setexpecteddelivery / lockGoods / unlockGoods / export 已纳入权限表
-    protected $noNeedRight = ['getunit','formatinfo','getbranch','gettime','printpage','getschedulegoods','counter','examine','getbomrequirement','getlockstatus','getCustomerSaleUser'];
+    protected $noNeedRight = ['getunit','formatinfo','getbranch','gettime','printpage','getschedulegoods','counter','getbomrequirement','getlockstatus','getCustomerSaleUser'];
     /**
      * GoodsSalesSchedule模型对象
      * @var \app\admin\model\kuerp\GoodsSalesSchedule
@@ -60,9 +60,12 @@ class GoodsSalesSchedule extends Backend
             }
             list($where, $sort, $order, $offset, $limit) = $this->buildparams();
             $sort = 'purchase_time';$order='DESC';
-            $list = $this->model
+            $query = $this->model
                 ->with(['customers','preparation','examine','staffmember'])
-                ->where($where)
+                ->where($where);
+            // 子类（排产管理等）可追加固定筛选条件
+            $query = $this->applyIndexExtraWhere($query);
+            $list = $query
                 ->order($sort, $order)
                 ->order('purchase_code', 'DESC')
                 ->paginate($limit);
@@ -124,6 +127,24 @@ class GoodsSalesSchedule extends Backend
             return json($result);
         }
         return $this->view->fetch();
+    }
+
+    /**
+     * 列表附加筛选条件（供子类覆盖，默认不加条件）
+     * @param \think\db\Query $query
+     * @return \think\db\Query
+     */
+    protected function applyIndexExtraWhere($query)
+    {
+        return $query;
+    }
+
+    /**
+     * 导出文件名/工作表名（供子类覆盖）
+     */
+    protected function exportDocName()
+    {
+        return '计划排期';
     }
 
     /**
@@ -1102,7 +1123,7 @@ class GoodsSalesSchedule extends Backend
 
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle("计划排期");
+        $sheet->setTitle($this->exportDocName());
         $widths = [6, 20, 12, 12, 18, 10, 20, 24, 10, 16, 30, 12, 8, 10, 18, 20, 10];
         foreach ($widths as $colK => $w) {
             $sheet->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colK + 1))->setWidth($w);
@@ -1118,211 +1139,13 @@ class GoodsSalesSchedule extends Backend
                 $sheet->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($fK + 1) . $rowNum)->setValue($val[$f]);
             }
         }
-        $title = "计划排期" . date("YmdHis");
+        $title = $this->exportDocName() . date("YmdHis");
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header('Content-Disposition: attachment;filename="' . $title . '.xlsx"');
         header('Cache-Control: max-age=0');
         $writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xlsx');
         $writer->save('php://output');
         exit;
-    }
-
-    /**
-     * 审核/反审核
-     */
-    public function examine($ids = null, $examine = 1)
-    {
-        if (empty($ids)) {
-            return ['status' => 0, 'msg' => '请选择要操作的数据'];
-        }
-        if ($examine == 1) {
-            $list = $this->model->where(['id' => ['in', $ids], 'examine_status' => '0'])->select();
-            foreach ($list as $list_v) {
-                $checkout = (new \addons\kuerp\library\Checkout())->checkOutTime($list_v['purchase_time']);
-                if ($checkout !== true) {
-                    return ['status' => 0, 'msg' => $checkout];
-                }
-            }
-            if (empty($list)) {
-                return ['status' => 0, 'msg' => '请选择需要审核的数据'];
-            }
-            // 预计生产完成日期（审核弹窗填写，批量选中的排期统一写入；YYYY-MM-DD）
-            $expectedDate = trim((string)$this->request->request('expected_delivery_date'));
-            if ($expectedDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $expectedDate)) {
-                return ['status' => 0, 'msg' => '预计生产完成日期格式错误'];
-            }
-            $admin = Session::get('admin');
-            $time = time();
-            $examine_ids = [];
-            $arrears = [];
-            // 与销货单审核（GoodsSales::examine）同口径：同步核销源单与应收账款明细，
-            // 否则从计划排期审核的销货单在「销货对账 → 去收款」里找不到任何源单
-            $writeoff_source = [];
-            $accounts_receivable = [];
-            $examine_codes = [];
-            foreach ($list as $list_v) {
-                $examine_ids[] = $list_v['id'];
-                $examine_codes[] = $list_v['purchase_code'];
-                if ($list_v['arrears'] > 0) {
-                    $suppliers = Db::name('kuerp_customers')->where(['id' => $list_v['customers_id']])->field('id,need_receive_account')->find();
-                    if ($suppliers) {
-                        $status = false;
-                        foreach ($arrears as $arrears_k => $arrears_v) {
-                            if ($arrears_v['id'] == $suppliers['id']) {
-                                $arrears[$arrears_k]['need_receive_account'] = $list_v['arrears'] + $arrears_v['need_receive_account'];
-                                $status = true;
-                            }
-                        }
-                        if (!$status) {
-                            $arrears[] = [
-                                'id' => $suppliers['id'],
-                                'need_receive_account' => $list_v['arrears'] + $suppliers['need_receive_account'],
-                            ];
-                        }
-                    }
-                    // 核销单源单
-                    $writeoff_source[] = [
-                        'purchase_type' => 3,
-                        'type'          => 1,
-                        'customers_id'  => $list_v['customers_id'],
-                        'purchase_code' => $list_v['purchase_code'],
-                        'purchase_time' => $list_v['purchase_time'],
-                        'price'         => $list_v['real_money'] + $list_v['customers_money'],
-                        'money'         => $list_v['pay_money'],
-                        'write_off'     => $list_v['arrears'],
-                        'remark'        => $list_v['note'],
-                    ];
-                }
-                // 应收账款明细（每笔销货单都记录）
-                $accounts_receivable[] = \addons\kuerp\library\Goods::setDataInfo([
-                    'customers_id'     => $list_v['customers_id'],
-                    'purchase_time'    => $list_v['purchase_time'],
-                    'purchase_code'    => $list_v['purchase_code'],
-                    'business_type'    => '6',
-                    'receivable'       => $list_v['arrears'],
-                    'staff_member_id'  => $list_v['sale_user'],
-                    'remark'           => $list_v['note'],
-                    'sale_money'       => $list_v['money_tax_price'],
-                    'receivable_money' => round(($list_v['real_money'] + $list_v['customers_money']), 4),
-                    'amount'           => $list_v['preferential_money'],
-                    'cost'             => $list_v['customers_money'],
-                    'real_money'       => $list_v['pay_money'],
-                    'createtime'       => $time,
-                    'updatetime'       => $time,
-                ]);
-            }
-            Db::startTrans();
-            try {
-                $update = [
-                    'examine_status' => 1,
-                    'examine_id' => $admin['id'],
-                    'examine_time' => $time,
-                    'operation_id' => $admin['id'],
-                    'updatetime' => $time,
-                ];
-                if ($expectedDate !== '') {
-                    $update['expected_delivery_date'] = $expectedDate;
-                }
-                $result = $this->model->where(['id' => ['in', $examine_ids], 'examine_status' => '0'])->update($update);
-                if (!empty($arrears)) {
-                    foreach ($arrears as $v) {
-                        Db::name('kuerp_customers')->where(['id' => $v['id']])->update(['need_receive_account' => $v['need_receive_account']]);
-                    }
-                }
-                // 写入核销单源单（先清掉可能残留的同单号源单，避免重复）
-                if (!empty($examine_codes)) {
-                    Db::name('kuerp_writeoff_source')->where(['purchase_code' => ['in', $examine_codes], 'purchase_type' => '3', 'type' => '1'])->delete();
-                    Db::name('kuerp_accounts_receivable')->where(['business_type' => '6', 'purchase_code' => ['in', $examine_codes]])->delete();
-                }
-                if (!empty($writeoff_source)) {
-                    Db::name('kuerp_writeoff_source')->insertAll($writeoff_source);
-                }
-                if (!empty($accounts_receivable)) {
-                    Db::name('kuerp_accounts_receivable')->insertAll($accounts_receivable);
-                }
-                Db::commit();
-            } catch (Exception $e) {
-                Db::rollback();
-                return ['status' => 0, 'msg' => $e->getMessage()];
-            }
-            if ($result !== false) {
-                $this->success(sizeof($list) . '条数据审核成功');
-            } else {
-                return ['status' => 0, 'msg' => '审核失败'];
-            }
-        } else {
-            $list = $this->model->where(['id' => ['in', $ids], 'examine_status' => '1'])->select();
-            foreach ($list as $list_v) {
-                $checkout = (new \addons\kuerp\library\Checkout())->checkOutTime($list_v['purchase_time']);
-                if ($checkout !== true) {
-                    return ['status' => 0, 'msg' => $checkout];
-                }
-            }
-            if (empty($list)) {
-                return ['status' => 0, 'msg' => '请选择需要反审核的数据'];
-            }
-            $admin = Session::get('admin');
-            $time = time();
-            $examine_ids = [];
-            $examine_codes = [];
-            $arrears = [];
-            foreach ($list as $list_v) {
-                if ($list_v['check_status'] == 1) {
-                    return ['status' => 0, 'msg' => '不能反审核已对单的数据'];
-                }
-                if (isset($list_v['recon_status']) && $list_v['recon_status'] != '0') {
-                    return ['status' => 0, 'msg' => '单据' . $list_v['purchase_code'] . '已进入对账流程，请先撤销对账后再反审核'];
-                }
-                $examine_ids[] = $list_v['id'];
-                $examine_codes[] = $list_v['purchase_code'];
-                // 审核时加到客户应收上的欠款要冲回（此前漏做，反复审核会导致客户欠款重复累加）
-                if ($list_v['arrears'] > 0) {
-                    $suppliers = Db::name('kuerp_customers')->where(['id' => $list_v['customers_id']])->field('id,need_receive_account')->find();
-                    if ($suppliers) {
-                        $status = false;
-                        foreach ($arrears as $arrears_k => $arrears_v) {
-                            if ($arrears_v['id'] == $suppliers['id']) {
-                                $arrears[$arrears_k]['need_receive_account'] = $arrears_v['need_receive_account'] - $list_v['arrears'];
-                                $status = true;
-                            }
-                        }
-                        if (!$status) {
-                            $arrears[] = [
-                                'id' => $suppliers['id'],
-                                'need_receive_account' => $suppliers['need_receive_account'] - $list_v['arrears'],
-                            ];
-                        }
-                    }
-                }
-            }
-            Db::startTrans();
-            try {
-                $result = $this->model->where(['id' => ['in', $examine_ids], 'examine_status' => '1'])->update([
-                    'examine_status' => 0,
-                    'examine_id' => 0,
-                    'examine_time' => 0,
-                    'operation_id' => $admin['id'],
-                    'updatetime' => $time,
-                ]);
-                if (!empty($examine_codes)) {
-                    // 同步撤销核销源单与应收账款明细（与销货单反审核同口径）
-                    Db::name('kuerp_writeoff_source')->where(['purchase_code' => ['in', $examine_codes], 'purchase_type' => '3', 'type' => '1'])->delete();
-                    Db::name('kuerp_accounts_receivable')->where(['business_type' => '6', 'purchase_code' => ['in', $examine_codes]])->delete();
-                }
-                foreach ($arrears as $v) {
-                    Db::name('kuerp_customers')->where(['id' => $v['id']])->update(['need_receive_account' => $v['need_receive_account']]);
-                }
-                Db::commit();
-            } catch (Exception $e) {
-                Db::rollback();
-                return ['status' => 0, 'msg' => $e->getMessage()];
-            }
-            if ($result !== false) {
-                $this->success(sizeof($list) . '条数据反审核成功');
-            } else {
-                return ['status' => 0, 'msg' => '反审核失败'];
-            }
-        }
     }
 
     /**
@@ -1773,7 +1596,7 @@ class GoodsSalesSchedule extends Backend
     /**
      * 为详情/打印页补充发货方式展示文本（有销货订单关联时以订单为准）
      */
-    private function appendDeliveryModeText($row)
+    protected function appendDeliveryModeText($row)
     {
         $mode = isset($row['delivery_mode']) ? $row['delivery_mode'] : 'direct';
         if (!empty($row['purchase_order_id'])) {

@@ -1206,6 +1206,8 @@ class GoodsSales extends Backend
 
         // 出库记录（历次出库申请 + 实际出库数量 + 快递信息），与「销货出库」页的历次申请记录同源
         $this->view->assign('outboundHistory', \app\admin\model\kuerp\GoodsOutboundApply::buildHistory($row['id']));
+        // 退货入库记录（该销货单关联退货单的历次入库），与「销货出库 → 退货入库」弹窗同源
+        $this->view->assign('returnInboundLogs', \addons\kuerp\library\ReturnInbound::logs($row['id']));
 
         return $this->view->fetch();
     }
@@ -3139,35 +3141,172 @@ class GoodsSales extends Backend
         return json_encode(['staff_member_id' => $staff_member_id ? (int)$staff_member_id : 0]);
     }
 
-    // 打印销货单详情
+    // 打印销货单详情（版式与「销货出库 → 送货单」一致，见 goods_outbound_apply/deliverynote.html）
     public function printpage($ids = null)
     {
         $row = $this->model->get($ids);
         if (!$row) {
             $this->error(__('No Results were found'));
         }
-        // 客户名称
-        $customer_name = Db::name('kuerp_customers')->where(['id' => $row['customers_id']])->value('customer_name');
-        $row['customer_name'] = $customer_name ? $customer_name : '';
-        // 制单人
-        $row['preparation_name'] = Db::name('admin')->where(['id' => $row['preparation_id']])->value('nickname');
-        // 审核人
-        $row['examine_name'] = Db::name('admin')->where(['id' => $row['examine_id']])->value('nickname');
-        // 销售员
-        $row['sale_user_name'] = Db::name('kuerp_staff_member')->where(['id' => $row['sale_user']])->value('name');
 
-        // 销货单详情
-        $purchase_info = Db::name('kuerp_goods_sales_info')->where(['purchase_code' => $row['purchase_code']])->select();
-        foreach ($purchase_info as $k => $v) {
-            $goods = Db::name('kuerp_goods')->where(['goods_code' => $v['goods_code']])->field('goods_name,goods_specification_id')->find();
-            $purchase_info[$k]['goods_name'] = isset($goods['goods_name']) ? $goods['goods_name'] : '';
-            $purchase_info[$k]['goods_specification_id'] = isset($goods['goods_specification_id']) ? $goods['goods_specification_id'] : '';
-            $purchase_info[$k]['stores_name'] = Db::name('kuerp_stores')->where(['id' => $v['stores_id']])->value('name');
-            $purchase_info[$k]['unit_name'] = Db::name('kuerp_unit')->where(['id' => $v['goods_unit']])->value('name');
+        // 公司信息（送货单标题/地址）
+        $setMap = Db::name('kuerp_sets')->where('name', 'in', ['company_name', 'company_address'])->column('value', 'name');
+        $companyName = isset($setMap['company_name']) && $setMap['company_name'] !== '' ? $setMap['company_name'] : '送货单';
+        $companyAddress = isset($setMap['company_address']) ? $setMap['company_address'] : '';
+
+        // 客户 / 联系人（优先取客户档案里的首选联系人，口径同送货单）
+        $customer = Db::name('kuerp_customers')->where(['id' => $row['customers_id']])->find();
+        $customerName = $customer ? $customer['customer_name'] : '';
+        $contactName = $customer ? $customer['connet_name'] : '';
+        $contactMobile = $customer ? ($customer['customer_mobile'] !== '' ? $customer['customer_mobile'] : $customer['customer_phone']) : '';
+        if ($customer) {
+            $firstUser = Db::name('kuerp_customers_user')->where('sid', $customer['id'])->order('is_first DESC, id ASC')->find();
+            if ($firstUser) {
+                if (!empty($firstUser['first_connect_name'])) {
+                    $contactName = $firstUser['first_connect_name'];
+                }
+                $mobile = !empty($firstUser['first_connect_mobile']) ? $firstUser['first_connect_mobile'] : $firstUser['first_connect_phone'];
+                if (!empty($mobile)) {
+                    $contactMobile = $mobile;
+                }
+            }
         }
+
+        // 业务员
+        $saleUserName = Db::name('kuerp_staff_member')->where(['id' => $row['sale_user']])->value('name');
+        $saleUserName = $saleUserName ? $saleUserName : '';
+
+        // 销货明细
+        $purchaseInfoRows = Db::name('kuerp_goods_sales_info')->where(['purchase_code' => $row['purchase_code']])->select();
+        $goodsCodes = array_values(array_unique(array_column($purchaseInfoRows, 'goods_code')));
+        $goodsMap = [];
+        if (!empty($goodsCodes)) {
+            $goodsRows = Db::name('kuerp_goods')->where('goods_code', 'in', $goodsCodes)
+                ->field('goods_code,goods_name,goods_specification_id,vendor_name,packaging')->select();
+            foreach ($goodsRows as $g) {
+                $goodsMap[$g['goods_code']] = $g;
+            }
+        }
+        // 销货订单商品列表的「品号与功率」：销货单明细的 remark 由订单带入，为空时回退到订单明细
+        $orderRemarkMap = [];
+        if (!empty($row['purchase_order_id']) && !empty($goodsCodes)) {
+            $orderInfoRows = Db::name('kuerp_goods_sales_order_info')
+                ->where('purchase_code', $row['purchase_order_id'])
+                ->where('goods_code', 'in', $goodsCodes)
+                ->field('goods_code,remark')
+                ->order('id', 'ASC')
+                ->select();
+            foreach ($orderInfoRows as $oi) {
+                if (!isset($orderRemarkMap[$oi['goods_code']]) && $oi['remark'] !== null && $oi['remark'] !== '') {
+                    $orderRemarkMap[$oi['goods_code']] = $oi['remark'];
+                }
+            }
+        }
+        // 客户物料编码（送货单表头「品号」）
+        $customerCodes = [];
+        if ($customer && !empty($goodsCodes)) {
+            $customerCodes = Db::name('kuerp_customer_goodscoding')
+                ->where('customers_id', $customer['id'])->where('goods_code', 'in', $goodsCodes)
+                ->column('customer_code', 'goods_code');
+        }
+
+        $setData = \addons\kuerp\library\Goods::getSetData();
+        $setList = $setData['setList'];
+        $priceDecimal = isset($setList['price_decimal']['value']) ? (int)$setList['price_decimal']['value'] : 2;
+        if ($priceDecimal < 0) {
+            $priceDecimal = 2;
+        }
+        $numberDecimal = isset($setList['number_decimal']['value']) ? (int)$setList['number_decimal']['value'] : 0;
+        if ($numberDecimal < 0) {
+            $numberDecimal = 0;
+        }
+
+        $infoList = [];
+        $totalNumber = 0;
+        $totalSalesPrice = 0;
+        $totalTax = 0;
+        $totalMoney = 0;
+        $skuCodes = [];
+        foreach ($purchaseInfoRows as $info) {
+            $qty = (float)$info['number'];
+            $salesPrice = round((float)$info['all_money'], $priceDecimal);
+            $tax = round((float)$info['tax_money'], $priceDecimal);
+            $money = round($salesPrice + $tax, $priceDecimal);
+            $unitPrice = ($qty > 0 && $salesPrice > 0) ? round($salesPrice / $qty, $priceDecimal + 2) : 0;
+            if ($unitPrice == 0) {
+                $unitPrice = (float)$info['unit_price'];
+            }
+            $goods = isset($goodsMap[$info['goods_code']]) ? $goodsMap[$info['goods_code']] : null;
+            // 品号与功率：优先取销货单明细（由销货订单带入），为空时回退订单商品列表
+            $power = isset($info['remark']) && $info['remark'] !== null ? $info['remark'] : '';
+            if ($power === '' && isset($orderRemarkMap[$info['goods_code']])) {
+                $power = $orderRemarkMap[$info['goods_code']];
+            }
+            $infoList[] = [
+                'goods_code'    => $info['goods_code'],
+                'goods_name'    => $goods ? $goods['goods_name'] : '',
+                'spec'          => $goods ? $goods['goods_specification_id'] : '',
+                'power'         => $power,
+                'number'        => $qty,
+                'unit_price'    => $unitPrice,
+                'sales_price'   => $salesPrice,
+                'tax'           => $tax,
+                'money'         => $money,
+                'remark'        => isset($info['goods_note']) ? $info['goods_note'] : '',
+                'customer_code' => isset($customerCodes[$info['goods_code']]) ? $customerCodes[$info['goods_code']] : '',
+            ];
+            $totalNumber += $qty;
+            $totalSalesPrice += $salesPrice;
+            $totalTax += $tax;
+            $totalMoney += $money;
+            if (!empty($customerCodes[$info['goods_code']])) {
+                $skuCodes[$customerCodes[$info['goods_code']]] = true;
+            }
+        }
+
+        // 快递信息：取该销货单下所有出库申请（待审核/已同意出库）填写的快递，多条合并
+        $expressCompanies = [];
+        $expressNos = [];
+        $applyRows = Db::name('kuerp_goods_outbound_apply')
+            ->where('sales_id', $row['id'])
+            ->where('status', 'in', ['0', '1'])
+            ->where('express_data', '<>', '')
+            ->whereNotNull('express_data')
+            ->order('id', 'ASC')
+            ->column('express_data');
+        foreach ($applyRows as $expressJson) {
+            $expressRows = json_decode($expressJson, true);
+            if (!is_array($expressRows)) {
+                continue;
+            }
+            foreach ($expressRows as $ex) {
+                $expressCompanies[] = isset($ex['company']) && $ex['company'] !== '' ? $ex['company'] : (isset($ex['code']) ? $ex['code'] : '');
+                $expressNos[] = isset($ex['no']) ? $ex['no'] : '';
+            }
+        }
+
         $row = $this->appendDeliveryModeText($row);
-        $this->view->assign("row", $row);
-        $this->view->assign("purchase_info", $purchase_info);
+        $this->view->assign([
+            'row'                    => $row,
+            'company_name'           => $companyName,
+            'company_address'        => $companyAddress,
+            'customer_name'          => $customerName,
+            'contact_name'           => $contactName,
+            'contact_mobile'         => $contactMobile,
+            'sale_user_name'         => $saleUserName,
+            'sales_date'             => !empty($row['purchase_time']) ? date('Y-m-d', $row['purchase_time']) : '',
+            'customer_codes'         => implode('、', array_keys($skuCodes)),
+            'infoList'               => $infoList,
+            'total_number'           => round($totalNumber, $numberDecimal),
+            'total_sales_price'      => round($totalSalesPrice, $priceDecimal),
+            'total_tax'              => round($totalTax, $priceDecimal),
+            'total_money'            => round($totalMoney, $priceDecimal),
+            'express_companies_text' => implode('、', array_filter($expressCompanies)),
+            'express_nos_text'       => implode('、', array_filter($expressNos)),
+            'price_decimal'          => $priceDecimal,
+            'number_decimal'         => $numberDecimal,
+            'printTime'              => date('Y-m-d H:i:s'),
+        ]);
 
         // 增加打印次数
         $this->model->where(['id' => $ids])->setInc('print_num');

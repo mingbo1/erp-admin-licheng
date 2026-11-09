@@ -709,13 +709,18 @@ class GoodsSalesExchange extends Backend
             if(isset($row['recon_status']) && $row['recon_status']!='0'){
                 $this->error('该销货退货单已进入对账流程，请先撤销对账后再修改');
             }
+            //已有退货入库记录（库存已加回）时不允许编辑：编辑会重建明细行，入库记录会与明细脱节
+            $inboundQty = Db::name('kuerp_goods_sales_exchange_info')->where(['purchase_code'=>$row['purchase_code']])->where('out_number','>',0)->count();
+            if($inboundQty>0){
+                $this->error('该销货退货单已有退货入库记录，不能编辑');
+            }
             $params = $this->request->post("row/a");
             if ($params) {
                 $examine= Db::name('kuerp_sets')->where(['name'=>'examine'])->value('is_checked');
 
                 $params = $this->preExcludeFields($params);
                 $old_purchase_code = $params['old_purchase_code'];unset($params['old_purchase_code']);
-                $info_id = Db::name('kuerp_goods_exchange_info')->where(['purchase_code'=>$row['purchase_code']])->column('id');
+                $info_id = Db::name('kuerp_goods_sales_exchange_info')->where(['purchase_code'=>$row['purchase_code']])->column('id');
 
                 if(empty($params['purchase_code'])){
                     $this->error('请填写单据编号');
@@ -1179,6 +1184,11 @@ class GoodsSalesExchange extends Backend
                 if(isset($list_v['recon_status']) && $list_v['recon_status']!='0'){
                     $this->error('该销货退货单已进入对账流程，请先撤销对账后再删除');
                 }
+                //已有退货入库记录（库存已加回）时不允许删除
+                $inboundQty = Db::name('kuerp_goods_sales_exchange_info')->where(['purchase_code'=>$list_v['purchase_code']])->where('out_number','>',0)->count();
+                if($inboundQty>0){
+                    $this->error('销货退货单'.$list_v['purchase_code'].'已有退货入库记录，不能删除');
+                }
                 if($list_v['examine_status']==1 && $examine==1){
                     $this->error('不能删除已审核的数据');
                 }elseif ($list_v['examine_status']==1 && $examine!=1){
@@ -1359,137 +1369,9 @@ class GoodsSalesExchange extends Backend
                         }
                     }
 
-                    //序列号跟踪
-                    $goods_serial = Db::name('kuerp_goods_serial')->where(['sale_id'=>$info_list_v['id']])->field('goods_id,serial,stores_id,attribute_id')->select();
-                    foreach ($goods_serial as $goods_serial_k=>$goods_serial_v){
-                        $serial_log[] = \addons\kuerp\library\Goods::setDataInfo([
-                            'goods_id'=>$goods_serial_v['goods_id'],
-                            'stores_id'=>$goods_serial_v['stores_id'],
-                            'attribute_id'=>$goods_serial_v['attribute_id'],
-                            'serial'=>$goods_serial_v['serial'],
-                            'business_type'=>'5',
-                            'store_status'=>'1',
-                            'remarks' => $info_list_v['remark'],
-                            'purchase_id'=>$info_list_v['id'],
-                            'customer_id'=>$info_list_v['customers_id'],
-                            'purchase_code'=>$info_list_v['purchase_code'],
-                            'purchase_time' => $info_list_v['purchase_time'],
-                            'createtime'  => time(),
-                            'updatetime'  => time(),
-                        ]);
-                    }
-                    //序列号跟踪
-
+                    // 库存/成本/收发明细/序列号/批次不再在审核时处理，已移到仓库「退货入库」
+                    // (GoodsSalesOutbound::returninbound / addons\kuerp\library\ReturnInbound)，审核只做账务
                     $goods_exchange_info[] = $info_list_v;
-                    //商品总库存
-                    $goods = Db::name('kuerp_goods')->where(['goods_code'=>$info_list_v['goods_code']])->field('id,attribute_id,inventory,unit_id')->find();
-                    //换算单位为基础单位
-                    $now_unit = Db::name('kuerp_unit')->where(['id'=>$info_list_v['goods_unit']])->find();
-                    if(empty($now_unit)){
-                        if($examine_set!=1){
-                            return ['status'=>0,'msg'=>'商品单位错误'];
-                        }
-                        $this->error('商品单位错误');
-                    }else if($now_unit['type']==2 && $now_unit['is_main']!=1){
-                        $unit_conversion = Db::name('kuerp_unit_conversion')->where(['main_unit'=>$goods['unit_id'],'vice_unit'=>$now_unit['id']])->find();
-                        if(empty($unit_conversion)){
-                            if($examine_set!=1){
-                                return ['status'=>0,'msg'=>'商品单位信息获取错误错误'];
-                            }
-                            $this->error('商品单位信息获取错误错误');
-                        }else{
-                            $info_list_v['retreat_number'] = $info_list_v['retreat_number']*$unit_conversion['advance_rate'];
-                            $goods_exchange[] = $info_list_v;
-                        }
-                    }
-                    $status = false;
-                    foreach ($goods_stock as $goods_stock_k=>$goods_stock_v){
-                        if($goods_stock_v['id']==$goods['id']){
-                            $goods_stock[$goods_stock_k]['inventory'] = $goods_stock_v['inventory']+$info_list_v['retreat_number'];
-                            $status = true;
-                        }
-                    }
-                    if(!$status){
-                        $goods_stock[] = [
-                            'id'=>$goods['id'],
-                            'inventory'=>$goods['inventory']+$info_list_v['retreat_number'],
-                        ];
-                    }
-
-                    //获取成本单价
-                    $balance_cost=0;$balance_unit=0;
-                    $goodsInfo = json_decode(\addons\kuerp\library\GoodsPurchase::getUnit($info_list_v['goods_code'],$info_list_v['stores_id'],$info_list_v['goods_attr']),true);
-                    $unitData = isset($goodsInfo['unit'])?$goodsInfo['unit']:[];
-                    if(empty($unitData)){
-                        if($examine_set!=1){
-                            return ['status'=>0,'msg'=>'商品信息获取错误'];
-                        }
-                        $this->error('商品信息获取错误');
-                    }else{
-                        foreach ($unitData as $unitData_k=>$unitData_v){
-                            if($unitData_v['id']==$goods['unit_id']){
-                                $balance_unit = $unitData_v['purchase'];
-                            }
-                        }
-                    }
-                    //获取成本单价结束
-
-                    //商品库存
-                    $where = [];
-                    $where['goods_code'] = $info_list_v['goods_code'];
-                    $where['stores_id'] = $info_list_v['stores_id'];
-                    if($info_list_v['goods_attr']>0){
-                        $goods_attr = $info_list_v['goods_attr'];
-                        if($goods_attr>0){
-                            $where['attribute_id'] = $goods_attr;
-                        }
-                    }
-                    $stock = Db::name('kuerp_goods_stock')->where($where)->field('stock,id')->find();
-                    if(empty($stock)){
-                        if($examine_set!=1){
-                            return ['status'=>0,'msg'=>'商品'.$info_list_v['goods_code'].'库存不足'];
-                        }
-                        $this->error('商品'.$info_list_v['goods_code'].'库存不足');
-                    }
-                    $status = false;
-                    foreach ($editstock as $editstock_k=>$editstock_v){
-                        if($editstock_v['id']==$stock['id']){
-                            $editstock[$editstock_k]['stock'] += $info_list_v['retreat_number'];
-                            $status = true;
-                            $balance_cost   = (round($balance_unit*$info_list_v['retreat_number'],4));
-                        }
-                    }
-                    if(!$status){
-                        $editstock[] = [
-                            'id'=>$stock['id'],
-                            'stock'=>(round($stock['stock']+$info_list_v['retreat_number'],2))
-                        ];
-                        $balance_cost   = (round($balance_unit*$info_list_v['retreat_number'],4));
-                    }
-
-                    //收发详情
-                    if($goods){
-                        $goods_stock_log[] = \addons\kuerp\library\Goods::setDataInfo([
-                            'purchase_code' => $info_list_v['purchase_code'],
-                            'purchase_id'   => $info_list_v['id'],
-                            'purchase_time' => $info_list_v['purchase_time'],
-                            'business_type' => '5',
-                            'customer_id'   => $info_list_v['customers_id'],
-                            'goods_id'      => $goods['id'],
-                            'goods_code'    => $info_list_v['goods_code'],
-                            'attribute_id'  => (float)$info_list_v['goods_attr'],
-                            'goods_unit'    => (float)$info_list_v['goods_unit'],
-                            'stores_id'     => (float)$info_list_v['stores_id'],
-                            'remark'        => $info_list_v['remark'],
-                            'enter_number'  => (float)$info_list_v['retreat_number'],
-                            'enter_basics'  => (float)$info_list_v['basic_nmber'],
-                            'enter_unit'    => $balance_unit,
-                            'enter_cost'    => $balance_cost,
-                            'createtime'    => time(),
-                            'updatetime'    => time(),
-                        ]);
-                    }
-                    //收发详情结束
                 }
 
                 if ($list_v['retreat_money']>0){
@@ -1583,108 +1465,11 @@ class GoodsSalesExchange extends Backend
                 unset($info_list_sum[$list_k]['id']);
                 $info_list_sum[$list_k]['createtime']        = time();
                 $info_list_sum[$list_k]['updatetime']        = time();
+                unset($info_list_sum[$list_k]['out_number']); // 退货入库累计数，非 purchase_summary 字段
             }
             $info_list_id = Db::name('kuerp_goods_sales_exchange_info')->where(['purchase_code'=>['in',$purchase_code]])->column('id');
 
-            //批次库存数据
-            //获取设置
-            $set= Db::name('kuerp_sets')->field('type,name,value,is_checked,set')->select();
-            $setList = [];
-            foreach ($set as $set_k=>$set_v){
-                if(!empty($set_v['set'])){
-                    $set_v['set'] = unserialize($set_v['set']);
-                }
-                $setList[$set_v['name']] = $set_v;
-            }
-            //数量价格格式化
-            $number_decimal = $setList['number_decimal']['value'];
-            $goods_serial = Db::name('kuerp_goods_sales_exchange_info')->where(['id'=>['in',$info_list_id]])->select();
-            $goods_batch_add = [];$goods_batch_edit = [];$goods_batch_log = [];
-            foreach ($goods_serial as $k=>$v){
-                $goods = Db::name('kuerp_goods')->where(['goods_code'=>$v['goods_code']])->field('id,goods_name,attribute_id,inventory,unit_id,batch')->find();
-                //先通过单位计算需修改多单位商品的库存数量
-                if($goods['unit_id']==$v['goods_unit']){
-                    $stock_number = $v['retreat_number'];
-                }else{
-                    $unit_conversion = Db::name('kuerp_unit_conversion')->where(['main_unit'=>$goods['unit_id'],'vice_unit'=>$v['goods_unit']])->value('advance_rate');
-                    if(empty($unit_conversion)){
-                        if($examine_set!=1){
-                            return ['status'=>0,'msg'=>'商品单位信息查询失败'];
-                        }
-                        $this->error('商品单位信息查询失败');
-                    }else{
-                        $stock_number = round(($v['retreat_number']*$unit_conversion),$number_decimal);
-                    }
-                }
-
-                $where = [];
-                $where['goods_id'] = $goods['id'];
-                if($v['goods_attr']){
-                    $where['attribute_id'] = $v['goods_attr'];
-                }
-                $where['stores_id'] = $v['stores_id'];
-                $where['batch_id'] = $v['batch_id'];
-                $goods_batch_stock = Db::name('kuerp_goods_batch_stock')->where($where)->find();
-                if(empty($goods_batch_stock)){
-                    $status = false;
-                    foreach ($goods_batch_add as $goods_batch_add_k=>$goods_batch_add_v){
-                        if($goods_batch_add_v['batch_id']==$v['batch_id'] && $goods_batch_add_v['goods_code']==$v['goods_code'] && $goods_batch_add_v['attribute_id']==$v['goods_attr'] && $goods_batch_add_v['stores_id']==$v['stores_id']){
-                            $goods_batch_add[$goods_batch_add_k]['stock'] += $stock_number;
-                            $status = true;
-                        }
-                    }
-                    if(!$status){
-                        $goods_batch_add[] = \addons\kuerp\library\Goods::setDataInfo([
-                            'batch_id' => $v['batch_id'],
-                            'goods_id' => $goods['id'],
-                            'goods_code' => $v['goods_code'],
-                            'attribute_id' => $v['goods_attr'],
-                            'stores_id' => $v['stores_id'],
-                            'stock' => $stock_number,
-                            'createtime' => time(),
-                            'updatetime' => time(),
-                        ]);
-                    }
-                }else{
-                    if(isset($goods_batch_edit[$goods_batch_stock['id']])){
-                        $goods_batch_edit[$goods_batch_stock['id']] += $stock_number;
-                    }else{
-                        $goods_batch_edit[$goods_batch_stock['id']] = $goods_batch_stock['stock']+$stock_number;
-                    }
-                }
-                foreach ($goods_batch_edit as $k2=>$v2){
-                    if($v2<0){
-                        if($examine_set!=1){
-                            return ['status'=>0,'msg'=>'商品'.$goods['goods_name'].'库存不足'];
-                        }
-                        $this->error('商品'.$goods['goods_name'].'库存不足');
-                    }
-                }
-
-                //商品批次跟踪
-                $goods_batch_log[] = \addons\kuerp\library\Goods::setDataInfo([
-                    'goods_id'      => $goods['id'],
-                    'goods_unit'    => $v['goods_unit'],
-                    'stores_id'     => $v['stores_id'],
-                    'batch_id'      => (float)$v['batch_id'],
-                    'number'        => (float)$v['retreat_number'],
-                    'purchase_code' => $v['purchase_code'],
-                    'purchase_time' => $v['purchase_time'],
-                    'business_type' => '5',
-                    'remarks'       => $v['remark'],
-                    'order_id'      => $v['id'],
-                    'unit_price'    => $v['unit_price'],
-                    'tax_included'  => $v['tax_included'],
-                    'all_money'     => $v['all_money'],
-                    'tax_money'     => $v['tax_money'],
-                    'money_tax_price' => $v['money_tax_price'],
-                    'customer_id'   => $v['customers_id'],
-                    'createtime'    => time(),
-                    'updatetime'    => time(),
-                ]);
-                //商品批次跟踪结束
-            }
-            //批次库存数据结束
+            // 批次库存、序列号不再在审核时处理，已移到「退货入库」
 
             //应收账款明细表
             $ex_list = $this->model->where(['id'=>['in',$ids],'examine_status'=>'0'])->select();
@@ -1810,44 +1595,9 @@ class GoodsSalesExchange extends Backend
                     Db::name('kuerp_accounts_receivable')->insertAll($accounts_receivable);
                 }
 
-                //序列号跟踪
-                if(!empty($serial_log)){
-                    Db::name('kuerp_goods_serial_log')->insertAll($serial_log);
-                }
-                if(!empty($goods_stock_log)){
-                    Db::name('kuerp_goods_log')->insertAll($goods_stock_log);
-                }
-                //批次库存数据
-                if(!empty($goods_batch_log)){
-                    Db::name('kuerp_goods_batch_log')->insertAll($goods_batch_log);
-                }
-                if(!empty($goods_batch_add)){
-                    foreach ($goods_batch_add as $goods_batch_add_k=>$goods_batch_add_v){
-                        $where = [];
-                        $where['goods_code'] = $goods_batch_add_v['goods_code'];
-                        $where['stores_id'] = $goods_batch_add_v['stores_id'];
-                        $where['batch_id'] = $goods_batch_add_v['batch_id'];
-                        if($goods_batch_add_v['attribute_id']>0){
-                            $where['attribute_id'] = $goods_batch_add_v['attribute_id'];
-                        }
-                        $stock = Db::name('kuerp_goods_batch_stock')->where($where)->find();
-                        if($stock){
-                            Db::name('kuerp_goods_batch_stock')->where(['id'=>$stock['id']])->inc('stock',$goods_batch_add_v['stock'])->update();
-                        }else{
-                            Db::name('kuerp_goods_batch_stock')->insert($goods_batch_add_v);
-                        }
-                    }
-                }
-                if(!empty($goods_batch_edit)){
-                    foreach ($goods_batch_edit as $k=>$v){
-                        Db::name('kuerp_goods_batch_stock')->where(['id'=>$k])->update(['stock'=>$v]);
-                    }
-                }
-                //批次库存数据结束
+                // 库存/成本/收发明细/序列号/批次已移到仓库「退货入库」，审核只做账务
 
                 if(!empty($info_list_id)){
-                    Db::name('kuerp_goods_batch_salee_info')->where(['purchase_info_id'=>['in',$info_list_id]])->update(['status'=>'1']);
-                    Db::name('kuerp_goods_serial')->where(['sale_exchange_id'=>['in',$info_list_id]])->update(['store_status'=>'1']);
                     Db::name('kuerp_goods_saleexc_info')->where(['exchange_id'=>['in',$info_list_id]])->update(['status'=>'1','times'=>time()]);
                 }
 
@@ -1861,6 +1611,7 @@ class GoodsSalesExchange extends Backend
                     unset($info_list[$info_list_k]['retreat_status']);
                     unset($info_list[$info_list_k]['retreat_number']);
                     unset($info_list[$info_list_k]['retreat_money']);
+                    unset($info_list[$info_list_k]['out_number']); //退货入库累计数量，非 sales_info 字段
                     $info_list[$info_list_k]['createtime'] = time();
                     $info_list[$info_list_k]['updatetime'] = time();
                 }
@@ -1908,12 +1659,6 @@ class GoodsSalesExchange extends Backend
                     }
                 }
                 Db::name('kuerp_goods_excpur_info')->where(['exchange_id'=>['in',$info_list_id]])->update(['status'=>'1','times'=>time()]);
-                if(!empty($editstock)){
-                    (new \app\admin\model\kuerp\GoodsStock())->saveAll($editstock);
-                }
-                if(!empty($goods_stock)){
-                    (new \app\admin\model\kuerp\Goods())->saveAll($goods_stock);
-                }
 
                 $result = $this->model->where(['id'=>['in',$ids],'examine_status'=>'0'])->update(['examine_status'=>1,'examine_id'=>$admin['id'],'examine_time'=>time(),'operation_id'=>$admin['id']]);
                 if(!empty($log)){
@@ -1988,6 +1733,14 @@ class GoodsSalesExchange extends Backend
                     }
                     $this->error('不能反审核已生成核销单的数据');
                 }
+                //已有退货入库记录（库存已加回）时不允许反审核
+                $inboundQty = Db::name('kuerp_goods_sales_exchange_info')->where(['purchase_code'=>$list_v['purchase_code']])->where('out_number','>',0)->count();
+                if($inboundQty>0){
+                    if($examine_set!=1){
+                        return ['status'=>0,'msg'=>'销货退货单'.$list_v['purchase_code'].'已有退货入库记录，不能反审核'];
+                    }
+                    $this->error('销货退货单'.$list_v['purchase_code'].'已有退货入库记录，不能反审核');
+                }
             }
             $purchase_code = $this->model->where(['id'=>['in',$ids],'examine_status'=>'1'])->column('purchase_code');
 
@@ -2034,15 +1787,12 @@ class GoodsSalesExchange extends Backend
                     if(!in_array($info_list_v['purchase_code'],$exchange_info_code)){
                         $exchange_info_code[] = $info_list_v['purchase_code'];
                     }
-                    //商品总库存
+                    // 库存/成本/收发明细/序列号/批次不在审核时处理（已移到「退货入库」），
+                    // 这里只做非基本单位的数量换算，供汇总表回补使用
                     $goods = Db::name('kuerp_goods')->where(['goods_code'=>$info_list_v['goods_code']])->field('id,attribute_id,inventory,unit_id')->find();
-                    //换算单位为基础单位
                     $now_unit = Db::name('kuerp_unit')->where(['id'=>$info_list_v['goods_unit']])->find();
                     if(empty($now_unit)){
                         if($examine_set!=1){
-                            if($examine_set!=1){
-                                return ['status'=>0,'msg'=>'商品单位错误'];
-                            }
                             return ['status'=>0,'msg'=>'商品单位错误'];
                         }
                         $this->error('商品单位错误');
@@ -2057,50 +1807,6 @@ class GoodsSalesExchange extends Backend
                             $info_list_v['retreat_number'] = $info_list_v['retreat_number']*$unit_conversion['advance_rate'];
                             $exchange_info[] = $info_list_v;
                         }
-                    }
-                    $status = false;
-                    foreach ($goods_stock as $goods_stock_k=>$goods_stock_v){
-                        if($goods_stock_v['id']==$goods['id']){
-                            $goods_stock[$goods_stock_k]['inventory'] = $goods_stock_v['inventory']-$info_list_v['retreat_number'];
-                            $status = true;
-                        }
-                    }
-                    if(!$status){
-                        $goods_stock[] = [
-                            'id'=>$goods['id'],
-                            'inventory'=>$goods['inventory']-$info_list_v['retreat_number'],
-                        ];
-                    }
-                    //商品库存
-                    $where = [];
-                    $where['goods_code'] = $info_list_v['goods_code'];
-                    $where['stores_id'] = $info_list_v['stores_id'];
-                    if($info_list_v['goods_attr']>0){
-                        $goods_attr = $info_list_v['goods_attr'];
-                        if($goods_attr>0){
-                            $where['attribute_id'] = $goods_attr;
-                        }
-                    }
-                    $stock = Db::name('kuerp_goods_stock')->where($where)->field('stock,id')->find();
-//                    if($stock['stock']<$info_list_v['retreat_number']){
-//                        if($examine_set!=1){
-//                            return ['status'=>0,'msg'=>$info_list_v['goods_code'].'库存不足'];
-//                        }
-//                        $this->error($info_list_v['goods_code'].'库存不足');
-//                    }
-
-                    $status = false;
-                    foreach ($editstock as $editstock_k=>$editstock_v){
-                        if($editstock_v['id']==$stock['id']){
-                            $editstock[$editstock_k]['stock'] -= $info_list_v['retreat_number'];
-                            $status = true;
-                        }
-                    }
-                    if(!$status){
-                        $editstock[] = [
-                            'id'=>$stock['id'],
-                            'stock'=>(round($stock['stock']-$info_list_v['retreat_number'],2))
-                        ];
                     }
                 }
 
@@ -2139,83 +1845,7 @@ class GoodsSalesExchange extends Backend
             $list = $this->model->where(['id'=>['in',$ids],'examine_status'=>'1'])->column('purchase_code');
             $info_list_id = Db::name('kuerp_goods_sales_exchange_info')->where(['purchase_code'=>['in',$purchase_code]])->column('id');
 
-            //批次库存数据
-            //获取设置
-            $set= Db::name('kuerp_sets')->field('type,name,value,is_checked,set')->select();
-            $setList = [];
-            foreach ($set as $set_k=>$set_v){
-                if(!empty($set_v['set'])){
-                    $set_v['set'] = unserialize($set_v['set']);
-                }
-                $setList[$set_v['name']] = $set_v;
-            }
-            //数量价格格式化
-            $number_decimal = $setList['number_decimal']['value'];
-            $goods_serial = Db::name('kuerp_goods_sales_exchange_info')->where(['id'=>['in',$info_list_id]])->select();
-
-            $goods_batch_add = [];$goods_batch_edit = [];
-            foreach ($goods_serial as $k=>$v){
-                $goods = Db::name('kuerp_goods')->where(['goods_code'=>$v['goods_code']])->field('id,goods_name,attribute_id,inventory,unit_id,batch')->find();
-                //先通过单位计算需修改多单位商品的库存数量
-                if($goods['unit_id']==$v['goods_unit']){
-                    $stock_number = $v['retreat_number'];
-                }else{
-                    $unit_conversion = Db::name('kuerp_unit_conversion')->where(['main_unit'=>$goods['unit_id'],'vice_unit'=>$v['goods_unit']])->value('advance_rate');
-                    if(empty($unit_conversion)){
-                        if($examine_set!=1){
-                            return ['status'=>0,'msg'=>'商品单位信息查询失败'];
-                        }
-                        $this->error('商品单位信息查询失败');
-                    }else{
-                        $stock_number = round(($v['retreat_number']*$unit_conversion),$number_decimal);
-                    }
-                }
-
-                $where = [];
-                $where['goods_id'] = $goods['id'];
-                if($v['goods_attr']){
-                    $where['attribute_id'] = $v['goods_attr'];
-                }
-                $where['stores_id'] = $v['stores_id'];
-                $where['batch_id'] = $v['batch_id'];
-                $goods_batch_stock = Db::name('kuerp_goods_batch_stock')->where($where)->find();
-                if(empty($goods_batch_stock)){
-                    $status = false;
-                    foreach ($goods_batch_add as $goods_batch_add_k=>$goods_batch_add_v){
-                        if($goods_batch_add_v['batch_id']==$v['batch_id'] && $goods_batch_add_v['goods_code']==$v['goods_code'] && $goods_batch_add_v['attribute_id']==$v['goods_attr'] && $goods_batch_add_v['stores_id']==$v['stores_id']){
-                            $goods_batch_add[$goods_batch_add_k]['stock'] -= $stock_number;
-                            $status = true;
-                        }
-                    }
-                    if(!$status){
-                        $goods_batch_add[] = \addons\kuerp\library\Goods::setDataInfo([
-                            'batch_id' => $v['batch_id'],
-                            'goods_id' => $goods['id'],
-                            'goods_code' => $v['goods_code'],
-                            'attribute_id' => $v['goods_attr'],
-                            'stores_id' => $v['stores_id'],
-                            'stock' => $stock_number,
-                            'createtime' => time(),
-                            'updatetime' => time(),
-                        ]);
-                    }
-                }else{
-                    if(isset($goods_batch_edit[$goods_batch_stock['id']])){
-                        $goods_batch_edit[$goods_batch_stock['id']] -= $stock_number;
-                    }else{
-                        $goods_batch_edit[$goods_batch_stock['id']] = $goods_batch_stock['stock']-$stock_number;
-                    }
-                }
-//                foreach ($goods_batch_edit as $k2=>$v2){
-//                    if($v2<0){
-//                        if($examine_set!=1){
-//                            return ['status'=>0,'msg'=>'商品'.$goods['goods_name'].'库存不足'];
-//                        }
-//                        $this->error('商品'.$goods['goods_name'].'库存不足');
-//                    }
-//                }
-            }
-            //批次库存数据结束
+            // 批次库存、序列号不再在审核时处理，已移到「退货入库」
 
             //应收账款明细表
             $ex_list = $this->model->where(['id'=>['in',$ids],'examine_status'=>'1'])->column('purchase_code');
@@ -2247,29 +1877,10 @@ class GoodsSalesExchange extends Backend
                 Db::name('kuerp_cost')->where(['business_type'=>'4','purchase_number'=>['in',$ex_list]])->delete();
                 Db::name('kuerp_accounts_receivable')->where(['business_type'=>'7','purchase_code'=>['in',$ex_list]])->delete();
 
-                //序列号跟踪
-                if(!empty($info_list_id)){
-                    Db::name('kuerp_goods_serial_log')->where(['business_type'=>'5','purchase_id'=>['in',$info_list_id]])->delete();
-                }
-                //收发详情
-                if(!empty($info_list_id)){
-                    Db::name('kuerp_goods_log')->where(['business_type'=>'5','purchase_id'=>['in',$info_list_id]])->delete();
-                }
-                //批次库存数据
-                //删除批次跟踪
-                if(!empty($info_list_id)){
-                    Db::name('kuerp_goods_batch_log')->where(['business_type'=>'5','order_id'=>['in',$info_list_id]])->delete();
-                }
-                if(!empty($goods_batch_edit)){
-                    foreach ($goods_batch_edit as $k=>$v){
-                        Db::name('kuerp_goods_batch_stock')->where(['id'=>$k])->update(['stock'=>$v]);
-                    }
-                }
-                //批次库存数据结束
+                // 库存/成本/收发明细/序列号/批次的反向处理已不在反审核时做（见「退货入库」；
+                // 已有退货入库记录时禁止反审核，所以反审核时不存在这些记录）
 
                 if(!empty($info_list_id)){
-                    Db::name('kuerp_goods_batch_salee_info')->where(['purchase_info_id'=>['in',$info_list_id]])->update(['status'=>'0']);
-                    Db::name('kuerp_goods_serial')->where(['sale_exchange_id'=>['in',$info_list_id]])->update(['store_status'=>'2']);
                     Db::name('kuerp_goods_saleexc_info')->where(['exchange_id'=>['in',$info_list_id]])->update(['status'=>'0','times'=>'']);
                 }
                 if(!empty($exchange_info_code)){
@@ -2293,13 +1904,6 @@ class GoodsSalesExchange extends Backend
                         }
                     }
                 }
-                if(!empty($editstock)){
-                    (new \app\admin\model\kuerp\GoodsStock())->saveAll($editstock);
-                }
-                if(!empty($goods_stock)){
-                    (new \app\admin\model\kuerp\Goods())->saveAll($goods_stock);
-                }
-
                 $result = $this->model->where(['id'=>['in',$ids],'examine_status'=>'1'])->update(['examine_status'=>0,'examine_id'=>0,'examine_time'=>'','operation_id'=>$admin['id']]);
                 Db::name('kuerp_accounts_log')->where(['bill_code'=>['in',$list],'business_type'=>'6'])->delete();
                 if(!empty($accountData)){

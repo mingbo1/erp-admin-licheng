@@ -1642,6 +1642,25 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
                     LODOP.PREVIEW();
                 });
 
+                // 生成退货单/编辑页已有明细：按商品编号回填型号 / 规格2·厂商 / 规格3·封装
+                // （服务端模板这三列只输出空的只读输入框，值由前端从商品档案带出）
+                (function initSpecText() {
+                    var goodsMap = {};
+                    var gl = Config.goodsList || [];
+                    for (var i = 0; i < gl.length; i++) {
+                        if (gl[i] && gl[i].goods_code) { goodsMap[gl[i].goods_code] = gl[i]; }
+                    }
+                    $('.goods_code').each(function () {
+                        var tr = $(this).closest('tr');
+                        var code = $(this).val();
+                        if (!code || !goodsMap[code]) { return; }
+                        var g = goodsMap[code];
+                        tr.find('.goods_specification_id').val(g.goods_specification_id || '');
+                        tr.find('.vendor_name').val(g.vendor_name || '');
+                        tr.find('.packaging').val(g.packaging || '');
+                    });
+                })();
+
                 Form.api.bindevent($("form[role=form]"), function(data, ret){
                     $.ajax( {
                         url: "kuerp/Goods/getMenu",

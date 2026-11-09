@@ -410,7 +410,9 @@ define(['jquery', 'bootstrap', 'backend', 'table', 'form', '/assets/addons/kuerp
             var box = $('#recon-detail');
             if (!box.length) return;
             var reconId = parseInt(box.data('recon-id')) || 0;
-            var uploadUrl = box.data('upload-url');
+            // ⚠️ 上载地址必须在 JS 里拼 ids：{:url('.../uploadfile/ids/' . $id)} 会被 TP5 当成
+            // module/controller/action 三段解析，丢掉 kuerp/purchase_recon 前缀（得到 /uploadfile/ids/N → 404）
+            var uploadUrl = (box.data('upload-url') || '').replace(/\/+$/, '') + '/ids/' + reconId;
             var delUrl = box.data('del-url');
 
             function escapeHtml(s) {

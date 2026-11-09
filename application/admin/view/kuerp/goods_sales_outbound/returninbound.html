@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>退货入库 - {$row.purchase_code|htmlentities}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: "Microsoft YaHei", "SimSun", Arial, sans-serif; font-size: 14px; color: #333; padding: 20px; background: #fff; }
+        .storage-wrap { max-width: 1300px; margin: 0 auto; overflow-x: auto; }
+        .storage-title { text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 20px; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; margin-bottom: 15px; padding: 10px; background: #f9f9f9; border-radius: 4px; }
+        .info-grid .item { padding: 3px 0; }
+        .goods-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        .goods-table th, .goods-table td { padding: 8px; border: 1px solid #ddd; text-align: center; }
+        .goods-table th { background: #f5f5f5; font-weight: bold; font-size: 13px; white-space: nowrap; }
+        .goods-table input.form-control { width: 100px; text-align: center; padding: 4px; border: 1px solid #ccc; border-radius: 3px; }
+        .goods-table input.form-control:focus { border-color: #5fb878; outline: none; }
+        .btn-wrap { text-align: center; margin-top: 20px; }
+        .btn-wrap button { padding: 8px 30px; font-size: 14px; cursor: pointer; margin: 0 10px; border: none; border-radius: 4px; }
+        .btn-submit { background: #5fb878; color: #fff; }
+        .btn-submit:hover { background: #4a9e64; }
+        .btn-close { background: #ccc; color: #333; }
+        .btn-close:hover { background: #b3b3b3; }
+        .highlight { color: #ff5722; font-weight: bold; }
+        .summary-row { text-align: right; margin-bottom: 15px; padding: 10px; background: #f9f9f9; border-radius: 4px; }
+        .summary-row span { margin-left: 15px; font-size: 14px; }
+        .log-panel { margin-top: 25px; border-top: 1px dashed #ddd; padding-top: 15px; }
+        .log-title { font-size: 15px; font-weight: bold; margin-bottom: 10px; }
+        .log-table { width: 100%; border-collapse: collapse; }
+        .log-table th, .log-table td { padding: 7px 8px; border: 1px solid #ddd; text-align: center; font-size: 13px; }
+        .log-table th { background: #f5f5f5; font-weight: bold; }
+        /* 每条操作记录下方展开的明细表格 */
+        .log-detail-row > td { padding: 0; background: #fafafa; text-align: left; }
+        .log-detail-wrap { padding: 6px 10px 10px 22px; }
+        .log-detail-title { font-size: 12px; color: #666; margin: 4px 0 6px; }
+        .log-detail-table { width: 100%; border-collapse: collapse; background: #fff; }
+        .log-detail-table th, .log-detail-table td { padding: 4px 6px; border: 1px solid #e0e0e0; font-size: 12px; text-align: center; }
+        .log-detail-table th { background: #f5f5f5; font-weight: normal; color: #666; }
+        .log-detail-table td.left { text-align: left; }
+        .log-detail-table td.num { text-align: right; }
+        .log-empty { color: #999; padding: 10px 0; }
+    </style>
+</head>
+<body>
+
+<div class="storage-wrap">
+    <div class="storage-title">退货入库</div>
+
+    <div class="info-grid">
+        <div class="item"><strong>销货单号：</strong>{$row.purchase_code|htmlentities}</div>
+        <div class="item"><strong>单据日期：</strong>{$row.purchase_time|date='Y-m-d',###}</div>
+        <div class="item"><strong>客户：</strong>{$row.customer_name|htmlentities}</div>
+        <div class="item"><strong>单据状态：</strong>{if condition="$row.examine_status==1"}已审核{else/}<span class="highlight">未审核</span>{/if}</div>
+    </div>
+
+    <form id="returninbound-form" method="POST" action="{:url('kuerp/goods_sales_outbound/returninbound', ['ids' => $row.id])}">
+        <table class="goods-table">
+            <thead>
+                <tr>
+                    <th>序号</th>
+                    <th>退货单号</th>
+                    <th>商品编号</th>
+                    <th>商品名称</th>
+                    <th>型号</th>
+                    <th>规格2/厂商</th>
+                    <th>规格3/封装</th>
+                    <th>属性</th>
+                    <th>单位</th>
+                    <th>仓库</th>
+                    <th>退货数量</th>
+                    <th>已入库</th>
+                    <th>剩余可入</th>
+                    <th><span style="color:red;">*</span>本次入库数量</th>
+                </tr>
+            </thead>
+            <tbody>
+                {php}$total_retreat = 0;$total_out = 0;$total_remain = 0;{/php}
+                {foreach name="pending_list" item="info" key="k"}
+                {php}
+                    $retreatNum = (float)$info['retreat_number'];
+                    $outNum     = (float)$info['out_number'];
+                    $remainNum  = (float)$info['remain_number'];
+                    $total_retreat += $retreatNum;
+                    $total_out     += $outNum;
+                    $total_remain  += $remainNum;
+                {/php}
+                <tr>
+                    <td>{$k+1}</td>
+                    <td>{$info.exchange_code|htmlentities}</td>
+                    <td>{$info.goods_code|htmlentities}</td>
+                    <td>{$info.goods_name|htmlentities}</td>
+                    <td>{$info.goods_specification_id|htmlentities}</td>
+                    <td>{$info.vendor_name|htmlentities}</td>
+                    <td>{$info.packaging|htmlentities}</td>
+                    <td>{if condition="!empty($info['attr_name'])"}{$info.attr_name|htmlentities}{else/}-{/if}</td>
+                    <td>{$info.unit_name|htmlentities}</td>
+                    <td>{$info.stores_name|htmlentities}</td>
+                    <td>{$retreatNum}</td>
+                    <td>{$outNum}</td>
+                    <td><span class="highlight">{$remainNum}</span></td>
+                    <td>
+                        <input type="number" name="in_data[{$info.id}]" value="0"
+                               class="form-control in-number" step="0.0001" min="0" max="{$remainNum}"
+                               data-remain="{$remainNum}">
+                    </td>
+                </tr>
+                {/foreach}
+                {if condition="empty($pending_list)"}
+                <tr><td colspan="14">没有待入库的退货单明细</td></tr>
+                {/if}
+            </tbody>
+        </table>
+
+        <div class="summary-row">
+            <span>退货总数量：<strong>{$total_retreat}</strong></span>
+            <span>已入库：<strong style="color:#5fb878;">{$total_out}</strong></span>
+            <span>剩余可入：<strong style="color:#ff5722;">{$total_remain}</strong></span>
+            <span>本次入库总数量：<strong id="in-total" class="highlight">0</strong></span>
+        </div>
+
+        <div class="btn-wrap">
+            <button type="submit" class="btn-submit">确认入库</button>
+            <button type="button" class="btn-close" onclick="closeParentLayer()">关闭</button>
+        </div>
+    </form>
+
+    <div class="log-panel">
+        <div class="log-title">入库记录</div>
+        {if condition="!empty($return_log_list)"}
+        <table class="log-table">
+            <thead>
+                <tr>
+                    <th style="width:160px;">入库时间</th>
+                    <th style="width:190px;">退货单号</th>
+                    <th style="width:120px;">本次入库数量</th>
+                    <th style="width:90px;">操作人</th>
+                </tr>
+            </thead>
+            <tbody>
+                {foreach name="return_log_list" item="log"}
+                <tr>
+                    <td>{$log.createtime|date='Y-m-d H:i:s',###}</td>
+                    <td>{$log.exchange_codes|htmlentities}</td>
+                    <td class="highlight">{$log.total_number}</td>
+                    <td>{$log.admin_name|htmlentities}</td>
+                </tr>
+                {/* 本次入库明细：每个商品一行（表格形式） */}
+                <tr class="log-detail-row">
+                    <td colspan="4">
+                        <div class="log-detail-wrap">
+                            <div class="log-detail-title">本次入库明细</div>
+                            {if condition="!empty($log['detail_list'])"}
+                            <table class="log-detail-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width:60px;">序号</th>
+                                        <th style="width:170px;">退货单号</th>
+                                        <th style="width:150px;">商品编号</th>
+                                        <th>商品名称</th>
+                                        <th style="width:130px;">仓库</th>
+                                        <th style="width:90px;">单位</th>
+                                        <th style="width:120px;">数量</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {foreach name="log.detail_list" item="d" key="dk"}
+                                    <tr>
+                                        <td>{$dk+1}</td>
+                                        <td>{$d.exchange_code|default=''|htmlentities}</td>
+                                        <td>{$d.goods_code|default=''|htmlentities}</td>
+                                        <td class="left">{$d.goods_name|default=''|htmlentities}</td>
+                                        <td>{$d.stores_name|default=''|htmlentities}</td>
+                                        <td>{$d.unit_name|default=''|htmlentities}</td>
+                                        <td class="num">{$d.number|default=''}</td>
+                                    </tr>
+                                    {/foreach}
+                                </tbody>
+                            </table>
+                            {else/}
+                            <span style="color:#999;font-size:12px;">无明细</span>
+                            {/if}
+                        </div>
+                    </td>
+                </tr>
+                {/foreach}
+            </tbody>
+        </table>
+        {else}
+        <p class="log-empty">暂无入库记录（提交入库后自动生成）</p>
+        {/if}
+    </div>
+</div>
+
+<script src="/assets/js/backend/kuerp/goods_return_inbound_layer.js?v={:time()}"></script>
+
+</body>
+</html>

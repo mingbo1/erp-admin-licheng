@@ -2,13 +2,16 @@
 <style>
     /* 图片列统一缩略图盒子：原图再大也不撑高行，避免左侧固定列（类别名称）与右侧字段错位 */
     .cat-thumb { display: inline-block; width: 40px; height: 40px; object-fit: contain; vertical-align: middle; background: #fafafa; border-radius: 3px; box-sizing: border-box; }
+    /* 类别名称按层级缩进（&nbsp;├─ 前缀）展示，单元格内容强制左对齐，上下级一眼可见；
+       kuerp.css 里 `.list table th,td{text-align:center}` 的 td 部分是全局生效的，故在此按 field 单独覆盖 */
+    .layui-table-body td[data-field="title"],
+    .layui-table-body td[data-field="title"] .layui-table-cell { text-align: left; }
 </style>
 <div class="panel panel-default panel-intro">
     <div class="panel-body">
         <div id="myTabContent" class="tab-content">
             <div class="tab-pane fade active in" id="one">
                 <div class="widget-body no-padding">
-
                     <script type="text/html" id="thisToolbar">
                         <div class="layui-btn-container">
                            <button class="layui-btn layui-icon-btn layui-btn-sm layui-bg-cyan btn-refresh" lay-event="refresh"><i class="layui-icon">&#xe669;</i> {:__('Refresh')}</button>

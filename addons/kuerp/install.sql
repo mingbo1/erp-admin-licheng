@@ -5220,6 +5220,7 @@ CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_sales_exchange_info` (
   `pay_money` float(11,2) DEFAULT '0.00' COMMENT '已付款金额',
   `retreat_status` float(11,2) DEFAULT '0.00' COMMENT '退款状态:0=未退款,1=全部退款,2=部分退款',
   `retreat_number` float(11,2) DEFAULT '0.00' COMMENT '退货数量',
+  `out_number` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '累计退货入库数量(单据单位)',
   `retreat_money` float(11,2) DEFAULT '0.00' COMMENT '退款金额',
   `account` int(11) DEFAULT NULL COMMENT '付款账户',
   `print_num` int(11) DEFAULT '0' COMMENT '打印次数',
@@ -7895,3 +7896,72 @@ WHERE `rules` <> '*'
 -- migration_remove_purchase_print_terms.sql 清理，重复执行安全）
 --
 DELETE FROM `__PREFIX__kuerp_sets` WHERE `name` IN ('purchase_print_receipt', 'purchase_print_payment');
+
+--
+-- 1.6.42
+-- 计划排期列表的「审核/反审核」下线（审核改由销货单列表完成），
+-- 对应权限规则 kuerp/goods_sales_schedule/examine 一并删除
+-- （已安装的库由 migration_remove_sales_schedule_examine.sql 清理角色 rules 串，重复执行安全）
+--
+DELETE FROM `__PREFIX__auth_rule` WHERE `name` = 'kuerp/goods_sales_schedule/examine';
+
+--
+-- 1.6.43
+-- 排产管理（kuerp/production_manage）：计划排期的只读副本，仅显示已排产单据，
+-- 工具栏只有 刷新/导出，行操作只有 查看详情（新增/编辑/删除后端拦截）。
+-- 已安装的库由 migration_add_production_manage.sql 建菜单并授予角色，重复执行安全。
+--
+INSERT INTO `__PREFIX__auth_rule`
+  (`type`, `pid`, `name`, `title`, `icon`, `url`, `condition`, `remark`, `ismenu`, `menutype`, `extend`, `py`, `pinyin`, `createtime`, `updatetime`, `weigh`, `status`)
+SELECT '1', `id`, 'kuerp/production_manage/index', '查看', 'fa fa-circle-o', '', '', '', '0', NULL, '', 'ck', 'chakan', UNIX_TIMESTAMP(), UNIX_TIMESTAMP(), '0', 'normal'
+FROM `__PREFIX__auth_rule`
+WHERE `name` = 'kuerp/production_manage'
+LIMIT 1;
+
+INSERT INTO `__PREFIX__auth_rule`
+  (`type`, `pid`, `name`, `title`, `icon`, `url`, `condition`, `remark`, `ismenu`, `menutype`, `extend`, `py`, `pinyin`, `createtime`, `updatetime`, `weigh`, `status`)
+SELECT '1', `id`, 'kuerp/production_manage/detail', '查看详情', 'fa fa-circle-o', '', '', '', '0', NULL, '', 'ckxq', 'chakanxiangqing', UNIX_TIMESTAMP(), UNIX_TIMESTAMP(), '0', 'normal'
+FROM `__PREFIX__auth_rule`
+WHERE `name` = 'kuerp/production_manage'
+LIMIT 1;
+
+INSERT INTO `__PREFIX__auth_rule`
+  (`type`, `pid`, `name`, `title`, `icon`, `url`, `condition`, `remark`, `ismenu`, `menutype`, `extend`, `py`, `pinyin`, `createtime`, `updatetime`, `weigh`, `status`)
+SELECT '1', `id`, 'kuerp/production_manage/export', '导出', 'fa fa-circle-o', '', '', '', '0', NULL, '', 'dc', 'daochu', UNIX_TIMESTAMP(), UNIX_TIMESTAMP(), '0', 'normal'
+FROM `__PREFIX__auth_rule`
+WHERE `name` = 'kuerp/production_manage'
+LIMIT 1;
+
+--
+-- 1.6.44
+-- 销货退货单：仓库「退货入库」（2026-11-09）
+--   退货单审核只做账务，库存/成本/收发明细/序列号/批次在「销货单出库 → 退货入库」时增加。
+--   明细表 out_number 已在建表语句中添加（老库由 migration_add_goods_return_inbound.sql 补列）。
+--
+CREATE TABLE IF NOT EXISTS `__PREFIX__kuerp_goods_return_inbound_log` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `sales_id` int(11) NOT NULL DEFAULT '0' COMMENT '销货单ID (kuerp_goods_sales.id)',
+  `sales_code` varchar(50) NOT NULL DEFAULT '' COMMENT '销货单号',
+  `exchange_codes` varchar(255) NOT NULL DEFAULT '' COMMENT '本次涉及的退货单号(逗号分隔)',
+  `total_number` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '本次入库总数量(单据单位)',
+  `total_basics` double(15,4) NOT NULL DEFAULT '0.0000' COMMENT '本次入库总数量(基本单位)',
+  `detail` text COMMENT '本次入库明细JSON',
+  `admin_id` int(11) NOT NULL DEFAULT '0' COMMENT '操作人',
+  `createtime` bigint(16) DEFAULT NULL COMMENT '操作时间',
+  PRIMARY KEY (`id`),
+  KEY `sales_id` (`sales_id`),
+  KEY `sales_code` (`sales_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='销货退货入库操作记录';
+
+INSERT INTO `__PREFIX__auth_rule`
+  (`type`, `pid`, `name`, `title`, `icon`, `url`, `condition`, `remark`, `ismenu`, `menutype`, `extend`, `py`, `pinyin`, `createtime`, `updatetime`, `weigh`, `status`)
+SELECT '1', `id`, 'kuerp/goods_sales_outbound/returninbound', '退货入库', 'fa fa-sign-in', '', '', '', '0', NULL, '', 'thrk', 'tuihuoruku', UNIX_TIMESTAMP(), UNIX_TIMESTAMP(), '0', 'normal'
+FROM `__PREFIX__auth_rule`
+WHERE `name` = 'kuerp/goods_sales_outbound'
+LIMIT 1;
+
+UPDATE `__PREFIX__auth_group`
+SET `rules` = TRIM(BOTH ',' FROM CONCAT(COALESCE(`rules`,''), ',', (SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_outbound/returninbound')))
+WHERE `rules` <> '*'
+  AND (FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_outbound/index'), `rules`))
+  AND NOT FIND_IN_SET((SELECT `id` FROM `__PREFIX__auth_rule` WHERE `name`='kuerp/goods_sales_outbound/returninbound'), `rules`);
